@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ShowStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+enum ProductStatus {
+  PENDING
+  ACTIVE
+  SOLD
+  UNSOLD
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  username         String   @unique
+  avatarUrl        String?
+  bio              String?
+  role             Role     @default(USER)
+  stripeCustomerId String?
+  stripeAccountId  String?
+  verified         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  shows    Show[]
+  products Product[]  @relation("SellerProducts")
+  bids      Bid[]
+  orders    Order[]    @relation("BuyerOrders")
+  sales     Order[]    @relation("SellerOrders")
+  followers Follower[] @relation("SellerFollowers")
+  following Follower[] @relation("UserFollowing")
+}
+
+model Show {
+  id            String     @id @default(cuid())
+  title         String
+  sellerId      String
+  seller        User       @relation(fields: [sellerId], references: [id])
+  status        ShowStatus @default(SCHEDULED)
+  category      String?
+  thumbnailUrl  String?
+  muxStreamId   String?
+  muxPlaybackId String?
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  endedAt       DateTime?
+  viewerCount   Int        @default(0)
+  createdAt     DateTime   @default(now())
+
+  products Product[]
+  bids     Bid[]
+}
+
+model Product {
+  id              String        @id @default(cuid())
+  showId          String?
+  show            Show?         @relation(fields: [showId], references: [id])
+  sellerId        String
+  seller          User          @relation("SellerProducts", fields: [sellerId], references: [id])
+  name            String
+  saleType        String        @default("live")
+  description     String?
+  imageUrl        String?
+  category        String?
+  alakategoria    String?
+  condition       String?
+  startPrice      Float
+  reservePrice    Float?
+  buyNowPrice     Float?
+  finalPrice      Float?
+  auctionDuration Int?
+  quantity        Int           @default(1)
+  pakettikoko     String?
+  status          ProductStatus @default(PENDING)
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  bids      Bid[]
+  orderItem Order?
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  showId    String
+  show      Show     @relation(fields: [showId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  productId             String      @unique
+  product               Product     @relation(fields: [productId], references: [id])
+  buyerId               String
+  buyer                 User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId              String
+  seller                User        @relation("SellerOrders", fields: [sellerId], references: [id])
+  amount                Float
+  commission            Float
+  shippingCost          Float       @default(0)
+  status                OrderStatus @default(PENDING)
+  stripePaymentIntentId String?
+  trackingCode          String?
+  shippingProofUrl      String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
+model Follower {
+  id         String   @id @default(cuid())
+  sellerId   String
+  seller     User     @relation("SellerFollowers", fields: [sellerId], references: [id])
+  followerId String
+  follower   User     @relation("UserFollowing", fields: [followerId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([sellerId, followerId])
+}
