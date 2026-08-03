@@ -1,0 +1,222 @@
+'use client'
+import { useState, useEffect, use } from 'react'
+import Link from 'next/link'
+import Navbar from '@/components/layout/Navbar'
+import Footer from '@/components/layout/Footer'
+import { useTheme } from '@/lib/theme-context'
+import { useLang } from '@/lib/lang-context'
+import { KATEGORIAT, getKatNimi } from '@/lib/kategoriat'
+import { api } from '@/lib/api'
+
+export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const { C } = useTheme()
+  const { t, lang } = useLang()
+  const [product, setProduct] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeImg, setActiveImg] = useState(0)
+  const [added, setAdded] = useState(false)
+  const [showContact, setShowContact] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [qty, setQty] = useState(1)
+  const [zoomed, setZoomed] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    console.log('Haetaan tuote id:', id)
+    api.getProduct(id)
+      .then(data => { console.log('Tuote saatu:', data?.name); setProduct(data) })
+      .catch(e => { console.error('Virhe:', e); setProduct(null) })
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: C.bg }}>
+      <Navbar />
+      <div style={{ textAlign: 'center', padding: 60, color: C.muted }}>Ladataan...</div>
+    </div>
+  )
+
+  if (!product) return (
+    <div style={{ minHeight: '100vh', background: C.bg }}>
+      <Navbar />
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <div style={{ color: C.muted, marginBottom: 16 }}>Tuotetta ei löydy</div>
+        <Link href="/selaa" style={{ color: C.accent }}>← Takaisin</Link>
+      </div>
+    </div>
+  )
+
+  const kat = KATEGORIAT.find(k => k.id === product.category)
+  const images: string[] = product.imageUrl
+    ? product.imageUrl.split('|||').filter((s: string) => s.length > 0)
+    : []
+
+  function buyNow() {
+    setAdded(true)
+    setTimeout(() => setAdded(false), 3000)
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg }}>
+      <Navbar />
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px' }}>
+
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, fontSize: 13, color: C.muted, flexWrap: 'wrap' }}>
+          <Link href="/" style={{ color: C.muted }}>{t.product.breadcrumbHome}</Link>
+          <span>›</span>
+          <Link href="/selaa" style={{ color: C.muted }}>{t.product.breadcrumbBrowse}</Link>
+          {kat && <><span>›</span><Link href={`/selaa?kategoria=${product.category}`} style={{ color: C.muted }}>{getKatNimi(kat, lang as any)}</Link></>}
+          <span>›</span>
+          <span style={{ color: C.text, fontWeight: 500 }}>{product.name}</span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 40, alignItems: 'start' }}>
+
+          {/* Kuvat */}
+          <div>
+            <div style={{ borderRadius: 12, overflow: 'hidden', background: C.surface, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, maxHeight: 520, cursor: images.length > 0 ? 'zoom-in' : 'default' }}
+              onClick={() => images.length > 0 && setZoomed(true)}>
+              {images.length > 0
+                ? <img src={images[activeImg]} alt={product.name} style={{ width: '100%', maxHeight: 520, objectFit: 'contain', display: 'block' }} />
+                : <div style={{ color: C.muted, fontSize: 14, padding: 40 }}>Ei kuvaa</div>
+              }
+            </div>
+            {images.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {images.map((img: string, i: number) => (
+                  <div key={i} onClick={() => setActiveImg(i)} style={{ width: 72, height: 72, borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${activeImg === i ? C.accent : C.border}` }}>
+                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tiedot */}
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              {kat && <span style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, padding: '3px 10px', borderRadius: 6 }}>{getKatNimi(kat, lang as any)}</span>}
+              {product.condition && <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.condition}</span>}
+              {product.saleType === 'live' && <span style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', color: '#CC0000', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>Live-huutokauppa</span>}
+            </div>
+
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 16, lineHeight: 1.3 }}>{product.name}</h1>
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: C.text, marginBottom: 4 }}>
+                {(product.buyNowPrice ?? product.startPrice).toLocaleString('fi-FI')}€
+              </div>
+              {product.pakettikoko && product.pakettikoko !== 'nouto' && (
+                <div style={{ fontSize: 13, color: C.muted }}>+ {t.product.delivery}</div>
+              )}
+              {product.pakettikoko === 'nouto' && (
+                <div style={{ fontSize: 13, color: C.muted }}>Nouto myyjältä</div>
+              )}
+            </div>
+
+            {product.saleType !== 'live' ? (
+              <>
+                {product.quantity > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, color: C.muted }}>Määrä:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{ width: 32, height: 32, borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: C.text, minWidth: 24, textAlign: 'center' }}>{qty}</span>
+                      <button onClick={() => setQty(q => Math.min(product.quantity, q + 1))} style={{ width: 32, height: 32, borderRadius: 6, border: `1px solid ${C.border}`, background: C.surface, color: C.text, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                    </div>
+                    <span style={{ fontSize: 12, color: C.muted }}>(max {product.quantity})</span>
+                  </div>
+                )}
+                {added ? (
+                  <div style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, padding: '14px', textAlign: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.accent, marginBottom: 4 }}>{t.product.addedToCart}</div>
+                    <div style={{ fontSize: 13, color: C.muted }}>{t.product.checkoutSoon}</div>
+                  </div>
+                ) : (
+                  <button onClick={buyNow} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>
+                    {t.product.buyNow} {qty > 1 ? `(${qty} kpl)` : ''}
+                  </button>
+                )}
+              </>
+            ) : (
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', textAlign: 'center', marginBottom: 10, color: C.muted, fontSize: 14 }}>
+                Tämä tuote myydään live-lähetyksessä
+              </div>
+            )}
+
+            <button onClick={() => setShowContact(s => !s)} style={{ width: '100%', background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, padding: '12px', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer', marginBottom: 10 }}>
+              {t.product.askSeller}
+            </button>
+
+            <button onClick={() => {
+              navigator.clipboard.writeText(window.location.href)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }} style={{ width: '100%', background: C.surface, border: `1px solid ${C.border}`, color: copied ? C.accent : C.textSub, padding: '12px', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer', marginBottom: 20 }}>
+              {copied ? '✓ Linkki kopioitu!' : 'Jaa tuote'}
+            </button>
+
+            {showContact && (
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', marginBottom: 20 }}>
+                <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Kirjoita viestisi myyjälle..." rows={3} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
+                <button style={{ marginTop: 8, background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.product.sendMessage}</button>
+              </div>
+            )}
+
+            {/* Myyjä */}
+            {product.seller && (
+              <Link href={`/u/${product.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', textDecoration: 'none', marginBottom: 20 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {product.seller.username?.[0]?.toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>@{product.seller.username}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>{product.seller.name}</div>
+                </div>
+                <span style={{ fontSize: 13, color: C.accent }}>{t.product.sellerProfile}</span>
+              </Link>
+            )}
+
+            {/* Toimitus */}
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{t.product.shippingInfo}</div>
+              {[t.product.shipIn24, t.product.binding, t.product.trackingCode].map(line => (
+                <div key={line} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6, fontSize: 13, color: C.textSub }}>
+                  <span style={{ color: C.accent, flexShrink: 0 }}>✓</span>{line}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Kuvaus */}
+        {product.description && (
+          <div style={{ marginTop: 40, maxWidth: 600 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: C.text, marginBottom: 12 }}>{t.product.description}</h2>
+            <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7 }}>{product.description}</p>
+          </div>
+        )}
+      </div>
+      <Footer />
+
+      {/* Suurennusnäkymä */}
+      {zoomed && (
+        <div onClick={() => setZoomed(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 20 }}>
+          <img src={images[activeImg]} alt={product.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+          <button onClick={() => setZoomed(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: 40, height: 40, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          {images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 20, display: 'flex', gap: 8 }}>
+              {images.map((img, i) => (
+                <div key={i} onClick={e => { e.stopPropagation(); setActiveImg(i) }} style={{ width: 50, height: 50, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${activeImg === i ? '#fff' : 'rgba(255,255,255,0.3)'}` }}>
+                  <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

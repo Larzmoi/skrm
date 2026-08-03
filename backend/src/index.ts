@@ -5,6 +5,9 @@ import { Server } from 'socket.io'
 import * as dotenv from 'dotenv'
 import authRouter from './routes/auth'
 import productsRouter from './routes/products'
+import showsRouter from './routes/shows'
+import usersRouter from './routes/users'
+import { setupSocket } from './socket'
 
 dotenv.config()
 
@@ -19,13 +22,12 @@ app.use(express.json({ limit: '10mb' }))
 
 app.use('/auth', authRouter)
 app.use('/products', productsRouter)
+app.use('/shows', showsRouter)
+app.use('/users', usersRouter)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 
-io.on('connection', (socket) => {
-  console.log('Yhdistyi:', socket.id)
-  socket.on('disconnect', () => console.log('Poistui:', socket.id))
-})
+setupSocket(io)
 
 const PORT = process.env.PORT || 4000
 httpServer.listen(PORT, () => console.log(`SKRM backend käynnissä portilla ${PORT}`))

@@ -32,8 +32,9 @@ router.get('/mine', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // GET /products/:id
 router.get('/:id', async (req, res) => {
+  const id = String(req.params.id)
   const product = await prisma.product.findUnique({
-    where: { id: req.params.id },
+    where: { id },
     include: { seller: { select: { id: true, name: true, username: true } } },
   })
   if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
@@ -63,10 +64,11 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // PUT /products/:id
 router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const product = await prisma.product.findUnique({ where: { id: req.params.id } })
+  const id = String(req.params.id)
+  const product = await prisma.product.findUnique({ where: { id } })
   if (!product || product.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   const updated = await prisma.product.update({
-    where: { id: req.params.id },
+    where: { id },
     data: {
       name: req.body.name, saleType: req.body.saleType,
       startPrice: req.body.startPrice ? Number(req.body.startPrice) : undefined,
@@ -84,9 +86,10 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // DELETE /products/:id
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const product = await prisma.product.findUnique({ where: { id: req.params.id } })
+  const id = String(req.params.id)
+  const product = await prisma.product.findUnique({ where: { id } })
   if (!product || product.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  await prisma.product.delete({ where: { id: req.params.id } })
+  await prisma.product.delete({ where: { id } })
   res.json({ ok: true })
 })
 

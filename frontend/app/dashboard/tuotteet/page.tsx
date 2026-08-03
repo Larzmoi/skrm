@@ -1,0 +1,376 @@
+'use client'
+import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useTheme } from '@/lib/theme-context'
+import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { api } from '@/lib/api'
+import { resizeImage } from '@/lib/imageUtils'
+import { useLang } from '@/lib/lang-context'
+
+const PAKETTIKOOT = [
+  { id: 'xxs', nimi: 'Pikkupaketti (XXS)', mitat: '3×25×35 cm', hinta: 9.90 },
+  { id: 's', nimi: 'S-paketti', mitat: '11×32×42 cm', hinta: 11.90 },
+  { id: 'm', nimi: 'M-paketti', mitat: '19×36×60 cm', hinta: 13.90 },
+  { id: 'l', nimi: 'L-paketti', mitat: '37×36×60 cm', hinta: 18.90 },
+  { id: 'xl', nimi: 'XL-paketti', mitat: '100×60×40 cm', hinta: 24.90 },
+  { id: 'xxl', nimi: 'XXL-paketti', mitat: 'max 200 cm', hinta: 46.90 },
+  { id: 'nouto', nimi: 'Nouto myyjältä', mitat: '', hinta: 0 },
+]
+
+const KUNTOLUOKAT = [
+  { id: 'uusi', nimi: 'Uusi' },
+  { id: 'erinomainen', nimi: 'Erinomainen' },
+  { id: 'hyva', nimi: 'Hyvä' },
+  { id: 'tyydyttava', nimi: 'Tyydyttävä' },
+  { id: 'kaytetty', nimi: 'Käytetty' },
+]
+
+type SaleType = 'live' | 'buy_now' | 'both'
+
+interface Product {
+  id: string; name: string; saleType: SaleType
+  startPrice: number; buyNowPrice?: number; reservePrice?: number
+  auctionDuration?: number; quantity: number; condition?: string
+  description?: string; imageUrl?: string; category?: string
+  alakategoria?: string; pakettikoko?: string; status: string
+}
+
+export default function TuotteetPage() {
+  const { C } = useTheme()
+  const { lang } = useLang()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const [saleType, setSaleType] = useState<SaleType>('live')
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState('')
+  const [alakategoria, setAlakategoria] = useState('')
+  const [condition, setCondition] = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [description, setDescription] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [pakettikoko, setPakettikoko] = useState('')
+  const [startPrice, setStartPrice] = useState('')
+  const [buyNowPrice, setBuyNowPrice] = useState('')
+  const [reservePrice, setReservePrice] = useState('')
+  const [auctionDuration, setAuctionDuration] = useState('')
+
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { loadProducts() }, [])
+
+  async function loadProducts() {
+    try {
+      setLoading(true)
+      const data = await api.getMyProducts()
+      setProducts(data)
+    } catch { setError('Tuotteiden lataus epäonnistui') }
+    finally { setLoading(false) }
+  }
+
+  function reset() {
+    setSaleType('live'); setName(''); setCategory(''); setAlakategoria('')
+    setCondition(''); setQuantity('1'); setDescription(''); setImages([])
+    setPakettikoko(''); setStartPrice(''); setBuyNowPrice(''); setReservePrice('')
+    setAuctionDuration(''); setError(''); setEditId(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function openEdit(p: Product) {
+    setEditId(p.id); setSaleType(p.saleType); setName(p.name)
+    setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? '')
+    setCondition(p.condition ?? ''); setQuantity(String(p.quantity ?? 1))
+    setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
+    setPakettikoko(p.pakettikoko ?? ''); setStartPrice(String(p.startPrice))
+    setBuyNowPrice(p.buyNowPrice ? String(p.buyNowPrice) : '')
+    setReservePrice(p.reservePrice ? String(p.reservePrice) : '')
+    setAuctionDuration(p.auctionDuration ? String(p.auctionDuration) : '')
+    setError(''); setShowForm(true)
+  }
+
+  async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (images.length + files.length > 6) { setError('Max 6 kuvaa'); return }
+    for (const f of files) {
+      const r = new FileReader()
+      await new Promise<void>(res => {
+        r.onload = async () => {
+          const resized = await resizeImage(r.result as string)
+          setImages(prev => [...prev, resized])
+          res()
+        }
+        r.readAsDataURL(f)
+      })
+    }
+    if (fileRef.current) fileRef.current.value = ''
+  }
+  function removeImage(i: number) {
+    setImages(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  async function save() {
+    if (!name.trim()) { setError('Syötä tuotteen nimi'); return }
+    if (!startPrice || Number(startPrice) <= 0) { setError('Syötä hinta'); return }
+    setError(''); setSaving(true)
+
+    const data = {
+      name: name.trim(), saleType,
+      startPrice: Number(startPrice),
+      buyNowPrice: buyNowPrice ? Number(buyNowPrice) : undefined,
+      reservePrice: reservePrice ? Number(reservePrice) : undefined,
+      auctionDuration: auctionDuration ? Number(auctionDuration) : undefined,
+      quantity: Number(quantity) || 1,
+      condition: condition || undefined, category: category || undefined,
+      alakategoria: alakategoria || undefined, pakettikoko: pakettikoko || undefined,
+      description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
+    }
+
+    try {
+      if (editId) {
+        await api.updateProduct(editId, data)
+      } else {
+        await api.createProduct(data)
+      }
+      await loadProducts()
+      setShowForm(false); reset()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteProduct(id: string) {
+    try {
+      await api.deleteProduct(id)
+      setProducts(p => p.filter(x => x.id !== id))
+    } catch (e: any) { setError(e.message) }
+  }
+
+  const currentKat = KATEGORIAT.find(k => k.id === category)
+  const paketti = PAKETTIKOOT.find(p => p.id === pakettikoko)
+  const pending = products.filter(p => p.status === 'PENDING')
+
+  const inp: React.CSSProperties = { width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }
+  const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4 }
+
+  const saleTypeOptions = [
+    { id: 'live' as SaleType, label: 'Live-huutokauppa', desc: 'Myydään lähetyksessä' },
+    { id: 'buy_now' as SaleType, label: 'Suoramyynti', desc: 'Kiinteä hinta, ostaa koska vain' },
+    { id: 'both' as SaleType, label: 'Molemmat', desc: 'Suoramyynti + live-huutokauppa' },
+  ]
+
+  const saleLabel: Record<string, { label: string; color: string; bg: string }> = {
+    live: { label: 'Live', color: C.accent, bg: C.accentLight },
+    buy_now: { label: 'Suoramyynti', color: '#007AFF', bg: '#E8F0FF' },
+    both: { label: 'Live + Suora', color: '#F59E0B', bg: '#FFF8E8' },
+  }
+
+  return (
+    <div style={{ color: C.text }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Tuotteet</h1>
+          <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} aktiivista tuotetta</p>
+        </div>
+        <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          + Lisää tuote
+        </button>
+      </div>
+
+      {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13 }}>{error}</div>}
+
+      {/* Lomake */}
+      {showForm && (
+        <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '20px', marginBottom: 24 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? 'Muokkaa tuotetta' : 'Uusi tuote'}</h3>
+
+          {/* Myyntitapa */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={lbl}>Myyntitapa *</label>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {saleTypeOptions.map(opt => (
+                <button key={opt.id} type="button" onClick={() => setSaleType(opt.id)} style={{ flex: 1, minWidth: 150, padding: '12px 14px', borderRadius: 8, border: `2px solid ${saleType === opt.id ? C.accent : C.border}`, background: saleType === opt.id ? C.accentLight : C.surface, cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: saleType === opt.id ? C.accent : C.text, marginBottom: 3 }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 16, marginBottom: 14 }}>
+            {/* Kuva */}
+            <div>
+              <label style={lbl}>Kuva</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                  {images.map((img, i) => (
+                    <div key={i} style={{ aspectRatio: '1', borderRadius: 7, overflow: 'hidden', position: 'relative' }}>
+                      <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                    </div>
+                  ))}
+                  {images.length < 6 && (
+                    <div onClick={() => fileRef.current?.click()} style={{ aspectRatio: '1', borderRadius: 7, border: `2px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ fontSize: 20, color: C.muted }}>+</div>
+                      <div style={{ fontSize: 9, color: C.dim }}>{images.length}/6</div>
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 10, color: C.dim, textAlign: 'center' }}>Max 6 kuvaa · 2MB/kpl</div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImage} style={{ display: 'none' }} />
+            </div>
+
+            {/* Perustiedot */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div><label style={lbl}>Tuotteen nimi *</label><input value={name} onChange={e => setName(e.target.value)} placeholder="esim. Charizard Holo PSA 9" style={inp} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={lbl}>Kategoria</label>
+                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={inp}>
+                    <option value="">Valitse...</option>
+                    {KATEGORIAT.map(k => <option key={k.id} value={k.id}>{k.nimi.fi}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>Alakategoria</label>
+                  <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={inp} disabled={!currentKat || currentKat.alakategoriat.length === 0}>
+                    <option value="">Valitse...</option>
+                    {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={lbl}>Kunto</label>
+                  <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
+                    <option value="">Valitse...</option>
+                    {KUNTOLUOKAT.map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Määrä</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hinnoittelu */}
+          <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Hinnoittelu</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              <div>
+                <label style={lbl}>{saleType === 'buy_now' ? 'Myyntihinta (€) *' : 'Lähtöhinta (€) *'}</label>
+                <input type="number" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0" style={inp} />
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? 'Kiinteä myyntihinta' : 'Huutokaupan aloitushinta'}</div>
+              </div>
+              {saleType === 'both' && (
+                <div>
+                  <label style={lbl}>Osta heti -hinta (€)</label>
+                  <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder="Ohita huutokauppa" style={inp} />
+                </div>
+              )}
+              {saleType !== 'buy_now' && (
+                <div>
+                  <label style={lbl}>Varaushinta (€)</label>
+                  <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder="Piilotettu minimi" style={inp} />
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Ostajalle ei näytetä</div>
+                </div>
+              )}
+              {saleType !== 'buy_now' && (
+                <div>
+                  <label style={lbl}>Huutokaupan kesto</label>
+                  <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                    {[60, 120, 300].map(s => (
+                      <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
+                        {s / 60}min
+                      </button>
+                    ))}
+                  </div>
+                  <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder="sekunteina" style={inp} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Toimitus */}
+          <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Toimitus</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {PAKETTIKOOT.map(p => (
+                <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontWeight: 600 }}>{p.nimi}</div>
+                  {p.hinta > 0 && <div style={{ fontSize: 11, opacity: 0.85 }}>{p.hinta.toFixed(2)}€</div>}
+                </button>
+              ))}
+            </div>
+            {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Ostaja maksaa <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={lbl}>Kuvaus</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="esim. Base Set 1st Edition, NM kunto" rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={save} disabled={saving} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+              {saving ? 'Tallennetaan...' : editId ? 'Tallenna muutokset' : 'Lisää tuote'}
+            </button>
+            <button onClick={() => { setShowForm(false); reset() }} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 7, fontSize: 14, cursor: 'pointer' }}>
+              Peruuta
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tuotelista */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
+      ) : pending.length > 0 ? (
+        <div style={{ marginBottom: 28 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Aktiiviset ({pending.length})</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pending.map((p, i) => {
+              const kat = KATEGORIAT.find(k => k.id === p.category)
+              const ala = kat?.alakategoriat.find(a => a.id === p.alakategoria)
+              const sl = saleLabel[p.saleType] ?? saleLabel.live
+              return (
+                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 7, background: C.surface2, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18, color: C.muted }}>+</span>}
+                  </div>
+                  <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <span>{p.startPrice}€</span>
+                      {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
+                      {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}</span>}
+                    </div>
+                  </div>
+                  <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>{sl.label}</span>
+                  <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>Muokkaa</button>
+                  <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '4px 8px', flexShrink: 0 }}>✕</button>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 14, color: C.text }}>{pending.filter(p => p.saleType !== 'buy_now').length} live-jonossa · {pending.filter(p => p.saleType !== 'live').length} suoramyynnissä</span>
+            <Link href="/dashboard/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>Mene liveen</Link>
+          </div>
+        </div>
+      ) : !showForm && (
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita vielä</div>
+          <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            + Lisää ensimmäinen tuote
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
