@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
@@ -12,11 +11,12 @@ export default function RegisterPage() {
   const { C } = useTheme()
   const { t } = useLang()
   const { user, loading: authLoading } = useAuth()
-  const router = useRouter()
 
   useEffect(() => {
-    if (!authLoading && user) router.push('/')
-  }, [user, authLoading, router])
+    // Kova navigointi — router.push käyttäisi selaimen reititinvälimuistia, joka voi olla
+    // tallennettu ennen kirjautumista (jolloin proxy.ts:n uudelleenohjaus /loginiin on jäänyt cacheen)
+    if (!authLoading && user) window.location.href = '/'
+  }, [user, authLoading])
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -42,9 +42,8 @@ export default function RegisterPage() {
       localStorage.setItem('skrm_token', data.token)
       localStorage.setItem('skrm_user', JSON.stringify(data.user))
       setAuthCookie(data.token)
-      router.push('/')
-    } catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
+      window.location.href = '/'
+    } catch (e: any) { setError(e.message); setLoading(false) }
   }
 
   const inp: React.CSSProperties = { width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '11px 14px', fontSize: 14, color: C.text, boxSizing: 'border-box' }

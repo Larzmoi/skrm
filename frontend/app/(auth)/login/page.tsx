@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
@@ -10,7 +10,6 @@ function LoginForm() {
   const { C } = useTheme()
   const { t } = useLang()
   const { user, loading: authLoading, login } = useAuth()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') ?? '/'
   const [email, setEmail] = useState('')
@@ -19,14 +18,15 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!authLoading && user) router.push(redirect)
-  }, [user, authLoading, router, redirect])
+    // Kova navigointi — router.push käyttäisi selaimen reititinvälimuistia, joka voi olla
+    // tallennettu ennen kirjautumista (jolloin proxy.ts:n uudelleenohjaus /loginiin on jäänyt cacheen)
+    if (!authLoading && user) window.location.href = redirect
+  }, [user, authLoading, redirect])
 
   async function submit() {
     setError(''); setLoading(true)
-    try { await login(email, password); router.push(redirect) }
-    catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
+    try { await login(email, password); window.location.href = redirect }
+    catch (e: any) { setError(e.message); setLoading(false) }
   }
 
   const inp: React.CSSProperties = { width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '11px 14px', fontSize: 14, color: C.text, boxSizing: 'border-box' }
