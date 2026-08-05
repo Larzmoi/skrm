@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
+import { setAuthCookie } from '@/lib/authCookie'
 import { BACKEND_URL as BACKEND } from '@/lib/backend'
 
 export default function RegisterPage() {
@@ -40,6 +41,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.error)
       localStorage.setItem('skrm_token', data.token)
       localStorage.setItem('skrm_user', JSON.stringify(data.user))
+      setAuthCookie(data.token)
       router.push('/')
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }

@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { BACKEND_URL as BACKEND } from './backend'
+import { setAuthCookie, clearAuthCookie } from './authCookie'
 
 interface User {
   id: string
@@ -47,12 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw new Error(data.error)
     localStorage.setItem('skrm_token', data.token)
     localStorage.setItem('skrm_user', JSON.stringify(data.user))
+    setAuthCookie(data.token)
     setUser(data.user)
   }
 
   function logout() {
     localStorage.removeItem('skrm_token')
     localStorage.removeItem('skrm_user')
+    clearAuthCookie()
     setUser(null)
   }
 
