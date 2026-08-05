@@ -1,0 +1,223 @@
+import { Router, Response } from 'express'
+import { prisma } from '../db/prisma'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { PAKETTIKOOT } from '../lib/shipping'
+import { createPaymentSession } from '../lib/paytrail'
+
+const router = Router()
+
+const LIVE_ITEM_WINDOW_MS = 2 * 60 * 60 * 1000 // 2h
+const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000 // 6h
+
+// Live-ostosten CartItemit vanhenevat 2h addedAt:sta. Poistaa vanhentuneet
+// ja palauttaa niiden määrän takaisin tuotteen saatavaan varastoon.
+async function reapExpiredCartItems(buyerId: string) {
+  const cart = await prisma.cart.findFirst({ where: { buyerId }, include: { items: true } })
+  if (!cart) return
+  const now = Date.now()
+  const expired = cart.items.filter(i => i.source === 'live' && now - i.addedAt.getTime() > LIVE_ITEM_WINDOW_MS)
+  if (expired.length === 0) return
+  await prisma.$transaction([
+    prisma.cartItem.deleteMany({ where: { id: { in: expired.map(i => i.id) } } }),
+    ...expired.map(i => prisma.product.update({
+      where: { id: i.productId },
+      data: { quantity: { increment: i.quantity }, status: 'PENDING' },
+    })),
+  ])
+  const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
+  if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } })
+}
+
+async function isUserBanned(userId: string) {
+  const ban = await prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } })
+  return ban
+}
+
+// POST /cart/add — lisää tuote koriin
+router.post('/add', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const buyerId = req.userId!
+  const { productId, source } = req.body
+  const quantity = Math.max(1, Math.floor(Number(req.body.quantity) || 1))
+  if (!productId || (source !== 'live' && source !== 'direct')) {
+    return res.status(400).json({ error: 'productId ja source (live/direct) vaaditaan' })
+  }
+
+  const ban = await isUserBanned(buyerId)
+  if (ban) return res.status(403).json({ error: `Tilisi on estetty ${ban.endsAt.toLocaleDateString('fi-FI')} asti: ${ban.reason}` })
+
+  await reapExpiredCartItems(buyerId)
+
+  const product = await prisma.product.findUnique({ where: { id: String(productId) } })
+  if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
+  if (product.status !== 'PENDING') return res.status(400).json({ error: 'Tuote ei ole enää saatavilla' })
+  if (product.sellerId === buyerId) return res.status(400).json({ error: 'Et voi ostaa omaa tuotettasi' })
+  if (product.quantity < quantity) return res.status(400).json({ error: `Tuotetta on saatavilla vain ${product.quantity} kpl` })
+
+  const price = source === 'live' ? (product.finalPrice ?? product.startPrice) : (product.buyNowPrice ?? product.startPrice)
+
+  let cart = await prisma.cart.findFirst({ where: { buyerId } })
+  const farFuture = new Date(Date.now() + LIVE_ITEM_WINDOW_MS)
+  if (!cart) {
+    cart = await prisma.cart.create({ data: { buyerId, expiresAt: farFuture } })
+  } else if (source === 'live') {
+    // Pidä Cart.expiresAt ajantasalla lähimmän live-tuotteen vanhenemiselle
+    await prisma.cart.update({ where: { id: cart.id }, data: { expiresAt: farFuture } })
+  }
+
+  // Vähennä varastosta atomisesti — updateMany:n where-ehto estää ylivarauksen kilpailevissa pyynnöissä
+  const reserved = await prisma.product.updateMany({
+    where: { id: product.id, status: 'PENDING', quantity: { gte: quantity } },
+    data: { quantity: { decrement: quantity } },
+  })
+  if (reserved.count === 0) return res.status(400).json({ error: 'Tuotetta ei ole enää tarpeeksi saatavilla' })
+
+  const afterReserve = await prisma.product.findUnique({ where: { id: product.id } })
+  if (afterReserve && afterReserve.quantity <= 0) {
+    await prisma.product.update({ where: { id: product.id }, data: { status: 'RESERVED' } })
+  }
+
+  await prisma.cartItem.create({
+    data: { cartId: cart.id, productId: product.id, price, sellerId: product.sellerId, source, quantity },
+  })
+
+  res.status(201).json({ ok: true })
+})
+
+// GET /cart — hae ostoskori ryhmiteltynä myyjittäin
+router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const buyerId = req.userId!
+  await reapExpiredCartItems(buyerId)
+
+  const cart = await prisma.cart.findFirst({
+    where: { buyerId },
+    include: {
+      items: {
+        include: {
+          product: { include: { seller: { select: { id: true, name: true, username: true } } } },
+        },
+        orderBy: { addedAt: 'asc' },
+      },
+    },
+  })
+
+  if (!cart || cart.items.length === 0) return res.json({ groups: [], pakettikoot: PAKETTIKOOT })
+
+  const sizeOrder = ['xxs', 's', 'm', 'l', 'xl', 'xxl']
+  const bySeller = new Map<string, typeof cart.items>()
+  for (const item of cart.items) {
+    const list = bySeller.get(item.sellerId) ?? []
+    list.push(item)
+    bySeller.set(item.sellerId, list)
+  }
+
+  const groups = Array.from(bySeller.entries()).map(([sellerId, items]) => {
+    const seller = items[0].product.seller
+    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+    const largestIdx = items.reduce((max, i) => {
+      const idx = sizeOrder.indexOf(i.product.pakettikoko ?? '')
+      return idx > max ? idx : max
+    }, -1)
+    return {
+      sellerId,
+      seller: { name: seller.name, username: seller.username },
+      items: items.map(i => ({
+        id: i.id, productId: i.productId, name: i.product.name,
+        imageUrl: i.product.imageUrl?.split('|||')[0] ?? null,
+        price: i.price, quantity: i.quantity, source: i.source, addedAt: i.addedAt,
+        expiresAt: i.source === 'live' ? new Date(i.addedAt.getTime() + LIVE_ITEM_WINDOW_MS) : null,
+      })),
+      total,
+      suggestedPakettikoko: largestIdx >= 0 ? sizeOrder[largestIdx] : null,
+    }
+  })
+
+  res.json({ groups, pakettikoot: PAKETTIKOOT })
+})
+
+// DELETE /cart/:itemId — poista korista
+router.delete('/:itemId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const buyerId = req.userId!
+  const item = await prisma.cartItem.findUnique({ where: { id: String(req.params.itemId) }, include: { cart: true } })
+  if (!item || item.cart.buyerId !== buyerId) return res.status(404).json({ error: 'Riviä ei löydy' })
+
+  await prisma.$transaction([
+    prisma.cartItem.delete({ where: { id: item.id } }),
+    prisma.product.update({ where: { id: item.productId }, data: { quantity: { increment: item.quantity }, status: 'PENDING' } }),
+  ])
+
+  const remaining = await prisma.cartItem.count({ where: { cartId: item.cartId } })
+  if (remaining === 0) await prisma.cart.delete({ where: { id: item.cartId } }).catch(() => {})
+
+  res.json({ ok: true })
+})
+
+// POST /cart/checkout — luo tilaus yhdelle myyjälle korissa olevista tuotteista
+router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const buyerId = req.userId!
+  const { sellerId } = req.body
+  if (!sellerId) return res.status(400).json({ error: 'sellerId vaaditaan' })
+
+  const ban = await isUserBanned(buyerId)
+  if (ban) return res.status(403).json({ error: `Tilisi on estetty ${ban.endsAt.toLocaleDateString('fi-FI')} asti: ${ban.reason}` })
+
+  await reapExpiredCartItems(buyerId)
+
+  const cart = await prisma.cart.findFirst({ where: { buyerId }, include: { items: { where: { sellerId: String(sellerId) } } } })
+  if (!cart || cart.items.length === 0) return res.status(400).json({ error: 'Ei tuotteita tältä myyjältä korissa' })
+
+  const items = cart.items
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  // Yhdistetty lähetys: sama myyjä 6h sisällä → liitetään avoimeen tilaukseen
+  const existingOrder = await prisma.order.findFirst({
+    where: {
+      buyerId, sellerId: String(sellerId), status: 'PENDING_SHIPPING_SELECTION',
+      shippingWindowEnd: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const session = createPaymentSession({ amount: subtotal, orderId: existingOrder?.id ?? 'new', reference: `${buyerId}-${sellerId}-${Date.now()}` })
+
+  let order
+  if (existingOrder) {
+    order = await prisma.order.update({
+      where: { id: existingOrder.id },
+      data: {
+        productTotal: existingOrder.productTotal + subtotal,
+        paytrailPaymentId: session.paymentId,
+        items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
+      },
+      include: { items: true },
+    })
+  } else {
+    order = await prisma.order.create({
+      data: {
+        buyerId, sellerId: String(sellerId),
+        status: 'PENDING_PAYMENT',
+        productTotal: subtotal,
+        paytrailPaymentId: session.paymentId,
+        paymentDeadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        shippingWindowEnd: new Date(Date.now() + SHIPPING_MERGE_WINDOW_MS),
+        items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
+      },
+      include: { items: true },
+    })
+  }
+
+  // Varasto vähennettiin jo korilisäyksen yhteydessä — täällä vain SOLD niille joiden varasto on tyhjentynyt (status RESERVED)
+  await prisma.$transaction([
+    prisma.cartItem.deleteMany({ where: { id: { in: items.map(i => i.id) } } }),
+    prisma.product.updateMany({
+      where: { id: { in: items.map(i => i.productId) }, status: 'RESERVED' },
+      data: { status: 'SOLD' },
+    }),
+  ])
+
+  const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
+  if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } }).catch(() => {})
+
+  res.status(201).json({ order, redirectUrl: session.redirectUrl })
+})
+
+export default router
