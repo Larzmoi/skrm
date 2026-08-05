@@ -9,6 +9,6 @@
     "rootDir": "./src",
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "prisma/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "prisma"]
 }
