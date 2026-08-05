@@ -1,5 +1,6 @@
 'use client'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { BACKEND_URL as BACKEND } from './backend'
 
 interface User {
   id: string
@@ -8,6 +9,12 @@ interface User {
   username: string
   avatarUrl?: string
   bio?: string
+  phone?: string
+  address?: string
+  postalCode?: string
+  city?: string
+  businessId?: string
+  usernameChangedAt?: string | null
 }
 
 interface AuthCtx {
@@ -19,8 +26,6 @@ interface AuthCtx {
 }
 
 const AuthContext = createContext<AuthCtx>({ user: null, loading: true, login: async () => {}, logout: () => {}, updateUser: () => {} })
-
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:4000'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)

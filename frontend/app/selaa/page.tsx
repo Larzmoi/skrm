@@ -1,33 +1,59 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
 import { useLang } from '@/lib/lang-context'
-import { api } from '@/lib/api'
+import { api, auctionApi, userApi } from '@/lib/api'
 
 interface Product {
-  id: string; name: string; seller: { username: string }
-  category?: string; condition?: string; startPrice: number
+  id: string; name: string; seller: { username: string; city?: string | null }
+  category?: string; condition?: string; startPrice: number; city?: string | null
   imageUrl?: string; createdAt: string; saleType: string
+  currentBid?: number | null; auctionEndsAt?: string | null
 }
 
-export default function SelaaPage() {
+function productCity(p: Product) { return p.city ?? p.seller?.city ?? null }
+
+type SaleTab = 'kaikki' | 'suora' | 'huuto'
+
+function auctionTimeLeft(ms: number) {
+  if (ms <= 0) return 'Päättynyt'
+  const totalSec = Math.floor(ms / 1000)
+  const d = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  if (d > 0) return `${d}pv ${h}h`
+  if (h > 0) return `${h}h ${m}min`
+  return `${m}min`
+}
+
+function SelaaContent() {
   const { C } = useTheme()
   const { lang, t } = useLang()
-  const [activeKat, setActiveKat] = useState(() => {
-    if (typeof window === 'undefined') return 'kaikki'
-    return new URLSearchParams(window.location.search).get('kategoria') ?? 'kaikki'
-  })
+  const searchParams = useSearchParams()
+  const urlKat = searchParams.get('kategoria') ?? 'kaikki'
+  const urlHaku = searchParams.get('haku') ?? ''
+  const [activeKat, setActiveKat] = useState(urlKat)
   const [activeAla, setActiveAla] = useState('')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(urlHaku)
   const [sort, setSort] = useState('newest')
   const [maxPrice, setMaxPrice] = useState('')
+  const [city, setCity] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [isMobile, setIsMobile] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [saleTab, setSaleTab] = useState<SaleTab>('kaikki')
+  const [now, setNow] = useState(Date.now())
+  const [userMatch, setUserMatch] = useState<any>(null)
+
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(iv)
+  }, [])
 
   const SORT_OPTIONS = [
     { id: 'newest', label: t.selaa.newest },
@@ -43,14 +69,32 @@ export default function SelaaPage() {
   }, [])
 
   useEffect(() => {
+    setActiveKat(urlKat)
+    setSearch(urlHaku)
+  }, [urlKat, urlHaku])
+
+  useEffect(() => {
     async function loadProducts() {
       setLoading(true)
       try {
         const params: Record<string, string> = { sort }
         if (activeKat !== 'kaikki') params.category = activeKat
         if (activeAla) params.alakategoria = activeAla
-        const data = await api.getProducts(params)
-        setProducts(Array.isArray(data) ? data : [])
+        const auctionParams: Record<string, string> = { sort: sort === 'price_desc' ? 'newest' : sort }
+        if (activeKat !== 'kaikki') auctionParams.category = activeKat
+
+        let combined: Product[] = []
+        if (saleTab === 'suora') {
+          const data = await api.getProducts(params)
+          combined = Array.isArray(data) ? data : []
+        } else if (saleTab === 'huuto') {
+          const data = await auctionApi.list(auctionParams)
+          combined = Array.isArray(data) ? data : []
+        } else {
+          const [prodData, auctionData] = await Promise.all([api.getProducts(params), auctionApi.list(auctionParams)])
+          combined = [...(Array.isArray(prodData) ? prodData : []), ...(Array.isArray(auctionData) ? auctionData : [])]
+        }
+        setProducts(combined)
       } catch {
         setProducts([])
       } finally {
@@ -58,20 +102,57 @@ export default function SelaaPage() {
       }
     }
     loadProducts()
-  }, [activeKat, activeAla, sort])
+  }, [activeKat, activeAla, sort, saleTab])
 
   const filtered = useMemo(() => {
     let p = products
     if (search.trim()) p = p.filter(x => x.name.toLowerCase().includes(search.toLowerCase()) || x.seller?.username?.toLowerCase().includes(search.toLowerCase()))
     if (maxPrice) p = p.filter(x => x.startPrice <= Number(maxPrice))
+    if (city) p = p.filter(x => productCity(x) === city)
     return p
-  }, [products, search, maxPrice])
+  }, [products, search, maxPrice, city])
+
+  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!search.trim() || !!maxPrice || !!city
+
+  function clearFilters() {
+    setActiveKat('kaikki'); setActiveAla(''); setSearch(''); setMaxPrice(''); setCity('')
+  }
+
+  // Suora käyttäjähaku — löytää myyjän tililtä vaikka hänellä ei olisi juuri nyt tuotteita myynnissä
+  useEffect(() => {
+    const q = search.trim()
+    if (!q || q.includes(' ')) { setUserMatch(null); return }
+    let cancelled = false
+    const timer = setTimeout(() => {
+      userApi.getPublic(q).then(u => { if (!cancelled) setUserMatch(u) }).catch(() => { if (!cancelled) setUserMatch(null) })
+    }, 300)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [search])
+
+  const cities = useMemo(() => {
+    const set = new Set(products.map(productCity).filter(Boolean) as string[])
+    return Array.from(set).sort()
+  }, [products])
 
   const allKats = [{ id: 'kaikki', nimi: { fi: t.selaa.allCategories, en: t.selaa.allCategories } }, ...KATEGORIAT]
+
+  const saleTabs: { id: SaleTab; label: string }[] = [
+    { id: 'kaikki', label: t.selaa.allCategories },
+    { id: 'suora', label: 'Suoramyynti' },
+    { id: 'huuto', label: 'Huutokaupat' },
+  ]
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Navbar />
+
+      <div style={{ display: 'flex', gap: 8, padding: '14px 24px 0', maxWidth: 1440, margin: '0 auto', boxSizing: 'border-box' as const }}>
+        {saleTabs.map(tab => (
+          <button key={tab.id} onClick={() => setSaleTab(tab.id)} style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${saleTab === tab.id ? C.accent : C.border}`, background: saleTab === tab.id ? C.accentLight : C.cardBg, color: saleTab === tab.id ? C.accent : C.textSub, fontSize: 13, fontWeight: saleTab === tab.id ? 700 : 400, cursor: 'pointer' }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {isMobile && (
         <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, background: C.navBg, display: 'flex', gap: 8 }}>
@@ -87,11 +168,23 @@ export default function SelaaPage() {
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.category}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
             {allKats.map(kat => (
-              <button key={kat.id} onClick={() => setActiveKat(kat.id)} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${activeKat === kat.id ? C.accent : C.border}`, background: activeKat === kat.id ? C.accentLight : C.cardBg, color: activeKat === kat.id ? C.accent : C.textSub, fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, cursor: 'pointer' }}>
+              <button key={kat.id} onClick={() => { setActiveKat(kat.id); setActiveAla('') }} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${activeKat === kat.id ? C.accent : C.border}`, background: activeKat === kat.id ? C.accentLight : C.cardBg, color: activeKat === kat.id ? C.accent : C.textSub, fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, cursor: 'pointer' }}>
                 {getKatNimi(kat as any, lang as any)}
               </button>
             ))}
           </div>
+          {activeKat !== 'kaikki' && (KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []).length > 0 && (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.subcategory}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {(KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []).map((ala: any) => (
+                  <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.cardBg, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
+                    {getAlaNimi(ala, lang as any)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.sort}</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
             {SORT_OPTIONS.map(o => (
@@ -101,11 +194,20 @@ export default function SelaaPage() {
             ))}
           </div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.maxPrice}</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
             <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="500" style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }} />
             <span style={{ color: C.muted }}>€</span>
             {maxPrice && <button onClick={() => setMaxPrice('')} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
           </div>
+          {cities.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>Paikkakunta</div>
+              <select value={city} onChange={e => setCity(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }}>
+                <option value="">Kaikki paikkakunnat</option>
+                {cities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </>
+          )}
         </div>
       )}
 
@@ -140,6 +242,15 @@ export default function SelaaPage() {
                 <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, fontSize: 13 }}>€</span>
               </div>
             </div>
+            {cities.length > 0 && (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>Paikkakunta</div>
+                <select value={city} onChange={e => setCity(e.target.value)} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as const }}>
+                  <option value="">Kaikki paikkakunnat</option>
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
@@ -153,8 +264,30 @@ export default function SelaaPage() {
             </div>
           )}
 
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-            {loading ? '...' : `${filtered.length} ${t.selaa.results}`}
+          {userMatch && (
+            <Link href={`/u/${encodeURIComponent(userMatch.username)}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, textDecoration: 'none' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                {userMatch.avatarUrl
+                  ? <img src={userMatch.avatarUrl} alt={userMatch.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (userMatch.name?.[0]?.toUpperCase() ?? '?')
+                }
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userMatch.name}</div>
+                <div style={{ fontSize: 12, color: C.muted }}>@{userMatch.username} · {t.selaa.viewProfile}</div>
+              </div>
+            </Link>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: C.muted }}>
+              {loading ? '...' : `${filtered.length} ${t.selaa.results}`}
+            </div>
+            {filtersActive && (
+              <button onClick={clearFilters} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.textSub, padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {t.selaa.clearFilters}
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -162,34 +295,50 @@ export default function SelaaPage() {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{t.selaa.noResults}</div>
-              <button onClick={() => { setActiveKat('kaikki'); setSearch(''); setMaxPrice('') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={clearFilters} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                 {t.selaa.clearFilters}
               </button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
-              {filtered.map(p => (
-                <Link key={p.id} href={`/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
-                  <div style={{ aspectRatio: '1', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {p.imageUrl
-                      ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                    }
-                  </div>
-                  <div style={{ padding: isMobile ? '8px' : '10px 12px' }}>
-                    <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, marginBottom: 3, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{p.name}</div>
-                    {p.condition && <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{p.condition}</div>}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text }}>{p.startPrice.toLocaleString('fi-FI')}€</div>
-                      <div style={{ fontSize: 11, color: C.muted }}>@{p.seller?.username}</div>
+              {filtered.map(p => {
+                const isAuction = p.saleType === 'auction'
+                const remaining = isAuction && p.auctionEndsAt ? new Date(p.auctionEndsAt).getTime() - now : null
+                return (
+                  <Link key={p.id} href={isAuction ? `/huutokauppa/${p.id}` : `/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
+                    <div style={{ aspectRatio: '1', position: 'relative', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {p.imageUrl
+                        ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        : <span style={{ fontSize: 32, color: C.dim }}>+</span>
+                      }
+                      {remaining !== null && (
+                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
+                          {auctionTimeLeft(remaining)}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </Link>
-              ))}
+                    <div style={{ padding: isMobile ? '8px' : '10px 12px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, marginBottom: 3, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{p.name}</div>
+                        <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text }}>{(isAuction ? (p.currentBid ?? p.startPrice) : p.startPrice).toLocaleString('fi-FI')}€</div>
+                        {p.condition && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{p.condition}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 11, color: C.muted }}>@{p.seller?.username}</div>
+                        {productCity(p) && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{productCity(p)}</div>}
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>
       </div>
     </div>
   )
+}
+
+export default function SelaaPage() {
+  return <Suspense><SelaaContent /></Suspense>
 }

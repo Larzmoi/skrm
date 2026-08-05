@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
   if (sort === 'price_desc') orderBy = { startPrice: 'desc' }
   const products = await prisma.product.findMany({
     where, orderBy, take: limit ? Number(limit) : 50,
-    include: { seller: { select: { id: true, name: true, username: true } } },
+    include: { seller: { select: { id: true, name: true, username: true, city: true } } },
   })
   res.json(products)
 })
@@ -35,7 +35,7 @@ router.get('/:id', async (req, res) => {
   const id = String(req.params.id)
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { seller: { select: { id: true, name: true, username: true } } },
+    include: { seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } } },
   })
   if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
   res.json(product)
@@ -43,8 +43,21 @@ router.get('/:id', async (req, res) => {
 
 // POST /products
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, saleType, startPrice, buyNowPrice, reservePrice, auctionDuration, quantity, condition, description, imageUrl, category, alakategoria, pakettikoko, showId } = req.body
+  const { name, saleType, startPrice, buyNowPrice, reservePrice, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, city, pakettikoko, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
+
+  // Perinteinen huutokauppa: auctionDurationDays/Hours on kesto luontihetkellä, ei tallenneta sellaisenaan —
+  // vain päättymisajankohta persistoidaan (eri asia kuin live-lotin auctionDuration, joka on sekunteina)
+  const MAX_AUCTION_HOURS = 30 * 24
+  let auctionEndsAt: Date | undefined
+  if (saleType === 'auction') {
+    const totalHours = Math.min(
+      MAX_AUCTION_HOURS,
+      Math.max(1, (Number(auctionDurationDays) || 0) * 24 + (Number(auctionDurationHours) || 0)),
+    )
+    auctionEndsAt = new Date(Date.now() + totalHours * 60 * 60 * 1000)
+  }
+
   const product = await prisma.product.create({
     data: {
       name, saleType: saleType ?? 'live',
@@ -52,10 +65,11 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
       reservePrice: reservePrice ? Number(reservePrice) : null,
       auctionDuration: auctionDuration ? Number(auctionDuration) : null,
+      auctionEndsAt,
       quantity: Number(quantity ?? 1),
       condition: condition ?? null, description: description ?? null,
       imageUrl: imageUrl ?? null, category: category ?? null,
-      alakategoria: alakategoria ?? null, pakettikoko: pakettikoko ?? null,
+      alakategoria: alakategoria ?? null, city: city ?? null, pakettikoko: pakettikoko ?? null,
       sellerId: req.userId!, showId: showId ?? null,
     },
   })
@@ -78,7 +92,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
       condition: req.body.condition ?? null, description: req.body.description ?? null,
       imageUrl: req.body.imageUrl ?? undefined, category: req.body.category ?? null,
-      alakategoria: req.body.alakategoria ?? null, pakettikoko: req.body.pakettikoko ?? null,
+      alakategoria: req.body.alakategoria ?? null, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
     },
   })
   res.json(updated)

@@ -12,8 +12,20 @@ export default function ProfiiliPage() {
 
   const [name, setName] = useState(user?.name ?? '')
   const [bio, setBio] = useState(user?.bio ?? '')
+  const [email, setEmail] = useState(user?.email ?? '')
+  const [username, setUsername] = useState(user?.username ?? '')
+  const [phone, setPhone] = useState(user?.phone ?? '')
+  const [address, setAddress] = useState(user?.address ?? '')
+  const [postalCode, setPostalCode] = useState(user?.postalCode ?? '')
+  const [city, setCity] = useState(user?.city ?? '')
+  const [businessId, setBusinessId] = useState(user?.businessId ?? '')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const usernameChangedAt = user?.usernameChangedAt ? new Date(user.usernameChangedAt) : null
+  const nextUsernameChange = usernameChangedAt ? new Date(usernameChangedAt.getTime() + 365 * 24 * 60 * 60 * 1000) : null
+  const usernameLocked = !!(nextUsernameChange && nextUsernameChange > new Date())
 
   const avatarRef = useRef<HTMLInputElement>(null)
 
@@ -25,6 +37,13 @@ export default function ProfiiliPage() {
   useEffect(() => {
     setName(user?.name ?? '')
     setBio(user?.bio ?? '')
+    setEmail(user?.email ?? '')
+    setUsername(user?.username ?? '')
+    setPhone(user?.phone ?? '')
+    setAddress(user?.address ?? '')
+    setPostalCode(user?.postalCode ?? '')
+    setCity(user?.city ?? '')
+    setBusinessId(user?.businessId ?? '')
   }, [user])
 
   useEffect(() => {
@@ -60,12 +79,20 @@ export default function ProfiiliPage() {
 
   async function saveProfile() {
     setSaving(true)
+    setError('')
     try {
-      const updated = await userApi.updateProfile({ name, bio })
-      updateUser({ name: updated.name, bio: updated.bio })
+      const updated = await userApi.updateProfile({ name, bio, email, username, phone, address, postalCode, city, businessId })
+      updateUser({
+        name: updated.name, bio: updated.bio, email: updated.email, username: updated.username,
+        usernameChangedAt: updated.usernameChangedAt, phone: updated.phone,
+        address: updated.address, postalCode: updated.postalCode,
+        city: updated.city, businessId: updated.businessId,
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch {}
+    } catch (e: any) {
+      setError(e.message ?? 'Tallennus epäonnistui')
+    }
     setSaving(false)
   }
 
@@ -96,10 +123,54 @@ export default function ProfiiliPage() {
           <label style={lbl}>Nimi</label>
           <input value={name} onChange={e => setName(e.target.value)} style={inp} />
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Käyttäjänimi</label>
+          <input value={username} onChange={e => setUsername(e.target.value)} disabled={usernameLocked} style={usernameLocked ? { ...inp, opacity: 0.6, cursor: 'not-allowed' } : inp} />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+            {usernameLocked
+              ? `Voit vaihtaa käyttäjänimen taas ${nextUsernameChange!.toLocaleDateString('fi-FI')}.`
+              : 'Käyttäjänimen voi vaihtaa kerran vuodessa.'}
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Sähköposti</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inp} />
+        </div>
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Bio</label>
           <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Kerro itsestäsi..." style={{ ...inp, resize: 'vertical' as const }} />
         </div>
+        {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
+        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? '#22c55e' : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+          {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
+        </button>
+      </div>
+
+      <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Yhteystiedot</h2>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Puhelinnumero</label>
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="040 1234567" style={inp} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Osoite</label>
+          <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Esimerkkikatu 1" style={inp} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <div>
+            <label style={lbl}>Postinumero</label>
+            <input value={postalCode} onChange={e => setPostalCode(e.target.value)} placeholder="00100" style={inp} />
+          </div>
+          <div>
+            <label style={lbl}>Kaupunki</label>
+            <input value={city} onChange={e => setCity(e.target.value)} placeholder="Helsinki" style={inp} />
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>Y-tunnus (valinnainen, yritysmyyjille)</label>
+          <input value={businessId} onChange={e => setBusinessId(e.target.value)} placeholder="1234567-8" style={inp} />
+        </div>
+        {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
         <button onClick={saveProfile} disabled={saving} style={{ background: saved ? '#22c55e' : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>

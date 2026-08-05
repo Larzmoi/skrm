@@ -1,13 +1,21 @@
 const en = {
   nav: {
     home: 'Home', browse: 'Browse', search: 'Search products or sellers...',
-    login: 'Sign in', register: 'Sign up', dashboard: 'Dashboard',
+    login: 'Sign in', register: 'Sign up', dashboard: 'Dashboard', auctions: 'Auctions',
+    liveAuctions: 'Live',
     logout: 'Sign out', profile: 'Profile', purchases: 'Purchases',
     settings: 'Settings', notifications: 'Notifications', allCategories: 'All',
+    messages: 'Messages',
   },
   home: {
     liveNow: 'Live now', showAll: 'Show all', upcoming: 'Upcoming',
     buyNow: 'For Sale', viewers: 'viewers',
+    heroTitleLine1: 'One place to buy and sell —', heroTitleLine2: 'exactly how you want',
+    heroSubtitle: 'Live auctions and direct sales. Finnish. Secure.',
+    heroBrowse: 'Browse products', heroBecomeSeller: 'Become a seller',
+    heroTrustSecure: 'Secure trading', heroTrustFinnish: 'Finnish service',
+    heroTrustCommission: '3% fee, max €20', heroTrustFreeSignup: 'Free to sign up',
+    heroHide: 'Hide',
   },
   live: {
     live: 'LIVE', follow: 'Follow', chat: 'Chat',
@@ -28,18 +36,27 @@ const en = {
     terms: 'By registering you accept the terms of service.',
     loading: 'Loading...', minPassword: 'Password must be at least 8 characters',
     fillAll: 'Please fill in all fields',
+    acceptTerms: 'I have read and accept the', termsLink: 'terms of service',
+    acceptPrivacy: 'I have read and accept the', privacyLink: 'privacy policy',
+    acceptPolicy: 'I understand the trading policy:',
+    policyPoint1: 'All purchases and bids are binding — for direct sales, live auctions, and timed auctions',
+    policyPoint2: 'You have 2 hours to pay after winning a bid or making a purchase',
+    policyPoint3: '3 unpaid orders result in an automatic 30-day ban, no exceptions',
+    policyPoint4: 'Combined shipment: same seller within 6h = one shipping choice',
+    acceptRequired: 'Please accept the terms of service, privacy policy, and trading policy',
   },
   selaa: {
     search: 'Search products...', filter: 'Filter', sort: 'Sort',
     newest: 'Newest first', priceAsc: 'Lowest price', priceDesc: 'Highest price',
     maxPrice: 'Max price', category: 'Category', results: 'products',
     noResults: 'No products found', clearFilters: 'Clear filters',
-    allCategories: 'All',
+    allCategories: 'All', viewProfile: 'View profile →', subcategory: 'Subcategory',
   },
   product: {
-    buyNow: 'Buy now', askSeller: 'Ask seller', sendMessage: 'Send message',
+    addToCart: 'Add to cart', askSeller: 'Ask seller', sendMessage: 'Send message',
     delivery: 'Delivery', condition: 'Condition', total: 'Total',
-    addedToCart: 'Added to cart!', checkoutSoon: 'Checkout coming soon',
+    addedToCart: 'Added to cart!', goToCart: 'Go to cart →',
+    messageSent: 'Message sent!',
     sellerProfile: 'Profile →', shippingInfo: 'Shipping & protection',
     shipIn24: 'Seller commits to ship within 24h',
     binding: 'All sales are final — no cancellations',
@@ -48,7 +65,7 @@ const en = {
     breadcrumbHome: 'Home', breadcrumbBrowse: 'Browse',
   },
   profile: {
-    follow: 'Follow', message: 'Message', upcoming: 'Upcoming',
+    follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',
     past: 'Past shows', reviews: 'Reviews', followers: 'Followers',
     shows: 'Shows', rating: 'Rating', trades: 'Sales', ended: 'Ended',
     bio: 'Specialized in Pokémon Base Set and PSA-graded cards.',
@@ -73,6 +90,8 @@ const en = {
     startLive: 'Go live', startLiveDesc: 'Open camera and start the auction',
     showTitle: 'Show title', showDate: 'Date', showTime: 'Time',
     save: 'Save', cancel: 'Cancel', remove: '✕', scheduled: 'Show scheduled!',
+    quickLiveTitle: 'Live show', quickLiveDesc: 'Start streaming and sell products in real time',
+    quickProductsTitle: 'Products', quickProductsDesc: 'Add or edit the products you have for sale',
   },
   footer: {
     company: 'Company', about: 'About', becomeSeller: 'Become a seller',
@@ -84,6 +103,7 @@ const en = {
     feeNote: 'Commission 3% (max €20) + payment processing ~1.5% + €0.25',
     binding: 'All bids are binding',
     prohibited: 'Not allowed: weapons, alcohol, medication, live animals',
+    badgeSecure: 'Secure', badgeBinding: '✓ Binding bids', badgeVerified: 'Verified users',
   },
   faq: {
     title: 'Frequently Asked Questions',
@@ -141,6 +161,23 @@ const en = {
     title: 'Privacy Policy',
     effective: 'Updated August 1, 2026 · EU GDPR compliant',
     contactText: 'Questions about privacy? Contact us:',
+  },
+  kori: {
+    title: 'Cart', empty: 'Your cart is empty', browseProducts: 'Browse products',
+    liveExpiredNotice: 'One or more live purchases were removed from the cart after time ran out.',
+    payFailed: 'Payment failed', free: '(free)',
+    liveTimeLeft: 'Live purchase — time to pay', timeUp: 'Time is up',
+    products: 'Products', shipping: 'shipping', pay: 'Pay', processing: 'Processing...',
+    total: 'Total', items: 'items', allSellers: 'all sellers',
+  },
+  notificationsPage: {
+    title: 'Notifications', subtitle: 'Stay up to date on bids and orders',
+    empty: 'No notifications yet', markAllRead: 'Mark all as read',
+  },
+  messagesPage: {
+    title: 'Messages', subtitle: 'Your conversations with buyers and sellers',
+    empty: 'No messages yet', noConversation: 'Select a conversation',
+    writeMessage: 'Write a message...', send: 'Send', back: '← Back',
   },
 }
 export default en

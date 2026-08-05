@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io'
 import { prisma } from './db/prisma'
 import jwt from 'jsonwebtoken'
+import { notifyUser } from './lib/notify'
 
 interface BidPayload {
   showId: string
@@ -24,6 +25,11 @@ const auctions = new Map<string, AuctionState>()
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log('Socket yhdistyi:', socket.id)
+
+    // Liity omaan käyttäjähuoneeseen (ilmoitukset, viestit)
+    socket.on('join_user', (userId: string) => {
+      socket.join(`user:${userId}`)
+    })
 
     // Liity lähetyshuoneeseen
     socket.on('join_show', (showId: string) => {
@@ -103,6 +109,8 @@ export function setupSocket(io: Server) {
               prisma.product.update({
                 where: { id: productId },
                 data: { status: 'SOLD', finalPrice: state.currentBid },
+              }).then(product => {
+                notifyUser(state.leaderId!, 'ORDER_WON', 'Voitit huudon!', `Voitit tuotteen "${product.name}" hintaan ${state.currentBid}€`, `/tuotteet/${productId}`).catch(console.error)
               }).catch(console.error)
             }
           }

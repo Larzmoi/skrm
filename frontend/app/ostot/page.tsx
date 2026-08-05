@@ -1,35 +1,148 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import Navbar from '@/components/layout/Navbar'
-import Footer from '@/components/layout/Footer'
+import DashboardLayoutClient from '@/components/dashboard/DashboardLayoutClient'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
-import { api } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
+import { useCart } from '@/lib/cart-context'
+import { orderApi } from '@/lib/api'
+import { StarRatingInput } from '@/components/StarRating'
+
+interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string } }
+interface Order {
+  id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
+  paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null
+  shippedAt: string | null; stalledNotifiedAt: string | null; reminderNotifiedAt: string | null; disputeReason: string | null
+  items: OrderItem[]; seller: { name: string; username: string }; createdAt: string
+  reviews: { reviewerId: string }[]
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function timeLeftLabel(ms: number) {
+  if (ms <= 0) return '0:00'
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 export default function OstotPage() {
   const { C } = useTheme()
   const { t } = useLang()
-  const [orders, setOrders] = useState<any[]>([])
+  const { user } = useAuth()
+  const { pakettikoot } = useCart()
+  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [now, setNow] = useState(Date.now())
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [selectedSize, setSelectedSize] = useState<Record<string, string>>({})
+  const [disputeOpenFor, setDisputeOpenFor] = useState<string | null>(null)
+  const [disputeReasonInput, setDisputeReasonInput] = useState<Record<string, string>>({})
+  const [reviewOpenFor, setReviewOpenFor] = useState<string | null>(null)
+  const [reviewRating, setReviewRating] = useState<Record<string, number>>({})
+  const [reviewComment, setReviewComment] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    // Haetaan ostot backendistä kun order-järjestelmä on valmis
+  const load = useCallback(async () => {
+    try {
+      const data = await orderApi.mine()
+      setOrders(Array.isArray(data) ? data : [])
+    } catch {
+      setOrders([])
+    }
     setLoading(false)
   }, [])
 
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  async function payNow(orderId: string) {
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.mockPay(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Maksu epäonnistui') }
+    setBusy(null)
+  }
+
+  async function confirmShipping(orderId: string) {
+    const size = selectedSize[orderId]
+    if (!size) { setError('Valitse pakettikoko'); return }
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.selectShipping(orderId, size)
+      await orderApi.mockPay(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Toimituksen vahvistus epäonnistui') }
+    setBusy(null)
+  }
+
+  async function confirmDelivery(orderId: string) {
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.confirmDelivery(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Kuittaus epäonnistui') }
+    setBusy(null)
+  }
+
+  async function submitDispute(orderId: string) {
+    const reason = disputeReasonInput[orderId]?.trim()
+    if (!reason) { setError('Kuvaile ongelma'); return }
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.dispute(orderId, reason)
+      setDisputeOpenFor(null)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Reklamaation lähetys epäonnistui') }
+    setBusy(null)
+  }
+
+  async function submitReview(orderId: string) {
+    const rating = reviewRating[orderId] ?? 0
+    if (rating < 1) { setError('Valitse tähtiarvosana'); return }
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.review(orderId, rating, reviewComment[orderId]?.trim() || undefined)
+      setReviewOpenFor(null)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Arvostelun lähetys epäonnistui') }
+    setBusy(null)
+  }
+
+  const orderTotal = (o: Order) => o.productTotal + (o.shippingPrice ?? 0)
+
+  const sections = [
+    { key: 'PENDING_PAYMENT', title: 'Odottaa maksua', orders: orders.filter(o => o.status === 'PENDING_PAYMENT') },
+    { key: 'PENDING_SHIPPING_SELECTION', title: 'Valitse toimitus', orders: orders.filter(o => o.status === 'PENDING_SHIPPING_SELECTION') },
+    { key: 'PENDING_SHIPPING', title: 'Odottaa lähetystä', orders: orders.filter(o => o.status === 'PENDING_SHIPPING') },
+    { key: 'SHIPPED', title: 'Lähetetty', orders: orders.filter(o => o.status === 'SHIPPED') },
+    { key: 'DISPUTED', title: 'Reklamoitu', orders: orders.filter(o => o.status === 'DISPUTED') },
+    { key: 'DELIVERED', title: 'Toimitettu', orders: orders.filter(o => o.status === 'DELIVERED') },
+  ]
+
+  const hasAny = orders.some(o => o.status !== 'CANCELLED')
+
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
-      <Navbar />
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <DashboardLayoutClient>
+      <div style={{ color: C.text }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 8 }}>{t.purchases.title}</h1>
-        <p style={{ color: C.muted, fontSize: 14, marginBottom: 32 }}>{t.purchases.subtitle}</p>
+        <p style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{t.purchases.subtitle}</p>
+
+        {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{error}</div>}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
-        ) : orders.length === 0 ? (
+        ) : !hasAny ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🛍️</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>Ei ostoksia vielä</div>
             <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Ostettuasi tuotteita ne näkyvät täällä seurantakoodeineen.</div>
             <Link href="/selaa" style={{ background: C.accent, color: '#fff', padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
@@ -37,16 +150,163 @@ export default function OstotPage() {
             </Link>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {orders.map((order: any) => (
-              <div key={order.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px' }}>
-                <div>{order.id}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {sections.filter(s => s.orders.length > 0).map(section => (
+              <div key={section.key}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>{section.title} <span style={{ color: C.muted, fontWeight: 400 }}>({section.orders.length})</span></h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {section.orders.map(order => {
+                    const paymentRemaining = order.paymentDeadline ? new Date(order.paymentDeadline).getTime() - now : null
+                    const shippingRemaining = order.shippingWindowEnd ? new Date(order.shippingWindowEnd).getTime() - now : null
+                    return (
+                      <div key={order.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                          <Link href={`/u/${order.seller.username}`} style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>@{order.seller.username}</Link>
+                          <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                          {order.items.map(item => (
+                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                              <span style={{ color: C.text }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
+                              <span style={{ color: C.muted }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{orderTotal(order).toLocaleString('fi-FI')}€</span>
+
+                          {section.key === 'PENDING_PAYMENT' && paymentRemaining !== null && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
+                                {paymentRemaining > 0 ? `${timeLeftLabel(paymentRemaining)} jäljellä` : 'Aika loppui'}
+                              </span>
+                              <button onClick={() => payNow(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                {busy === order.id ? 'Käsitellään...' : 'Maksa nyt'}
+                              </button>
+                            </div>
+                          )}
+
+                          {section.key === 'SHIPPED' && order.trackingCode && (
+                            <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.trackingCode}</span>
+                          )}
+                        </div>
+
+                        {section.key === 'PENDING_SHIPPING_SELECTION' && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                            {shippingRemaining !== null && (
+                              <div style={{ fontSize: 12, fontWeight: 700, color: shippingRemaining < 60 * 60 * 1000 ? '#EF4444' : C.muted, marginBottom: 8 }}>
+                                {shippingRemaining > 0 ? `Toimitusvalinta-aikaa ${timeLeftLabel(shippingRemaining)}` : '6h ikkuna umpeutunut'}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                                <option value="">Valitse pakettikoko...</option>
+                                {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
+                              </select>
+                              <button onClick={() => confirmShipping(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                                {busy === order.id ? '...' : 'Vahvista ja maksa'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {section.key === 'SHIPPED' && (() => {
+                          const shippedAge = order.shippedAt ? now - new Date(order.shippedAt).getTime() : 0
+                          const daysLeft = Math.max(0, Math.ceil((14 * DAY_MS - shippedAge) / DAY_MS))
+                          return (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                              {order.stalledNotifiedAt && (
+                                <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#B45309', fontSize: 12 }}>
+                                  Pakettia ei ole vielä kuitattu vastaanotetuksi. Onko se saapunut?
+                                </div>
+                              )}
+                              {order.reminderNotifiedAt && (
+                                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
+                                  Muistutus: kuittaa vastaanotto tai ilmoita ongelmasta ennen kuin tilaus suljetaan automaattisesti.
+                                </div>
+                              )}
+                              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                                Tilaus suljetaan automaattisesti {daysLeft} päivässä, ellet kuittaa vastaanottoa tai ilmoita ongelmasta.
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                  {busy === order.id ? '...' : 'Kuittaa vastaanotto'}
+                                </button>
+                                <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                                  Ilmoita ongelmasta
+                                </button>
+                              </div>
+                              {disputeOpenFor === order.id && (
+                                <div style={{ marginTop: 10 }}>
+                                  <textarea
+                                    value={disputeReasonInput[order.id] ?? ''}
+                                    onChange={e => setDisputeReasonInput(s => ({ ...s, [order.id]: e.target.value }))}
+                                    placeholder="Kuvaile ongelma..."
+                                    rows={3}
+                                    style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+                                  />
+                                  <button onClick={() => submitDispute(order.id)} disabled={busy === order.id} style={{ marginTop: 8, background: '#EF4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                    {busy === order.id ? '...' : 'Lähetä reklamaatio'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+
+                        {section.key === 'DELIVERED' && (() => {
+                          const alreadyReviewed = order.reviews.some(r => r.reviewerId === user?.id)
+                          return (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                              {alreadyReviewed ? (
+                                <div style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>✓ Kiitos arvostelusta</div>
+                              ) : reviewOpenFor === order.id ? (
+                                <div>
+                                  <StarRatingInput value={reviewRating[order.id] ?? 0} onChange={v => setReviewRating(s => ({ ...s, [order.id]: v }))} />
+                                  <textarea
+                                    value={reviewComment[order.id] ?? ''}
+                                    onChange={e => setReviewComment(s => ({ ...s, [order.id]: e.target.value }))}
+                                    placeholder="Kommentti (valinnainen)"
+                                    rows={2}
+                                    style={{ width: '100%', marginTop: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+                                  />
+                                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                    <button onClick={() => submitReview(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                      {busy === order.id ? '...' : 'Lähetä arvostelu'}
+                                    </button>
+                                    <button onClick={() => setReviewOpenFor(null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                                      Peruuta
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button onClick={() => setReviewOpenFor(order.id)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                                  Jätä arvostelu myyjälle
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })()}
+
+                        {section.key === 'DISPUTED' && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 12px', color: '#EF4444', fontSize: 13 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 4 }}>Reklamaatio käsittelyssä</div>
+                              {order.disputeReason && <div>{order.disputeReason}</div>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
-      <Footer />
-    </div>
+    </DashboardLayoutClient>
   )
 }

@@ -1,5 +1,7 @@
 'use client'
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, ReactNode } from 'react'
+import { useAuth } from './auth-context'
+import { userApi } from './api'
 
 interface AvatarCtx {
   avatar: string | null
@@ -9,17 +11,12 @@ interface AvatarCtx {
 const AvatarContext = createContext<AvatarCtx>({ avatar: null, setAvatar: () => {} })
 
 export function AvatarProvider({ children }: { children: ReactNode }) {
-  const [avatar, setAvatarState] = useState<string | null>(null)
-
-  useEffect(() => {
-    const a = localStorage.getItem('skrm_avatar')
-    if (a) setAvatarState(a)
-  }, [])
+  const { user, updateUser } = useAuth()
+  const avatar = user?.avatarUrl ?? null
 
   function setAvatar(url: string | null) {
-    setAvatarState(url)
-    if (url) localStorage.setItem('skrm_avatar', url)
-    else localStorage.removeItem('skrm_avatar')
+    updateUser({ avatarUrl: url ?? undefined })
+    userApi.updateProfile({ avatarUrl: url ?? '' }).catch(() => {})
   }
 
   return <AvatarContext.Provider value={{ avatar, setAvatar }}>{children}</AvatarContext.Provider>

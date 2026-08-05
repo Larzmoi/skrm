@@ -1,13 +1,21 @@
 const fi = {
   nav: {
     home: 'Etusivu', browse: 'Selaa', search: 'Hae tuotteita tai myyjiä...',
-    login: 'Kirjaudu', register: 'Rekisteröidy', dashboard: 'Dashboard',
+    login: 'Kirjaudu', register: 'Rekisteröidy', dashboard: 'Hallintapaneeli', auctions: 'Huutokaupat',
+    liveAuctions: 'Live',
     logout: 'Kirjaudu ulos', profile: 'Profiili', purchases: 'Ostot',
     settings: 'Asetukset', notifications: 'Ilmoitukset', allCategories: 'Kaikki',
+    messages: 'Viestit',
   },
   home: {
     liveNow: 'Live nyt', showAll: 'Näytä kaikki', upcoming: 'Tulossa pian',
     buyNow: 'Myynnissä', viewers: 'katsojaa',
+    heroTitleLine1: 'Yksi paikka ostaa ja myydä —', heroTitleLine2: 'juuri niin kuin haluat',
+    heroSubtitle: 'Live-huutokauppa ja suoramyynti. Suomalainen. Turvallinen.',
+    heroBrowse: 'Selaa tuotteita', heroBecomeSeller: 'Ryhdy myyjäksi',
+    heroTrustSecure: 'Turvallinen kaupankäynti', heroTrustFinnish: 'Suomalainen palvelu',
+    heroTrustCommission: '3% provisio, max 20€', heroTrustFreeSignup: 'Ilmainen rekisteröityminen',
+    heroHide: 'Piilota',
   },
   live: {
     live: 'LIVE', follow: 'Seuraa', chat: 'Keskustelu',
@@ -28,18 +36,27 @@ const fi = {
     terms: 'Rekisteröitymällä hyväksyt käyttöehdot.',
     loading: 'Ladataan...', minPassword: 'Salasanan on oltava vähintään 8 merkkiä',
     fillAll: 'Täytä kaikki kentät',
+    acceptTerms: 'Olen lukenut ja hyväksyn', termsLink: 'käyttöehdot',
+    acceptPrivacy: 'Olen lukenut ja hyväksyn', privacyLink: 'tietosuojaselosteen',
+    acceptPolicy: 'Ymmärrän kaupankäyntipolitiikan:',
+    policyPoint1: 'Kaikki ostot ja huudot ovat sitovia — suoramyynnissä, live-huutokaupassa ja perinteisessä huutokaupassa',
+    policyPoint2: 'Voitetusta huudosta tai ostoksesta on 2 tuntia aikaa maksaa',
+    policyPoint3: '3 maksamatonta tilausta johtaa 30 päivän automaattibanniin ilman poikkeuksia',
+    policyPoint4: 'Yhdistetty lähetys: sama myyjä 6h sisällä = yksi postikuluvalinta',
+    acceptRequired: 'Hyväksy käyttöehdot, tietosuojaseloste ja kaupankäyntipolitiikka',
   },
   selaa: {
     search: 'Hae tuotteita...', filter: 'Suodata', sort: 'Järjestys',
     newest: 'Uusimmat ensin', priceAsc: 'Halvin ensin', priceDesc: 'Kallein ensin',
     maxPrice: 'Enimmäishinta', category: 'Kategoria', results: 'tuotetta',
     noResults: 'Ei tuotteita haullasi', clearFilters: 'Tyhjennä suodattimet',
-    allCategories: 'Kaikki',
+    allCategories: 'Kaikki', viewProfile: 'Näytä profiili →', subcategory: 'Alakategoria',
   },
   product: {
-    buyNow: 'Osta heti', askSeller: 'Kysy myyjältä', sendMessage: 'Lähetä viesti',
+    addToCart: 'Lisää ostoskoriin', askSeller: 'Kysy myyjältä', sendMessage: 'Lähetä viesti',
     delivery: 'Toimitus', condition: 'Kunto', total: 'Yhteensä',
-    addedToCart: 'Lisätty ostoskoriin!', checkoutSoon: 'Checkout tulossa pian',
+    addedToCart: 'Lisätty ostoskoriin!', goToCart: 'Siirry ostoskoriin →',
+    messageSent: 'Viesti lähetetty!',
     sellerProfile: 'Profiili →', shippingInfo: 'Toimitus & turvaaminen',
     shipIn24: 'Myyjä sitoutuu lähettämään 24h sisällä',
     binding: 'Kaikki kaupat sitovia — ei peruutuksia',
@@ -48,7 +65,7 @@ const fi = {
     breadcrumbHome: 'Etusivu', breadcrumbBrowse: 'Selaa',
   },
   profile: {
-    follow: 'Seuraa', message: 'Viesti', upcoming: 'Tulossa pian',
+    follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',
     past: 'Menneet lähetykset', reviews: 'Arvostelut', followers: 'Seuraajaa',
     shows: 'Lähetystä', rating: 'Arvosana', trades: 'Kauppaa', ended: 'Päättynyt',
     bio: 'Erikoistunut Pokémon Base Set ja PSA-gradattuihin kortteihin.',
@@ -73,6 +90,8 @@ const fi = {
     startLive: 'Mene liveen', startLiveDesc: 'Avaa kamera ja aloita huutokauppa',
     showTitle: 'Lähetyksen nimi', showDate: 'Päivämäärä', showTime: 'Kellonaika',
     save: 'Tallenna', cancel: 'Peruuta', remove: '✕', scheduled: 'Lähetys ajastettu!',
+    quickLiveTitle: 'Live-lähetys', quickLiveDesc: 'Aloita striimaus ja myy tuotteita reaaliajassa',
+    quickProductsTitle: 'Tuotteet', quickProductsDesc: 'Lisää tai muokkaa myynnissä olevia tuotteita',
   },
   footer: {
     company: 'Yritys', about: 'Meistä', becomeSeller: 'Ryhdy myyjäksi',
@@ -84,6 +103,7 @@ const fi = {
     feeNote: 'Välityspalkkio 3% (max 20€) + maksunkäsittely ~1,5% + 0,25€',
     binding: 'Kaikki huudot sitovia',
     prohibited: 'Ei sallittu: aseet, alkoholi, lääkkeet, elävät eläimet',
+    badgeSecure: 'Turvallinen', badgeBinding: '✓ Sitovat huudot', badgeVerified: 'Todennetut käyttäjät',
   },
   faq: {
     title: 'Usein kysytyt kysymykset',
@@ -141,6 +161,23 @@ const fi = {
     title: 'Tietosuoja',
     effective: 'Päivitetty 1.8.2026 · EU GDPR -yhteensopiva',
     contactText: 'Kysymyksiä tietosuojasta? Ota yhteyttä:',
+  },
+  kori: {
+    title: 'Ostoskori', empty: 'Ostoskori on tyhjä', browseProducts: 'Selaa tuotteita',
+    liveExpiredNotice: 'Yksi tai useampi live-osto poistui korista ajan loputtua.',
+    payFailed: 'Maksu epäonnistui', free: '(ilmainen)',
+    liveTimeLeft: 'Live-osto — maksuaikaa', timeUp: 'Aika loppui',
+    products: 'Tuotteet', shipping: 'toimitus', pay: 'Maksa', processing: 'Käsitellään...',
+    total: 'Yhteensä', items: 'tuotetta', allSellers: 'kaikki myyjät',
+  },
+  notificationsPage: {
+    title: 'Ilmoitukset', subtitle: 'Pysy ajan tasalla huudoista ja tilauksista',
+    empty: 'Ei ilmoituksia vielä', markAllRead: 'Merkitse kaikki luetuiksi',
+  },
+  messagesPage: {
+    title: 'Viestit', subtitle: 'Keskustelusi ostajien ja myyjien kanssa',
+    empty: 'Ei viestejä vielä', noConversation: 'Valitse keskustelu',
+    writeMessage: 'Kirjoita viesti...', send: 'Lähetä', back: '← Takaisin',
   },
 }
 export default fi

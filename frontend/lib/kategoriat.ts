@@ -10,6 +10,7 @@ export const KATEGORIAT = [
       { id: 'lorcana', nimi: { fi: 'Lorcana', en: 'Lorcana' } },
       { id: 'one-piece', nimi: { fi: 'One Piece', en: 'One Piece' } },
       { id: 'sports-cards', nimi: { fi: 'Urheilukortit', en: 'Sports Cards' } },
+      { id: 'tarvikkeet', nimi: { fi: 'Tarvikkeet', en: 'Supplies' } },
       { id: 'muut-kortit', nimi: { fi: 'Muut kortit', en: 'Other Cards' } },
     ],
   },
@@ -123,28 +124,6 @@ export const KATEGORIAT = [
       { id: 'keittion-varusteet', nimi: { fi: 'Keittiö', en: 'Kitchen' } },
       { id: 'valaistus', nimi: { fi: 'Valaistus', en: 'Lighting' } },
       { id: 'tekstiilit', nimi: { fi: 'Tekstiilit', en: 'Textiles' } },
-    ],
-  },
-  {
-    id: 'tyokalut',
-    nimi: { fi: 'Työkalut & remontointi', en: 'Tools & DIY' },
-    kuvaus: 'Käsi- ja sähkötyökalut',
-    alakategoriat: [
-      { id: 'sahkotyokalut', nimi: { fi: 'Sähkötyökalut', en: 'Power Tools' } },
-      { id: 'kaasityokalut', nimi: { fi: 'Käsityökalut', en: 'Hand Tools' } },
-      { id: 'puutarha', nimi: { fi: 'Puutarhatyökalut', en: 'Garden Tools' } },
-      { id: 'mittalaitteet', nimi: { fi: 'Mittalaitteet', en: 'Measuring Tools' } },
-    ],
-  },
-  {
-    id: 'auto-moto',
-    nimi: { fi: 'Auto & moottoripyörä', en: 'Cars & Motorcycles' },
-    kuvaus: 'Varaosat, tarvikkeet, varusteet',
-    alakategoriat: [
-      { id: 'varaosat', nimi: { fi: 'Varaosat', en: 'Spare Parts' } },
-      { id: 'renkaat', nimi: { fi: 'Renkaat & vanteet', en: 'Tires & Rims' } },
-      { id: 'lisavarusteet', nimi: { fi: 'Lisävarusteet', en: 'Accessories' } },
-      { id: 'moottoripyora', nimi: { fi: 'Moottoripyörätarvikkeet', en: 'Motorcycle Gear' } },
     ],
   },
   {

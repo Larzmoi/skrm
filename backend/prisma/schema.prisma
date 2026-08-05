@@ -20,17 +20,39 @@ enum ShowStatus {
 
 enum ProductStatus {
   PENDING
+  RESERVED
   ACTIVE
   SOLD
   UNSOLD
 }
 
 enum OrderStatus {
-  PENDING
-  PAID
+  PENDING_PAYMENT
+  PENDING_SHIPPING_SELECTION
+  PENDING_SHIPPING
   SHIPPED
   DELIVERED
+  DISPUTED
   CANCELLED
+}
+
+enum NotificationType {
+  ORDER_WON
+  ORDER_PAID
+  ORDER_SHIPPED
+  ORDER_DELIVERED
+  PAYMENT_EXPIRED
+  BAN_ISSUED
+  MESSAGE
+  SHIPPING_STALLED
+  DELIVERY_REMINDER
+  PAYMENT_RELEASED
+  ORDER_AUTO_COMPLETED
+  DISPUTE_OPENED
+  OUTBID
+  AUCTION_ENDED
+  AUCTION_SOLD
+  REVIEW_RECEIVED
 }
 
 model User {
@@ -41,6 +63,15 @@ model User {
   username         String   @unique
   avatarUrl        String?
   bio              String?
+  phone            String?
+  address          String?
+  postalCode       String?
+  city             String?
+  businessId       String?
+  usernameChangedAt DateTime?
+  termsAcceptedAt   DateTime?
+  privacyAcceptedAt DateTime?
+  policyAcceptedAt  DateTime?
   role             Role     @default(USER)
   stripeCustomerId String?
   stripeAccountId  String?
@@ -55,6 +86,16 @@ model User {
   sales     Order[]    @relation("SellerOrders")
   followers Follower[] @relation("SellerFollowers")
   following Follower[] @relation("UserFollowing")
+  carts             Cart[]
+  paymentViolations PaymentViolation[]
+  bans              Ban[]
+  notifications     Notification[]
+  sentMessages      Message[]          @relation("SentMessages")
+  receivedMessages  Message[]          @relation("ReceivedMessages")
+  autoBids          AutoBid[]
+  currentBids       Product[]          @relation("CurrentBidder")
+  reviewsGiven      Review[]           @relation("ReviewsGiven")
+  reviewsReceived   Review[]           @relation("ReviewsReceived")
 }
 
 model Show {
@@ -64,9 +105,11 @@ model Show {
   seller        User       @relation(fields: [sellerId], references: [id])
   status        ShowStatus @default(SCHEDULED)
   category      String?
+  alakategoria  String?
+  city          String?
   thumbnailUrl  String?
-  muxStreamId   String?
-  muxPlaybackId String?
+  streamKey     String?   @unique // salainen — vain myyjälle (OBS-striimauksen RTMP stream key)
+  hlsUrl        String? // HLS-toistolinkki katsojille
   scheduledAt   DateTime?
   startedAt     DateTime?
   endedAt       DateTime?
@@ -89,51 +132,169 @@ model Product {
   imageUrl        String?
   category        String?
   alakategoria    String?
+  city            String?
   condition       String?
   startPrice      Float
   reservePrice    Float?
   buyNowPrice     Float?
   finalPrice      Float?
-  auctionDuration Int?
+  auctionDuration Int?          // live-lähetyksen huutokauppa-lotin kesto SEKUNTEINA — eri asia kuin perinteisen huutokaupan auctionEndsAt
   quantity        Int           @default(1)
   pakettikoko     String?
   status          ProductStatus @default(PENDING)
   order           Int           @default(0)
   createdAt       DateTime      @default(now())
 
-  bids      Bid[]
-  orderItem Order?
+  // Perinteinen (ajastettu) huutokauppa — saleType "auction"
+  auctionEndsAt   DateTime?
+  currentBid      Float?
+  currentBidderId String?
+  currentBidder   User?         @relation("CurrentBidder", fields: [currentBidderId], references: [id])
+
+  bids       Bid[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  messages   Message[]
+  autoBids   AutoBid[]
+}
+
+model AutoBid {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  maxAmount Float
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
 }
 
 model Bid {
   id        String   @id @default(cuid())
   productId String
   product   Product  @relation(fields: [productId], references: [id])
-  showId    String
-  show      Show     @relation(fields: [showId], references: [id])
+  showId    String? // null perinteisen (ei-live) huutokaupan huudoille
+  show      Show?    @relation(fields: [showId], references: [id])
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   amount    Float
+  type      String   @default("manual") // "manual" | "auto"
   createdAt DateTime @default(now())
 }
 
+model Cart {
+  id        String     @id @default(cuid())
+  buyerId   String
+  buyer     User       @relation(fields: [buyerId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  expiresAt DateTime   // 2h live-ostoille, ei expirya suoramyynnille
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  price     Float
+  quantity  Int      @default(1)
+  sellerId  String
+  source    String   // "live" tai "direct"
+  addedAt   DateTime @default(now())
+}
+
 model Order {
-  id                    String      @id @default(cuid())
-  productId             String      @unique
-  product               Product     @relation(fields: [productId], references: [id])
-  buyerId               String
-  buyer                 User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  sellerId              String
-  seller                User        @relation("SellerOrders", fields: [sellerId], references: [id])
-  amount                Float
-  commission            Float
-  shippingCost          Float       @default(0)
-  status                OrderStatus @default(PENDING)
-  stripePaymentIntentId String?
-  trackingCode          String?
-  shippingProofUrl      String?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  buyerId           String
+  buyer             User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId          String
+  seller            User        @relation("SellerOrders", fields: [sellerId], references: [id])
+  items             OrderItem[]
+  status            OrderStatus @default(PENDING_PAYMENT)
+  productTotal      Float
+  shippingPrice     Float?
+  shippingSize      String?
+  paytrailPaymentId String?
+  shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
+  paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
+  trackingCode      String?
+  shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
+  stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty
+  reminderNotifiedAt DateTime?  // päivä 10 -muistutus lähetetty
+  disputeReason     String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  reviews Review[]
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  reviewerId String
+  reviewer   User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  revieweeId String
+  reviewee   User     @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  rating     Int // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([orderId, reviewerId])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  price     Float
+  quantity  Int     @default(1)
+}
+
+model PaymentViolation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  orderId   String
+  createdAt DateTime @default(now())
+}
+
+model Ban {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  reason    String
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id])
+  body       String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
 }
 
 model Follower {

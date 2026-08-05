@@ -1,4 +1,4 @@
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:4000'
+import { BACKEND_URL as BACKEND } from './backend'
 
 function getToken() {
   if (typeof window === 'undefined') return null
@@ -33,5 +33,55 @@ export const api = {
 }
 
 export const userApi = {
-  updateProfile: (data: { name?: string; bio?: string }) => request('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  updateProfile: (data: { name?: string; bio?: string; phone?: string; address?: string; postalCode?: string; city?: string; businessId?: string; email?: string; username?: string; avatarUrl?: string }) =>
+    request('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  getPublic: (username: string) => request(`/users/${encodeURIComponent(username)}`),
+  follow: (username: string) => request(`/users/${encodeURIComponent(username)}/follow`, { method: 'POST' }),
+  getReviews: (username: string) => request(`/users/${encodeURIComponent(username)}/reviews`),
+}
+
+export const cartApi = {
+  add: (productId: string, source: 'live' | 'direct', quantity: number = 1) => request('/cart/add', { method: 'POST', body: JSON.stringify({ productId, source, quantity }) }),
+  get: () => request('/cart'),
+  remove: (itemId: string) => request(`/cart/${itemId}`, { method: 'DELETE' }),
+  checkout: (sellerId: string) => request('/cart/checkout', { method: 'POST', body: JSON.stringify({ sellerId }) }),
+}
+
+export const orderApi = {
+  mine: () => request('/orders/mine'),
+  selling: () => request('/orders/selling'),
+  selectShipping: (orderId: string, pakettikokoId: string) => request(`/orders/${orderId}/select-shipping`, { method: 'POST', body: JSON.stringify({ pakettikokoId }) }),
+  mockPay: (orderId: string) => request(`/orders/${orderId}/mock-pay`, { method: 'POST' }),
+  addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),
+  confirmDelivery: (orderId: string) => request(`/orders/${orderId}/confirm-delivery`, { method: 'POST' }),
+  dispute: (orderId: string, reason: string) => request(`/orders/${orderId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  review: (orderId: string, rating: number, comment?: string) => request(`/orders/${orderId}/review`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
+}
+
+export const showApi = {
+  create: (data: { title: string; category?: string; alakategoria?: string; city?: string; scheduledAt?: string; thumbnailUrl?: string }) => request('/shows', { method: 'POST', body: JSON.stringify(data) }),
+  getStreamInfo: (id: string) => request(`/shows/${id}/stream-info`),
+  setStatus: (id: string, status: 'LIVE' | 'ENDED', thumbnailUrl?: string) => request(`/shows/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, thumbnailUrl }) }),
+}
+
+export const auctionApi = {
+  list: (params?: Record<string, string>) => {
+    const q = params ? '?' + new URLSearchParams(params).toString() : ''
+    return request(`/auctions${q}`)
+  },
+  get: (id: string) => request(`/auctions/${id}`),
+  bid: (id: string, amount: number) => request(`/auctions/${id}/bid`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  autobid: (id: string, maxAmount: number) => request(`/auctions/${id}/autobid`, { method: 'POST', body: JSON.stringify({ maxAmount }) }),
+  buyNow: (id: string) => request(`/auctions/${id}/buy-now`, { method: 'POST' }),
+}
+
+export const notificationApi = {
+  list: () => request('/notifications'),
+  markRead: (id?: string) => request('/notifications/read', { method: 'POST', body: JSON.stringify(id ? { id } : {}) }),
+}
+
+export const messageApi = {
+  conversations: () => request('/messages'),
+  thread: (userId: string) => request(`/messages/${userId}`),
+  send: (receiverId: string, body: string, productId?: string) => request('/messages', { method: 'POST', body: JSON.stringify({ receiverId, body, productId }) }),
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
 import { useTheme } from '@/lib/theme-context'
+import { useIsMobile } from '@/lib/useIsMobile'
 
 interface ScheduledShow { id: string; title: string; category: string; scheduledAt: string }
 
@@ -11,6 +12,7 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const { t } = useLang()
   const { C } = useTheme()
+  const isMobile = useIsMobile()
   const [shows, setShows] = useState<ScheduledShow[]>([])
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
@@ -80,7 +82,7 @@ export default function DashboardPage() {
       {saved && <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: C.accent, fontSize: 13 }}>Lähetys ajastettu!</div>}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
         {stats.map(s => (
           <div key={s.label} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px 20px' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: s.color, marginBottom: 4 }}>{s.value}</div>
@@ -89,7 +91,27 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      {/* Pikatoiminnot — selkeästi erillään: live-lähetys vs. tuotteiden hallinta */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
+        <Link href="/dashboard/lahetys" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '18px 20px' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#fff', flexShrink: 0 }}>◉</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{t.dashboard.quickLiveTitle}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{t.dashboard.quickLiveDesc}</div>
+          </div>
+          <span style={{ color: C.accent, fontSize: 18, flexShrink: 0 }}>→</span>
+        </Link>
+        <Link href="/dashboard/tuotteet" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: C.text, flexShrink: 0 }}>◫</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{t.dashboard.quickProductsTitle}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>{t.dashboard.quickProductsDesc}</div>
+          </div>
+          <span style={{ color: C.muted, fontSize: 18, flexShrink: 0 }}>→</span>
+        </Link>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
 
         {/* Lähetykset */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px' }}>
@@ -130,15 +152,6 @@ export default function DashboardPage() {
                 ))}
               </div>
           }
-
-          <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-            <Link href="/dashboard/lahetys" style={{ flex: 1, background: C.accent, color: '#fff', textDecoration: 'none', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
-              Mene liveen
-            </Link>
-            <Link href="/dashboard/tuotteet" style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, textDecoration: 'none', padding: '10px', borderRadius: 8, fontWeight: 600, fontSize: 13, textAlign: 'center' }}>
-              + Lisää tuote
-            </Link>
-          </div>
         </div>
 
         {/* Ohjeet */}

@@ -33,6 +33,7 @@ const FAQ_DATA = {
         { q: 'Mitä voin myydä?', a: 'Voit myydä lähes mitä tahansa laillista käytettyä tai uutta tavaraa. Kiellettyjä ovat aseet, alkoholi, lääkkeet, elävät eläimet ja väärennetyt tuotteet.' },
         { q: 'Milloin saan rahani?', a: 'Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu SKRM:lle.' },
         { q: 'Mikä on välityspalkkio?', a: 'SKRM perii 3% välityspalkkion myyntihinnasta, enintään 20€ per kauppa. Lisäksi peritään maksunkäsittelykulut (n. 1,5% + 0,25€).' },
+        { q: 'Miten striimaan lähetyksen OBS:lla?', a: 'Voit striimata OBS Studiolla (ilmainen ohjelma): 1) Lataa ja asenna OBS Studio. 2) Avaa Asetukset → Stream. 3) Valitse Service: Custom. 4) Kopioi Server ja Stream Key dashboardin "Aloita lähetys" -näkymästä OBS:n vastaaviin kenttiin. 5) Paina "Start Streaming" OBS:ssa. Lähetys näkyy katsojille muutaman sekunnin viiveellä.' },
       ],
     },
     {
@@ -71,6 +72,7 @@ const FAQ_DATA = {
         { q: 'What can I sell?', a: 'You can sell almost any legal used or new items. Prohibited are weapons, alcohol, medication, live animals and counterfeit goods.' },
         { q: 'When do I get my money?', a: 'Payment is released to the seller when the tracking code has been provided to SKRM.' },
         { q: 'What is the commission?', a: 'SKRM charges a 3% commission on the sale price, maximum €20 per sale. Payment processing fees also apply (~1.5% + €0.25).' },
+        { q: 'How do I stream with OBS?', a: 'You can stream using OBS Studio (free software): 1) Download and install OBS Studio. 2) Open Settings → Stream. 3) Select Service: Custom. 4) Copy the Server and Stream Key from the "Start stream" view in your dashboard into the matching fields in OBS. 5) Click "Start Streaming" in OBS. Viewers will see the stream with a few seconds of delay.' },
       ],
     },
     {

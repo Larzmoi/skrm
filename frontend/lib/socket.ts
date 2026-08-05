@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:4000'
+import { BACKEND_URL as BACKEND } from './backend'
 
 let socket: Socket | null = null
 

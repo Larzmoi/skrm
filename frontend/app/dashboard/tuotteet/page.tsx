@@ -6,16 +6,8 @@ import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
 import { api } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
-
-const PAKETTIKOOT = [
-  { id: 'xxs', nimi: 'Pikkupaketti (XXS)', mitat: '3×25×35 cm', hinta: 9.90 },
-  { id: 's', nimi: 'S-paketti', mitat: '11×32×42 cm', hinta: 11.90 },
-  { id: 'm', nimi: 'M-paketti', mitat: '19×36×60 cm', hinta: 13.90 },
-  { id: 'l', nimi: 'L-paketti', mitat: '37×36×60 cm', hinta: 18.90 },
-  { id: 'xl', nimi: 'XL-paketti', mitat: '100×60×40 cm', hinta: 24.90 },
-  { id: 'xxl', nimi: 'XXL-paketti', mitat: 'max 200 cm', hinta: 46.90 },
-  { id: 'nouto', nimi: 'Nouto myyjältä', mitat: '', hinta: 0 },
-]
+import { PAKETTIKOOT } from '@/lib/pakettikoot'
+import { useIsMobile } from '@/lib/useIsMobile'
 
 const KUNTOLUOKAT = [
   { id: 'uusi', nimi: 'Uusi' },
@@ -25,19 +17,20 @@ const KUNTOLUOKAT = [
   { id: 'kaytetty', nimi: 'Käytetty' },
 ]
 
-type SaleType = 'live' | 'buy_now' | 'both'
+type SaleType = 'live' | 'buy_now' | 'both' | 'auction'
 
 interface Product {
   id: string; name: string; saleType: SaleType
   startPrice: number; buyNowPrice?: number; reservePrice?: number
   auctionDuration?: number; quantity: number; condition?: string
   description?: string; imageUrl?: string; category?: string
-  alakategoria?: string; pakettikoko?: string; status: string
+  alakategoria?: string; city?: string; pakettikoko?: string; status: string
 }
 
 export default function TuotteetPage() {
   const { C } = useTheme()
   const { lang } = useLang()
+  const isMobile = useIsMobile()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,15 +42,23 @@ export default function TuotteetPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [alakategoria, setAlakategoria] = useState('')
+  const [city, setCity] = useState('')
   const [condition, setCondition] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<string[]>([])
-  const [pakettikoko, setPakettikoko] = useState('')
+  const [pakettikoko, setPakettikokoState] = useState('')
+  const [noutoPolicyAccepted, setNoutoPolicyAccepted] = useState(false)
+  function setPakettikoko(id: string) {
+    setPakettikokoState(id)
+    if (id !== 'nouto') setNoutoPolicyAccepted(false)
+  }
   const [startPrice, setStartPrice] = useState('')
   const [buyNowPrice, setBuyNowPrice] = useState('')
   const [reservePrice, setReservePrice] = useState('')
   const [auctionDuration, setAuctionDuration] = useState('')
+  const [auctionDurationDays, setAuctionDurationDays] = useState(3)
+  const [auctionDurationHours, setAuctionDurationHours] = useState(0)
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -74,18 +75,21 @@ export default function TuotteetPage() {
 
   function reset() {
     setSaleType('live'); setName(''); setCategory(''); setAlakategoria('')
+    setCity('')
     setCondition(''); setQuantity('1'); setDescription(''); setImages([])
-    setPakettikoko(''); setStartPrice(''); setBuyNowPrice(''); setReservePrice('')
-    setAuctionDuration(''); setError(''); setEditId(null)
+    setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice('')
+    setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
     if (fileRef.current) fileRef.current.value = ''
   }
 
   function openEdit(p: Product) {
     setEditId(p.id); setSaleType(p.saleType); setName(p.name)
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? '')
+    setCity(p.city ?? '')
     setCondition(p.condition ?? ''); setQuantity(String(p.quantity ?? 1))
     setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
-    setPakettikoko(p.pakettikoko ?? ''); setStartPrice(String(p.startPrice))
+    setPakettikokoState(p.pakettikoko ?? ''); setNoutoPolicyAccepted(p.pakettikoko === 'nouto')
+    setStartPrice(String(p.startPrice))
     setBuyNowPrice(p.buyNowPrice ? String(p.buyNowPrice) : '')
     setReservePrice(p.reservePrice ? String(p.reservePrice) : '')
     setAuctionDuration(p.auctionDuration ? String(p.auctionDuration) : '')
@@ -115,6 +119,7 @@ export default function TuotteetPage() {
   async function save() {
     if (!name.trim()) { setError('Syötä tuotteen nimi'); return }
     if (!startPrice || Number(startPrice) <= 0) { setError('Syötä hinta'); return }
+    if (pakettikoko === 'nouto' && !noutoPolicyAccepted) { setError('Hyväksy noutotuotteen ehdot ennen julkaisua'); return }
     setError(''); setSaving(true)
 
     const data = {
@@ -123,9 +128,11 @@ export default function TuotteetPage() {
       buyNowPrice: buyNowPrice ? Number(buyNowPrice) : undefined,
       reservePrice: reservePrice ? Number(reservePrice) : undefined,
       auctionDuration: auctionDuration ? Number(auctionDuration) : undefined,
+      auctionDurationDays: saleType === 'auction' ? auctionDurationDays : undefined,
+      auctionDurationHours: saleType === 'auction' ? auctionDurationHours : undefined,
       quantity: Number(quantity) || 1,
       condition: condition || undefined, category: category || undefined,
-      alakategoria: alakategoria || undefined, pakettikoko: pakettikoko || undefined,
+      alakategoria: alakategoria || undefined, city: city.trim() || undefined, pakettikoko: pakettikoko || undefined,
       description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
     }
 
@@ -161,12 +168,14 @@ export default function TuotteetPage() {
   const saleTypeOptions = [
     { id: 'live' as SaleType, label: 'Live-huutokauppa', desc: 'Myydään lähetyksessä' },
     { id: 'buy_now' as SaleType, label: 'Suoramyynti', desc: 'Kiinteä hinta, ostaa koska vain' },
+    { id: 'auction' as SaleType, label: 'Huutokauppa', desc: 'Ajastettu huutokauppa, itse valittava kesto' },
     { id: 'both' as SaleType, label: 'Molemmat', desc: 'Suoramyynti + live-huutokauppa' },
   ]
 
   const saleLabel: Record<string, { label: string; color: string; bg: string }> = {
     live: { label: 'Live', color: C.accent, bg: C.accentLight },
     buy_now: { label: 'Suoramyynti', color: '#007AFF', bg: '#E8F0FF' },
+    auction: { label: 'Huutokauppa', color: '#8B5CF6', bg: '#F3E8FF' },
     both: { label: 'Live + Suora', color: '#F59E0B', bg: '#FFF8E8' },
   }
 
@@ -202,7 +211,7 @@ export default function TuotteetPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 16, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '150px 1fr', gap: 16, marginBottom: 14 }}>
             {/* Kuva */}
             <div>
               <label style={lbl}>Kuva</label>
@@ -255,6 +264,7 @@ export default function TuotteetPage() {
                 </div>
                 <div><label style={lbl}>Määrä</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
               </div>
+              <div><label style={lbl}>Paikkakunta</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
             </div>
           </div>
 
@@ -267,7 +277,7 @@ export default function TuotteetPage() {
                 <input type="number" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0" style={inp} />
                 <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? 'Kiinteä myyntihinta' : 'Huutokaupan aloitushinta'}</div>
               </div>
-              {saleType === 'both' && (
+              {(saleType === 'both' || saleType === 'auction') && (
                 <div>
                   <label style={lbl}>Osta heti -hinta (€)</label>
                   <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder="Ohita huutokauppa" style={inp} />
@@ -280,9 +290,9 @@ export default function TuotteetPage() {
                   <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Ostajalle ei näytetä</div>
                 </div>
               )}
-              {saleType !== 'buy_now' && (
+              {(saleType === 'live' || saleType === 'both') && (
                 <div>
-                  <label style={lbl}>Huutokaupan kesto</label>
+                  <label style={lbl}>Huutokaupan kesto (live-lähetyksessä)</label>
                   <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                     {[60, 120, 300].map(s => (
                       <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
@@ -291,6 +301,19 @@ export default function TuotteetPage() {
                     ))}
                   </div>
                   <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder="sekunteina" style={inp} />
+                </div>
+              )}
+              {saleType === 'auction' && (
+                <div>
+                  <label style={lbl}>Huutokaupan kesto</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={auctionDurationDays} onChange={e => setAuctionDurationDays(Number(e.target.value))} style={inp}>
+                      {Array.from({ length: 31 }, (_, d) => d).map(d => <option key={d} value={d}>{d} pv</option>)}
+                    </select>
+                    <select value={auctionDurationHours} onChange={e => setAuctionDurationHours(Number(e.target.value))} style={inp}>
+                      {Array.from({ length: 24 }, (_, h) => h).map(h => <option key={h} value={h}>{h} h</option>)}
+                    </select>
+                  </div>
                 </div>
               )}
             </div>
@@ -308,6 +331,30 @@ export default function TuotteetPage() {
               ))}
             </div>
             {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Ostaja maksaa <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
+
+            {pakettikoko === 'nouto' && (
+              <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
+                  Huomio: Noutotuote
+                </div>
+                <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
+                  Noutotuotteiden kaupassa SKRM ei tarjoa maksuturvaa. Kauppa tapahtuu
+                  suoraan ostajan ja myyjän välillä. SKRM ei vastaa noutokauppojen
+                  toteutumisesta, aikataulusta tai mahdollisista erimielisyyksistä.
+                </p>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={noutoPolicyAccepted}
+                    onChange={e => setNoutoPolicyAccepted(e.target.checked)}
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
+                    Ymmärrän että tämä on noutotuote eikä SKRM:n maksuturva koske tätä kauppaa
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: 14 }}>
@@ -359,7 +406,7 @@ export default function TuotteetPage() {
             })}
           </div>
           <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, color: C.text }}>{pending.filter(p => p.saleType !== 'buy_now').length} live-jonossa · {pending.filter(p => p.saleType !== 'live').length} suoramyynnissä</span>
+            <span style={{ fontSize: 14, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} live-jonossa · {pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} suoramyynnissä · {pending.filter(p => p.saleType === 'auction').length} huutokaupassa</span>
             <Link href="/dashboard/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>Mene liveen</Link>
           </div>
         </div>

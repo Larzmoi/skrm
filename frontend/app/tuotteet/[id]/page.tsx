@@ -1,26 +1,38 @@
 'use client'
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
+import { useAuth } from '@/lib/auth-context'
+import { useCart } from '@/lib/cart-context'
 import { KATEGORIAT, getKatNimi } from '@/lib/kategoriat'
-import { api } from '@/lib/api'
+import { api, cartApi, messageApi } from '@/lib/api'
+import { useIsMobile } from '@/lib/useIsMobile'
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { C } = useTheme()
   const { t, lang } = useLang()
+  const { user } = useAuth()
+  const { refresh: refreshCart } = useCart()
+  const router = useRouter()
+  const isMobile = useIsMobile()
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeImg, setActiveImg] = useState(0)
   const [added, setAdded] = useState(false)
+  const [buyError, setBuyError] = useState('')
+  const [buying, setBuying] = useState(false)
   const [showContact, setShowContact] = useState(false)
   const [copied, setCopied] = useState(false)
   const [qty, setQty] = useState(1)
   const [zoomed, setZoomed] = useState(false)
   const [message, setMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const [messageSent, setMessageSent] = useState(false)
 
   useEffect(() => {
     console.log('Haetaan tuote id:', id)
@@ -52,15 +64,38 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     ? product.imageUrl.split('|||').filter((s: string) => s.length > 0)
     : []
 
-  function buyNow() {
-    setAdded(true)
-    setTimeout(() => setAdded(false), 3000)
+  async function buyNow() {
+    if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
+    setBuyError('')
+    setBuying(true)
+    try {
+      await cartApi.add(product.id, 'direct', qty)
+      await refreshCart()
+      setAdded(true)
+      setTimeout(() => setAdded(false), 3000)
+    } catch (e: any) {
+      setBuyError(e.message ?? 'Lisäys koriin epäonnistui')
+    }
+    setBuying(false)
+  }
+
+  async function sendSellerMessage() {
+    if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
+    if (!message.trim() || !product.seller) return
+    setSendingMessage(true)
+    try {
+      await messageApi.send(product.seller.id, message.trim(), product.id)
+      setMessage('')
+      setMessageSent(true)
+      setTimeout(() => setMessageSent(false), 3000)
+    } catch {}
+    setSendingMessage(false)
   }
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Navbar />
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
 
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, fontSize: 13, color: C.muted, flexWrap: 'wrap' }}>
@@ -72,7 +107,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <span style={{ color: C.text, fontWeight: 500 }}>{product.name}</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 40, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: isMobile ? 24 : 40, alignItems: 'start' }}>
 
           {/* Kuvat */}
           <div>
@@ -116,6 +151,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               )}
             </div>
 
+            {product.pakettikoko === 'nouto' && (
+              <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#92400E' }}>
+                Tämä on noutotuote. Sovitaan noudon yksityiskohdista myyjän kanssa.
+                SKRM:n maksuturva ei koske noutokauppoja.
+              </div>
+            )}
+
             {product.saleType !== 'live' ? (
               <>
                 {product.quantity > 1 && (
@@ -129,14 +171,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     <span style={{ fontSize: 12, color: C.muted }}>(max {product.quantity})</span>
                   </div>
                 )}
+                {buyError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{buyError}</div>}
                 {added ? (
-                  <div style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, padding: '14px', textAlign: 'center', marginBottom: 12 }}>
+                  <Link href="/kori" style={{ display: 'block', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, padding: '14px', textAlign: 'center', marginBottom: 12, textDecoration: 'none' }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: C.accent, marginBottom: 4 }}>{t.product.addedToCart}</div>
-                    <div style={{ fontSize: 13, color: C.muted }}>{t.product.checkoutSoon}</div>
-                  </div>
+                    <div style={{ fontSize: 13, color: C.muted }}>{t.product.goToCart}</div>
+                  </Link>
                 ) : (
-                  <button onClick={buyNow} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>
-                    {t.product.buyNow} {qty > 1 ? `(${qty} kpl)` : ''}
+                  <button onClick={buyNow} disabled={buying} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: buying ? 'default' : 'pointer', opacity: buying ? 0.7 : 1, marginBottom: 10 }}>
+                    {buying ? t.auth.loading : t.product.addToCart}
                   </button>
                 )}
               </>
@@ -160,16 +203,25 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
             {showContact && (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', marginBottom: 20 }}>
-                <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Kirjoita viestisi myyjälle..." rows={3} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
-                <button style={{ marginTop: 8, background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{t.product.sendMessage}</button>
+                {messageSent ? (
+                  <div style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>{t.product.messageSent}</div>
+                ) : (
+                  <>
+                    <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Kirjoita viestisi myyjälle..." rows={3} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
+                    <button onClick={sendSellerMessage} disabled={sendingMessage || !message.trim()} style={{ marginTop: 8, background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: sendingMessage ? 'default' : 'pointer', opacity: sendingMessage || !message.trim() ? 0.6 : 1 }}>{t.product.sendMessage}</button>
+                  </>
+                )}
               </div>
             )}
 
             {/* Myyjä */}
             {product.seller && (
               <Link href={`/u/${product.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', textDecoration: 'none', marginBottom: 20 }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                  {product.seller.username?.[0]?.toUpperCase()}
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {product.seller.avatarUrl
+                    ? <img src={product.seller.avatarUrl} alt={product.seller.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : product.seller.username?.[0]?.toUpperCase()
+                  }
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>@{product.seller.username}</div>

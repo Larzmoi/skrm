@@ -1,30 +1,41 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
-
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:4000'
+import { useAuth } from '@/lib/auth-context'
+import { BACKEND_URL as BACKEND } from '@/lib/backend'
 
 export default function RegisterPage() {
   const { C } = useTheme()
   const { t } = useLang()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    if (!authLoading && user) router.push('/')
+  }, [user, authLoading, router])
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [privacyAccepted, setPrivacyAccepted] = useState(false)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const canSubmit = termsAccepted && privacyAccepted && policyAccepted
 
   async function submit() {
     setError('')
     if (!name || !username || !email || !password) { setError(t.auth.fillAll); return }
     if (password.length < 8) { setError(t.auth.minPassword); return }
+    if (!canSubmit) { setError(t.auth.acceptRequired); return }
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, username, email, password }) })
+      const res = await fetch(`${BACKEND}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, username, email, password, termsAccepted, privacyAccepted, policyAccepted }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       localStorage.setItem('skrm_token', data.token)
@@ -36,6 +47,8 @@ export default function RegisterPage() {
 
   const inp: React.CSSProperties = { width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '11px 14px', fontSize: 14, color: C.text, boxSizing: 'border-box' }
   const lbl: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: C.textSub, display: 'block', marginBottom: 6 }
+
+  if (authLoading || user) return null
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -55,10 +68,31 @@ export default function RegisterPage() {
           </div>
           <div><label style={lbl}>{t.auth.email}</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sinä@esimerkki.fi" style={inp} /></div>
           <div><label style={lbl}>{t.auth.password}</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="••••••••" style={inp} /></div>
-          <button onClick={submit} disabled={loading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4, padding: '12px 14px', background: C.surface, borderRadius: 8, border: `1px solid ${C.border}` }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: C.textSub, cursor: 'pointer' }}>
+              <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+              <span>{t.auth.acceptTerms} <Link href="/kayttoehdot" style={{ color: C.accent, fontWeight: 600 }}>{t.auth.termsLink}</Link> *</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: C.textSub, cursor: 'pointer' }}>
+              <input type="checkbox" checked={privacyAccepted} onChange={e => setPrivacyAccepted(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+              <span>{t.auth.acceptPrivacy} <Link href="/tietosuoja" style={{ color: C.accent, fontWeight: 600 }}>{t.auth.privacyLink}</Link> *</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: C.textSub, cursor: 'pointer' }}>
+              <input type="checkbox" checked={policyAccepted} onChange={e => setPolicyAccepted(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+              <span>{t.auth.acceptPolicy} *</span>
+            </label>
+            <ul style={{ margin: '-4px 0 0 30px', padding: 0, fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
+              <li>{t.auth.policyPoint1}</li>
+              <li>{t.auth.policyPoint2}</li>
+              <li>{t.auth.policyPoint3}</li>
+              <li>{t.auth.policyPoint4}</li>
+            </ul>
+          </div>
+
+          <button onClick={submit} disabled={loading || !canSubmit} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: (loading || !canSubmit) ? 'not-allowed' : 'pointer', opacity: (loading || !canSubmit) ? 0.5 : 1, marginTop: 4 }}>
             {loading ? t.auth.loading : t.auth.registerBtn}
           </button>
-          <p style={{ fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 1.5 }}>{t.auth.terms}</p>
         </div>
         <div style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: C.muted }}>
           {t.auth.hasAccount} <Link href="/login" style={{ color: C.accent, fontWeight: 600 }}>{t.auth.signIn}</Link>
