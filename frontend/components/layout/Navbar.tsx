@@ -53,7 +53,8 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" style={{ fontSize: 12, color: C.textSub, fontWeight: 500, whiteSpace: 'nowrap' }}>{t.nav.login}</Link>
-              <Link href="/register" style={{ background: C.accent, color: '#fff', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t.nav.register}</Link>
+              {/* Rekisteröityminen väliaikaisesti pois käytöstä — poista kommentointi kun otetaan takaisin käyttöön */}
+              {/* <Link href="/register" style={{ background: C.accent, color: '#fff', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t.nav.register}</Link> */}
             </>
           )}
         </div>
@@ -143,7 +144,8 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" style={{ padding: '7px 14px', borderRadius: 6, fontSize: 13, fontWeight: 500, color: C.textSub }}>{t.nav.login}</Link>
-              <Link href="/register" style={{ padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 700, color: '#fff', background: C.accent }}>{t.nav.register}</Link>
+              {/* Rekisteröityminen väliaikaisesti pois käytöstä — poista kommentointi kun otetaan takaisin käyttöön */}
+              {/* <Link href="/register" style={{ padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 700, color: '#fff', background: C.accent }}>{t.nav.register}</Link> */}
             </>
           )}
         </div>
