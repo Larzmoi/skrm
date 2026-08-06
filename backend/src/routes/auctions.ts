@@ -117,7 +117,7 @@ router.post('/:id/bid', authMiddleware, async (req: AuthRequest, res: Response) 
   }
 
   // Käsittele automaattihuudot
-  await processAutoBids(productId, Number(amount), req.userId!)
+  await processAutoBids(productId)
 
   const updated = await prisma.product.findUnique({
     where: { id: productId },
@@ -158,7 +158,7 @@ router.post('/:id/autobid', authMiddleware, async (req: AuthRequest, res: Respon
   })
 
   // Huuda heti jos mahdollista
-  await processAutoBids(productId, product.currentBid ?? product.startPrice, product.currentBidderId ?? '')
+  await processAutoBids(productId)
 
   res.json({ ok: true, maxAmount: Number(maxAmount) })
 })
@@ -193,34 +193,41 @@ router.post('/:id/buy-now', authMiddleware, async (req: AuthRequest, res: Respon
   res.json({ ok: true, price: product.buyNowPrice })
 })
 
-// Automaattihuutojen käsittely — huutaa puolesta minimillä kunnes joku maksimi loppuu
-async function processAutoBids(productId: string, currentAmount: number, lastBidderId: string) {
-  const autoBids = await prisma.autoBid.findMany({
-    where: { productId, userId: { not: lastBidderId }, maxAmount: { gt: currentAmount } },
-    orderBy: { maxAmount: 'desc' },
-  })
-  if (autoBids.length === 0) return
-
-  const topAutoBid = autoBids[0]
+// Automaattihuutojen käsittely — ratkaisee koko huutosodan yhdellä laskennalla:
+// voittaja on korkeimman maksimin asettanut, hinta asettuu toiseksi korkeimman maksimin + korotuksen kohdalle
+// (sama periaate kuin esim. eBaylla). Ei step-by-step-rekursiota, koska se voisi vaatia tuhansia kierroksia
+// jos automaattihuutojen maksimien erotus on suuri.
+async function processAutoBids(productId: string) {
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) return
-  const newAmount = roundCents(currentAmount + (product.bidIncrement ?? 1))
-  if (newAmount > topAutoBid.maxAmount) return
+
+  const currentAmount = product.currentBid ?? product.startPrice
+  const increment = product.bidIncrement ?? 1
+
+  const [top, second] = await prisma.autoBid.findMany({
+    where: { productId, maxAmount: { gt: currentAmount } },
+    orderBy: { maxAmount: 'desc' },
+    take: 2,
+  })
+  if (!top) return
+
+  const ceiling = roundCents(Math.min(top.maxAmount, (second ? second.maxAmount : currentAmount) + increment))
+  if (ceiling <= currentAmount) return
 
   const previousBidderId = product.currentBidderId
 
   await prisma.$transaction([
     prisma.bid.create({
-      data: { productId, userId: topAutoBid.userId, amount: newAmount, showId: product.showId ?? null, type: 'auto' },
+      data: { productId, userId: top.userId, amount: ceiling, showId: product.showId ?? null, type: 'auto' },
     }),
     prisma.product.update({
       where: { id: productId },
-      data: { currentBid: newAmount, currentBidderId: topAutoBid.userId },
+      data: { currentBid: ceiling, currentBidderId: top.userId },
     }),
   ])
 
-  if (previousBidderId && previousBidderId !== topAutoBid.userId) {
-    await notifyUser(previousBidderId, 'OUTBID', 'Sinut ohitettiin!', `Automaattihuuto ohitti sinut tuotteesta ${product.name} — uusi huuto ${newAmount}€`, `/huutokauppa/${productId}`)
+  if (previousBidderId && previousBidderId !== top.userId) {
+    await notifyUser(previousBidderId, 'OUTBID', 'Sinut ohitettiin!', `Automaattihuuto ohitti sinut tuotteesta ${product.name} — uusi huuto ${ceiling}€`, `/huutokauppa/${productId}`)
   }
 }
 
