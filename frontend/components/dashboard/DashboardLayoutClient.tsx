@@ -54,6 +54,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         {isMobile ? (
           /* Mobiili: vaakasuunnassa vieritettävä pillinavigaatio, ei kiinteää sivupalkkia */
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch', padding: '10px 12px', background: C.navBg, borderBottom: `1px solid ${C.border}` }}>
+            <button onClick={() => { logout(); router.push('/') }} style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '8px 12px', borderRadius: 20, fontSize: 13, fontWeight: 500, color: C.red, background: C.surface, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
+              {t.nav.logout}
+            </button>
             {navItems.map(item => {
               const active = item.exact ? pathname === item.href : pathname.startsWith(item.href)
               return (
@@ -63,9 +66,6 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                 </Link>
               )
             })}
-            <button onClick={() => { logout(); router.push('/') }} style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '8px 12px', borderRadius: 20, fontSize: 13, fontWeight: 500, color: C.red, background: C.surface, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
-              {t.nav.logout}
-            </button>
           </div>
         ) : (
           /* Sidebar */
@@ -85,6 +85,11 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
               </div>
             </div>
 
+            <button onClick={() => { logout(); router.push('/') }} style={{ marginBottom: 16, width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', padding: '10px 12px', borderRadius: 8, fontSize: 14, color: C.red, background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer' }}>
+              <span style={{ fontSize: 16, opacity: 0.8 }}>↩</span>
+              {t.nav.logout}
+            </button>
+
             {/* Nav */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
               {navItems.map(item => {
@@ -103,10 +108,6 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
               <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t.nav.commission}</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>3% <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}>max 20€</span></div>
             </div>
-
-            <button onClick={() => { logout(); router.push('/') }} style={{ marginTop: 12, width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 8, fontSize: 14, color: C.red, background: 'none', border: 'none', cursor: 'pointer' }}>
-              {t.nav.logout}
-            </button>
           </div>
         )}
 
