@@ -93,7 +93,7 @@ Kaikki live-huutokaupassa tehdyt huudot ovat sitovia. Huutamalla Ostaja sitoutuu
 Suoramyyntiostokset ovat myös sitovia sen jälkeen kun maksu on vahvistettu.
 
 6.2 Maksuvelvollisuus
-Ostaja on velvollinen maksamaan voittamastaan huudosta tai ostoksesta välittömästi. Maksamatta jättäminen voi johtaa tilin sulkemiseen.
+Ostaja on velvollinen maksamaan voittamastaan huudosta tai ostoksesta 2 tunnin kuluessa. Maksamatta jättäminen voi johtaa tilin sulkemiseen.
 
 6.3 Reklamaatiot
 Ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa ilmoittaa mahdollisista virheistä tai puutteista. Reklamaatio tulee tehdä kirjallisesti osoitteeseen support@skrm.fi.
@@ -248,7 +248,7 @@ SKRM recommends using cash or another secure payment method for pickup transacti
 All bids placed in live auctions are binding. By bidding, the Buyer commits to purchasing the item if they win. Bids cannot be cancelled.
 
 6.2 Payment obligation
-The Buyer is obligated to pay for won auctions or purchases immediately. Failure to pay may result in account suspension.
+The Buyer is obligated to pay for won auctions or purchases within 2 hours. Failure to pay may result in account suspension.
 
 6.3 Complaints
 The Buyer has 3 days from receiving the product to report any defects or discrepancies. Complaints must be submitted in writing to support@skrm.fi.

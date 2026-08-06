@@ -6,6 +6,8 @@ const fi = {
     logout: 'Kirjaudu ulos', profile: 'Profiili', purchases: 'Ostot',
     settings: 'Asetukset', notifications: 'Ilmoitukset', allCategories: 'Kaikki',
     messages: 'Viestit',
+    products: 'Tuotteet', broadcast: 'Lähetys', sales: 'Myynnit',
+    payouts: 'Tilitykset', commission: 'Välityspalkkio',
   },
   home: {
     liveNow: 'Live nyt', showAll: 'Näytä kaikki', upcoming: 'Tulossa pian',
@@ -25,6 +27,16 @@ const fi = {
     bid: 'Huuda', bidPlaced: 'Huuto tehty!', timeLeft: 's jäljellä',
     waitAuction: 'Odota huutokauppaa', viewers: 'katsojaa',
     leaveShow: '✕ Poistu', connecting: 'Yhdistetään...',
+    waitingForStream: 'Odotetaan lähetyksen alkua...', noProducts: 'Ei tuotteita jonossa',
+    showsCount: 'lähetystä',
+  },
+  auction: {
+    endsIn: 'Päättyy', startPrice: 'Lähtöhinta', highestBid: 'Korkein huuto',
+    reserveNotMet: 'Varaushinta ei ole vielä täyttynyt',
+  },
+  time: {
+    today: 'Tänään', tomorrow: 'Huomenna', at: 'klo',
+    justNow: 'juuri nyt', minutesAgo: 'min sitten', hoursAgo: 'h sitten', daysAgo: 'pv sitten',
   },
   auth: {
     loginTitle: 'Kirjaudu sisään', loginSub: 'Tervetuloa takaisin!',
@@ -48,9 +60,10 @@ const fi = {
   selaa: {
     search: 'Hae tuotteita...', filter: 'Suodata', sort: 'Järjestys',
     newest: 'Uusimmat ensin', priceAsc: 'Halvin ensin', priceDesc: 'Kallein ensin',
-    maxPrice: 'Enimmäishinta', category: 'Kategoria', results: 'tuotetta',
+    price: 'Hinta', minPrice: 'Minimihinta', maxPrice: 'Maksimihinta', category: 'Kategoria', results: 'tuotetta',
     noResults: 'Ei tuotteita haullasi', clearFilters: 'Tyhjennä suodattimet',
     allCategories: 'Kaikki', viewProfile: 'Näytä profiili →', subcategory: 'Alakategoria',
+    direct: 'Suoramyynti', city: 'Paikkakunta', allCities: 'Kaikki paikkakunnat',
   },
   product: {
     addToCart: 'Lisää ostoskoriin', askSeller: 'Kysy myyjältä', sendMessage: 'Lähetä viesti',
@@ -58,7 +71,7 @@ const fi = {
     addedToCart: 'Lisätty ostoskoriin!', goToCart: 'Siirry ostoskoriin →',
     messageSent: 'Viesti lähetetty!',
     sellerProfile: 'Profiili →', shippingInfo: 'Toimitus & turvaaminen',
-    shipIn24: 'Myyjä sitoutuu lähettämään 24h sisällä',
+    shipIn24: 'Myyjä sitoutuu lähettämään 48h sisällä',
     binding: 'Kaikki kaupat sitovia — ei peruutuksia',
     trackingCode: 'Seurantakoodi toimitetaan ostajalle',
     category: 'Kategoria', seller: 'Myyjä', description: 'Kuvaus',
@@ -102,8 +115,8 @@ const fi = {
     emailPlaceholder: 'Sähköpostiosoite', copyright: '© 2026 SKRM',
     feeNote: 'Välityspalkkio 3% (max 20€) + maksunkäsittely ~1,5% + 0,25€',
     binding: 'Kaikki huudot sitovia',
-    prohibited: 'Ei sallittu: aseet, alkoholi, lääkkeet, elävät eläimet',
-    badgeSecure: 'Turvallinen', badgeBinding: '✓ Sitovat huudot', badgeVerified: 'Todennetut käyttäjät',
+    prohibited: 'Ei sallittu: aseet, alkoholi/tupakka, lääkkeet/huumausaineet, elävät eläimet, väärennökset ym. laiton tavara',
+    badgeSecure: '✓ Turvallinen', badgeBinding: '✓ Sitovat huudot', badgeVerified: '✓ Todennetut käyttäjät',
   },
   faq: {
     title: 'Usein kysytyt kysymykset',

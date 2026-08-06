@@ -7,3 +7,7 @@ export function setAuthCookie(token: string) {
 export function clearAuthCookie() {
   document.cookie = 'skrm_token=; path=/; max-age=0'
 }
+
+export function hasAuthCookie(): boolean {
+  return document.cookie.split('; ').some(c => c.startsWith('skrm_token='))
+}

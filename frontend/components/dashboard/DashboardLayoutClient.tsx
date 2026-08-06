@@ -5,17 +5,8 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAvatar } from '@/lib/avatar-context'
 import { useTheme } from '@/lib/theme-context'
+import { useLang } from '@/lib/lang-context'
 import Navbar from '@/components/layout/Navbar'
-
-const navItems = [
-  { href: '/dashboard', label: 'Hallintapaneeli', icon: '▦', exact: true },
-  { href: '/dashboard/tuotteet', label: 'Tuotteet', icon: '◫' },
-  { href: '/dashboard/lahetys', label: 'Lähetys', icon: '◉' },
-  { href: '/ostot', label: 'Ostot', icon: '◇' },
-  { href: '/dashboard/tilaukset', label: 'Myynnit', icon: '▧' },
-  { href: '/dashboard/tilitykset', label: 'Tilitykset', icon: '◈' },
-  { href: '/dashboard/profiili', label: 'Profiili', icon: '◎' },
-]
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -23,7 +14,18 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const { user, loading, logout } = useAuth()
   const { C } = useTheme()
   const { avatar } = useAvatar()
+  const { t } = useLang()
   const [isMobile, setIsMobile] = useState(true)
+
+  const navItems = [
+    { href: '/dashboard', label: t.nav.dashboard, icon: '▦', exact: true },
+    { href: '/dashboard/tuotteet', label: t.nav.products, icon: '◫' },
+    { href: '/dashboard/lahetys', label: t.nav.broadcast, icon: '◉' },
+    { href: '/ostot', label: t.nav.purchases, icon: '◇' },
+    { href: '/dashboard/tilaukset', label: t.nav.sales, icon: '▧' },
+    { href: '/dashboard/tilitykset', label: t.nav.payouts, icon: '◈' },
+    { href: '/dashboard/profiili', label: t.nav.profile, icon: '◎' },
+  ]
 
   useEffect(() => {
     if (!loading && !user) router.push('/login?redirect=/dashboard')
@@ -62,7 +64,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
               )
             })}
             <button onClick={() => { logout(); router.push('/') }} style={{ flexShrink: 0, whiteSpace: 'nowrap', padding: '8px 12px', borderRadius: 20, fontSize: 13, fontWeight: 500, color: C.red, background: C.surface, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
-              Kirjaudu ulos
+              {t.nav.logout}
             </button>
           </div>
         ) : (
@@ -98,12 +100,12 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
             {/* Provisio */}
             <div style={{ marginTop: 20, padding: '12px 14px', background: C.accentLight, borderRadius: 10, border: `1px solid ${C.accent}33` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Välityspalkkio</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t.nav.commission}</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>3% <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}>max 20€</span></div>
             </div>
 
             <button onClick={() => { logout(); router.push('/') }} style={{ marginTop: 12, width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 8, fontSize: 14, color: C.red, background: 'none', border: 'none', cursor: 'pointer' }}>
-              Kirjaudu ulos
+              {t.nav.logout}
             </button>
           </div>
         )}

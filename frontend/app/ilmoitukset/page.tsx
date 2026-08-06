@@ -7,15 +7,15 @@ import { useLang } from '@/lib/lang-context'
 import { useNotifications } from '@/lib/notification-context'
 import { notificationApi } from '@/lib/api'
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, t: any) {
   const diffMs = Date.now() - new Date(iso).getTime()
   const min = Math.floor(diffMs / 60000)
-  if (min < 1) return 'juuri nyt'
-  if (min < 60) return `${min} min sitten`
+  if (min < 1) return t.time.justNow
+  if (min < 60) return `${min} ${t.time.minutesAgo}`
   const h = Math.floor(min / 60)
-  if (h < 24) return `${h} h sitten`
+  if (h < 24) return `${h} ${t.time.hoursAgo}`
   const d = Math.floor(h / 24)
-  return `${d} pv sitten`
+  return `${d} ${t.time.daysAgo}`
 }
 
 export default function IlmoituksetPage() {
@@ -68,7 +68,7 @@ export default function IlmoituksetPage() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2, overflowWrap: 'break-word' }}>{n.title}</div>
                   <div style={{ fontSize: 13, color: C.muted, overflowWrap: 'break-word' }}>{n.body}</div>
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt)}</div>
+                <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt, t)}</div>
               </button>
             ))}
           </div>

@@ -35,9 +35,9 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
           ))}
         </div>
         {setActiveAla && activeAlakategoriat.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, background: C.surface, borderRadius: 10, padding: 8 }}>
             {activeAlakategoriat.map((ala: any) => (
-              <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.cardBg, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
+              <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.surface2, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
                 {getAlaNimi(ala, lang as any)}
               </button>
             ))}
@@ -59,7 +59,7 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
               {count > 0 && <span style={{ fontSize: 11, color: C.muted }}>{count}</span>}
             </button>
             {setActiveAla && activeKat === kat.id && kat.id !== 'kaikki' && (KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).length > 0 && (
-              <div style={{ marginLeft: 8, marginBottom: 4 }}>
+              <div style={{ marginLeft: 8, marginBottom: 4, background: C.surface, borderRadius: 8, padding: '4px', borderLeft: `2px solid ${C.border}` }}>
                 {(KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).map((ala: any) => {
                   const alaCount = items.filter(p => p.alakategoria === ala.id).length
                   return (

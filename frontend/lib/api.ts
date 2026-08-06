@@ -60,8 +60,10 @@ export const orderApi = {
 
 export const showApi = {
   create: (data: { title: string; category?: string; alakategoria?: string; city?: string; scheduledAt?: string; thumbnailUrl?: string }) => request('/shows', { method: 'POST', body: JSON.stringify(data) }),
+  mine: () => request('/shows/mine'),
   getStreamInfo: (id: string) => request(`/shows/${id}/stream-info`),
   setStatus: (id: string, status: 'LIVE' | 'ENDED', thumbnailUrl?: string) => request(`/shows/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, thumbnailUrl }) }),
+  remove: (id: string) => request(`/shows/${id}`, { method: 'DELETE' }),
 }
 
 export const auctionApi = {

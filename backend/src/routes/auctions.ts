@@ -8,6 +8,11 @@ const router = Router()
 const SNIPE_EXTENSION_MS = 2 * 60 * 1000 // viime hetken pidennys
 const SNIPE_WINDOW_MS = 2 * 60 * 1000
 
+// Pyöristää senteille — estää JS:n liukulukutarkkuuden aiheuttamat virheet (esim. 5.1 + 0.1 = 5.199999999999999)
+function roundCents(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
 async function isUserBanned(userId: string) {
   const ban = await prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } })
   return ban
@@ -84,7 +89,7 @@ router.post('/:id/bid', authMiddleware, async (req: AuthRequest, res: Response) 
     return res.status(400).json({ error: 'Et voi huutaa omaa tuotettasi' })
   }
 
-  const minBid = (product.currentBid ?? product.startPrice) + 1
+  const minBid = roundCents((product.currentBid ?? product.startPrice) + (product.bidIncrement ?? 1))
   if (Number(amount) < minBid) {
     return res.status(400).json({ error: `Minimi huuto on ${minBid}€` })
   }
@@ -141,7 +146,7 @@ router.post('/:id/autobid', authMiddleware, async (req: AuthRequest, res: Respon
     return res.status(400).json({ error: 'Et voi huutaa omaa tuotettasi' })
   }
 
-  const minBid = (product.currentBid ?? product.startPrice) + 1
+  const minBid = roundCents((product.currentBid ?? product.startPrice) + (product.bidIncrement ?? 1))
   if (Number(maxAmount) < minBid) {
     return res.status(400).json({ error: `Maksimin täytyy olla vähintään ${minBid}€` })
   }
@@ -197,11 +202,11 @@ async function processAutoBids(productId: string, currentAmount: number, lastBid
   if (autoBids.length === 0) return
 
   const topAutoBid = autoBids[0]
-  const newAmount = currentAmount + 1
-  if (newAmount > topAutoBid.maxAmount) return
-
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) return
+  const newAmount = roundCents(currentAmount + (product.bidIncrement ?? 1))
+  if (newAmount > topAutoBid.maxAmount) return
+
   const previousBidderId = product.currentBidderId
 
   await prisma.$transaction([

@@ -5,17 +5,21 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
 import { useTheme } from '@/lib/theme-context'
+import { useLang } from '@/lib/lang-context'
 import { BACKEND_URL } from '@/lib/backend'
+import { formatShowTime } from '@/lib/formatShowTime'
 
 type Tab = 'live' | 'scheduled'
 
 export default function LiveKaikki() {
   const { C } = useTheme()
+  const { t, lang } = useLang()
   const [tab, setTab] = useState<Tab>('live')
   const [shows, setShows] = useState<any[]>([])
   const [activeKat, setActiveKat] = useState('kaikki')
   const [activeAla, setActiveAla] = useState('')
   const [isMobile, setIsMobile] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
 
   const red = '#EF4444'
 
@@ -39,16 +43,6 @@ export default function LiveKaikki() {
       .catch(() => {})
   }, [tab])
 
-  function formatScheduled(iso?: string) {
-    if (!iso) return ''
-    const d = new Date(iso)
-    const today = new Date(); const tomorrow = new Date()
-    tomorrow.setDate(today.getDate() + 1)
-    const time = d.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' })
-    if (d.toDateString() === today.toDateString()) return `Tänään klo ${time}`
-    if (d.toDateString() === tomorrow.toDateString()) return `Huomenna klo ${time}`
-    return d.toLocaleDateString('fi-FI', { weekday: 'short', day: 'numeric', month: 'numeric' }) + ` klo ${time}`
-  }
 
   const displayShows = shows.map((s: any) => ({
     id: s.id, seller: s.seller?.username ?? 'myyjä',
@@ -80,13 +74,18 @@ export default function LiveKaikki() {
               <span style={{ fontSize: 18, fontWeight: 800, color: tab === 'live' ? C.text : C.muted }}>Live nyt</span>
             </button>
             <button onClick={() => setTab('scheduled')} style={{ background: 'none', border: 'none', borderBottom: tab === 'scheduled' ? `2px solid ${C.accent}` : '2px solid transparent', padding: '0 0 8px', cursor: 'pointer' }}>
-              <span style={{ fontSize: 18, fontWeight: 800, color: tab === 'scheduled' ? C.text : C.muted }}>Tulossa pian</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: tab === 'scheduled' ? C.text : C.muted }}>{t.home.upcoming}</span>
             </button>
-            <span style={{ fontSize: 15, color: C.muted }}>{filteredShows.length} lähetystä</span>
+            <span style={{ fontSize: 15, color: C.muted, flex: 1 }}>{filteredShows.length} {t.live.showsCount}</span>
+            {isMobile && (
+              <button onClick={() => setShowFilters(s => !s)} style={{ background: showFilters ? C.accent : C.surface, border: `1px solid ${showFilters ? C.accent : C.border}`, color: showFilters ? '#fff' : C.textSub, padding: '9px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {t.selaa.filter}
+              </button>
+            )}
           </div>
 
-          {isMobile && (
-            <div style={{ marginBottom: 16 }}>
+          {isMobile && showFilters && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
               <CategorySidebar items={displayShows} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} isMobile={true} />
             </div>
           )}
@@ -105,9 +104,9 @@ export default function LiveKaikki() {
                       {tab === 'live'
                         ? <>
                             <div style={{ position: 'absolute', top: 8, left: 8, background: red, color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 3 }}>LIVE</div>
-                            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 3 }}>{show.viewers} katsojaa</div>
+                            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 3 }}>{show.viewers} {t.live.viewers}</div>
                           </>
-                        : <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 3 }}>{formatScheduled(show.scheduledAt)}</div>
+                        : <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, padding: '2px 7px', borderRadius: 3 }}>{formatShowTime(show.scheduledAt, t, lang as 'fi' | 'en')}</div>
                       }
                     </div>
                     <div style={{ padding: '12px 14px' }}>

@@ -11,6 +11,7 @@ import Footer from '@/components/layout/Footer'
 import { useAuth } from '@/lib/auth-context'
 import { auctionApi } from '@/lib/api'
 import { BACKEND_URL } from '@/lib/backend'
+import { formatShowTime } from '@/lib/formatShowTime'
 
 function auctionTimeLeft(ms: number) {
   if (ms <= 0) return 'Päättynyt'
@@ -111,16 +112,6 @@ export default function Home() {
 
   const allKats = [{ id: 'kaikki', nimi: { fi: 'Kaikki', en: 'All' } }, ...KATEGORIAT]
 
-  function formatUpcomingTime(iso?: string) {
-    if (!iso) return ''
-    const d = new Date(iso)
-    const today = new Date(); const tomorrow = new Date()
-    tomorrow.setDate(today.getDate() + 1)
-    const time = d.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' })
-    if (d.toDateString() === today.toDateString()) return `Tänään klo ${time}`
-    if (d.toDateString() === tomorrow.toDateString()) return `Huomenna klo ${time}`
-    return d.toLocaleDateString('fi-FI', { weekday: 'short', day: 'numeric', month: 'numeric' }) + ` klo ${time}`
-  }
 
   function hideHero() {
     setHeroHidden(true)
@@ -284,7 +275,7 @@ export default function Home() {
                           ? <img src={thumbnail} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                           : <span style={{ fontSize: 32, color: C.dim }}>+</span>
                         }
-                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
+                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : C.accent, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
                           {auctionTimeLeft(remaining)}
                         </div>
                       </div>
@@ -359,7 +350,7 @@ export default function Home() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{show.title}</div>
                       <div style={{ fontSize: 11, color: C.muted }}>@{show.seller}</div>
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.accent, whiteSpace: 'nowrap', flexShrink: 0 }}>{formatUpcomingTime(show.scheduledAt)}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.accent, whiteSpace: 'nowrap', flexShrink: 0 }}>{formatShowTime(show.scheduledAt, t, lang as 'fi' | 'en')}</div>
                   </div>
                 ))}
               </div>

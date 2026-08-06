@@ -1,7 +1,7 @@
 'use client'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { BACKEND_URL as BACKEND } from './backend'
-import { setAuthCookie, clearAuthCookie } from './authCookie'
+import { setAuthCookie, clearAuthCookie, hasAuthCookie } from './authCookie'
 
 interface User {
   id: string
@@ -34,7 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('skrm_user')
-    if (stored) setUser(JSON.parse(stored))
+    if (stored && hasAuthCookie()) {
+      setUser(JSON.parse(stored))
+    } else if (stored) {
+      // localStoragessa on käyttäjä mutta ei skrm_token-cookieta (esim. vanha sessio ennen
+      // proxy.ts-lukitusta) — proxy ohjaisi silti /loginiin, mikä aiheuttaisi uudelleenohjaussilmukan.
+      // Siivotaan pois niin kirjautumaton tila on yhtenäinen joka paikassa.
+      localStorage.removeItem('skrm_token')
+      localStorage.removeItem('skrm_user')
+    }
     setLoading(false)
   }, [])
 

@@ -6,6 +6,8 @@ const en = {
     logout: 'Sign out', profile: 'Profile', purchases: 'Purchases',
     settings: 'Settings', notifications: 'Notifications', allCategories: 'All',
     messages: 'Messages',
+    products: 'Products', broadcast: 'Broadcast', sales: 'Sales',
+    payouts: 'Payouts', commission: 'Commission',
   },
   home: {
     liveNow: 'Live now', showAll: 'Show all', upcoming: 'Upcoming',
@@ -25,6 +27,16 @@ const en = {
     bid: 'Bid', bidPlaced: 'Bid placed!', timeLeft: 's left',
     waitAuction: 'Waiting for auction', viewers: 'viewers',
     leaveShow: '✕ Leave', connecting: 'Connecting...',
+    waitingForStream: 'Waiting for the stream to start...', noProducts: 'No products queued',
+    showsCount: 'shows',
+  },
+  auction: {
+    endsIn: 'Ends in', startPrice: 'Starting price', highestBid: 'Highest bid',
+    reserveNotMet: 'Reserve price not yet met',
+  },
+  time: {
+    today: 'Today', tomorrow: 'Tomorrow', at: 'at',
+    justNow: 'just now', minutesAgo: 'min ago', hoursAgo: 'h ago', daysAgo: 'd ago',
   },
   auth: {
     loginTitle: 'Sign in', loginSub: 'Welcome back!',
@@ -48,9 +60,10 @@ const en = {
   selaa: {
     search: 'Search products...', filter: 'Filter', sort: 'Sort',
     newest: 'Newest first', priceAsc: 'Lowest price', priceDesc: 'Highest price',
-    maxPrice: 'Max price', category: 'Category', results: 'products',
+    price: 'Price', minPrice: 'Min price', maxPrice: 'Max price', category: 'Category', results: 'products',
     noResults: 'No products found', clearFilters: 'Clear filters',
     allCategories: 'All', viewProfile: 'View profile →', subcategory: 'Subcategory',
+    direct: 'Direct sale', city: 'Location', allCities: 'All locations',
   },
   product: {
     addToCart: 'Add to cart', askSeller: 'Ask seller', sendMessage: 'Send message',
@@ -58,7 +71,7 @@ const en = {
     addedToCart: 'Added to cart!', goToCart: 'Go to cart →',
     messageSent: 'Message sent!',
     sellerProfile: 'Profile →', shippingInfo: 'Shipping & protection',
-    shipIn24: 'Seller commits to ship within 24h',
+    shipIn24: 'Seller commits to ship within 48h',
     binding: 'All sales are final — no cancellations',
     trackingCode: 'Tracking code provided to buyer',
     category: 'Category', seller: 'Seller', description: 'Description',
@@ -102,8 +115,8 @@ const en = {
     emailPlaceholder: 'Email address', copyright: '© 2026 SKRM',
     feeNote: 'Commission 3% (max €20) + payment processing ~1.5% + €0.25',
     binding: 'All bids are binding',
-    prohibited: 'Not allowed: weapons, alcohol, medication, live animals',
-    badgeSecure: 'Secure', badgeBinding: '✓ Binding bids', badgeVerified: 'Verified users',
+    prohibited: 'Not allowed: weapons, alcohol/tobacco, medication/narcotics, live animals, counterfeits & other unlawful goods',
+    badgeSecure: '✓ Secure', badgeBinding: '✓ Binding bids', badgeVerified: '✓ Verified users',
   },
   faq: {
     title: 'Frequently Asked Questions',

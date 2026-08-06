@@ -10,7 +10,7 @@ const FAQ_DATA = {
     {
       id: 'yleista', title: 'Yleistä',
       items: [
-        { q: 'Mikä on SKRM?', a: 'SKRM on suomalainen live-huutokauppa-alusta jossa myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä. Ostajat voivat huutaa tuotteista suoraan lähetyksen aikana.' },
+        { q: 'Mikä on SKRM?', a: 'SKRM on suomalainen huutokauppa- ja suoramyyntialusta. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä (live-huutokauppa), ajastetussa perinteisessä huutokaupassa tai suoraan kiinteällä hinnalla (suoramyynti). Ostajat voivat huutaa tuotteista live-lähetyksen tai perinteisen huutokaupan aikana, tai ostaa suoraan.' },
         { q: 'Onko rekisteröityminen maksullista?', a: 'Ei. Tilin luominen on täysin ilmaista. Maksat vain ostamiesi tuotteiden hinnan ja toimituskulut.' },
         { q: 'Voinko sekä ostaa että myydä samalla tunnuksella?', a: 'Kyllä. Yhdellä tunnuksella voit sekä osallistua huutokauppoihin ostajana että myydä omia tuotteitasi.' },
         { q: 'Missä SKRM toimii?', a: 'SKRM on suunnattu ensisijaisesti suomalaisille käyttäjille. Toimitus tapahtuu pääasiassa Suomessa.' },
@@ -29,8 +29,8 @@ const FAQ_DATA = {
     {
       id: 'myyja', title: 'Myyjän opas',
       items: [
-        { q: 'Miten aloitan myymisen?', a: 'Luo tili, lisää tuotteet dashboardiin ja ajasta lähetys. Kun olet valmis, avaa kamera ja aloita huutokauppa suorana lähetyksenä.' },
-        { q: 'Mitä voin myydä?', a: 'Voit myydä lähes mitä tahansa laillista käytettyä tai uutta tavaraa. Kiellettyjä ovat aseet, alkoholi, lääkkeet, elävät eläimet ja väärennetyt tuotteet.' },
+        { q: 'Miten aloitan myymisen?', a: 'Luo tili ja lisää tuotteet dashboardiin. Voit myydä kolmella tavalla: aloita live-lähetys ja huuda tuotteita suorana, aseta tuote ajastettuun perinteiseen huutokauppaan, tai listaa se suoramyyntiin kiinteällä hinnalla — valinta tehdään tuotteen lisäyksen yhteydessä.' },
+        { q: 'Mitä voin myydä?', a: 'Voit myydä lähes mitä tahansa laillista käytettyä tai uutta tavaraa. Kiellettyjä ovat mm. aseet ja ampumatarvikkeet, alkoholi, tupakka ja nikotiinituotteet, lääkkeet, huumausaineet ja muut psykoaktiiviset aineet, elävät eläimet, väärennetyt tai tekijänoikeuksia loukkaavat tuotteet, varastettu omaisuus sekä muu lainvastainen tavara. Katso koko lista käyttöehdoista.' },
         { q: 'Milloin saan rahani?', a: 'Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu SKRM:lle.' },
         { q: 'Mikä on välityspalkkio?', a: 'SKRM perii 3% välityspalkkion myyntihinnasta, enintään 20€ per kauppa. Lisäksi peritään maksunkäsittelykulut (n. 1,5% + 0,25€).' },
         { q: 'Miten striimaan lähetyksen OBS:lla?', a: 'Voit striimata OBS Studiolla (ilmainen ohjelma): 1) Lataa ja asenna OBS Studio. 2) Avaa Asetukset → Stream. 3) Valitse Service: Custom. 4) Kopioi Server ja Stream Key dashboardin "Aloita lähetys" -näkymästä OBS:n vastaaviin kenttiin. 5) Paina "Start Streaming" OBS:ssa. Lähetys näkyy katsojille muutaman sekunnin viiveellä.' },
@@ -49,7 +49,7 @@ const FAQ_DATA = {
     {
       id: 'general', title: 'General',
       items: [
-        { q: 'What is SKRM?', a: 'SKRM is a Finnish live auction platform where sellers can sell their products in real-time video broadcasts. Buyers can bid on items directly during the stream.' },
+        { q: 'What is SKRM?', a: 'SKRM is a Finnish auction and direct-sale marketplace. Sellers can sell their products in real-time video broadcasts (live auctions), in scheduled timed auctions, or directly at a fixed price (direct sale). Buyers can bid during a live stream or a timed auction, or buy items directly.' },
         { q: 'Is registration free?', a: 'Yes. Creating an account is completely free. You only pay for the products you buy and shipping costs.' },
         { q: 'Can I both buy and sell with the same account?', a: 'Yes. With one account you can both participate in auctions as a buyer and sell your own products.' },
         { q: 'Where does SKRM operate?', a: 'SKRM is primarily aimed at Finnish users. Shipping takes place mainly within Finland.' },
@@ -68,8 +68,8 @@ const FAQ_DATA = {
     {
       id: 'seller', title: 'Seller Guide',
       items: [
-        { q: 'How do I start selling?', a: 'Create an account, add products to your dashboard and schedule a show. When ready, open your camera and start the live auction.' },
-        { q: 'What can I sell?', a: 'You can sell almost any legal used or new items. Prohibited are weapons, alcohol, medication, live animals and counterfeit goods.' },
+        { q: 'How do I start selling?', a: 'Create an account and add products to your dashboard. You can sell in three ways: start a live show and auction items in real time, list a product as a scheduled timed auction, or list it for direct sale at a fixed price — you choose when adding the product.' },
+        { q: 'What can I sell?', a: 'You can sell almost any legal used or new items. Prohibited items include weapons and ammunition, alcohol, tobacco and nicotine products, medication, narcotics and other psychoactive substances, live animals, counterfeit or copyright-infringing goods, stolen property, and other unlawful items. See the full list in our Terms of Service.' },
         { q: 'When do I get my money?', a: 'Payment is released to the seller when the tracking code has been provided to SKRM.' },
         { q: 'What is the commission?', a: 'SKRM charges a 3% commission on the sale price, maximum €20 per sale. Payment processing fees also apply (~1.5% + €0.25).' },
         { q: 'How do I stream with OBS?', a: 'You can stream using OBS Studio (free software): 1) Download and install OBS Studio. 2) Open Settings → Stream. 3) Select Service: Custom. 4) Copy the Server and Stream Key from the "Start stream" view in your dashboard into the matching fields in OBS. 5) Click "Start Streaming" in OBS. Viewers will see the stream with a few seconds of delay.' },
@@ -121,7 +121,7 @@ export default function FAQPage() {
           </div>
         ))}
         <p style={{ fontSize: 13, color: C.muted, marginTop: 32 }}>
-          {t.faq.contact} <a href="mailto:info@skrm.fi" style={{ color: C.accent }}>info@skrm.fi</a>
+          {t.faq.contact} <a href="mailto:support@skrm.fi" style={{ color: C.accent }}>support@skrm.fi</a>
         </p>
       </div>
       <Footer />

@@ -30,6 +30,16 @@ router.get('/', async (req, res) => {
   res.json(shows)
 })
 
+// GET /shows/mine — omat lähetykset (kaikki statukset) — huom: ennen /:id-reittiä ettei "mine" osu :id-parametriin
+router.get('/mine', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const shows = await prisma.show.findMany({
+    where: { sellerId: req.userId! },
+    orderBy: { scheduledAt: 'asc' },
+    select: publicShowSelect,
+  })
+  res.json(shows)
+})
+
 // GET /shows/:id
 router.get('/:id', async (req, res) => {
   const show = await prisma.show.findUnique({
@@ -90,6 +100,15 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res: Respon
     },
   })
   res.json(updated)
+})
+
+// DELETE /shows/:id — peruuta ajastettu lähetys (vain ennen kuin se on mennyt LIVE:ksi)
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })
+  if (!show || show.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (show.status !== 'SCHEDULED') return res.status(400).json({ error: 'Vain ajastetun lähetyksen voi peruuttaa' })
+  await prisma.show.delete({ where: { id: show.id } })
+  res.json({ ok: true })
 })
 
 export default router

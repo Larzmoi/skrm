@@ -40,6 +40,7 @@ function SelaaContent() {
   const [activeAla, setActiveAla] = useState('')
   const [search, setSearch] = useState(urlHaku)
   const [sort, setSort] = useState('newest')
+  const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
   const [city, setCity] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -107,15 +108,16 @@ function SelaaContent() {
   const filtered = useMemo(() => {
     let p = products
     if (search.trim()) p = p.filter(x => x.name.toLowerCase().includes(search.toLowerCase()) || x.seller?.username?.toLowerCase().includes(search.toLowerCase()))
+    if (minPrice) p = p.filter(x => x.startPrice >= Number(minPrice))
     if (maxPrice) p = p.filter(x => x.startPrice <= Number(maxPrice))
     if (city) p = p.filter(x => productCity(x) === city)
     return p
-  }, [products, search, maxPrice, city])
+  }, [products, search, minPrice, maxPrice, city])
 
-  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!search.trim() || !!maxPrice || !!city
+  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!search.trim() || !!minPrice || !!maxPrice || !!city
 
   function clearFilters() {
-    setActiveKat('kaikki'); setActiveAla(''); setSearch(''); setMaxPrice(''); setCity('')
+    setActiveKat('kaikki'); setActiveAla(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
   }
 
   // Suora käyttäjähaku — löytää myyjän tililtä vaikka hänellä ei olisi juuri nyt tuotteita myynnissä
@@ -138,8 +140,8 @@ function SelaaContent() {
 
   const saleTabs: { id: SaleTab; label: string }[] = [
     { id: 'kaikki', label: t.selaa.allCategories },
-    { id: 'suora', label: 'Suoramyynti' },
-    { id: 'huuto', label: 'Huutokaupat' },
+    { id: 'suora', label: t.selaa.direct },
+    { id: 'huuto', label: t.nav.auctions },
   ]
 
   return (
@@ -176,9 +178,9 @@ function SelaaContent() {
           {activeKat !== 'kaikki' && (KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []).length > 0 && (
             <>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.subcategory}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14, background: C.surface, borderRadius: 10, padding: 8 }}>
                 {(KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []).map((ala: any) => (
-                  <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.cardBg, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
+                  <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.surface2, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
                     {getAlaNimi(ala, lang as any)}
                   </button>
                 ))}
@@ -193,17 +195,17 @@ function SelaaContent() {
               </button>
             ))}
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.maxPrice}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.price}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
-            <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="500" style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }} />
-            <span style={{ color: C.muted }}>€</span>
-            {maxPrice && <button onClick={() => setMaxPrice('')} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
+            <input type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder={t.selaa.minPrice} style={{ flex: 1, minWidth: 0, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none' }} />
+            <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder={t.selaa.maxPrice} style={{ flex: 1, minWidth: 0, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none' }} />
+            {(minPrice || maxPrice) && <button onClick={() => { setMinPrice(''); setMaxPrice('') }} style={{ fontSize: 12, color: C.muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>✕</button>}
           </div>
           {cities.length > 0 && (
             <>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>Paikkakunta</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.city}</div>
               <select value={city} onChange={e => setCity(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, outline: 'none' }}>
-                <option value="">Kaikki paikkakunnat</option>
+                <option value="">{t.selaa.allCities}</option>
                 {cities.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </>
@@ -224,7 +226,7 @@ function SelaaContent() {
                     {count > 0 && <span style={{ fontSize: 11, color: C.muted }}>{count}</span>}
                   </button>
                   {activeKat === kat.id && kat.id !== 'kaikki' && (KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).length > 0 && (
-                    <div style={{ marginLeft: 8, marginBottom: 4 }}>
+                    <div style={{ marginLeft: 8, marginBottom: 4, background: C.surface, borderRadius: 8, padding: '4px', borderLeft: `2px solid ${C.border}` }}>
                       {(KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).map((ala: any) => (
                         <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ width: '100%', textAlign: 'left', padding: '5px 10px 5px 16px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, color: activeAla === ala.id ? C.accent : C.muted, background: activeAla === ala.id ? C.accentLight : 'transparent', marginBottom: 1 }}>
                           {getAlaNimi(ala, lang as any)}
@@ -236,17 +238,17 @@ function SelaaContent() {
               )
             })}
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>{t.selaa.maxPrice}</div>
-              <div style={{ position: 'relative' }}>
-                <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="500" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 28px 8px 10px', fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as const }} />
-                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, fontSize: 13 }}>€</span>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>{t.selaa.price}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder={t.selaa.minPrice} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as const }} />
+                <input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder={t.selaa.maxPrice} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as const }} />
               </div>
             </div>
             {cities.length > 0 && (
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>Paikkakunta</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>{t.selaa.city}</div>
                 <select value={city} onChange={e => setCity(e.target.value)} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as const }}>
-                  <option value="">Kaikki paikkakunnat</option>
+                  <option value="">{t.selaa.allCities}</option>
                   {cities.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -312,7 +314,7 @@ function SelaaContent() {
                         : <span style={{ fontSize: 32, color: C.dim }}>+</span>
                       }
                       {remaining !== null && (
-                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
+                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : C.accent, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
                           {auctionTimeLeft(remaining)}
                         </div>
                       )}

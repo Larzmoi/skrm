@@ -21,7 +21,7 @@ type SaleType = 'live' | 'buy_now' | 'both' | 'auction'
 
 interface Product {
   id: string; name: string; saleType: SaleType
-  startPrice: number; buyNowPrice?: number; reservePrice?: number
+  startPrice: number; buyNowPrice?: number; reservePrice?: number; bidIncrement?: number
   auctionDuration?: number; quantity: number; condition?: string
   description?: string; imageUrl?: string; category?: string
   alakategoria?: string; city?: string; pakettikoko?: string; status: string
@@ -29,7 +29,7 @@ interface Product {
 
 export default function TuotteetPage() {
   const { C } = useTheme()
-  const { lang } = useLang()
+  const { lang, t } = useLang()
   const isMobile = useIsMobile()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,6 +56,7 @@ export default function TuotteetPage() {
   const [startPrice, setStartPrice] = useState('')
   const [buyNowPrice, setBuyNowPrice] = useState('')
   const [reservePrice, setReservePrice] = useState('')
+  const [bidIncrement, setBidIncrement] = useState('')
   const [auctionDuration, setAuctionDuration] = useState('')
   const [auctionDurationDays, setAuctionDurationDays] = useState(3)
   const [auctionDurationHours, setAuctionDurationHours] = useState(0)
@@ -77,7 +78,7 @@ export default function TuotteetPage() {
     setSaleType('live'); setName(''); setCategory(''); setAlakategoria('')
     setCity('')
     setCondition(''); setQuantity('1'); setDescription(''); setImages([])
-    setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice('')
+    setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -92,6 +93,7 @@ export default function TuotteetPage() {
     setStartPrice(String(p.startPrice))
     setBuyNowPrice(p.buyNowPrice ? String(p.buyNowPrice) : '')
     setReservePrice(p.reservePrice ? String(p.reservePrice) : '')
+    setBidIncrement(p.bidIncrement ? String(p.bidIncrement) : '')
     setAuctionDuration(p.auctionDuration ? String(p.auctionDuration) : '')
     setError(''); setShowForm(true)
   }
@@ -127,6 +129,7 @@ export default function TuotteetPage() {
       startPrice: Number(startPrice),
       buyNowPrice: buyNowPrice ? Number(buyNowPrice) : undefined,
       reservePrice: reservePrice ? Number(reservePrice) : undefined,
+      bidIncrement: bidIncrement ? Number(bidIncrement) : undefined,
       auctionDuration: auctionDuration ? Number(auctionDuration) : undefined,
       auctionDurationDays: saleType === 'auction' ? auctionDurationDays : undefined,
       auctionDurationHours: saleType === 'auction' ? auctionDurationHours : undefined,
@@ -264,7 +267,7 @@ export default function TuotteetPage() {
                 </div>
                 <div><label style={lbl}>Määrä</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
               </div>
-              <div><label style={lbl}>Paikkakunta</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
+              <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
             </div>
           </div>
 
@@ -288,6 +291,13 @@ export default function TuotteetPage() {
                   <label style={lbl}>Varaushinta (€)</label>
                   <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder="Piilotettu minimi" style={inp} />
                   <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Ostajalle ei näytetä</div>
+                </div>
+              )}
+              {saleType !== 'buy_now' && (
+                <div>
+                  <label style={lbl}>Minimikorotus (€)</label>
+                  <input type="number" step="0.01" min="0.01" value={bidIncrement} onChange={e => setBidIncrement(e.target.value)} placeholder="1.00" style={inp} />
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Oletus 1€ — halvemmille tuotteille esim. 0,10€</div>
                 </div>
               )}
               {(saleType === 'live' || saleType === 'both') && (
@@ -384,30 +394,59 @@ export default function TuotteetPage() {
               const kat = KATEGORIAT.find(k => k.id === p.category)
               const ala = kat?.alakategoriat.find(a => a.id === p.alakategoria)
               const sl = saleLabel[p.saleType] ?? saleLabel.live
-              return (
-                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 7, background: C.surface2, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18, color: C.muted }}>+</span>}
+              const priceLine = (
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <span>{p.startPrice}€</span>
+                  {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
+                  {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}</span>}
+                </div>
+              )
+              const badge = <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>{sl.label}</span>
+              const image = (
+                <div style={{ width: 48, height: 48, borderRadius: 7, background: C.surface2, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18, color: C.muted }}>+</span>}
+                </div>
+              )
+              const index = <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+
+              return isMobile ? (
+                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {index}
+                    {image}
+                    <Link href={`/tuotteet/${p.id}`} style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
                   </div>
-                  <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <span>{p.startPrice}€</span>
-                      {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
-                      {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}</span>}
+                  {priceLine}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    {badge}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>Muokkaa</button>
+                      <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '4px 8px' }}>✕</button>
                     </div>
                   </div>
-                  <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>{sl.label}</span>
+                </div>
+              ) : (
+                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {image}
+                  {index}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
+                    {priceLine}
+                  </div>
+                  {badge}
                   <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>Muokkaa</button>
                   <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '4px 8px', flexShrink: 0 }}>✕</button>
                 </div>
               )
             })}
           </div>
-          <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} live-jonossa · {pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} suoramyynnissä · {pending.filter(p => p.saleType === 'auction').length} huutokaupassa</span>
-            <Link href="/dashboard/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>Mene liveen</Link>
+          <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} live-jonossa</span>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} suoramyynnissä</span>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} huutokaupassa</span>
+            </div>
+            <Link href="/dashboard/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>Mene liveen</Link>
           </div>
         </div>
       ) : !showForm && (

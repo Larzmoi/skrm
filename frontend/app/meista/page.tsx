@@ -28,8 +28,8 @@ export default function MeistaPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
             {[
               { value: '3%', label: t.about.cheapest, sub: t.about.cheapestSub },
-              { value: '16', label: t.about.categories, sub: t.about.categoriesSub },
-              { value: '24h', label: t.about.shipping, sub: t.about.shippingSub },
+              { value: '14', label: t.about.categories, sub: t.about.categoriesSub },
+              { value: '48h', label: t.about.shipping, sub: t.about.shippingSub },
               { value: '100%', label: t.about.binding, sub: t.about.bindingSub },
             ].map(s => (
               <div key={s.label} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px', textAlign: 'center' }}>
@@ -46,9 +46,9 @@ export default function MeistaPage() {
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { label: t.about.email, value: 'info@skrm.fi' },
-                { label: t.about.support, value: 'tuki@skrm.fi' },
-                { label: t.about.sellerSupport, value: 'myyja@skrm.fi' },
+                { label: t.about.email, value: 'support@skrm.fi' },
+                { label: t.about.support, value: 'support@skrm.fi' },
+                { label: t.about.sellerSupport, value: 'support@skrm.fi' },
               ].map(c => (
                 <div key={c.label} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, width: 130, flexShrink: 0 }}>{c.label}</span>

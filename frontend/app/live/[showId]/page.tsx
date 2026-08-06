@@ -49,10 +49,10 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
   )
 }
 
-function WaitingForStream({ dark }: { dark?: boolean }) {
+function WaitingForStream({ dark, t }: { dark?: boolean; t: any }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? 'rgba(255,255,255,0.5)' : '#666', fontSize: 13 }}>
-      Odotetaan lähetyksen alkua...
+      {t.live.waitingForStream}
     </div>
   )
 }
@@ -88,12 +88,12 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
           {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>LOT #{currentLot}</div>
+          <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>{t.live.lotNumber} #{currentLot}</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
           <div style={{ fontSize: 11, color: '#666' }}>{currentProduct.condition}</div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>NYKYINEN</div>
+          <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>{t.live.currentBid}</div>
           <div style={{ fontSize: 22, fontWeight: 900, color: isLeading ? C.accentBright : '#fff', lineHeight: 1 }}>{auction.currentBid}€</div>
           {auction.active && <div style={{ fontSize: 11, color: timerColor, fontWeight: 600, marginTop: 2 }}>{auction.timer}s</div>}
         </div>
@@ -341,7 +341,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   function onSlideEnd() { setSliding(false); setSlideX(0) }
 
   const products = show?.products ?? []
-  const currentProduct = products.find(p => p.id === auction.productId) ?? products[0] ?? { id: '', name: 'Ei tuotteita jonossa', condition: '', startPrice: 0, imageUrl: undefined, status: 'PENDING' }
+  const currentProduct = products.find(p => p.id === auction.productId) ?? products[0] ?? { id: '', name: t.live.noProducts, condition: '', startPrice: 0, imageUrl: undefined, status: 'PENDING' }
   const currentLot = products.findIndex(p => p.id === currentProduct.id) + 1
   const timerColor = auction.timer > 30 ? C.accent : auction.timer > 10 ? '#F59E0B' : '#EF4444'
   const maxSlideX = (slideTrackRef.current?.offsetWidth ?? 300) - 46 - 8
@@ -353,7 +353,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
           {show?.status === 'LIVE' && show?.hlsUrl
             ? <VideoPlayer hlsUrl={show.hlsUrl} />
-            : <WaitingForStream dark />
+            : <WaitingForStream dark t={t} />
           }
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1 }}>
@@ -403,7 +403,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1A1A1A', borderRadius: 20, padding: '5px 12px 5px 8px' }}>
           <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>{show?.seller?.username?.[0]?.toUpperCase() ?? '?'}</div>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show?.seller?.username ?? '...'}</span>
-          <span style={{ fontSize: 12, color: '#555' }}>· {viewers} katsojaa</span>
+          <span style={{ fontSize: 12, color: '#555' }}>· {viewers} {t.live.viewers}</span>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', marginLeft: 4 }} />
         </div>
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
@@ -414,7 +414,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '12px 14px', borderBottom: '1px solid #1A1A1A', fontSize: 13, fontWeight: 700, color: '#fff' }}>{t.live.products}</div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {products.length === 0 && <div style={{ padding: '12px 4px', fontSize: 12, color: '#555' }}>Ei tuotteita jonossa</div>}
+            {products.length === 0 && <div style={{ padding: '12px 4px', fontSize: 12, color: '#555' }}>{t.live.noProducts}</div>}
             {products.map((p, i) => {
               const isActive = p.id === auction.productId
               const isSold = p.status === 'SOLD'
@@ -445,7 +445,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
             {show?.status === 'LIVE' && show?.hlsUrl
               ? <VideoPlayer hlsUrl={show.hlsUrl} />
-              : <WaitingForStream dark />
+              : <WaitingForStream dark t={t} />
             }
             <div style={{ position: 'absolute', top: 14, left: 14, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 4 }}>LIVE</div>
             {auction.active && (
@@ -454,7 +454,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               </div>
             )}
             <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>LOT #{currentLot}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>{t.live.lotNumber} #{currentLot}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{currentProduct.name}</div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{currentProduct.condition}</div>
             </div>

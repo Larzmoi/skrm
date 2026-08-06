@@ -38,6 +38,7 @@ export default function HuutokaupatPage() {
   const [activeAla, setActiveAla] = useState('')
   const [city, setCity] = useState('')
   const [isMobile, setIsMobile] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -96,22 +97,42 @@ export default function HuutokaupatPage() {
               <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>Huutokaupat</h1>
               <p style={{ color: C.muted, fontSize: 13 }}>{loading ? '...' : `${filtered.length} aktiivista huutokauppaa`}</p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {cities.length > 0 && (
-                <select value={city} onChange={e => setCity(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}>
-                  <option value="">Kaikki paikkakunnat</option>
-                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            {!isMobile && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {cities.length > 0 && (
+                  <select value={city} onChange={e => setCity(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}>
+                    <option value="">{t.selaa.allCities}</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
+                <select value={sort} onChange={e => setSort(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}>
+                  {sortOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
-              )}
-              <select value={sort} onChange={e => setSort(e.target.value)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}>
-                {sortOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-              </select>
-            </div>
+              </div>
+            )}
+            {isMobile && (
+              <button onClick={() => setShowFilters(s => !s)} style={{ background: showFilters ? C.accent : C.surface, border: `1px solid ${showFilters ? C.accent : C.border}`, color: showFilters ? '#fff' : C.textSub, padding: '9px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {t.selaa.filter}
+              </button>
+            )}
           </div>
 
-          {isMobile && (
-            <div style={{ marginBottom: 16 }}>
+          {isMobile && showFilters && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
               <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} isMobile={true} />
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '14px 0 8px' }}>{t.selaa.sort}</div>
+              <select value={sort} onChange={e => setSort(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' as const }}>
+                {sortOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+              {cities.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '14px 0 8px' }}>{t.selaa.city}</div>
+                  <select value={city} onChange={e => setCity(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' as const }}>
+                    <option value="">{t.selaa.allCities}</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </>
+              )}
             </div>
           )}
 
@@ -132,10 +153,10 @@ export default function HuutokaupatPage() {
                         ? <img src={thumbnail} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         : <span style={{ fontSize: 32, color: C.dim }}>+</span>
                       }
-                      <div style={{ position: 'absolute', bottom: 6, left: 6, background: urgent ? '#EF4444' : 'rgba(0,0,0,0.7)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4 }}>
+                      <div style={{ position: 'absolute', bottom: 6, left: 6, background: urgent ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4 }}>
                         {timeLeftLabel(remaining)}
                       </div>
-                      <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, padding: '2px 7px', borderRadius: 4 }}>
+                      <div style={{ position: 'absolute', top: 6, right: 6, background: C.accent, color: '#fff', fontSize: 10, padding: '2px 7px', borderRadius: 4 }}>
                         {a._count?.bids ?? 0} huutoa
                       </div>
                     </div>

@@ -138,6 +138,7 @@ model Product {
   reservePrice    Float?
   buyNowPrice     Float?
   finalPrice      Float?
+  bidIncrement    Float?        // minimikorotus huudolle — oletus 1€ jos ei asetettu, myyjä voi asettaa pienemmänkin (esim. 0,10€)
   auctionDuration Int?          // live-lähetyksen huutokauppa-lotin kesto SEKUNTEINA — eri asia kuin perinteisen huutokaupan auctionEndsAt
   quantity        Int           @default(1)
   pakettikoko     String?

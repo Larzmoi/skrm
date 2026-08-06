@@ -2,16 +2,23 @@
 import { useState, useEffect, use, useCallback } from 'react'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
+import { useLang } from '@/lib/lang-context'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
 import { auctionApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
 
+// Pyöristää senteille — estää JS:n liukulukutarkkuuden aiheuttamat virheet (esim. 5.1 + 0.1 = 5.199999999999999)
+function roundCents(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
 export default function HuutokauppaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { C } = useTheme()
   const { user } = useAuth()
+  const { t } = useLang()
   const isMobile = useIsMobile()
   const [product, setProduct] = useState<any>(null)
   const [bidAmount, setBidAmount] = useState('')
@@ -26,7 +33,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
     try {
       const data = await auctionApi.get(id)
       setProduct(data)
-      setBidAmount(String((data.currentBid ?? data.startPrice) + 1))
+      setBidAmount(String(roundCents((data.currentBid ?? data.startPrice) + (data.bidIncrement ?? 1))))
     } catch {}
     finally { setLoading(false) }
   }, [id])
@@ -106,7 +113,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
 
   const ended = !product.auctionEndsAt || new Date(product.auctionEndsAt) <= new Date()
   const isWinning = product.currentBidderId === user?.id
-  const minBid = (product.currentBid ?? product.startPrice) + 1
+  const minBid = roundCents((product.currentBid ?? product.startPrice) + (product.bidIncrement ?? 1))
   const images: string[] = product.imageUrl ? product.imageUrl.split('|||').filter(Boolean) : []
 
   return (
@@ -115,8 +122,8 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
 
         <div style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>
-          <Link href="/" style={{ color: C.muted }}>Etusivu</Link> ›{' '}
-          <Link href="/huutokaupat" style={{ color: C.muted }}>Huutokaupat</Link> ›{' '}
+          <Link href="/" style={{ color: C.muted }}>{t.nav.home}</Link> ›{' '}
+          <Link href="/huutokaupat" style={{ color: C.muted }}>{t.nav.auctions}</Link> ›{' '}
           <span style={{ color: C.text }}>{product.name}</span>
         </div>
 
@@ -164,7 +171,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.muted }}>Huutokauppa päättynyt</div>
               ) : (
                 <>
-                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>Päättyy</div>
+                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>{t.auction.endsIn}</div>
                   <div style={{ fontSize: 28, fontWeight: 900, color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{timeLeft}</div>
                 </>
               )}
@@ -172,7 +179,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, color: C.muted, marginBottom: 4 }}>
-                {product.currentBid ? 'Korkein huuto' : 'Lähtöhinta'}
+                {product.currentBid ? t.auction.highestBid : t.auction.startPrice}
               </div>
               <div style={{ fontSize: 36, fontWeight: 900, color: isWinning ? C.accent : C.text }}>
                 {(product.currentBid ?? product.startPrice).toLocaleString('fi-FI')}€
@@ -183,7 +190,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
 
             {product.reservePrice && (product.currentBid ?? 0) < product.reservePrice && (
               <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#92400E' }}>
-                Varaushinta ei ole vielä täyttynyt
+                {t.auction.reserveNotMet}
               </div>
             )}
 
@@ -255,8 +262,8 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
             )}
 
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Toimitus & turvaaminen</div>
-              {['Myyjä sitoutuu lähettämään 48h sisällä', 'Kaikki huudot sitovia', 'Seurantakoodi toimitetaan ostajalle'].map(line => (
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{t.product.shippingInfo}</div>
+              {[t.product.shipIn24, t.footer.binding, t.product.trackingCode].map(line => (
                 <div key={line} style={{ display: 'flex', gap: 8, fontSize: 13, color: C.textSub, marginBottom: 6 }}>
                   <span style={{ color: C.accent }}>✓</span>{line}
                 </div>

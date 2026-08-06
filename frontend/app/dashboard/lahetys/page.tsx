@@ -15,7 +15,7 @@ interface AuctionState { productId: string | null; currentBid: number; leaderNam
 
 export default function LahetysPage() {
   const { C } = useTheme()
-  const { lang } = useLang()
+  const { lang, t } = useLang()
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const [products, setProducts] = useState<Product[]>([])
@@ -299,7 +299,7 @@ export default function LahetysPage() {
               </>
             )}
 
-            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Paikkakunta</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
             <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
             <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>

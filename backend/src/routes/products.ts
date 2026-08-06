@@ -43,7 +43,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /products
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, saleType, startPrice, buyNowPrice, reservePrice, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, city, pakettikoko, showId } = req.body
+  const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, city, pakettikoko, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
 
   // Perinteinen huutokauppa: auctionDurationDays/Hours on kesto luontihetkellä, ei tallenneta sellaisenaan —
@@ -64,6 +64,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       startPrice: Number(startPrice),
       buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
       reservePrice: reservePrice ? Number(reservePrice) : null,
+      bidIncrement: bidIncrement ? Number(bidIncrement) : null,
       auctionDuration: auctionDuration ? Number(auctionDuration) : null,
       auctionEndsAt,
       quantity: Number(quantity ?? 1),
@@ -88,6 +89,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       startPrice: req.body.startPrice ? Number(req.body.startPrice) : undefined,
       buyNowPrice: req.body.buyNowPrice ? Number(req.body.buyNowPrice) : null,
       reservePrice: req.body.reservePrice ? Number(req.body.reservePrice) : null,
+      bidIncrement: req.body.bidIncrement ? Number(req.body.bidIncrement) : null,
       auctionDuration: req.body.auctionDuration ? Number(req.body.auctionDuration) : null,
       quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
       condition: req.body.condition ?? null, description: req.body.description ?? null,
