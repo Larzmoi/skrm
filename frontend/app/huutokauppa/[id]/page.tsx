@@ -6,8 +6,10 @@ import { useLang } from '@/lib/lang-context'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { auctionApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
+import ReportModal from '@/components/ReportModal'
 
 // Pyöristää senteille — estää JS:n liukulukutarkkuuden aiheuttamat virheet (esim. 5.1 + 0.1 = 5.199999999999999)
 function roundCents(amount: number) {
@@ -19,6 +21,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   const { C } = useTheme()
   const { user } = useAuth()
   const { t } = useLang()
+  const router = useRouter()
   const isMobile = useIsMobile()
   const [product, setProduct] = useState<any>(null)
   const [bidAmount, setBidAmount] = useState('')
@@ -28,6 +31,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const loadAuction = useCallback(async () => {
     try {
@@ -242,6 +246,13 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
               </>
             )}
 
+            {product.description && (
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 8 }}>Kuvaus</h3>
+                <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7 }}>{product.description}</p>
+              </div>
+            )}
+
             {!user && !ended && (
               <Link href="/login" style={{ display: 'block', width: '100%', background: C.accent, color: '#fff', padding: '13px', borderRadius: 10, fontWeight: 800, fontSize: 16, textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>
                 Kirjaudu huutaaksesi
@@ -261,7 +272,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
               </Link>
             )}
 
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>{t.product.shippingInfo}</div>
               {[t.product.shipIn24, t.footer.binding, t.product.trackingCode].map(line => (
                 <div key={line} style={{ display: 'flex', gap: 8, fontSize: 13, color: C.textSub, marginBottom: 6 }}>
@@ -270,16 +281,14 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
               ))}
             </div>
 
-            {product.description && (
-              <div style={{ marginTop: 20 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 8 }}>Kuvaus</h3>
-                <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7 }}>{product.description}</p>
-              </div>
-            )}
+            <button onClick={() => { if (!user) { router.push(`/login?redirect=/huutokauppa/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>
+              {t.report.button}
+            </button>
           </div>
         </div>
       </div>
       <Footer />
+      {showReport && <ReportModal targetType="product" targetId={product.id} onClose={() => setShowReport(false)} />}
     </div>
   )
 }
