@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect, useRef, use } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Hls from 'hls.js'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { BACKEND_URL } from '@/lib/backend'
+import ReportModal from '@/components/ReportModal'
 
 interface ChatMsg { id: number; userId?: string; username: string; message: string; isBid?: boolean }
 interface AuctionState {
@@ -192,6 +194,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const { C } = useTheme()
   const { user } = useAuth()
   const { t } = useLang()
+  const router = useRouter()
 
   const [show, setShow] = useState<ShowData | null>(null)
   const [chat, setChat] = useState<ChatMsg[]>([])
@@ -211,6 +214,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [connected, setConnected] = useState(false)
   const [viewers, setViewers] = useState(0)
   const [isMobile, setIsMobile] = useState(true)
+  const [showReport, setShowReport] = useState(false)
 
   const slideTrackRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
@@ -340,6 +344,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   }
   function onSlideEnd() { setSliding(false); setSlideX(0) }
 
+  function openReport() {
+    if (!user) { router.push(`/login?redirect=/live/${showId}`); return }
+    setShowReport(true)
+  }
+
   const products = show?.products ?? []
   const currentProduct = products.find(p => p.id === auction.productId) ?? products[0] ?? { id: '', name: t.live.noProducts, condition: '', startPrice: 0, imageUrl: undefined, status: 'PENDING' }
   const currentLot = products.findIndex(p => p.id === currentProduct.id) + 1
@@ -362,6 +371,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite' }} />
             </div>
             <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
+            <button onClick={openReport} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.report.button}>⚑</button>
             <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
           </div>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 10px', zIndex: 10 }}>
@@ -391,6 +401,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           connected={connected} maxSlideX={maxSlideX} slideX={slideX}
           onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
         />
+        {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
       </div>
     )
   }
@@ -406,6 +417,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <span style={{ fontSize: 12, color: '#555' }}>· {viewers} {t.live.viewers}</span>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', marginLeft: 4 }} />
         </div>
+        <button onClick={openReport} style={{ background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer' }}>⚑ {t.report.button}</button>
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
       </div>
 
@@ -477,6 +489,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <ChatArea dark={true} isMobile={isMobile} t={t} C={C} chatRef={chatRef} chat={chat} chatInput={chatInput} setChatInput={setChatInput} sendChat={sendChat} user={user} />
         </div>
       </div>
+      {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
     </div>
   )
 }

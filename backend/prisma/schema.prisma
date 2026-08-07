@@ -53,6 +53,12 @@ enum NotificationType {
   AUCTION_ENDED
   AUCTION_SOLD
   REVIEW_RECEIVED
+  LISTING_REMOVED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
 }
 
 model User {
@@ -96,6 +102,7 @@ model User {
   currentBids       Product[]          @relation("CurrentBidder")
   reviewsGiven      Review[]           @relation("ReviewsGiven")
   reviewsReceived   Review[]           @relation("ReviewsReceived")
+  reports           Report[]
 }
 
 model Show {
@@ -296,6 +303,18 @@ model Message {
   body       String
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  reporter    User         @relation(fields: [reporterId], references: [id])
+  targetType  String       // "product" | "show"
+  targetId    String
+  reason      String       // "prohibited" | "counterfeit" | "misleading" | "other"
+  description String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
 }
 
 model Follower {

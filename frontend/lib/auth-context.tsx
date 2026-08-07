@@ -16,6 +16,7 @@ interface User {
   city?: string
   businessId?: string
   usernameChangedAt?: string | null
+  role?: 'USER' | 'ADMIN'
 }
 
 interface AuthCtx {

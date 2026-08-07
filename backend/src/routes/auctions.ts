@@ -2,6 +2,9 @@ import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { notifyUser } from '../lib/notify'
+import { createOrderForAuctionWin } from '../lib/auctionOrder'
+
+const BUY_NOW_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000 // ostaja aktiivisesti läsnä klikatessaan — normaali 2h maksuaika
 
 const router = Router()
 
@@ -187,8 +190,9 @@ router.post('/:id/buy-now', authMiddleware, async (req: AuthRequest, res: Respon
     },
   })
 
-  await notifyUser(req.userId!, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 2h aikaa maksaa.`, `/huutokauppa/${productId}`)
-  await notifyUser(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} ostettiin heti hintaan ${product.buyNowPrice}€`, '/dashboard/tuotteet')
+  await createOrderForAuctionWin(req.userId!, product.sellerId, productId, product.buyNowPrice, BUY_NOW_PAYMENT_WINDOW_MS)
+  await notifyUser(req.userId!, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 2h aikaa maksaa.`, '/ostot')
+  await notifyUser(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} ostettiin heti hintaan ${product.buyNowPrice}€`, '/dashboard/tilaukset')
 
   res.json({ ok: true, price: product.buyNowPrice })
 })

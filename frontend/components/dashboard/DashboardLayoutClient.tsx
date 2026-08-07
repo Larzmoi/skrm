@@ -25,6 +25,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
     { href: '/dashboard/tilaukset', label: t.nav.sales, icon: '▧' },
     { href: '/dashboard/tilitykset', label: t.nav.payouts, icon: '◈' },
     { href: '/dashboard/profiili', label: t.nav.profile, icon: '◎' },
+    ...(user?.role === 'ADMIN' ? [{ href: '/admin', label: t.admin.title, icon: '⚑' }] : []),
   ]
 
   useEffect(() => {

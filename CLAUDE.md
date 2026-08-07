@@ -84,6 +84,7 @@ skrm/
 - Kaikki huudot **sitovia** — ei peruutuksia
 - **Yhdistetty lähetys:** sama myyjä + 6h aikaikkuna = yksi tilaus, yksi postikulut (suurimman pakettikoon mukaan). 6h rajan jälkeen uusi erillinen tilaus.
 - **Maksuaika:** voitettu huuto tai ostos → 2h aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
+  - **Poikkeus:** perinteisen (ajastetun) huutokaupan **passiivinen voitto** (huutokauppa päättyy itsestään, esim. yöllä) → **24h** maksuaikaa, koska voittaja ei ole aktiivisesti läsnä silloin. "Osta heti" (buy-now) ja live-huuto pysyvät 2h:ssa, koska ostaja on aktiivisesti paikalla klikatessaan. Päätetty 2026-08-07.
 - **Rekisteröityminen:** käyttäjän on hyväksyttävä käyttöehdot, tietosuoja ja kaupankäyntipolitiikka erillisillä checkboxeilla ennen kuin voi luoda tilin. Checkboxit pakollisia — ei oletuksena rastitettu.
 - **Banni:** 3 maksamatonta tilausta → automaattinen 30 päivän banni. Jokainen seuraava rike → uusi 30 päivän banni. Ei poikkeuksia.
 - Maksuturva: maksu pidätetään kunnes myyjä toimittaa seurantakoodin
@@ -133,7 +134,12 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 ### Domain & DNS
 - Domain: **skrm.fi** (Domainhotelli, nimipalvelimet Cloudflaressa: julio + samara)
 - DNS: Cloudflare (free)
-- Sähköposti: support@skrm.fi → Cloudflare Email Routing → oma Gmail
+- Sähköposti: support@skrm.fi → **Zoho Mail (maksullinen taso, muutama €/kk) — päätetty, ei vielä käyttöönotettu.** Antaa sekä vastaanoton että lähetyksen samasta osoitteesta (Cloudflare Email Routing hoiti vain vastaanoton, ei lähetystä samasta osoitteesta, siksi vaihdettu). Vaatii DNS-tietueiden lisäyksen Cloudflareen (MX + verifiointi Zohon ohjeiden mukaan) — tekemättä vielä.
+
+### Hetzner — striimaustestausta varten (päätetty)
+- Palvelin: **CX23** (~6€/kk), Hetzner Cloud VPS
+- Tarkoitus: nginx-rtmp-asennus ja OBS-yhteyden testaus end-to-end — ei vielä tuotantomittakaavan palvelin, riittää yhden striimin testaukseen
+- Backend/DB pysyvät toistaiseksi Railwaylla, Hetzner hoitaa aluksi vain striimauksen
 
 ### Hosting — VÄLIAIKAINEN (Railway + Netlify, ei kuluja Hetznerin odotellessa)
 Kaikki alla oleva on tarkoituksella tilapäistä — siirtyy kokonaan Hetznerille kun OY ja palvelin ovat valmiit. Ei kannata maksaa Hetznerin ylläpidosta kuukausia etukäteen.
@@ -377,7 +383,6 @@ Lisää:
 
 ## Muistilista — päivitettävä myöhemmin
 - FAQ päivitettävä — sisältää vanhentunutta tietoa (Mux, maksutavat, toimitus jne.)
-- **Ilmoitusten sisältö on kovakoodattua suomea** — `notifyUser()`-kutsut (25 kpl, 8 tiedostoa: closeAuctions.ts, deliveryTimeline.ts, auctions.ts, messages.ts, orders.ts, webhooks.ts, socket.ts) kirjoittavat title/body-tekstin suoraan suomeksi tallennushetkellä, ei tietoa vastaanottajan kielestä. Kaksi vaihtoehtoa päätettäväksi kun aika: (1) lisää User.language-kenttä, generoi teksti oikealla kielellä luontihetkellä — yksinkertaisempi, mutta vanhat ilmoitukset eivät käänny jälkikäteen; (2) tallenna vain type+parametrit, renderöi lause lukuhetkellä käyttäjän senhetkisellä kielellä — oikeampi pitkällä tähtäimellä mutta vaatii datamigraation + 15 ilmoitustyypin mallipohjat molemmilla kielillä + kaikkien 25 kutsukohdan uudelleenkirjoituksen. Tietoisesti jätetty tekemättä 2026-08-06.
 
 ## Arvostelut (TEHTY ✅)
 - Ostaja voi arvostella myyjän ja myyjä ostajan, kun tilaus on DELIVERED
@@ -401,9 +406,50 @@ Lisää:
 - Kynnysarvojen alle ei näytetä lukuja — vältetään negatiivinen sosiaalinen todiste
 - Sijoitus: footer tai etusivun luottamuspalkki
 
-## Käännöspuutteet — kovakoodattua suomea (korjattava ENNEN admin-paneelia)
+## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty)
 
-Koodaussääntö "Käännökset: Käytä AINA t.xxx — ei kovakoodattua suomea/englantia" ei toteudu useassa paikassa. Nämä pitää korjata seuraavaksi, ennen admin-paneelin toteutusta.
+1. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY, ks. "Tehty ✅" alla
+2. **Julkinen myyjäprofiili / Storefront** (ks. "Live-ominaisuudet Whatnot-tasolle" -osio) — **seuraava tehtävä**
+3. Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista (ennakkotarjoukset, chat-moderointi, giveaway) — järjestyksessä storefrontin jälkeen koska ennakkotarjoukset tarvitsevat storefrontin ollakseen käytännössä löydettävissä
+
+**SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
+
+## Live-ominaisuudet Whatnot-tasolle (SUUNNITELTU — päätetty, valmis toteutettavaksi)
+
+Pohjautuu Whatnot-vertailuun. Neljä ominaisuutta päätetty, muodostavat yhdessä kokonaisuuden: julkinen myyjäprofiili on se paikka josta ostaja löytää tulevat huutokaupat ja jättää ennakkotarjouksia.
+
+**⚠️ Huom, ei oteta käyttöön Whatnotilta:** "Swipe to Bid/Buy" ja "Auto-Authorize" (automaattinen kortilta veloitus heti voiton jälkeen) — ristiriidassa LUKITTU-sääntöjen kanssa (ei pakollista kortintallennusta, 2h maksuaika, ostaja valitsee maksutavan). Ei myöskään Stripe — Paytrail on jo LUKITTU.
+
+### 1. Ennakkotarjoukset (Pre-bidding)
+- Koskee **vain huutokauppatyyppisiä tuotteita**: perinteinen huutokauppa (`saleType: "auction"`) ja live-tuotteet jotka kuuluvat vielä `SCHEDULED`-tilassa olevaan Show'hun. Ei suoramyyntiin (`saleType: "suora"`), koska siellä ei ole huutamista.
+- Tekninen pohja on jo olemassa: `Bid`-mallissa `showId` on jo nullable ("null perinteisen huutokaupan huudoille"), eli malli tukee jo huutoja jotka eivät liity käynnissä olevaan liveen.
+- Toteutus: salli huudon jättäminen tuotteelle jonka `Show.status === 'SCHEDULED'` (nyt oletettavasti sallitaan huudot vain kun `status === 'LIVE'` — tarkista ja avaa tämä ehto scheduled-tuotteille). Kun show alkaa, korkein ennakkotarjous on jo `Product.currentBid`, live jatkuu siitä normaalisti.
+- Ilmoita huutaneelle jos hänet ohitetaan ennakkovaiheessa (käytä olemassa olevaa `OUTBID`-ilmoitustyyppiä).
+
+### 2. Chat-moderointi
+- **Myyjä moderoi vain omaa chattiään** (oman huutokaupan/liven aikana) — ei sivustonlaajuista moderointityökalua tässä vaiheessa.
+- Toiminnot: viestin poisto, käyttäjän mykistys kyseisessä chatissä (ei koko sivuston laajuinen banni — se on eri, jo olemassa oleva `Ban`-mekanismi).
+- Yksinkertaisin toteutus: `Message`-malliin (tai vastaavaan live-chatin tauluun) `deletedAt`-kenttä + kevyt "muted user in this show" -lista Socket.io-tasolla.
+
+### 3. Giveaway / Onnenpyörä — Vaihtoehto A (avainsana-ilmoittautuminen)
+Päätetty: avainsana-malli, ei läsnäoloseurantaa (yksinkertaisempi rakentaa, ei vaadi reaaliaikaista "kuka on juuri nyt paikalla" -logiikkaa).
+
+Kulku:
+1. Myyjä painaa "Aloita giveaway" livenäkymässä → syöttää avainsanan (tai järjestelmä generoi) → Socket.io lähettää kaikille katsojille ilmoituksen "Kirjoita AVAINSANA chattiin osallistuaksesi!"
+2. Järjestelmä kerää kaikki chat-viestit jotka sisältävät tarkalleen avainsanan sinä aikana → poistaa duplikaatit (yksi osallistuminen per käyttäjä) → muodostaa poolin
+3. Myyjä painaa "Sulje & arvo" → pyörä-animaatio (frontend) arpoo satunnaisen voittajan poolista (esim. `Math.random()`-pohjainen valinta, ei tarvitse kryptografisesti turvallista satunnaisuutta tähän)
+4. Voittaja näkyy kaikille + ilmoitus voittajalle (uusi `NotificationType`, esim. `GIVEAWAY_WON`)
+- Ei tarvitse omaa tietokantamallia välttämättä ensimmäisessä versiossa — voi toimia puhtaasti Socket.io-tilassa (in-memory) yhden liven ajan, koska giveaway on kertaluund kulutustapahtuma eikä vaadi pysyvää historiaa (voidaan lisätä myöhemmin jos halutaan tilastoida).
+
+### 4. Julkinen myyjäprofiili (Storefront)
+Puuttuu kokonaan koodista (tarkistettu, ei `/myyja/[username]`-tyyppistä sivua ole). Rakennetaan tukemaan yllä olevaa kolmea:
+- Uusi julkinen sivu, esim. `frontend/app/myyja/[username]/page.tsx`
+- Näyttää: myyjän kaikki aktiiviset tuotteet (kaikki saleType), **tulevat ajastetut livet/huutokaupat korostettuna** (jotta ostaja löytää ne ennakkotarjousta varten), myyjän arvostelut (Review-malli on jo olemassa), lomamoodi-tila jos päällä (Profiili-mallissa jo olemassa)
+- Linkki tänne jo olemassa olevista paikoista: tuotesivun myyjän nimi, live-näkymän myyjän nimi jne. — tarkista onko nämä jo linkitetty jonnekin tai pitääkö lisätä
+
+**Toteutusjärjestys suositus:** 4 (storefront) ensin koska 1 (ennakkotarjoukset) tarvitsee paikan josta ostaja löytää tulevat huutokaupat ylipäätään — muuten pre-bidding-ominaisuus ei ole käytännössä löydettävissä.
+
+Koodaussääntö "Käännökset: Käytä AINA t.xxx — ei kovakoodattua suomea/englantia" ei toteutunut useassa paikassa. **✅ KORJATTU** — kaikki alla listatut tekstit siirretty `t.xxx`-järjestelmään (fi+en), admin-paneelin este on siis poistunut.
 
 ### Kovakoodatut suomenkieliset tekstit
 - `frontend/app/huutokauppa/[id]/page.tsx`: "Päättyy", "Lähtöhinta"/"Korkein huuto", "Varaushinta ei ole vielä täyttynyt", "Toimitus & turvaaminen", "Myyjä sitoutuu lähettämään 48h sisällä", "Kaikki huudot sitovia", "Seurantakoodi toimitetaan ostajalle"
@@ -423,7 +469,38 @@ Navbarissa on jo ylätason navigointi Selaa/Huutokaupat/Live. Selaa-sivun sisäl
 ### Paikkakunta browse-sivulla — jo osittain koodissa, ei uusi löydös
 `Paikkakunta`-suodatin on jo `frontend/app/selaa/page.tsx`:ssä ("Kaikki paikkakunnat" -oletuksella), mutta piiloutuu koska yhdelläkään tuotteella ei ole vielä kaupunkitietoa. Sama asia kuin TEKEMÄTTÄ-kohta #4 ("Paikkakunta — profiiliin + tuotteisiin + suodatin") — ei uusi, vahvistaa vain että se on yhä auki.
 
-## Admin-paneeli + ilmiantomekanismi (SUUNNITELTU — päätetty, valmis toteutettavaksi, TEHDÄÄN VASTA KÄÄNNÖSPUUTTEIDEN JÄLKEEN)
+## Admin-paneeli + ilmiantomekanismi (✅ TEHTY)
+
+### Tehty ✅
+- `User.role` (Role enum USER/ADMIN) oli jo schemassa valmiina — ei tarvinnut lisätä
+- `Report`-malli lisätty (reporterId, targetType "product"|"show", targetId, reason, description, status PENDING/REVIEWED)
+- `NotificationType.LISTING_REMOVED` lisätty
+- `backend/src/middleware/admin.ts` — adminMiddleware, tarkistaa roolin tuoreena kannasta (JWT ei kanna roolia)
+- `POST /reports` — kirjautuneen käyttäjän ilmianto, kohde tarkistetaan olemassaolevaksi ennen tallennusta
+- `backend/src/lib/telegram.ts` — hälytys admin-puhelimeen kun live ilmiannetaan (kiireellinen). **Vaatii `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env-muuttujat toimiakseen oikeasti — nyt vain konsoliloki, koska botin tunnuksia ei ole vielä luotu/annettu.** Ks. https://core.telegram.org/bots#how-do-i-create-a-bot
+- `GET /admin/reports?status=`, `PATCH /admin/reports/:id` (merkitse käsitellyksi), `DELETE /admin/products/:id`, `DELETE /admin/shows/:id`, `GET /admin/users?search=`, `POST /admin/users/:id/ban` — kaikki `authMiddleware` + `adminMiddleware`
+- Tuotteen admin-poisto: siivoaa AutoBid/Bid/CartItem-rivit ja irrottaa Message-viestit ennen poistoa; **kieltäytyy jos tuotteella on jo OrderItem** (osa tilausta — ei poisteta rahaliikenteen historiaa)
+- Liven admin-poisto: irrottaa tuotteet (`showId = null`, tuotteet jäävät olemaan), poistaa showId:hen sidotut Bid-rivit, poistaa Show:n
+- Molemmat ilmoittavat myyjälle `LISTING_REMOVED`-notifikaatiolla, syy näkyvissä viestissä
+- Frontend: `components/ReportModal.tsx` (uudelleenkäytettävä), "Ilmianna"-nappi tuotesivulla (`/tuotteet/[id]`) ja live-näkymässä (`/live/[showId]`, sekä mobiili että desktop)
+- `/admin`-sivu — rooligeittattu (redirect `/`:iin jos ei ADMIN), kaksi välilehteä: Ilmiannot (suodatus käsittelemätön/käsitelty/kaikki, kohteen esikatselu+linkki, merkitse käsitellyksi, poista syyn kanssa) ja Käyttäjät (haku nimellä/käyttäjänimellä/sähköpostilla, bannaa syyn+keston kanssa — käyttää olemassa olevaa Ban-mallia, sama automaattisen bannin logiikka poimii sen)
+- Admin-linkki `DashboardLayoutClient`-navissa, näkyy vain kun `user.role === 'ADMIN'`
+- **testi@skrm.fi promotoitu ADMIN-rooliin** tietokannassa suoraan (ei vielä UI:ta roolin muuttamiseen — tarkoituksella, ks. alkuperäinen spesifikaatio)
+- Testattu end-to-end curlilla: ilmianto → admin näkee sen → poisto syyn kanssa → myyjä saa LISTING_REMOVED-ilmoituksen → merkitse käsitellyksi; käyttäjähaku → banni → banni näkyy heti olemassa olevassa `isUserBanned`-tarkistuksessa (huutokaupat)
+- Typecheck puhdas backend + frontend, sivut renderöityvät (`/admin`, `/tuotteet/[id]`, `/live/[showId]`) virheittä
+
+### Tekemättä / rajattu pois tarkoituksella
+- Ei UI:ta admin-roolin myöntämiseen toiselle käyttäjälle — vain suora tietokantamuokkaus, koska ei vielä henkilökuntaa (alkuperäisen spesifikaation mukaista)
+- Telegram-hälytys ei lähde oikeasti ilman bot-tokenia — käyttäjän pitää luoda botti ja antaa `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` `.env`:iin
+
+### Lisäys 2026-08-07 — käyttäjän ilmianto
+- Alkuperäinen spesifikaatio kattoi vain tuote/live-ilmiannon. Lisätty kolmas `targetType: "user"` — "Ilmianna käyttäjä" -nappi julkisella profiilisivulla (`/u/[username]`), näkyy vain kirjautuneelle käyttäjälle jonka profiili ei ole oma
+- Käyttäjäilmiannon syyt eri kuin tuote/live: Häirintä, Huijaus, Muu (ei "kielletty tuote"/"väärennös", ne eivät sovi käyttäjään)
+- Itsensä ilmianto estetty (400 "Et voi ilmiantaa itseäsi")
+- Admin-sivun ilmiantolistassa käyttäjäilmiannon toiminto on **Bannaa** (syy + kesto päivinä) "Poista sisältö" -napin sijaan, koska käyttäjätiliä ei poisteta — käyttää samaa `POST /admin/users/:id/ban` -reittiä kuin Käyttäjät-välilehti
+- Testattu curlilla: itsensä ilmianto torjuttu, käyttäjäilmianto tallentuu ja näkyy admin-listassa oikein rikastettuna (username, rooli)
+
+## Admin-paneeli + ilmiantomekanismi — alkuperäinen spesifikaatio (arkisto)
 
 Ei aiemmin ollut mitään tapaa ilmoittaa laittomasta/kielletystä sisällöstä (tuote, huutokauppa, live) muuta kuin käyttöehtojen maininta "ota yhteyttä support@skrm.fi" — ei nappia, ei lomaketta, ei admin-näkymää. Admin-roolia ei ole olemassa koodissa lainkaan (ei `role`-kenttää User-mallissa, ei admin-middlewarea, ei admin-reittejä).
 
@@ -517,3 +594,17 @@ Tuotekortit pinoutuvat nyt pystysuuntaisesti mobiilissa (kuva+nimi → hinta/kun
 **Kaksi uutta löydöstä korjauksen sivutuotteena (ei vielä korjattu, vain kirjattu):**
 - Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen (FK constraint violation, ei käsitelty) — tarvitsee siistin virheenkäsittelyn
 - `socket.ts`:n live-lähetyksen socket-pohjainen huutojärjestelmä ei käytä minimikorotusta ollenkaan — sama puute kuin `auctions.ts`:ssä oli, mutta tehtävänanto koski nimenomaan vain `auctions.ts`:ää, joten tätä ei korjattu vielä
+
+### 9. ✅ TEHTY — Automaattihuudon huutosota ei konvergoinut oikein
+- Bugi: kaksi kilpailevaa automaattihuutoa samalla tuotteella (esim. 50€ ja 500€ maksimit, lähtöhinta 1€) — järjestelmän piti heti mennä 51€:oon (toiseksi korkein maksimi + korotus), mutta pysähtyi 3€:oon eikä 50€:n automaattihuuto koskaan "huutanut takaisin"
+- Syy: `processAutoBids()` `backend/src/routes/auctions.ts`:ssä teki vain YHDEN huutoaskeleen kutsua kohden eikä koskaan tarkistanut uudelleen voiko juuri ohitettu automaattihuutaja vastata
+- Korjaus: kirjoitettu uudelleen suoraksi tasapainolaskennaksi (klassinen "toiseksi korkein maksimi + korotus" -sääntö, sama periaate kuin eBaylla) — ei enää rekursiota/silmukkaa, yksi laskenta per kutsu
+- Testattu curlilla end-to-end: 1€ lähtöhinta, 50€+500€ automaattihuudot → lopputulos 51€, 500€:n käyttäjä voittaa
+
+### 10. ✅ TEHTY — Huutokaupan voitosta ei syntynyt koskaan Order-riviä
+- Bugi: kun perinteinen huutokauppa päättyi voittajalla (`closeAuctions.ts`) tai "Osta heti" käytettiin (`auctions.ts` buy-now), tuote merkittiin `SOLD`:ksi ja lähetettiin ilmoitus "sinulla on 2h aikaa maksaa" — mutta **Orderia ei koskaan luotu**. Voittaja ei siis päässyt koskaan oikeasti maksamaan, ei edes mock-pay-testivirran kautta.
+- Korjaus: uusi jaettu `backend/src/lib/auctionOrder.ts` → `createOrderForAuctionWin()`, sama luo-tai-liitä-olemassaolevaan-logiikka kuin `cart/checkout`:ssa (6h yhdistämisikkuna toimii myös huutokaupoille). Kutsutaan sekä `closeAuctions.ts`:stä että `auctions.ts`:n buy-now-reitiltä.
+- **Maksuaika eriytetty:** huutokaupan passiivinen päättyminen (closeAuctions) → 24h. Osta heti (buyer aktiivisesti läsnä) → normaali 2h. Ks. LUKITTU-säännön poikkeus yllä.
+- Ilmoitusten deep-linkit korjattu osoittamaan oikeaan paikkaan: ostaja → `/ostot` (missä oikeasti voi maksaa), myyjä → `/dashboard/tilaukset` (ei enää `/dashboard/tuotteet`, koska nyt on oikea Order seurattavana)
+- Sivuvaikutus korjattu: `webhooks.ts`:n `checkExpiredPayments()` palautti ennen KAIKKI peruutetut tuotteet `PENDING`-tilaan — huutokauppatuotteelle tämä olisi aiheuttanut äärettömän silmukan (`auctionEndsAt` on jo mennyt → `closeAuctions` poimisi sen heti uudestaan). Huutokauppatuotteet menevät nyt `UNSOLD`-tilaan (kentät nollattu) maksamattoman voiton jälkeen — myyjä listaa uudestaan manuaalisesti jos haluaa. Suoramyynti/live-tuotteet toimivat kuten ennen (palaavat `PENDING`-tilaan).
+- Testattu curlilla end-to-end kolmessa skenaariossa: (1) passiivinen voitto → 24h Order + mock-pay toimii, (2) osta heti → 2h Order, yhdistyi oikein olemassaolevaan samalta myyjältä 6h sisällä olevaan tilaukseen, (3) maksamaton voitto → tuote `UNSOLD`, ei ääretöntä ilmoitussilmukkaa

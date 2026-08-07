@@ -11,6 +11,7 @@ import { useCart } from '@/lib/cart-context'
 import { KATEGORIAT, getKatNimi } from '@/lib/kategoriat'
 import { api, cartApi, messageApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
+import ReportModal from '@/components/ReportModal'
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -33,6 +34,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [message, setMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   useEffect(() => {
     console.log('Haetaan tuote id:', id)
@@ -201,6 +203,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               {copied ? '✓ Linkki kopioitu!' : 'Jaa tuote'}
             </button>
 
+            <button onClick={() => { if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', marginBottom: 20, textDecoration: 'underline' }}>
+              {t.report.button}
+            </button>
+
             {showContact && (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', marginBottom: 20 }}>
                 {messageSent ? (
@@ -252,6 +258,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         )}
       </div>
       <Footer />
+
+      {showReport && <ReportModal targetType="product" targetId={product.id} onClose={() => setShowReport(false)} />}
 
       {/* Suurennusnäkymä */}
       {zoomed && (

@@ -82,6 +82,20 @@ export const notificationApi = {
   markRead: (id?: string) => request('/notifications/read', { method: 'POST', body: JSON.stringify(id ? { id } : {}) }),
 }
 
+export const reportApi = {
+  create: (targetType: 'product' | 'show' | 'user', targetId: string, reason: string, description?: string) =>
+    request('/reports', { method: 'POST', body: JSON.stringify({ targetType, targetId, reason, description }) }),
+}
+
+export const adminApi = {
+  reports: (status?: 'PENDING' | 'REVIEWED') => request(`/admin/reports${status ? `?status=${status}` : ''}`),
+  markReviewed: (id: string) => request(`/admin/reports/${id}`, { method: 'PATCH' }),
+  deleteProduct: (id: string, reason: string) => request(`/admin/products/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
+  deleteShow: (id: string, reason: string) => request(`/admin/shows/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
+  searchUsers: (search: string) => request(`/admin/users?search=${encodeURIComponent(search)}`),
+  banUser: (id: string, reason: string, days: number) => request(`/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ reason, days }) }),
+}
+
 export const messageApi = {
   conversations: () => request('/messages'),
   thread: (userId: string) => request(`/messages/${userId}`),

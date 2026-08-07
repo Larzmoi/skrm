@@ -13,6 +13,8 @@ import webhooksRouter, { checkExpiredPayments } from './routes/webhooks'
 import notificationsRouter from './routes/notifications'
 import messagesRouter from './routes/messages'
 import auctionsRouter from './routes/auctions'
+import reportsRouter from './routes/reports'
+import adminRouter from './routes/admin'
 import { setupSocket } from './socket'
 import { setSocketServer } from './lib/notify'
 import { checkDeliveryTimeline } from './jobs/deliveryTimeline'
@@ -42,6 +44,8 @@ app.use('/webhooks', webhooksRouter)
 app.use('/notifications', notificationsRouter)
 app.use('/messages', messagesRouter)
 app.use('/auctions', auctionsRouter)
+app.use('/reports', reportsRouter)
+app.use('/admin', adminRouter)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

@@ -13,16 +13,25 @@ const BAN_DAYS = 30
 export async function checkExpiredPayments() {
   const expired = await prisma.order.findMany({
     where: { status: 'PENDING_PAYMENT', paymentDeadline: { lt: new Date() } },
-    include: { items: true },
+    include: { items: { include: { product: true } } },
   })
 
   for (const order of expired) {
     await prisma.$transaction([
       prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } }),
-      ...order.items.map(item => prisma.product.update({
-        where: { id: item.productId },
-        data: { quantity: { increment: item.quantity }, status: 'PENDING', finalPrice: null },
-      })),
+      // Huutokauppatuote ei palaa PENDING-tilaan (auctionEndsAt on jo mennyt — closeAuctions poimisi sen heti
+      // uudelleen ja yrittäisi ilmoittaa samalle maksamattomalle voittajalle loputtomasti). Merkitään lopullisesti
+      // myymättömäksi — myyjä voi listata sen uudestaan manuaalisesti jos haluaa.
+      ...order.items.map(item => item.product.saleType === 'auction'
+        ? prisma.product.update({
+            where: { id: item.productId },
+            data: { status: 'UNSOLD', finalPrice: null, currentBid: null, currentBidderId: null, auctionEndsAt: null },
+          })
+        : prisma.product.update({
+            where: { id: item.productId },
+            data: { quantity: { increment: item.quantity }, status: 'PENDING', finalPrice: null },
+          })
+      ),
       prisma.paymentViolation.create({ data: { userId: order.buyerId, orderId: order.id } }),
     ])
 

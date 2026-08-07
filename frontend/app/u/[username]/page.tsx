@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context'
 import { BACKEND_URL as BACKEND } from '@/lib/backend'
 import { userApi } from '@/lib/api'
 import { StarRatingDisplay } from '@/components/StarRating'
+import ReportModal from '@/components/ReportModal'
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params)
@@ -26,6 +27,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [following, setFollowing] = useState(false)
   const [followerCount, setFollowerCount] = useState(0)
   const [followBusy, setFollowBusy] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   useEffect(() => {
     // Haetaan käyttäjä, hänen tuotteensa ja arvostelunsa
@@ -104,6 +106,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   {following ? `✓ ${t.profile.following}` : t.profile.follow}
                 </button>
               )}
+              {currentUser && currentUser.username !== username && profile?.id && (
+                <button
+                  onClick={() => setShowReport(true)}
+                  style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '9px 14px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  ⚑ {t.report.titleUser}
+                </button>
+              )}
             </div>
           </div>
 
@@ -178,6 +188,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         )}
       </div>
       <Footer />
+      {showReport && profile?.id && <ReportModal targetType="user" targetId={profile.id} onClose={() => setShowReport(false)} />}
     </div>
   )
 }
