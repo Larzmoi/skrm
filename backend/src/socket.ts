@@ -22,6 +22,19 @@ interface AuctionState {
 
 const auctions = new Map<string, AuctionState>()
 
+// Kuunneltujen showien setti per socket — tarvitaan jotta disconnect-tapahtumassa tiedetään
+// mistä huoneista katsojamäärä pitää päivittää (socket.rooms on jo tyhjä disconnect-käsittelijässä)
+const socketShows = new Map<string, Set<string>>()
+
+// Myyjän mykistämät käyttäjät per show — kevyt in-memory-lista, ei vaadi tietokantamallia
+// (chat itsessään ei ole pysyvä, joten mykistyskään ei tarvitse olla)
+const mutedUsers = new Map<string, Set<string>>()
+
+function broadcastViewerCount(io: Server, showId: string) {
+  const room = io.sockets.adapter.rooms.get(`show:${showId}`)
+  io.to(`show:${showId}`).emit('viewer_count', { count: room?.size ?? 0 })
+}
+
 export function setupSocket(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log('Socket yhdistyi:', socket.id)
@@ -34,6 +47,8 @@ export function setupSocket(io: Server) {
     // Liity lähetyshuoneeseen
     socket.on('join_show', (showId: string) => {
       socket.join(`show:${showId}`)
+      if (!socketShows.has(socket.id)) socketShows.set(socket.id, new Set())
+      socketShows.get(socket.id)!.add(showId)
       // Lähetä nykyinen tila jos huutokauppa käynnissä
       const state = auctions.get(showId)
       if (state) {
@@ -46,28 +61,68 @@ export function setupSocket(io: Server) {
           active: state.active,
         })
       }
+      broadcastViewerCount(io, showId)
     })
 
     // Poistu huoneesta
     socket.on('leave_show', (showId: string) => {
       socket.leave(`show:${showId}`)
+      socketShows.get(socket.id)?.delete(showId)
+      broadcastViewerCount(io, showId)
     })
 
     // Chat-viesti
     socket.on('chat_message', async ({ showId, message, token }: { showId: string; message: string; token: string }) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        if (mutedUsers.get(showId)?.has(decoded.userId)) return
         const user = await prisma.user.findUnique({
           where: { id: decoded.userId },
           select: { id: true, username: true },
         })
         if (!user || !message.trim()) return
         io.to(`show:${showId}`).emit('chat_message', {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           userId: user.id,
           username: user.username,
           message: message.trim().slice(0, 200),
           timestamp: Date.now(),
         })
+      } catch {}
+    })
+
+    // Myyjä poistaa chat-viestin kaikkien näkyvistä (viesti itsessään ei ole pysyvä, joten "poisto" on puhtaasti broadcast-tason toiminto)
+    socket.on('delete_chat_message', async ({ showId, messageId, token }: { showId: string; messageId: string; token: string }) => {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        const show = await prisma.show.findUnique({ where: { id: showId } })
+        if (!show || show.sellerId !== decoded.userId) return
+        io.to(`show:${showId}`).emit('chat_message_deleted', { messageId })
+      } catch {}
+    })
+
+    // Myyjä mykistää käyttäjän kyseisessä lähetyksessä (ei koko sivuston laajuinen banni — eri asia)
+    socket.on('mute_user', async ({ showId, userId, token }: { showId: string; userId: string; token: string }) => {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        const show = await prisma.show.findUnique({ where: { id: showId } })
+        if (!show || show.sellerId !== decoded.userId) return
+        if (!mutedUsers.has(showId)) mutedUsers.set(showId, new Set())
+        mutedUsers.get(showId)!.add(userId)
+        io.to(`show:${showId}`).emit('user_muted', { userId })
+      } catch {}
+    })
+
+    // Myyjä pidentää käynnissä olevan huudon aikaa (+10s pikatoiminto)
+    socket.on('extend_timer', async ({ showId, seconds, token }: { showId: string; seconds: number; token: string }) => {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        const show = await prisma.show.findUnique({ where: { id: showId } })
+        if (!show || show.sellerId !== decoded.userId) return
+        const state = auctions.get(showId)
+        if (!state || !state.active) return
+        state.timer += Number(seconds) || 10
+        io.to(`show:${showId}`).emit('timer_tick', { timer: state.timer, productId: state.productId })
       } catch {}
     })
 
@@ -204,6 +259,12 @@ export function setupSocket(io: Server) {
 
     socket.on('disconnect', () => {
       console.log('Socket poistui:', socket.id)
+      const shows = socketShows.get(socket.id)
+      socketShows.delete(socket.id)
+      if (shows) {
+        // socket on jo poistunut huoneista tässä vaiheessa — laske koko ilman sitä
+        for (const showId of shows) broadcastViewerCount(io, showId)
+      }
     })
   })
 }

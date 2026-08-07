@@ -110,17 +110,17 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 - **Kuvat:** Tallennetaan base64:na, erotin `|||` useampien välillä. Ota ensimmäinen: `imageUrl.split('|||')[0]`
 - **Teemat:** Käytä `C.xxx` värejä (C.accent, C.bg, C.text, C.muted, C.border, C.cardBg jne.)
 - **Ei mock-dataa:** Kaikki data haetaan backendistä. Jos ei löydy → tyhjä tila
-- **API:** NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
+- **API (paikallinen kehitys):** NEXT_PUBLIC_BACKEND_URL=http://localhost:4000 — **huom, tämä koskee vain paikallista kehitystä omalla koneella**. Tuotannossa (Hetzner) portit 4000 (backend) ja 3000 (frontend) ovat PM2:n sisäisiä portteja joita nginx reitittää `app.skrm.fi`:n takana — ei suoraan julkisesti näkyviä. Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio alempana täydelliselle infralle.
 
 ## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
 1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
-2. **Deploytaus** — Hetzner (backend+DB, nginx-rtmp) + Vercel/Netlify (frontend) — odottaa palvelimen ostoa/OY:tä
+2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
 3. **Paytrail** — oikea maksuintegraatio (nyt mock-pay-testivirta, koko Order/Cart-skaffoldi on jo valmis ja toimii mockin päällä) — vaatii OY:n
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
-8. ✅ **Hetzner-palvelin + nginx-rtmp** — TEHTY 2026-08-07, testattu end-to-end ffmpeg-simulaatiolla, ks. "Videostreami"-osio. Jäljellä: DNS-propagoinnin varmistus + oikea OBS-testi käyttäjän toimesta.
+8. ✅ **OBS-testi Hetznerillä — TEHTY KOKONAAN 2026-08-07.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu + frontendin videotoisto vahvistettu toimivaksi end-to-end oikealla OBS-yhteydellä. Kaksi erillistä juurisyytä videon näkymättömyydelle löydettiin ja korjattiin matkan varrella (ks. "Tunnettuja bugeja" alla ollut merkintä, nyt poistettu ratkaistuna): (1) `stream.skrm.fi` ei kuunnellut HTTPS:ää porttia 443 → asennettu certbot + Let's Encrypt-sertifikaatti, (2) katsojan koneelta testattaessa katsottiin väärää tietokantaa (Railway paikallisen Hetzner-Postgresin sijaan) koko projektin siirryttyä Hetznerille — ei koodivirhe.
 
 ## Tunnettuja bugeja / kehityskohteita
 - **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
@@ -134,18 +134,35 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 - DNS: Cloudflare (free)
 - Sähköposti: support@skrm.fi → **Zoho Mail (maksullinen taso, muutama €/kk) — päätetty, ei vielä käyttöönotettu.** Antaa sekä vastaanoton että lähetyksen samasta osoitteesta (Cloudflare Email Routing hoiti vain vastaanoton, ei lähetystä samasta osoitteesta, siksi vaihdettu). Vaatii DNS-tietueiden lisäyksen Cloudflareen (MX + verifiointi Zohon ohjeiden mukaan) — tekemättä vielä.
 
-### Hetzner — striimaustestausta varten NYT, koko projektin lopullinen koti MYÖHEMMIN (päätetty)
-- Palvelin: **CX23** (~6€/kk), Hetzner Cloud VPS
-- **Vaihe 1 (nyt):** nginx-rtmp-asennus ja OBS-yhteyden testaus end-to-end — ei vielä tuotantomittakaavan palvelin, riittää yhden striimin testaukseen. Backend/DB pysyvät toistaiseksi Railwaylla, Hetzner hoitaa aluksi vain striimauksen.
-- **Vaihe 2 (myöhemmin, päätetty 2026-08-07):** kun tekemättömät päivitykset (ks. "SEURAAVAKSI TEHTÄVÄT") on saatu tehtyä ja livestriimauksen hiominen alkaa Hetznerillä, **koko projekti (backend + DB + frontend) siirretään Hetznerille** — ei enää kolmea eri palveluntarjoajaa (Railway + Netlify×2 + Hetzner). Ei tarkkaa päivämäärää, laukaisin on "striimaus toimii ja sitä aletaan hioa", ei erillinen OY-riippuvuus.
+### Hetzner — KOKO PROJEKTI SIIRRETTY ✅ (valmis 2026-08-07)
+- Palvelin: **CX23**, Hetzner Cloud VPS, IP `77.42.121.137`, hostname `ubuntu-4gb-hel1-4`
+- Backend + frontend + PostgreSQL + nginx-rtmp kaikki nyt samalla palvelimella
+- SSH: avainpohjainen (salasanakirjautuminen jätetty päälle varajärjestelmänä, kannattaa harkita poistoa myöhemmin)
 
-### Hosting — VÄLIAIKAINEN (Railway + Netlify NYT, siirtyy Hetznerille yllä olevan Vaihe 2:n mukaisesti)
-Kaikki alla oleva on tarkoituksella tilapäistä — siirtyy kokonaan Hetznerille kun striimaus on validoitu ja sen hiominen alkaa (ks. yllä). Ei kannata maksaa Hetznerin ylläpidosta kuukausia etukäteen ennen sitä.
-- **skrm.fi** (landing page) → Netlify (`skrm.netlify.app`) — staattinen HTML, FI/SV/EN, "tulossa"-sivu jossa sähköpostin jättö + FAQ + kirjaudu-nappi joka vie testitunnuksilla oikealle sivulle
-- **app.skrm.fi** (varsinainen sovellus) → Netlify (`skrmm.netlify.app`) — Next.js
-- **Backend** → Railway (`skrm-production.up.railway.app`) — Node.js + Express + Prisma
-- **Tietokanta** → Railway PostgreSQL
-- Käyttö nyt: harvat ja valitut testaavat sivustoa testitunnuksilla ennen julkista lanseerausta
+**Tekninen kokoonpano:**
+- **PostgreSQL**: paikallinen, kanta `skrm`, käyttäjä `skrm_app`
+- **Backend**: `/root/skrm/backend`, käännetty (`npm run build` → `dist/`), ajossa PM2:ssa nimellä `skrm-backend`, portti 4000
+- **Frontend**: `/root/skrm/frontend`, käännetty (`npm run build`), ajossa PM2:ssa nimellä `skrm-frontend`, portti 3000
+- **PM2**: `pm2 startup` + `pm2 save` ajettu, käynnistyy automaattisesti palvelimen rebootissa (systemd-palvelu `pm2-root`)
+- **nginx**: `/etc/nginx/sites-available/app.skrm.fi` — `/api/` → localhost:4000, muu → localhost:3000
+- **SSL**: Let's Encrypt/certbot, `app.skrm.fi`, auto-uusiutuu, vanhenee 2026-11-05
+- **DNS**: Cloudflare, `app.skrm.fi` A-tietue → `77.42.121.137`, proxy päällä (oranssi pilvi)
+- **Palomuuri**: ufw päällä, sallittu 22/80/443/1935
+- **Data**: Railwayn testidata (3 käyttäjää + tuotteet/tilaukset) siirretty `pg_dump --data-only` + `psql`-tuonnilla — vahvistettu toimivaksi, kaikki kolme testitiliä kirjautuu sisään
+
+**Huomioita jos joskus toistat vastaavan siirron:**
+- Backend on TypeScript — muista `npm run build` ennen PM2-käynnistystä, pelkkä `npm install` ei riitä (`npm start` ajaa käännettyä `dist/index.js`:ää)
+- `sudo -u postgres psql -c "..."` ilman `-d <kanta>` -määrettä yhdistää oletuskantaan (`postgres`), ei sovelluksen omaan kantaan — oikeuksien myöntö menee helposti väärään paikkaan jos tätä ei muista
+- CNAME-tietuetta (esim. vanha Netlify-osoitin) ei voi muokata suoraan A-tietueeksi Cloudflaressa — pitää poistaa ja luoda uusi
+- Windowsin/selaimen DNS-välimuisti voi näyttää vanhaa osoitetta hetken vaikka Cloudflaren tietue on jo oikein — `ipconfig /flushdns` tai yksityinen selainikkuna auttaa
+- `pg_dump --disable-triggers` -lippu antaa "permission denied" -virheitä system-triggereille ilman superuser-oikeuksia, mutta itse `COPY`-komennot menevät silti läpi oikein jos taulut tuodaan riippuvuusjärjestyksessä — virheistä ei tarvitse hätääntyä, tarkista aina lopuksi `SELECT COUNT(*)` oikealla taululla
+
+### Hosting — Railway ja app.skrm.fi:n Netlify POISSA KÄYTÖSTÄ, landing pysyy
+Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). Railwayn backend/DB-palvelu ja `app.skrm.fi`:n Netlify-sivusto voidaan sammuttaa Railway/Netlify-dashboardeista (ei kiireellistä, mutta säästää turhaa kuukausimaksua Railwaylta kun ei enää käytössä).
+- **skrm.fi** (landing page) → **pysyy Netlifyssä** (`skrm.netlify.app`) — staattinen HTML, FI/SV/EN, "tulossa"-sivu, ei liity backendiin, ei syytä siirtää
+- **app.skrm.fi** (sovellus) → **Hetzner**, ks. yllä oleva tekninen kokoonpano
+- **Backend** → **Hetzner**, PM2 `skrm-backend`
+- **Tietokanta** → **Hetzner**, paikallinen PostgreSQL
 - Repot: GitLab (https://gitlab.com/lpjr86/skrm, private) ja GitHub (https://github.com/Larzmoi/skrm, **julkinen**)
 
 ## Kategoriat (14 kpl — LUKITTU)
@@ -354,33 +371,11 @@ Lisää:
 - Vasta sitten show tulee julkiseksi ja näkyy katsojille
 - Seller console avautuu heti (voi kopioida OBS-asetukset)
 
-### ✅ TEHTY 2026-08-07 — Hetzner-palvelin pystytetty, striimaus testattu end-to-end
-- **Palvelin:** CX23, Ubuntu 26.04, Helsinki (hel1), IP `77.42.121.137`. SSH avainpohjainen (ed25519, kommentti "habacards-palvelin"), salasanakirjautuminen ja root-salasanakirjautuminen suljettu (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`).
-- `nginx` + `libnginx-mod-rtmp` (apt-paketti, ei tarvinnut kääntää lähdekoodista). Konfiguroitu tarkalleen `infra/nginx-rtmp.conf`-referenssin mukaan: RTMP portissa 1935, HLS `/tmp/hls`, `/hls`-sijainti + `/health`-tarkistus portissa 80.
-- `ufw`-palomuuri: sallittu 22 (SSH), 1935 (RTMP), 80 (HTTP/HLS).
-- **Webhook-silta (tärkeä poikkeama referenssistä):** `nginx-rtmp`-moduulin `on_publish`/`on_publish_done` eivät tue HTTPS-kohteita (vain plain HTTP) — Railwayn tuotantobackend on HTTPS-pakotettu. Ratkaisu: lisätty paikallinen nginx-palvelin `127.0.0.1:8081` joka proxataan (`proxy_pass` + `proxy_ssl_server_name on`) osoitteeseen `https://skrm-production.up.railway.app`. `on_publish`/`on_publish_done` osoittavat nyt tähän paikalliseen proxyyn eivätkä suoraan Railwayyn.
-- **DNS:** `stream.skrm.fi` A-tietue → `77.42.121.137` (harmaa pilvi/DNS-only) — käyttäjä lisää itse Cloudflaren dashboardista, ei vielä propagoitunut viimeisimmän tarkistuksen mukaan.
-- **RTMP_URL/HLS_BASE_URL Railwaylla:** ei asetettu eksplisiittisesti — koodin oletusarvot (`rtmp://stream.skrm.fi/live`, `https://stream.skrm.fi/hls`) ovat jo oikeat, joten env-muuttujia ei tarvinnut lisätä.
-- **Testattu end-to-end ffmpeg-testikuvalla** (simuloi OBS:ää) tuotanto-backendia vasten: loi oikean Show:n `/shows`-reitillä → sai streamKey:n → `ffmpeg` julkaisi `rtmp://localhost:1935/live/{streamKey}` Hetznerin omalta koneelta → `on_publish`-webhook ampui oikeaan Railway-backendiin → Show `SCHEDULED → LIVE` **automaattisesti** → HLS-segmentit + playlist generoituivat ja olivat haettavissa HTTP:n yli → ffmpeg pysäytetty → `on_publish_done` ampui → Show `LIVE → ENDED` **automaattisesti**. Täyttää LUKITTU-automaattisuusvaatimuksen (ei manuaalisia vaiheita). Testidata siivottu tuotanto-DB:stä jälkikäteen.
-- **Työkalut asennettu tätä varten:** `hcloud` CLI ladattu suoraan GitHubista käyttäjän omaan `bin`-kansioon (ei admin-oikeuksia vaadittu, Chocolatey epäonnistui oikeuksien puutteeseen) ja kirjautunut kontekstilla `skrm` (käyttäjä loi API-tokenin itse Hetzner-konsolista, token ei koskaan kulkenut tämän keskustelun kautta).
-
-### ✅ TEHTY 2026-08-07 (myöhemmin samana päivänä) — DNS varmistettu + löytyi ja korjattiin oikea katsojabugi
-- **DNS propagoitui** — `stream.skrm.fi` → `77.42.121.137` vahvistettu toimivaksi useasta julkisesta resolverista (1.1.1.1, 8.8.8.8). Domainin nimipalvelimet (`julio`/`samara.ns.cloudflare.com`) olivat jo oikein delegoitu.
-- **Käyttäjä testasi oikealla OBS:llä — katsojan sivu jäi jumiin "lataa"-tilaan videokuvaa odottaessa.** Syy löytyi: kaikkien show'jen `hlsUrl` on `https://stream.skrm.fi/hls/...` (HTTPS-skeema koodin oletusarvona), mutta Hetzner-palvelin kuunteli tässä vaiheessa vain porttia 80 (plain HTTP) — porttiin 443 ei vastannut mitään (`curl https://stream.skrm.fi` → connection timeout). Koska sovellus (Netlify) on itse HTTPS, selain ei olisi edes sallinut HTTP-fallbackia (mixed content) vaikka sellainen olisi tarjottu — video jäi ikuisesti odottamaan manifestia joka ei koskaan tullut.
-- **Korjaus:** asennettu `certbot` + `python3-certbot-nginx`, hankittu oikea Let's Encrypt-sertifikaatti `stream.skrm.fi`:lle (`certbot --nginx -d stream.skrm.fi --redirect`), avattu portti 443 palomuurista. Certbot konfiguroi automaattisesti HTTPS-kuuntelun + HTTP→HTTPS-uudelleenohjauksen + automaattisen uusinnan (sertifikaatti vanhenee 2026-11-05, uusiutuu itsestään).
-- **Testattu uudelleen end-to-end ffmpeg-simulaatiolla HTTPS:n yli:** uusi Show → streamKey → ffmpeg-julkaisu → Show `LIVE` automaattisesti → HLS-manifesti haettavissa juuri sillä `https://`-osoitteella jota selaimen video-elementti oikeasti käyttää → `200 OK`, oikea sisältö → stream pysäytetty → Show `ENDED` automaattisesti. Testidata siivottu.
-- **RTMP itse (portti 1935) ei tarvitse TLS:ää** — OBS:n RTMP-yhteys ei ollut koskaan ongelma, pelkkä katsojan HLS-toisto HTTPS:n puutteen takia.
-
-Striimausinfrastruktuuri on nyt kokonaan valmis ja todennettu toimivaksi tuotannossa. Seuraava oikea testi on kokonaan käyttäjän toimesta: kirjaudu tuotantoon, Dashboard → Lähetys → luo lähetys → OBS:ään RTMP-osoite + stream key → aloita striimaus, ja toisella laitteella pitäisi nyt näkyä oikea videokuva muutamassa sekunnissa.
-
-### ✅ VAHVISTETTU 2026-08-07 — käyttäjä testasi oikealla OBS:llä, live toimii. Kolme sivuhavaintoa selvitetty.
-Käyttäjä teki oikean OBS-testin kahdella laitteella (`/dashboard/lahetys` lähettäjänä, `/live/[showId]` katsojana) — **video näkyi katsojalle onnistuneesti**, HTTPS-korjaus toimi tuotannossa.
-
-Testin yhteydessä nousi kolme erillistä havaintoa, kaikki nyt selvitetty:
-1. **✅ OIKEA BUGI, KORJATTU — huutokaupan "Seuraava tuote" -nappi puuttui kun lotti ei myynyt.** `dashboard/lahetys/page.tsx`: nappi näkyi ennen vain kun `isSold` oli tosi (`soldItems`-taulukko täyttyy `auction_ended`-socket-tapahtumasta VAIN jos `data.winnerId` on olemassa). Jos lotti päättyi ilman huutoja, myyjä jäi jumiin ilman tapaa siirtyä seuraavaan tuotteeseen — täsmälleen käyttäjän raportoima "en voinut valita toista kohdetta huutokauppaan". Korjaus: uusi `auctionDoneForCurrent`-tarkistus (`!auction.active && auction.productId === currentProduct.id`, riippumaton myynnistä) ohjaa nyt sekä "Seuraava tuote" -napin että viimeisen tuotteen "Kaikki käyty läpi" -tilan näkyvyyttä. "Aloita huutokauppa" (uudelleenyritys) pysyy myös tarjolla — myyjä saa nyt valinnan kumman tekee.
-2. **VÄÄRÄ HÄLYTYS — "lähetykset jäävät päättymisen jälkeen Tulossa-osioon ajastettuina":** tutkittu, ei koodibugi. Kolme jäljellä ollutta testilähetystä olivat kaikki `startedAt: null` — eli `on_publish`-webhook ei ollut koskaan onnistuneesti tavoittanut backendiä niille (luotu ennen HTTPS-korjausta). `PATCH`-logiikassa ei ole mitään koodipolkua joka palauttaisi jo-LIVEksi-menneen show'n takaisin SCHEDULEDiksi — jos show oikeasti käynnistyy, se ei koskaan "palaa" ajastetuksi. Siivottu vanhat jumiutuneet testit pois.
-3. **VÄÄRÄ HÄLYTYS (ratkaisematon lopullisesti, mutta ei toistunut) — "huutokauppa ei näkynyt toisella laitteella":** perusteellinen tutkinta (API palautti tuotteen oikein, backend-URL tuotantobuildissa oikein `skrm-production.up.railway.app`, autentikointiportti `proxy.ts` ei ollut syy koska käyttäjä oli kirjautuneena) ei löytänyt koodivikaa. Todennäköisesti hetkellinen häiriö samaan aikaan kun DNS/Hetzner-muutoksia tehtiin. Ei toistunut myöhemmässä testissä — jos toistuu, tutkittava lisää tarkalla selaimen virheilmoituksella.
-- **Stream key -suunnittelukysymys käsitelty ja päätetty pysyväksi:** käyttäjä huomasi että jokainen uusi Show saa oman kertakäyttöisen stream keyn (ei yhtä pysyvää per käyttäjä). Esitin tradeoffin (turvallisuus vs. OBS-mukavuus) — **päätetty pitää nykyinen malli** (yksi key per lähetys, turvallisempi koska vuotanut key ei toimi seuraavaan lähetykseen). Ei koodimuutosta.
+### Tekemättä — infrastruktuuri (tehdään Hetzner-vaiheessa)
+- Hetzner-palvelimen provisiointi
+- nginx + rtmp-moduulin asennus
+- RTMP_URL + HLS_BASE_URL env vars tuotantoon
+- Cloudflare DNS: stream.skrm.fi → Hetzner IP (harmaa pilvi, ei proxy)
 
 ## Muistilista — päivitettävä myöhemmin
 - FAQ päivitettävä — sisältää vanhentunutta tietoa (Mux, maksutavat, toimitus jne.)
@@ -409,35 +404,81 @@ Testin yhteydessä nousi kolme erillistä havaintoa, kaikki nyt selvitetty:
 
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
 
-1. ✅ **Kategoriafokus: Keräilykortit ainoana** — TEHTY 2026-08-07, ks. osio alla
+0. **Live-lähetyksen esikatselu ennen julkista näkyvyyttä** (ks. osio alla) — kriittinen ennen julkaisua, havaittu juuri OBS-testauksessa Hetznerillä, kaiken edellä koska striimaus on paraikaa aktiivisessa testauksessa
+1. **Kategoriafokus: Keräilykortit ainoana** (ks. osio alla) — yhteistyökumppanin palaute, ajankohtainen
 2. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY, ks. "Tehty ✅" alla
 3. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY 2026-08-07, ks. "Live-ominaisuudet Whatnot-tasolle" -osion kohta 4
-4. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — **seuraava tehtävä**. Suositeltu järjestys: 1 (ennakkotarjoukset) ensin, koska storefront on nyt valmis sen edellytykseksi (ostaja löytää tulevat huutokaupat korostettuna myyjäprofiilista).
+4. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — seuraava tehtävä kategoriafokuksen jälkeen. Suositeltu järjestys: 1 (ennakkotarjoukset) ensin, koska storefront on nyt valmis sen edellytykseksi (ostaja löytää tulevat huutokaupat korostettuna myyjäprofiilista).
 5. **Tarjoa hintaa -toiminto** (ks. osio alla) — päätetty ja valmis toteutettavaksi, ei vielä tarkkaa sijaintia järjestyksessä loppujen live-ominaisuuksien jälkeen
 
 **SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
 
-## Kategoriafokus: Keräilykortit ainoana (✅ TEHTY 2026-08-07)
+## Stream-konsolin uudelleenrakennus (✅ TEHTY 2026-08-07)
 
-### Tehty ✅
-- `frontend/lib/config.ts` (uusi) — `AKTIIVISET_KATEGORIAT: string[] = ['kerailykortit']`, ainoa kytkin. Tyhjennä palauttaaksesi kaikki 14 kategoriaa.
-- `kategoriat.ts`: uusi `getNakyvatKategoriat()` palauttaa rajatun listan (tai kaiken jos `AKTIIVISET_KATEGORIAT` on tyhjä). `KATEGORIAT` itse koskematon — `getKategoria`/`getKatNimi`/`getAlaNimi` toimivat yhä kaikilla 14:llä, joten piilotettujen kategorioiden vanhat tuotteet näyttävät nimensä oikein.
-- Piilotus kytketty neljään paikkaan spesifikaation mukaisesti: etusivu (`page.tsx`, mobiili+desktop), Selaa-sivu, jaettu `CategorySidebar` (Huutokaupat + Live-kaikki), Dashboard/Tuotteet-lomakkeen kategoriavalinta. Meista-sivun "14 kategoriaa" -tilastokortti piilotettu kokonaan (ei vaihdettu lukuun 1, koska 14 on yhä tekninen totuus).
-- **Ei kosketettu:** `dashboard/lahetys/page.tsx`:n (live-lähetyksen luonti) kategoriavalinta — spesifikaatio ei maininnut sitä eksplisiittisesti neljän piilotuskohdan listassa, jätetty koskemattomaksi tarkoituksella pysyäkseen tarkasti pyydetyn scopen sisällä. Pieni jäännösepäjohdonmukaisuus (myyjä voisi yhä valita "Elektroniikka" livelle) — huomioi jos tulee esiin.
-- Backend-reitit eivät rajoita mitään dataa millään tavalla — koko piilotus on puhtaasti frontend-UI-tason valintalistojen suodatusta, kuten spesifikaatio vaati ("älä poista mitään").
+Nykyinen myyjän live-hallintanäkymä koettiin liian suppeaksi, ei ammattimaisen tuntuiseksi, ei "Whatnot-tasoa". Uusi rakenne toteutettu `frontend/app/dashboard/lahetys/page.tsx`:ään, sivuston omilla `C.xxx`-väreillä (ei geneeristä palettia) — pre-live-asetusnäkymä (kamera-esikatselu, lomake, "Aloita lähetys") jätetty täysin ennalleen, vain `isLive`-tilan jälkeinen näkymä rakennettu uudelleen.
 
-### Keräilykorttien kolmitasoinen rakenne (✅ TEHTY) — Kategoria → Peli → Tyyppi
-- **Oikea skeemamuutos:** `Product.tyyppi String?` lisätty (kolmas taso), migroitu. Muut 13 kategoriaa eivät saa kolmatta tasoa — vain Keräilykortit.
-- `kategoriat.ts`: Keräilykorttien `alakategoriat` (pelit: Pokémon/Magic/Yu-Gi-Oh!/Lorcana/One Piece/Urheilukortit + uusi "Muut keräilytuotteet") saavat jokainen saman `tyypit`-taulukon (`keraiLykorttiTyypit()`-generaattorifunktio): Släbit, Sealed, Irtokortit, Tarvikkeet, Muu {peli}. Vanhat tasaiset "Tarvikkeet"/"Muut kortit" -alakategoriat poistettu (korvautuivat per-peli tyyppitasolla).
-- **Oletus tehty puolestasi:** "Muut keräilytuotteet" (esim. sarjakuvat) lisätty omana pelinä Keräilykorttien sisään sen sijaan että koko top-level "Muut"-kategoria (14.) pidettäisiin näkyvissä focus-tilan aikana — pitää julkisen näkymän yhden ylätason kategorian siistinä.
-- Dashboard/Tuotteet-lomake: kolmas "Tyyppi"-pudotusvalikko ilmestyy kun peli on valittu ja sillä on `tyypit`. Tuotelistan breadcrumb näyttää nyt `Kategoria › Peli › Tyyppi` kun kaikki kolme on asetettu.
-- Backend (`products.ts`, `auctions.ts`): `GET /products` ja `GET /auctions` hyväksyvät `tyyppi`-query-parametrin suodattimena, `POST`/`PUT /products` tallentavat sen.
-- **✅ Lisäys 2026-08-07 (myöhemmin samana päivänä):** kolmas taso (Peli → Tyyppi) puuttui alunperin selauspuolen suodattimista — käyttäjä löysi tämän heti testatessaan (etusivu: Keräilykortit → Pokémon → ei mitään sen alla). Korjattu kaikkiin kolmeen paikkaan: etusivun oma sidebar (`page.tsx`, desktop — sama kuvio kuin sillä jo oli kahdella tasolla), jaettu `CategorySidebar.tsx` (mobiili+desktop, uudet valinnaiset `activeTyyppi`/`setActiveTyyppi`-propsit — Live-kaikki ei anna niitä koska Show-malleilla ei ole yksittäistä tyyppiä, Huutokaupat antaa), ja Selaa-sivun oma sidebar (mobiili+desktop). Kaikki kolme resetoivat `activeTyyppi`:n kun ylempi taso vaihtuu.
-- **Sivuvaikutuksena löytyi ja korjattiin toinen, tästä riippumaton bugi:** Selaa-sivun `auctionParams` ei koskaan lähettänyt `alakategoria`-suodatinta backendille (vain `category`) — pelin valinta ei siis vaikuttanut huutokauppatuloksiin Selaa-sivulla ollenkaan, vain suoramyyntiin. Korjattu samalla kun `tyyppi` lisättiin sinne, koska muuten uusi tyyppi-suodatin ei olisi voinut toimia oikein huutokauppojen kohdalla.
-- Typecheck puhdas, kaikki neljä sivua (`/`, `/selaa`, `/huutokaupat`, `/live-kaikki`) renderöityvät virheittä.
-- Testattu curlilla: tuote luotu `category=kerailykortit, alakategoria=pokemon, tyyppi=slabit` → persistoituu oikein, `GET /products?tyyppi=slabit` löytää sen, `GET /products?tyyppi=sealed` ei löydä. Piilotettu kategoria (`elektroniikka`) yhä kyseltävissä API:n kautta (data ei poistettu, vain UI-valinta rajattu). Kaikki kosketetut sivut (`/`, `/selaa`, `/huutokaupat`, `/live-kaikki`, `/meista`, `/dashboard/tuotteet`) renderöityvät virheittä. Typecheck puhdas backend + frontend.
+### Rakenne (kolme paneelia + yläpalkki, kaikki näkyvissä yhtä aikaa ilman scrollausta/välilehtiä)
 
-## Kategoriafokus: Keräilykortit ainoana — alkuperäinen spesifikaatio (arkisto)
+**Yläpalkki:** LIVE-indikaattori (+ "yhdistetään..." jos socket ei ole vielä kytkeytynyt), kesto (mm:ss / h:mm:ss, päivittyy sekunnin välein `liveSince`-aikaleimasta), katsojamäärä (reaaliaikainen `viewer_count`-socket-tapahtuma), päivän myynti € (summattu `soldAmounts`-mapista), myytyjen tuotteiden määrä. "OBS-asetukset ▾" -nappi laajentaa/piilottaa RTMP-URL+key-kortin (kollapsoitu oletuksena — ei enää vie tilaa kun OBS on jo yhdistetty), "Lopeta lähetys" aina näkyvissä.
+
+**Vasen paneeli — tuotejono:** raahattava (native HTML5 drag-and-drop, `draggable`+`onDragStart`/`onDragOver`/`onDrop`) lista jonossa olevista tuotteista pienine kuvineen. Nykyinen tuote seurataan `currentProductId`:llä (ei enää numeerisella indeksillä) nimenomaan siksi että raahaus voi turvallisesti järjestää `products`-taulukon uudelleen sekoittamatta kumpi tuote on "nykyinen" — **tämä on tarkoituksellinen poikkeama alkuperäisestä `currentIndex`-toteutuksesta**, tehty juuri drag-to-reorderia varten. Jonon järjestys on istuntokohtainen (ei tallenneta `Product.order`-kenttään). "+ Lisää tuote" avaa inline-minilomakkeen (nimi, hinta, valinnainen kuva) joka luo tuotteen suoraan `saleType: 'live'`:nä poistumatta näkymästä.
+
+**Keskipaneeli — nykyinen tuote (suurin, tärkein):** pieni video-esikatselu ylhäällä (LIVE-badge + ajastin kun huutokauppa aktiivinen) + iso kuva/nimi/kuvaus + nykyinen huuto isolla numerolla. "Aloita huutokauppa" ensisijaisena CTA:na kun ei aktiivinen. Pikatoimintorivi aina näkyvissä:
+- `+10s` — toimiva, emittoi `extend_timer`-socket-tapahtuman (disabloitu kun huutokauppa ei aktiivinen)
+- `Kiinnitä` — **stub**, näyttää "tulossa pian" -ilmoituksen (odottaa pinned item -konseptin toteutusta, ks. "Live-ominaisuudet Whatnot-tasolle")
+- `Myyty` — toimiva, päättää huutokaupan heti nykyiselle johtajalle (= `endAuction()`)
+- `Seuraava` — toimiva, siirtää `currentProductId`:n jonossa seuraavaan (disabloitu kunnes nykyinen on käyty läpi)
+- `Aloita giveaway` — **stub**, näyttää "tulossa pian" -ilmoituksen (odottaa giveaway-toteutusta, ks. sama osio)
+- `Lopeta lähetys` — toimiva
+
+**Oikea paneeli — chat:** reaaliaikainen yhdistetty viestivirta (`FeedItem`-tyyppi: `chat`/`bid`/`purchase`/`system`) — huudot korostettu vihreällä taustalla, **ostohälytykset upotettu suoraan virtaan** vihreällä kehyksellä ("username osti tuote hintaan X€", laukeaa `auction_ended`-tapahtumasta kun on voittaja). Myyjä voi myös itse kirjoittaa chattiin. Moderointi: jokaisen chat-viestin (ei bid/purchase/system-tyyppien) vieressä ✕ (poista, `delete_chat_message`) ja 🔇 (mykistä, `mute_user`, vahvistusdialogilla) — molemmat vain lähetyksen omistavalle myyjälle sallittuja (tarkistettu backendissä `show.sellerId`).
+
+### Backend-muutokset (`backend/src/socket.ts`)
+- `broadcastViewerCount()` + `socketShows`-Map (koska `socket.rooms` on jo tyhjä `disconnect`-tapahtumassa, pitää seurata manuaalisesti mitä huoneita socket oli liittynyt)
+- `extend_timer` — myyjä-only, pidentää käynnissä olevan huudon ajastinta
+- `delete_chat_message` + `mute_user` — myyjä-only, in-memory `mutedUsers`-Map per show (chat ei ole pysyvä, joten mykistyskään ei tarvitse tietokantamallia)
+- `chat_message` sai pysyvän `id`-kentän (tarvitaan poiston kohdistamiseen frontendissä)
+
+### Tekemättä / rajattu pois tarkoituksella
+- `Kiinnitä` ja `Aloita giveaway` ovat visuaalisia stubbeja — oikea toiminnallisuus odottaa niiden omia speksejä ("Live-ominaisuudet Whatnot-tasolle" -osion kohdat pinned item ja giveaway, ei vielä toteutettu)
+- Jonon uudelleenjärjestys ei persistoidu — vain istunnon ajan muistissa, resetoituu jos sivu ladataan uudelleen kesken lähetyksen (ei koettu kriittiseksi, sama rajoite koski jo aiempaakin toteutusta koska koko lähetysnäkymä ei säilynyt sivun uudelleenlatauksen yli)
+
+### Suhde muihin jo suunniteltuihin ominaisuuksiin
+Tämä konsoli on se paikka johon seuraavat jo speksatut ominaisuudet asettuvat käytännössä kun ne toteutetaan: pinned item, giveaway/onnenpyörä (molemmat vielä stub-tilassa yllä), sekä "Testaa yhteys" -esikatselu (ks. alla oleva osio) ennen kuin tämä konsoli edes aktivoituu julkisesti. Chat-moderointi ("Live-ominaisuudet Whatnot-tasolle" -osion kohta 2) on jo toteutettu osana tätä.
+
+## Live-lähetyksen esikatselu ennen julkista näkyvyyttä (SUUNNITELTU — päätetty, tärkeä ennen julkaisua)
+
+Havaittu testauksessa 2026-08-07: myyjä ei pääse testaamaan OBS-yhteyttä/kameraa ennen kuin painaa "Mene liveen" — mutta se tekee striimin heti julkisesti näkyväksi kaikille. Kaiken pitää olla valmiina ja testattuna **ennen** kuin kuva menee maailmalle, ei vasta sen jälkeen.
+
+**Hyvä uutinen: backend tukee tätä jo osittain.** Tarkistettu koodista (`backend/src/routes/shows.ts`):
+- `streamKey` generoidaan jo **heti kun lähetys luodaan** (`POST /shows`), ei vasta kun mennään liveksi
+- `GET /shows/:id/stream-info` (RTMP-palvelin + stream key) toimii jo riippumatta Show'n statuksesta (`SCHEDULED` tai `LIVE`) — myyjä voisi jo teknisesti hakea nämä tiedot heti luonnin jälkeen
+
+**Puuttuva pala on puhtaasti frontendissä:** dashboard paljastaa/hakee stream-infon vasta "Mene liveen" -askeleessa sen sijaan että se olisi saatavilla heti, ja UI:ssa ei ole erillistä käsitettä "testaa yhteys yksityisesti" vs. "aloita julkinen lähetys".
+
+### Ratkaisu: kaksi erillistä toimintoa, ei yksi
+1. **"Testaa yhteys"** — saatavilla heti kun lähetys on luotu (`status: SCHEDULED`), näyttää RTMP-palvelimen + stream keyn dashboardissa suoraan (ei tarvitse odottaa mitään). Myyjä syöttää nämä OBS:iin, näkee oman esikatselunsa **vain itse**, yksityisessä näkymässä dashboardissa (ei julkisella `/live/[showId]`-sivulla).
+2. **"Aloita julkinen lähetys"** (nykyinen "Mene liveen", nimi selkeytettävä) — erillinen, tietoinen painallus joka vasta tässä vaiheessa vaihtaa `Show.status` → `LIVE`, jolloin lähetys ilmestyy julkiseen "Live nyt" -listaan ja on katsottavissa `/live/[showId]`-sivulla.
+
+### Huomio yksityisyydestä testausvaiheessa
+Vaikka `status` on yhä `SCHEDULED`, HLS-tiedostot alkavat teknisesti syntyä palvelimelle heti kun OBS yhdistää — tekninen raakavideo-URL (`https://stream.skrm.fi/hls/{streamKey}.m3u8`) on siis olemassa ja periaatteessa saavutettavissa jos joku arvaisi/saisi tarkan URL:n, vaikka sitä ei näytetä julkisella sivulla ennen `LIVE`-statusta. Koska `streamKey` on 32-merkkinen satunnainen hex-merkkijono, tämä on käytännössä turvallinen "security through obscurity" -taso MVP:lle — ei täydellinen yksityisyys, mutta riittävä nyt. Täydellisempi ratkaisu (esim. token-suojattu HLS-pääsy) voidaan harkita myöhemmin jos tarve ilmenee.
+
+### Toteutus
+- Dashboard/Lähetys: näytä "Testaa yhteys" -osio heti lähetyksen luonnin jälkeen, hakee `GET /shows/:id/stream-info` suoraan (ei odota mitään tilaa)
+- Yksityinen esikatselu-video dashboardissa käyttäen samaa `hlsUrl`ia, näkyy vain myyjälle itselleen kirjautuneena
+- Selkeä, erillinen "Aloita julkinen lähetys" -nappi joka on eri toiminto kuin yhteyden testaus — vasta tämä muuttaa statuksen ja tekee näkyväksi
+
+## Työskentelytapa — huom VS Coden Claudelle (lisätty 2026-08-07 väärinkäsityksen jälkeen)
+
+Tätä projektia kehitetään **kahdessa rinnakkaisessa kanavassa**, molemmat saman ihmisen (Johanin) ohjaamina:
+1. **VS Code / Claude Code** — tavallinen koodityö tässä repossa
+2. **Erillinen Claude.ai-keskustelu** — suunnittelu, päätökset, ja **myös suoraan ajetut terminaalikomennot Hetzner-palvelimelle** (Johan liittää terminaalin tulosteen chattiin, saa seuraavan komennon, kopioi sen omaan SSH-istuntoonsa)
+
+Tämä tarkoittaa: **palvelin, tietokanta, nginx-konfiguraatio ja CLAUDE.md itse voivat muuttua ilman että VS Coden Claude on tehnyt sitä** — ei kyse ulkopuolisesta toimijasta tai turvallisuusuhkasta, vaan Johanista joka työskentelee kahdella eri kanavalla saman projektin parissa. Jos näet muutoksia joita et tee muistaakseen tehneesi (esim. uusi git-commit, palvelimen tila muuttunut, nginx-konfiguraatio toisenlainen kuin viimeksi), tarkista ensin tilanne Johanilta ennen kuin oletat jotain vialliseksi — todennäköisin selitys on tämä rinnakkainen kanava, ei bugi tai tunkeutuja.
+
+Koko Hetzner-migraatio (2026-08-07, ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio) tehtiin juuri tällä tavalla — suoraan Claude.ai-keskustelussa annetuin komennoin, ei VS Coden Claude Codella.
+
+## Kategoriafokus: Keräilykortit ainoana (PÄÄTETTY — palautettavissa)
 
 Mahdolliselta yhteistyökumppanilta tuli selkeä palaute: keskitytään aluksi pelkästään keräilykortteihin, muut 13 kategoriaa pois näkyvistä. **Tämä on tietoisesti pidetty helposti peruutettavana** — jos yhteistyö ei etene, palataan takaisin kaikkiin 14 kategoriaan ilman koodiarkeologiaa.
 
@@ -527,7 +568,76 @@ model Offer {
 - Dashboard: uusi näkymä/välilehti saapuneille tarjouksille, Hyväksy/Hylkää/Vastatarjous-toiminnot
 - Ostajan puolella: oma tarjoushistoria (esim. "Ostot"-osiossa tai omana "Tarjoukseni"-näkymänä) jossa näkyy tila (odottaa/hyväksytty/hylätty/vastatarjous)
 
-## Live-ominaisuudet Whatnot-tasolle (SUUNNITELTU — päätetty, valmis toteutettavaksi)
+## Settilistaus / Variantit (SUUNNITELTU — isompi ominaisuus, MVP-rajaus päätetty, tarkennettu 2026-08-07)
+
+Idea: myyjällä on esim. 1000 kortin erä samasta setistä (esim. Pokémon Surging Sparks). Sen sijaan että jokainen kortti olisi oma erillinen tuote-rivi, myyjä listaa **yhden "settilistauksen"**, ja ostaja valitsee sieltä yhden tai useamman yksittäisen kortin dropdownista/hakukentästä ostoskoriin. Tavoitteena Cardmarket-tyylinen "massasyöttö" (klikkaa checklististä kortti, syötä lukumäärä/hinta) — mutta parempi UX.
+
+**Rehellinen arvio:** ei liian monimutkainen, mutta on aidosti isompi rakenteellinen lisäys — uusi varianttimalli nykyisen "yksi tuote = yksi rivi" -mallin päälle. Sopii erinomaisesti kategoriafokuksen (Keräilykortit) ja sen kolmitasoisen rakenteen kanssa (`tyyppi: "Irtokortit"` on luonnollinen paikka tälle). Kun kaikki muu (streamaus, admin, storefront, kategoriafokus) toimii ensin, tämä on todennäköisesti aidosti erottautumistekijä yhteisölle.
+
+**Ei per-kortti-kuvia** — päätetty. Ostaja tietää yleisesti miltä kortti näyttää setin/pelin perusteella, yksi kuva koko settilistaukselle riittää.
+
+### Rakenneratkaisu: jaettu checklist-katalogi (ei jokainen myyjä kirjoita samaa listaa erikseen)
+Jotta klikattava checklist ylipäätään toimii ilman että jokainen myyjä syöttää 1000 kortin nimeä käsin uudestaan, checklist rakennetaan **kerran per setti** ja kaikki myyjät jotka myyvät samaa settiä käyttävät samaa jaettua listaa — täyttävät vain omat lukumääränsä/hintansa siihen päälle. Tämä myös pitää korttien nimet yhtenäisinä koko alustalla (parempi haku ostajalle yli myyjärajojen).
+
+### Mallit (uusi, Prisma)
+```
+model CardSet {
+  id       String          @id @default(cuid())
+  game     String          // esim. "pokemon" — vastaa kategoriat.ts:n peli-id:tä
+  name     String          // esim. "Surging Sparks"
+  entries  CardSetEntry[]
+  createdAt DateTime       @default(now())
+}
+
+model CardSetEntry {
+  id         String   @id @default(cuid())
+  cardSetId  String
+  cardSet    CardSet  @relation(fields: [cardSetId], references: [id])
+  cardName   String   // esim. "Pikachu ex"
+  cardNumber String?  // esim. "#238"
+  order      Int      @default(0)  // checklistin näyttöjärjestys
+}
+
+model ProductVariant {
+  id             String        @id @default(cuid())
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id])
+  cardSetEntryId String?       // viittaus jaettuun checklistiin, jos setti on olemassa katalogissa
+  cardSetEntry   CardSetEntry? @relation(fields: [cardSetEntryId], references: [id])
+  cardName       String        // kopio nimestä (toimii myös ilman cardSetEntryId:tä, esim. harvinaisemmat setit)
+  price          Float
+  quantity       Int           @default(1)
+  condition      String?
+  createdAt      DateTime      @default(now())
+}
+```
+- `CartItem` ja `OrderItem`: uusi valinnainen `variantId String?` + relaatio `ProductVariant`iin — nullable, tavalliset tuotteet toimivat ennallaan
+
+### Checklistin täyttö — kaksi tapaa, molemmat päätetty tukea
+1. **Massasyöttö (ensisijainen, Cardmarket-tyylinen mutta parempi):** myyjä valitsee olemassa olevan `CardSet`in (esim. "Surging Sparks"), näkee koko checklistin taulukkona, syöttää lukumäärän + hinnan suoraan riville jokaisen kortin kohdalle jota myy (tyhjä/0 = ei myynnissä). Nopea, ei kirjoitusvirheitä, koska nimet tulevat valmiiksi katalogista.
+2. **CSV-tuonti / manuaalinen rivilomake:** jos settiä ei vielä ole katalogissa, tai kyseessä on harvinaisempi/pienempi erä — myyjä syöttää kortin nimi+hinta+määrä itse, joko CSV:llä tai rivi kerrallaan. Nämä eivät automaattisesti liity mihinkään `CardSetEntry`iin (`cardSetEntryId` jää tyhjäksi), toimivat silti normaalisti.
+
+### Checklist-katalogin ylläpito
+- **Ei ulkoista korttitietokanta-APIa v1:ssä** — päätetty aiemmin, pysyy voimassa. Checklistit rakennetaan/seedataan käsin (esim. kertaluontoinen CSV-tuonti adminin toimesta) suosituille seteille (esim. Surging Sparks) kysynnän mukaan
+- Kun myyjä syöttää uuden setin manuaalisesti (tapa 2) ja se osoittautuu suosituksi, se voidaan myöhemmin nostaa jaetuksi `CardSet`-katalogimerkinnäksi jälkikäteen — ei tarvitse päättää tätä prosessia vielä tarkasti
+
+### Toimintalogiikka (ostaja + tilaus)
+- Ostaja tuotesivulla: hakukenttä/lista näyttää saatavilla olevat kortit (`quantity > 0`), valitsee yhden tai useamman → "Lisää koriin", jokainen oma `CartItem` (`variantId` täytettynä)
+- Varannon vähennys: ostettaessa `ProductVariant.quantity` vähenee, 0:ssa kortti ei enää näy ostettavissa
+- **Yhdistetty lähetys toimii automaattisesti** — sama `sellerId` kaikilla saman settilistauksen varianteilla, olemassa oleva 6h-yhdistämislogiikka kattaa tämän jo, ei erillistä työtä
+
+### Ilmoituksen luonti — kaksi erillistä polkua (tarkennettu 2026-08-07)
+Kalliimmat/arvokkaammat yksittäiset kortit (esim. gradetut kortit, ASC/PSA-kortit) **eivät** mene settilistaukseen — ne pysyvät tavallisina yksittäisinä tuotteina omilla kuvillaan ja hinnoillaan, ihan kuten nytkin. Settilistaus on tarkoitettu nimenomaan bulkkierille (esim. 1000 kortin Surging Sparks -erä), ei arvokorteille.
+
+Dashboard/Tuotteet "Lisää tuote" -aloitusnäkymään lisätään valinta heti alkuun:
+- **"Yksittäinen tuote"** — nykyinen lomake muuttumattomana (kuva, nimi, hinta, kunto, jne.)
+- **"Settilistaus"** — avaa erillisen näkymän: valitse `CardSet` katalogista (tai luo uusi manuaalisesti/CSV:llä) → massasyöttö-checklist täytettäväksi (ks. yllä)
+
+### Haku yhdistää molemmat tyypit
+Kun ostaja hakee esim. "Charizard ex", tulosten pitää näyttää **molemmat**:
+1. Yksittäiset tuotteet joiden `Product.name` täsmää (nykyinen haku, ei muutosta)
+2. Settilistaukset joissa on `ProductVariant.cardName` täsmäävä ja `quantity > 0` — tulos linkkaa settilistauksen tuotesivulle, ihanteellisesti korostaen/scrollaten suoraan siihen korttiin checklistissä, tai ainakin näyttäen hakutuloksessa selvästi "X kpl saatavilla [Myyjän nimi]:n Surging Sparks -erästä"
+- Backend-haku laajennettava hakemaan myös `ProductVariant.cardName`-kentästä `Product.name`:n lisäksi, tulokset yhdistettävä yhdeksi listaksi mutta selvästi eroteltavissa tyypin mukaan (esim. pieni badge "Settilistaus" hakutuloskortissa)
 
 Pohjautuu Whatnot-vertailuun. Neljä ominaisuutta päätetty, muodostavat yhdessä kokonaisuuden: julkinen myyjäprofiili on se paikka josta ostaja löytää tulevat huutokaupat ja jättää ennakkotarjouksia.
 
