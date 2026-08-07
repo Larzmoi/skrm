@@ -11,12 +11,13 @@ import { BACKEND_URL as BACKEND } from '@/lib/backend'
 import { userApi } from '@/lib/api'
 import { StarRatingDisplay } from '@/components/StarRating'
 import ReportModal from '@/components/ReportModal'
+import { formatShowTime } from '@/lib/formatShowTime'
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params)
   const username = decodeURIComponent(rawUsername)
   const { C } = useTheme()
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { user: currentUser } = useAuth()
   const router = useRouter()
 
@@ -72,6 +73,18 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     <div style={{ minHeight: '100vh', background: C.bg }}>
       <Navbar />
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+
+        {/* Lomamoodi */}
+        {profile?.onVacation && (
+          <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🏖</span>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>{t.profile.vacationActive}</span>
+              {profile.vacationUntil && <span style={{ fontSize: 13, color: '#92400E' }}> — {t.profile.vacationUntil} {new Date(profile.vacationUntil).toLocaleDateString(lang === 'en' ? 'en-GB' : 'fi-FI')}</span>}
+              {profile.vacationMessage && <div style={{ fontSize: 13, color: '#92400E', marginTop: 2, fontStyle: 'italic' }}>"{profile.vacationMessage}"</div>}
+            </div>
+          </div>
+        )}
 
         {/* Profiilikortti */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '28px', marginBottom: 24 }}>
@@ -131,10 +144,48 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </div>
         </div>
 
+        {/* Tulevat lähetykset ja huutokaupat — korostettu, jotta ostaja löytää ennakkotarjousta varten */}
+        {((profile?.upcomingShows?.length ?? 0) > 0 || (profile?.activeAuctions?.length ?? 0) > 0) && (
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.upcomingSection}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              {profile.upcomingShows.map((s: any) => (
+                <Link key={s.id} href={`/live/${s.id}`} style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                  <div style={{ aspectRatio: '16/9', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {s.thumbnailUrl
+                      ? <img src={s.thumbnailUrl} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>LIVE</span>
+                    }
+                  </div>
+                  <div style={{ padding: '10px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+                    <div style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{formatShowTime(s.scheduledAt, t, lang as any)}</div>
+                  </div>
+                </Link>
+              ))}
+              {profile.activeAuctions.map((a: any) => (
+                <Link key={a.id} href={`/huutokauppa/${a.id}`} style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {a.imageUrl
+                      ? <img src={a.imageUrl.split('|||')[0]} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
+                    }
+                  </div>
+                  <div style={{ padding: '10px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{(a.currentBid ?? a.startPrice).toLocaleString('fi-FI')}€</div>
+                    <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{t.auction.endsIn} {formatShowTime(a.auctionEndsAt, t, lang as any)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tuotteet myynnissä */}
         {products.length > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>Myynnissä</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.selling}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
               {products.map((p: any) => (
                 <Link key={p.id} href={`/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
@@ -156,7 +207,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
         {products.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: C.muted, fontSize: 14 }}>
-            Ei tuotteita myynnissä
+            {t.profile.noProducts}
           </div>
         )}
 

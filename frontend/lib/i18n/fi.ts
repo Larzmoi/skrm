@@ -106,6 +106,9 @@ const fi = {
     shows: 'Lähetystä', rating: 'Arvosana', trades: 'Kauppaa', ended: 'Päättynyt',
     bio: 'Erikoistunut Pokémon Base Set ja PSA-gradattuihin kortteihin.',
     noUpcoming: 'Ei tulevia lähetyksiä',
+    vacationActive: 'Myyjä on tilapäisesti lomalla', vacationUntil: 'Palaa',
+    upcomingSection: 'Tulevat lähetykset ja huutokaupat', selling: 'Myynnissä',
+    noProducts: 'Ei tuotteita myynnissä',
   },
   purchases: {
     title: 'Ostot', subtitle: 'Ostohistoriasi ja tilausten seuranta',

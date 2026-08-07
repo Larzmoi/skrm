@@ -73,7 +73,7 @@ skrm/
       theme-context.tsx           — Tumma/vaalea teema + värit (C.xxx)
       lang-context.tsx            — FI/EN kielituki
       kategoria-context.tsx       — Aktiivinen kategoria
-      kategoriat.ts               — 16 kategoriaa + alakategoriat {fi, en}
+      kategoriat.ts               — 14 kategoriaa + alakategoriat {fi, en} (LUKITTU, ks. "Kategoriat"-osio — kommentti oli vanhentunut, korjattu 2026-08-07)
       socket.ts                   — Socket.io client
       imageUtils.ts               — Kuvan pienennys (resizeImage)
       i18n/fi.ts, en.ts, sv.ts    — Käännökset
@@ -112,22 +112,20 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 - **Ei mock-dataa:** Kaikki data haetaan backendistä. Jos ei löydy → tyhjä tila
 - **API:** NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
 
-## Tekemättä (prioriteettijärjestyksessä)
-1. **Deploytaus** — Hetzner (backend+DB) + Vercel (frontend) — odottaa palvelimen ostoa
-2. **Paytrail** — maksut (korvaa Stripen, tukee FI pankit + MobilePay + Google/Apple Pay)
-3. **Mux** — videostreami live-lähetyksiin
-4. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista)
-5. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä)
-6. **Ilmoitukset & viestit** — reaaliaikaiset notifikaatiot + myyjä↔ostaja viestintä
-7. **Ostajan checkout** — maksuvirta kun painaa "Osta heti"
-8. **Postin tracking API** — automaattinen toimitusseuranta
-9. **Profiilikuva backendiin** — nyt vain localStorage, pitäisi tallentaa palvelimelle
+## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
+1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
+2. **Deploytaus** — Hetzner (backend+DB, nginx-rtmp) + Vercel/Netlify (frontend) — odottaa palvelimen ostoa/OY:tä
+3. **Paytrail** — oikea maksuintegraatio (nyt mock-pay-testivirta, koko Order/Cart-skaffoldi on jo valmis ja toimii mockin päällä) — vaatii OY:n
+4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
+5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
+6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
+7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
+8. ✅ **Hetzner-palvelin + nginx-rtmp** — TEHTY 2026-08-07, testattu end-to-end ffmpeg-simulaatiolla, ks. "Videostreami"-osio. Jäljellä: DNS-propagoinnin varmistus + oikea OBS-testi käyttäjän toimesta.
 
 ## Tunnettuja bugeja / kehityskohteita
-- Profiilikuva tallentuu vain localStorageen — ei näy muille käyttäjille
-- Tuotesivun myyjäkuva on vihreä kuvake koska backendistä ei tule kuvaa
-- Dashboard lähetys-sivu ei ole kytketty WebSocketiin oikeaan show-id:hen
-- Ostot-sivu on tyhjä — odottaa maksuintegraatiota
+- **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
+- `socket.ts`:n live-lähetyksen socket-pohjainen huutojärjestelmä ei käytä `bidIncrement`-minimikorotusta ollenkaan (korjattu vain `auctions.ts`:ssä, perinteisille huutokaupoille)
+- Selaa-sivun saleType-kuplat (Kaikki/Suoramyynti/Huutokaupat) voivat olla turha kaksinkertainen jaottelu Navbarin ylätason navigoinnin kanssa — ei päätetty, ks. "Selaa-sivun saleType-kuplat" alempana
 
 ## Infrastruktuuri
 
@@ -136,13 +134,13 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 - DNS: Cloudflare (free)
 - Sähköposti: support@skrm.fi → **Zoho Mail (maksullinen taso, muutama €/kk) — päätetty, ei vielä käyttöönotettu.** Antaa sekä vastaanoton että lähetyksen samasta osoitteesta (Cloudflare Email Routing hoiti vain vastaanoton, ei lähetystä samasta osoitteesta, siksi vaihdettu). Vaatii DNS-tietueiden lisäyksen Cloudflareen (MX + verifiointi Zohon ohjeiden mukaan) — tekemättä vielä.
 
-### Hetzner — striimaustestausta varten (päätetty)
+### Hetzner — striimaustestausta varten NYT, koko projektin lopullinen koti MYÖHEMMIN (päätetty)
 - Palvelin: **CX23** (~6€/kk), Hetzner Cloud VPS
-- Tarkoitus: nginx-rtmp-asennus ja OBS-yhteyden testaus end-to-end — ei vielä tuotantomittakaavan palvelin, riittää yhden striimin testaukseen
-- Backend/DB pysyvät toistaiseksi Railwaylla, Hetzner hoitaa aluksi vain striimauksen
+- **Vaihe 1 (nyt):** nginx-rtmp-asennus ja OBS-yhteyden testaus end-to-end — ei vielä tuotantomittakaavan palvelin, riittää yhden striimin testaukseen. Backend/DB pysyvät toistaiseksi Railwaylla, Hetzner hoitaa aluksi vain striimauksen.
+- **Vaihe 2 (myöhemmin, päätetty 2026-08-07):** kun tekemättömät päivitykset (ks. "SEURAAVAKSI TEHTÄVÄT") on saatu tehtyä ja livestriimauksen hiominen alkaa Hetznerillä, **koko projekti (backend + DB + frontend) siirretään Hetznerille** — ei enää kolmea eri palveluntarjoajaa (Railway + Netlify×2 + Hetzner). Ei tarkkaa päivämäärää, laukaisin on "striimaus toimii ja sitä aletaan hioa", ei erillinen OY-riippuvuus.
 
-### Hosting — VÄLIAIKAINEN (Railway + Netlify, ei kuluja Hetznerin odotellessa)
-Kaikki alla oleva on tarkoituksella tilapäistä — siirtyy kokonaan Hetznerille kun OY ja palvelin ovat valmiit. Ei kannata maksaa Hetznerin ylläpidosta kuukausia etukäteen.
+### Hosting — VÄLIAIKAINEN (Railway + Netlify NYT, siirtyy Hetznerille yllä olevan Vaihe 2:n mukaisesti)
+Kaikki alla oleva on tarkoituksella tilapäistä — siirtyy kokonaan Hetznerille kun striimaus on validoitu ja sen hiominen alkaa (ks. yllä). Ei kannata maksaa Hetznerin ylläpidosta kuukausia etukäteen ennen sitä.
 - **skrm.fi** (landing page) → Netlify (`skrm.netlify.app`) — staattinen HTML, FI/SV/EN, "tulossa"-sivu jossa sähköpostin jättö + FAQ + kirjaudu-nappi joka vie testitunnuksilla oikealle sivulle
 - **app.skrm.fi** (varsinainen sovellus) → Netlify (`skrmm.netlify.app`) — Next.js
 - **Backend** → Railway (`skrm-production.up.railway.app`) — Node.js + Express + Prisma
@@ -192,16 +190,7 @@ Kaikki alla oleva on tarkoituksella tilapäistä — siirtyy kokonaan Hetznerill
 - testi2@skrm.fi / test1234 (username: testikaksi)
 - Olemassa oleva keskustelu testi@skrm.fi kanssa
 
-### Tekemättä (prioriteettijärjestyksessä)
-1. Rekisteröitymisen checkboxit (käyttöehdot + tietosuoja + kaupankäyntipolitiikka)
-2. Ostoskori + tilaukset (ohjeet tehty)
-3. Kategoriat — poista Työkalut & remontointi ja Auto & moottoripyörä (ohjeet tehty)
-4. Noutotuote-varoitus myyjälle ja ostajalle (ohjeet tehty)
-5. Deploytaus — Hetzner + Vercel
-6. Paytrail — maksut (vaatii OY:n)
-7. Mux — videostreami
-8. Signicat — pankkitunnistautuminen
-9. Resend — sähköpostit (odottaa skrm.fi aktivoitumista)
+*(Tämän päivityksen "Tekemättä"-lista on vanhentunut ja poistettu — kaikki tuolloin listatut kohdat paitsi infrastruktuuri/maksut on sittemmin tehty. Ks. ajantasainen lista tiedoston alusta "## Tekemättä".)*
 
 ## Toimituksen aikataulu ja maksuturva (LUKITTU)
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
@@ -256,17 +245,7 @@ Kolmas myyntitapa live ja suoramyynnin lisäksi:
 - AUCTION_ENDED — huutokauppa päättyi ilman voittajaa
 - AUCTION_SOLD — huutokauppa myytiin
 
-### Tekemättä (prioriteettijärjestyksessä)
-1. Rekisteröitymisen checkboxit
-2. Kategoriat — poista 2 (ohjeet valmiina)
-3. Noutotuote-varoitus (ohjeet valmiina)
-4. Deploytaus — Hetzner + Vercel
-5. Cloudflare R2 — kuvat pois tietokannasta
-6. Paytrail — maksut (vaatii OY:n)
-7. Mux — videostreami (ohjeet valmiina)
-8. Signicat — pankkitunnistautuminen
-9. Resend — sähköpostit
-10. Postin tracking API
+*(Tämän päivityksen "Tekemättä"-lista on vanhentunut ja poistettu — samat asiat kuin ylemmän arkistoidun listan kohdalla. Ks. ajantasainen lista tiedoston alusta "## Tekemättä".)*
 
 ## Navbar päivitykset (tehty VS Codessa)
 - Poistettu: Ostot-linkki yläpalkista
@@ -375,11 +354,19 @@ Lisää:
 - Vasta sitten show tulee julkiseksi ja näkyy katsojille
 - Seller console avautuu heti (voi kopioida OBS-asetukset)
 
-### Tekemättä — infrastruktuuri (tehdään Hetzner-vaiheessa)
-- Hetzner-palvelimen provisiointi
-- nginx + rtmp-moduulin asennus
-- RTMP_URL + HLS_BASE_URL env vars tuotantoon
-- Cloudflare DNS: stream.skrm.fi → Hetzner IP (harmaa pilvi, ei proxy)
+### ✅ TEHTY 2026-08-07 — Hetzner-palvelin pystytetty, striimaus testattu end-to-end
+- **Palvelin:** CX23, Ubuntu 26.04, Helsinki (hel1), IP `77.42.121.137`. SSH avainpohjainen (ed25519, kommentti "habacards-palvelin"), salasanakirjautuminen ja root-salasanakirjautuminen suljettu (`PasswordAuthentication no`, `PermitRootLogin prohibit-password`).
+- `nginx` + `libnginx-mod-rtmp` (apt-paketti, ei tarvinnut kääntää lähdekoodista). Konfiguroitu tarkalleen `infra/nginx-rtmp.conf`-referenssin mukaan: RTMP portissa 1935, HLS `/tmp/hls`, `/hls`-sijainti + `/health`-tarkistus portissa 80.
+- `ufw`-palomuuri: sallittu 22 (SSH), 1935 (RTMP), 80 (HTTP/HLS).
+- **Webhook-silta (tärkeä poikkeama referenssistä):** `nginx-rtmp`-moduulin `on_publish`/`on_publish_done` eivät tue HTTPS-kohteita (vain plain HTTP) — Railwayn tuotantobackend on HTTPS-pakotettu. Ratkaisu: lisätty paikallinen nginx-palvelin `127.0.0.1:8081` joka proxataan (`proxy_pass` + `proxy_ssl_server_name on`) osoitteeseen `https://skrm-production.up.railway.app`. `on_publish`/`on_publish_done` osoittavat nyt tähän paikalliseen proxyyn eivätkä suoraan Railwayyn.
+- **DNS:** `stream.skrm.fi` A-tietue → `77.42.121.137` (harmaa pilvi/DNS-only) — käyttäjä lisää itse Cloudflaren dashboardista, ei vielä propagoitunut viimeisimmän tarkistuksen mukaan.
+- **RTMP_URL/HLS_BASE_URL Railwaylla:** ei asetettu eksplisiittisesti — koodin oletusarvot (`rtmp://stream.skrm.fi/live`, `https://stream.skrm.fi/hls`) ovat jo oikeat, joten env-muuttujia ei tarvinnut lisätä.
+- **Testattu end-to-end ffmpeg-testikuvalla** (simuloi OBS:ää) tuotanto-backendia vasten: loi oikean Show:n `/shows`-reitillä → sai streamKey:n → `ffmpeg` julkaisi `rtmp://localhost:1935/live/{streamKey}` Hetznerin omalta koneelta → `on_publish`-webhook ampui oikeaan Railway-backendiin → Show `SCHEDULED → LIVE` **automaattisesti** → HLS-segmentit + playlist generoituivat ja olivat haettavissa HTTP:n yli → ffmpeg pysäytetty → `on_publish_done` ampui → Show `LIVE → ENDED` **automaattisesti**. Täyttää LUKITTU-automaattisuusvaatimuksen (ei manuaalisia vaiheita). Testidata siivottu tuotanto-DB:stä jälkikäteen.
+- **Työkalut asennettu tätä varten:** `hcloud` CLI ladattu suoraan GitHubista käyttäjän omaan `bin`-kansioon (ei admin-oikeuksia vaadittu, Chocolatey epäonnistui oikeuksien puutteeseen) ja kirjautunut kontekstilla `skrm` (käyttäjä loi API-tokenin itse Hetzner-konsolista, token ei koskaan kulkenut tämän keskustelun kautta).
+
+### Jäljellä ennen kuin myyjä voi oikeasti striimata OBS:llä
+1. **DNS:** varmista että `stream.skrm.fi` A-tietue on lisätty Cloudflareen ja on propagoitunut (`nslookup stream.skrm.fi`)
+2. Sen jälkeen: kirjaudu tuotantoon (app.skrm.fi tms.), Dashboard → Lähetys → luo lähetys → kopioi RTMP-osoite + stream key OBS:ään → aloita striimaus. Show pitäisi mennä LIVE:ksi automaattisesti muutamassa sekunnissa.
 
 ## Muistilista — päivitettävä myöhemmin
 - FAQ päivitettävä — sisältää vanhentunutta tietoa (Mux, maksutavat, toimitus jne.)
@@ -406,13 +393,125 @@ Lisää:
 - Kynnysarvojen alle ei näytetä lukuja — vältetään negatiivinen sosiaalinen todiste
 - Sijoitus: footer tai etusivun luottamuspalkki
 
-## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty)
+## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
 
-1. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY, ks. "Tehty ✅" alla
-2. **Julkinen myyjäprofiili / Storefront** (ks. "Live-ominaisuudet Whatnot-tasolle" -osio) — **seuraava tehtävä**
-3. Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista (ennakkotarjoukset, chat-moderointi, giveaway) — järjestyksessä storefrontin jälkeen koska ennakkotarjoukset tarvitsevat storefrontin ollakseen käytännössä löydettävissä
+1. ✅ **Kategoriafokus: Keräilykortit ainoana** — TEHTY 2026-08-07, ks. osio alla
+2. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY, ks. "Tehty ✅" alla
+3. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY 2026-08-07, ks. "Live-ominaisuudet Whatnot-tasolle" -osion kohta 4
+4. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — **seuraava tehtävä**. Suositeltu järjestys: 1 (ennakkotarjoukset) ensin, koska storefront on nyt valmis sen edellytykseksi (ostaja löytää tulevat huutokaupat korostettuna myyjäprofiilista).
+5. **Tarjoa hintaa -toiminto** (ks. osio alla) — päätetty ja valmis toteutettavaksi, ei vielä tarkkaa sijaintia järjestyksessä loppujen live-ominaisuuksien jälkeen
 
 **SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
+
+## Kategoriafokus: Keräilykortit ainoana (✅ TEHTY 2026-08-07)
+
+### Tehty ✅
+- `frontend/lib/config.ts` (uusi) — `AKTIIVISET_KATEGORIAT: string[] = ['kerailykortit']`, ainoa kytkin. Tyhjennä palauttaaksesi kaikki 14 kategoriaa.
+- `kategoriat.ts`: uusi `getNakyvatKategoriat()` palauttaa rajatun listan (tai kaiken jos `AKTIIVISET_KATEGORIAT` on tyhjä). `KATEGORIAT` itse koskematon — `getKategoria`/`getKatNimi`/`getAlaNimi` toimivat yhä kaikilla 14:llä, joten piilotettujen kategorioiden vanhat tuotteet näyttävät nimensä oikein.
+- Piilotus kytketty neljään paikkaan spesifikaation mukaisesti: etusivu (`page.tsx`, mobiili+desktop), Selaa-sivu, jaettu `CategorySidebar` (Huutokaupat + Live-kaikki), Dashboard/Tuotteet-lomakkeen kategoriavalinta. Meista-sivun "14 kategoriaa" -tilastokortti piilotettu kokonaan (ei vaihdettu lukuun 1, koska 14 on yhä tekninen totuus).
+- **Ei kosketettu:** `dashboard/lahetys/page.tsx`:n (live-lähetyksen luonti) kategoriavalinta — spesifikaatio ei maininnut sitä eksplisiittisesti neljän piilotuskohdan listassa, jätetty koskemattomaksi tarkoituksella pysyäkseen tarkasti pyydetyn scopen sisällä. Pieni jäännösepäjohdonmukaisuus (myyjä voisi yhä valita "Elektroniikka" livelle) — huomioi jos tulee esiin.
+- Backend-reitit eivät rajoita mitään dataa millään tavalla — koko piilotus on puhtaasti frontend-UI-tason valintalistojen suodatusta, kuten spesifikaatio vaati ("älä poista mitään").
+
+### Keräilykorttien kolmitasoinen rakenne (✅ TEHTY) — Kategoria → Peli → Tyyppi
+- **Oikea skeemamuutos:** `Product.tyyppi String?` lisätty (kolmas taso), migroitu. Muut 13 kategoriaa eivät saa kolmatta tasoa — vain Keräilykortit.
+- `kategoriat.ts`: Keräilykorttien `alakategoriat` (pelit: Pokémon/Magic/Yu-Gi-Oh!/Lorcana/One Piece/Urheilukortit + uusi "Muut keräilytuotteet") saavat jokainen saman `tyypit`-taulukon (`keraiLykorttiTyypit()`-generaattorifunktio): Släbit, Sealed, Irtokortit, Tarvikkeet, Muu {peli}. Vanhat tasaiset "Tarvikkeet"/"Muut kortit" -alakategoriat poistettu (korvautuivat per-peli tyyppitasolla).
+- **Oletus tehty puolestasi:** "Muut keräilytuotteet" (esim. sarjakuvat) lisätty omana pelinä Keräilykorttien sisään sen sijaan että koko top-level "Muut"-kategoria (14.) pidettäisiin näkyvissä focus-tilan aikana — pitää julkisen näkymän yhden ylätason kategorian siistinä.
+- Dashboard/Tuotteet-lomake: kolmas "Tyyppi"-pudotusvalikko ilmestyy kun peli on valittu ja sillä on `tyypit`. Tuotelistan breadcrumb näyttää nyt `Kategoria › Peli › Tyyppi` kun kaikki kolme on asetettu.
+- Backend (`products.ts`, `auctions.ts`): `GET /products` ja `GET /auctions` hyväksyvät `tyyppi`-query-parametrin suodattimena, `POST`/`PUT /products` tallentavat sen.
+- **✅ Lisäys 2026-08-07 (myöhemmin samana päivänä):** kolmas taso (Peli → Tyyppi) puuttui alunperin selauspuolen suodattimista — käyttäjä löysi tämän heti testatessaan (etusivu: Keräilykortit → Pokémon → ei mitään sen alla). Korjattu kaikkiin kolmeen paikkaan: etusivun oma sidebar (`page.tsx`, desktop — sama kuvio kuin sillä jo oli kahdella tasolla), jaettu `CategorySidebar.tsx` (mobiili+desktop, uudet valinnaiset `activeTyyppi`/`setActiveTyyppi`-propsit — Live-kaikki ei anna niitä koska Show-malleilla ei ole yksittäistä tyyppiä, Huutokaupat antaa), ja Selaa-sivun oma sidebar (mobiili+desktop). Kaikki kolme resetoivat `activeTyyppi`:n kun ylempi taso vaihtuu.
+- **Sivuvaikutuksena löytyi ja korjattiin toinen, tästä riippumaton bugi:** Selaa-sivun `auctionParams` ei koskaan lähettänyt `alakategoria`-suodatinta backendille (vain `category`) — pelin valinta ei siis vaikuttanut huutokauppatuloksiin Selaa-sivulla ollenkaan, vain suoramyyntiin. Korjattu samalla kun `tyyppi` lisättiin sinne, koska muuten uusi tyyppi-suodatin ei olisi voinut toimia oikein huutokauppojen kohdalla.
+- Typecheck puhdas, kaikki neljä sivua (`/`, `/selaa`, `/huutokaupat`, `/live-kaikki`) renderöityvät virheittä.
+- Testattu curlilla: tuote luotu `category=kerailykortit, alakategoria=pokemon, tyyppi=slabit` → persistoituu oikein, `GET /products?tyyppi=slabit` löytää sen, `GET /products?tyyppi=sealed` ei löydä. Piilotettu kategoria (`elektroniikka`) yhä kyseltävissä API:n kautta (data ei poistettu, vain UI-valinta rajattu). Kaikki kosketetut sivut (`/`, `/selaa`, `/huutokaupat`, `/live-kaikki`, `/meista`, `/dashboard/tuotteet`) renderöityvät virheittä. Typecheck puhdas backend + frontend.
+
+## Kategoriafokus: Keräilykortit ainoana — alkuperäinen spesifikaatio (arkisto)
+
+Mahdolliselta yhteistyökumppanilta tuli selkeä palaute: keskitytään aluksi pelkästään keräilykortteihin, muut 13 kategoriaa pois näkyvistä. **Tämä on tietoisesti pidetty helposti peruutettavana** — jos yhteistyö ei etene, palataan takaisin kaikkiin 14 kategoriaan ilman koodiarkeologiaa.
+
+### Periaate: älä poista mitään, piilota yhdellä kytkimellä
+- LUKITTU "14 kategoriaa" -sääntö ja `kategoriat.ts`:n koko sisältö **pysyvät koskemattomina** tietokannassa ja koodissa — tämä on vain UI-tason rajaus päälle, ei rakenteellinen muutos
+- Toteutus: yksi selkeä config-vakio (esim. `frontend/lib/config.ts`: `AKTIIVISET_KATEGORIAT = ['kerailykortit']`), jota kaikki alla olevat kohdat lukevat
+- Kun/jos halutaan palata kaikkiin kategorioihin: poista/tyhjennä tämä yksi vakio, ei tarvitse käydä läpi jokaista sivua erikseen
+
+### Mitä piilotetaan (kaikki, kun `AKTIIVISET_KATEGORIAT` on asetettu)
+- Navbar / etusivun kategorialistaus — näytä vain keräilykortit (ja sen ala-/tyyppikategoriat, ks. alla)
+- Selaa-, Huutokaupat- ja Live-sivujen `CategorySidebar`/kategoriasuodattimet — muut 13 pois listasta kokonaan (ei vain harmaana/disabloituna)
+- Dashboard/Tuotteet-lomake (uuden tuotteen lisäys) — kategoriavalinnassa vain keräilykortit
+- Meista-sivun "14 kategoriaa" -tilastokortti — **harhaanjohtava juuri nyt**. Piilota tämä tilastokortti kokonaan focus-tilan ajaksi (älä vaihda lukua 14→1, koska 14 on yhä tekninen totuus taustalla — piilotus on siistimpi kuin väärä luku)
+
+### Mitä EI tehdä
+- Ei poisteta mitään tietokannasta tai `kategoriat.ts`:stä
+- Ei muuteta LUKITTU "14 kategoriaa" -sääntöä — se kuvaa yhä alustan täyttä kapasiteettia, ei nykyistä julkista tarjontaa
+
+### Keräilykorttien uusi kolmitasoinen rakenne (PÄÄTETTY, tarkennettu 2026-08-07 — korvaa aiemman tasoisen alakategorialistan)
+
+Yhteistyökumppanin palautteen mukaan Keräilykortit tarvitsee kolme tasoa, ei kahta: **Kategoria → Peli → Tyyppi**. Nykyinen `alakategoriat`-lista (Pokémon/Magic/Yu-Gi-Oh/Lorcana/One Piece/Urheilukortit/Tarvikkeet/Muut kortit) on tasainen yhden tason lista — pelit ja "Tarvikkeet"/"Muut kortit" ovat samalla tasolla keskenään. Uusi rakenne pitää pelit omana tasonaan, ja jokaisella pelillä on omat tyyppinsä.
+
+**⚠️ Tämä vaatii oikean tietokantamuutoksen**, ei pelkkää `kategoriat.ts`:n listan muokkausta — nykyinen `Product`-malli tukee vain kahta tasoa (`category` + `alakategoria`).
+
+**Rakenne:**
+```
+Keräilykortit (category, muuttumaton)
+  ├─ Pokémon (peli / alakategoria)
+  │    ├─ Släbit
+  │    ├─ Sealed
+  │    ├─ Irtokortit
+  │    ├─ Tarvikkeet
+  │    └─ Muu Pokémon
+  ├─ Magic: The Gathering (peli)
+  │    ├─ Släbit / Sealed / Irtokortit / Tarvikkeet / Muu Magic  (sama tyyppisetti toistuu joka pelillä)
+  ├─ Yu-Gi-Oh!
+  │    └─ (sama tyyppisetti)
+  ├─ Lorcana, One Piece, Urheilukortit
+  │    └─ (sama tyyppisetti)
+  └─ Muut keräilytuotteet  (uusi "peli"-tason kohta — esim. sarjakuvat ja muu ei-korttikeräily, jotta koko erillistä "Muut"-yläkategoriaa ei tarvitse pitää näkyvissä category-focus-tilan aikana)
+       └─ (sama tyyppisetti, tai kevyempi ilman kolmatta tasoa — päätettävissä toteutuksessa)
+```
+
+**Oletus tehty puolestasi (korjaa jos väärin):** "muut keräilytuotteet, esim. sarjakuvat" -kysymys ratkaistu lisäämällä se omana "peli"-tason kohtana Keräilykorttien sisään, sen sijaan että koko top-level "Muut"-kategoria (14. LUKITTU kategoria) pidettäisiin näkyvissä category-focus-tilan aikana. Tämä pitää julkisen näkymän siistinä (vain yksi ylätason kategoria näkyvissä).
+
+**Toteutus:**
+1. `Product`-malliin uusi kenttä, esim. `tyyppi String?` (kolmas taso — `category` = Keräilykortit, `alakategoria` = peli, `tyyppi` = Släbit/Sealed/jne). Prisma migration.
+2. `kategoriat.ts`: Keräilykorttien `alakategoriat`-lista pysyy pelilistana (Pokémon/Magic/jne + uusi "Muut keräilytuotteet"), mutta jokainen peli-objekti saa uuden `tyypit`-taulukon: `[{id: 'slabit', nimi: {fi: 'Släbit', en: 'Slabs'}}, {id: 'sealed', ...}, {id: 'irtokortit', ...}, {id: 'tarvikkeet', ...}, {id: 'muu-' + peliId, nimi: {fi: 'Muu ' + peli, en: 'Other ' + peli}}]`
+3. Dashboard/Tuotteet-lomake: kolmas pudotusvalikko (Tyyppi) ilmestyy kun peli on valittu, samalla ehdollisella logiikalla kuin nyt kategoria→alakategoria toimii
+4. Selaa-/Huutokaupat-/Live-sivujen `CategorySidebar`: laajennettava tukemaan kolmatta tasoa (peli valittuna → näytä sen tyypit suodattimena)
+5. Backend: tuotteen luonti/muokkaus- ja hakureitit hyväksymään ja suodattamaan uudella `tyyppi`-kentällä
+
+## Tarjoa hintaa — suoramyyntiin (SUUNNITELTU — päätetty, valmis toteutettavaksi)
+
+Vinted-tyylinen "Tarjoa hintaa" -toiminto, mutta **vain suoramyyntituotteille** (`saleType: "suora"`). Ei koske huutokauppaa tai livejä — niissä tarjoaminen tapahtuu jo huutamalla, tarjousmekanismi ei ole tarpeen eikä toivottu (sekoittaisi huutokauppalogiikkaa).
+
+### Malli (uusi, Prisma)
+```
+model Offer {
+  id         String      @id @default(cuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id])
+  buyerId    String
+  buyer      User        @relation(fields: [buyerId], references: [id])
+  amount     Float
+  status     String      @default("pending") // "pending" | "accepted" | "declined" | "countered" | "expired"
+  counterAmount Float?   // myyjän vastatarjous, jos status = "countered"
+  createdAt  DateTime    @default(now())
+  respondedAt DateTime?
+}
+```
+
+### Toimintalogiikka
+- Ostaja näkee tuotesivulla "Tarjoa hintaa" -napin (vain `saleType: "suora"` tuotteille), syöttää summan → luo `Offer`-rivin, tila `pending`
+- Myyjä saa ilmoituksen (uusi `NotificationType`: `OFFER_RECEIVED`), näkee tarjouksen dashboardissa, voi:
+  - **Hyväksyä** → tarjous muuttuu tavalliseksi tilaukseksi samalla logiikalla kuin "Osta heti" (2h maksuaika alkaa hyväksynnästä, ei tarjouksen jättöhetkestä), muut samaan tuotteeseen tehdyt avoimet tarjoukset asetetaan automaattisesti `declined`-tilaan ja niiden tekijät saavat ilmoituksen
+  - **Hylätä** → `declined`, ostaja saa ilmoituksen (`OFFER_DECLINED`)
+  - **Tehdä vastatarjouksen** → `countered` + `counterAmount`, ostaja saa ilmoituksen (`OFFER_COUNTERED`) ja voi hyväksyä/hylätä/tehdä uuden tarjouksen
+- **Tarjouksen vanhentuminen:** jos myyjä ei reagoi 48h sisällä (sama aikaikkuna kuin lähetysajassa, looginen yhdenmukaisuus), tarjous vanhenee automaattisesti tilaan `expired` — ei jää roikkumaan ikuisesti
+- Useampi ostaja voi tehdä tarjouksen samaan tuotteeseen samanaikaisesti — ensimmäinen jonka myyjä hyväksyy voittaa, loput perutaan automaattisesti (ks. yllä)
+
+### Uudet NotificationType-arvot
+`OFFER_RECEIVED`, `OFFER_ACCEPTED`, `OFFER_DECLINED`, `OFFER_COUNTERED`
+
+### UI-tarpeet
+- Tuotesivu: "Tarjoa hintaa" -nappi + syöttökenttä (vain suoramyynti)
+- Dashboard: uusi näkymä/välilehti saapuneille tarjouksille, Hyväksy/Hylkää/Vastatarjous-toiminnot
+- Ostajan puolella: oma tarjoushistoria (esim. "Ostot"-osiossa tai omana "Tarjoukseni"-näkymänä) jossa näkyy tila (odottaa/hyväksytty/hylätty/vastatarjous)
 
 ## Live-ominaisuudet Whatnot-tasolle (SUUNNITELTU — päätetty, valmis toteutettavaksi)
 
@@ -441,13 +540,16 @@ Kulku:
 4. Voittaja näkyy kaikille + ilmoitus voittajalle (uusi `NotificationType`, esim. `GIVEAWAY_WON`)
 - Ei tarvitse omaa tietokantamallia välttämättä ensimmäisessä versiossa — voi toimia puhtaasti Socket.io-tilassa (in-memory) yhden liven ajan, koska giveaway on kertaluund kulutustapahtuma eikä vaadi pysyvää historiaa (voidaan lisätä myöhemmin jos halutaan tilastoida).
 
-### 4. Julkinen myyjäprofiili (Storefront)
-Puuttuu kokonaan koodista (tarkistettu, ei `/myyja/[username]`-tyyppistä sivua ole). Rakennetaan tukemaan yllä olevaa kolmea:
-- Uusi julkinen sivu, esim. `frontend/app/myyja/[username]/page.tsx`
-- Näyttää: myyjän kaikki aktiiviset tuotteet (kaikki saleType), **tulevat ajastetut livet/huutokaupat korostettuna** (jotta ostaja löytää ne ennakkotarjousta varten), myyjän arvostelut (Review-malli on jo olemassa), lomamoodi-tila jos päällä (Profiili-mallissa jo olemassa)
-- Linkki tänne jo olemassa olevista paikoista: tuotesivun myyjän nimi, live-näkymän myyjän nimi jne. — tarkista onko nämä jo linkitetty jonnekin tai pitääkö lisätä
+### 4. ✅ TEHTY (2026-08-07) — Julkinen myyjäprofiili (Storefront)
+**Poikkeama spesifikaatiosta (perusteltu):** spesifikaatio olettaa ettei julkista profiilisivua ole ja ehdottaa uutta reittiä `/myyja/[username]`. Todellisuudessa `frontend/app/u/[username]/page.tsx` on jo olemassa ja tekee suurimman osan tästä (tuotteet, arvostelut, seuraa/viesti/ilmianna) — uuden rinnakkaisen reitin luominen olisi luonut kaksi URL:ia samalle konseptille. Sen sijaan laajennettu olemassa olevaa `/u/[username]`-sivua puuttuvilla osilla.
 
-**Toteutusjärjestys suositus:** 4 (storefront) ensin koska 1 (ennakkotarjoukset) tarvitsee paikan josta ostaja löytää tulevat huutokaupat ylipäätään — muuten pre-bidding-ominaisuus ei ole käytännössä löydettävissä.
+**Lisätyt puuttuvat osat:**
+- **Lomamoodi ei ollut edes olemassa palvelinpuolella** — se oli pelkkä `localStorage`-tila (`skrm_vacation`-avain `dashboard/profiili/page.tsx`:ssä), näkyi vain myyjälle itselleen samalla selaimella, ei koskaan kenellekään muulle. Tämä oli spesifikaation virheellinen oletus ("Profiilimallissa jo olemassa") — ei ollut. Lisätty oikeasti: `User.vacationUntil DateTime?` + `User.vacationMessage String?` schemaan, `PATCH /users/me` tallentaa (eksplisiittinen `null`-tuki pois päältä kytkemiseen), `GET /users/:username` palauttaa `onVacation`/`vacationUntil`/`vacationMessage` julkisesti. `dashboard/profiili/page.tsx` kirjoitettu uudelleen käyttämään backendiä localStoragen sijaan (lomapäivämäärä nyt pakollinen kun laittaa päälle, koska yhden nullable-kentän varaan ei voi rakentaa erillistä "päällä ilman päättymispäivää" -tilaa siististi).
+- **Tulevat ajastetut livet + aktiiviset huutokaupat, korostettuna** — `GET /users/:username` palauttaa nyt myös `upcomingShows` (SCHEDULED-tilaiset) ja `activeAuctions` (saleType auction, ei vielä päättynyt) kyseiseltä myyjältä. `/u/[username]`-sivulla oma korostettu (accent-reunus) osio ennen tavallista tuotelistaa — juuri tämä on ennakkotarjousten edellytys (kohta 1), koska muuten ostaja ei löydä tulevia huutokauppoja ollenkaan.
+- **Linkit myyjäprofiiliin tarkistettu:** tuotesivu (`/tuotteet/[id]`) ja huutokauppasivu (`/huutokauppa/[id]`) olivat jo linkitettyjä. Live-näkymässä (`/live/[showId]`) myyjän nimi/avatar EI ollut linkki kummassakaan (mobiili+desktop) — lisätty `Link`-wrapperi molempiin.
+- Testattu curlilla end-to-end: lomamoodi päälle/pois vaikuttaa `onVacation`-kenttään oikein julkisessa profiilissa; `upcomingShows`/`activeAuctions` palauttavat oikeaa dataa. Sivut renderöityvät (`/u/[username]`, `/dashboard/profiili`, `/live/[showId]`) virheittä.
+
+**Tekemättä / rajattu pois tarkoituksella:** "lomamoodi pidentää lähetysaikaa 7 päivään" -sääntöä ei ollut aiemmin valvottu koodissa mitenkään (ei 48h-lähetysdeadlinea backendissä ollenkaan, vain UI-tekstiä) — tämä on erillinen, jo olemassa oleva aukko joka ei liity tähän muutokseen, ei korjattu nyt.
 
 Koodaussääntö "Käännökset: Käytä AINA t.xxx — ei kovakoodattua suomea/englantia" ei toteutunut useassa paikassa. **✅ KORJATTU** — kaikki alla listatut tekstit siirretty `t.xxx`-järjestelmään (fi+en), admin-paneelin este on siis poistunut.
 
@@ -473,7 +575,7 @@ Navbarissa on jo ylätason navigointi Selaa/Huutokaupat/Live. Selaa-sivun sisäl
 
 ### Tehty ✅
 - `User.role` (Role enum USER/ADMIN) oli jo schemassa valmiina — ei tarvinnut lisätä
-- `Report`-malli lisätty (reporterId, targetType "product"|"show", targetId, reason, description, status PENDING/REVIEWED)
+- `Report`-malli lisätty (reporterId, targetType "product"|"show" — myöhemmin laajennettu "user":lla, ks. Lisäys alla —, targetId, reason, description, status PENDING/REVIEWED)
 - `NotificationType.LISTING_REMOVED` lisätty
 - `backend/src/middleware/admin.ts` — adminMiddleware, tarkistaa roolin tuoreena kannasta (JWT ei kanna roolia)
 - `POST /reports` — kirjautuneen käyttäjän ilmianto, kohde tarkistetaan olemassaolevaksi ennen tallennusta
@@ -500,81 +602,35 @@ Navbarissa on jo ylätason navigointi Selaa/Huutokaupat/Live. Selaa-sivun sisäl
 - Admin-sivun ilmiantolistassa käyttäjäilmiannon toiminto on **Bannaa** (syy + kesto päivinä) "Poista sisältö" -napin sijaan, koska käyttäjätiliä ei poisteta — käyttää samaa `POST /admin/users/:id/ban` -reittiä kuin Käyttäjät-välilehti
 - Testattu curlilla: itsensä ilmianto torjuttu, käyttäjäilmianto tallentuu ja näkyy admin-listassa oikein rikastettuna (username, rooli)
 
-## Admin-paneeli + ilmiantomekanismi — alkuperäinen spesifikaatio (arkisto)
+### Lisäys 2026-08-07 — Ilmianna-nappi puuttui huutokauppasivulta
+- `/huutokauppa/[id]` (perinteinen huutokauppa) oli ainoa jäljellä oleva tuote/live-tyyppinen sivu jolla ei ollut "Ilmianna"-nappia — lisätty (`targetType: "product"`, sama kuin `/tuotteet/[id]`, koska huutokauppa on teknisesti Product jonka `saleType: "auction"`)
+- Samalla siirretty tuotteen kuvaus näkyvämpään paikkaan: heti huuto/automaattihuuto/"Osta heti" -lohkon jälkeen, ennen myyjäkorttia (oli aiemmin sivun tyhjentymässä, toimituskorttien alla)
 
-Ei aiemmin ollut mitään tapaa ilmoittaa laittomasta/kielletystä sisällöstä (tuote, huutokauppa, live) muuta kuin käyttöehtojen maininta "ota yhteyttä support@skrm.fi" — ei nappia, ei lomaketta, ei admin-näkymää. Admin-roolia ei ole olemassa koodissa lainkaan (ei `role`-kenttää User-mallissa, ei admin-middlewarea, ei admin-reittejä).
+### Admin-oikeudet — kuka on admin nyt (2026-08-07)
+- **Tuotanto (Railway, `spectacular-motivation`-projekti, `skrm`-palvelu):** `Larzmoi` (johan.risberg@outlook.com) on ADMIN. `testi@skrm.fi` ei ole koskaan ollutkaan admin tuotannossa.
+- **Paikallinen dev-tietokanta:** kumpikaan ei ole admin oletuksena — `testi@skrm.fi` promotoitiin väliaikaisesti testausta varten, sittemmin demotoitu takaisin `USER`:iksi. Promotoi manuaalisesti tarvittaessa (ks. "Admin-rooli"-kohta yllä, ei UI:ta tähän vielä).
+- Railway CLI asennettu ja kirjautuneena `johan.risberg@outlook.com`-tunnuksella tässä ympäristössä, projekti linkitetty (`railway link -p spectacular-motivation -e production -s skrm`) — voidaan käyttää `railway run -- node script.js` -kuvion kautta tuotanto-DB:n kertaluontoisiin muutoksiin ilman että yhteysmerkkijono koskaan näkyy keskustelussa.
 
-### Kiireellisyysero: tuote/huutokauppa vs. live
-- **Tuotteet/huutokaupat** (staattinen sisältö) — ilmianto voi odottaa, tarkistetaan admin-sivulta kun ehtii
-- **Live-lähetykset** — tarvitsee nopean reagoinnin, koska sisältö on käynnissä juuri nyt. MVP-vaiheessa (ei henkilökuntaa) riittää että ilmianto herättää sinut nopeasti — esim. sähköposti + puhelimen push, tai kevyt Telegram-bot-webhook suoraan puhelimeen (nopeampi ja ilmainen, ~10 min setup). Ei tarvitse rakentaa isoa moderointityökalua vielä.
+## Mobiili-läpikäynti — löydetyt bugit ja ristiriidat (✅ VALMIS paitsi #6)
 
-### 1. Report-malli (uusi, Prisma)
-```
-model Report {
-  id          String       @id @default(cuid())
-  reporterId  String
-  reporter    User         @relation(fields: [reporterId], references: [id])
-  targetType  String       // "product" | "show"
-  targetId    String
-  reason      String       // dropdown: kielletty tuote, väärennös, harhaanjohtava, muu
-  description String?
-  status      String       @default("pending") // "pending" | "reviewed"
-  createdAt   DateTime     @default(now())
-}
-```
-
-### 2. Admin-rooli
-- Lisää `User`-malliin `role: String @default("USER")` (arvot `"USER"` / `"ADMIN"`)
-- Ei vielä erillistä "kutsu adminiksi" -toimintoa — admin-status asetetaan alkuun manuaalisesti tietokannasta (Prisma Studio / Railway) koska ei ole vielä henkilökuntaa
-- Backend: uusi middleware joka tarkistaa `req.user.role === 'ADMIN'` ennen admin-reittejä
-
-### 3. "Ilmianna"-nappi käyttäjille
-- Tuotesivulle ja live-näkymään nappi joka avaa lomakkeen (syy dropdownista + vapaa kuvaus) → luo `Report`-rivin
-- Kun `targetType === 'show'`: laukaisee myös välittömän hälytyksen (sähköposti/push/Telegram — valitse toteutustavaksi mikä on nopein rakentaa nyt)
-
-### 4. Admin-sivu (`/admin` tms., vain `role === 'ADMIN'`)
-- Näkymä ilmiannoista (`Report`-lista, merkittävissä käsitellyksi)
-- **Admin voi poistaa minkä tahansa tuotteen/huutokaupan/liven** — ei rajattu vain ilmiannettuihin
-- **Admin voi bannata käyttäjän suoraan** — käyttää olemassa olevaa `Ban`-mallia (`userId`, `reason`, `endsAt`, `createdAt`). Huom: nykyinen automaattinen 30pv-bannilogiikka on maksamattomille tilauksille (3 rike → banni) — admin-bannaus on erillinen, manuaalinen polku samaan malliin, admin syöttää itse syyn ja keston.
-
-### 5. Ilmoitus myyjälle kun admin poistaa tuotteen
-- Uusi `NotificationType`-arvo: `LISTING_REMOVED`
-- Käytetään olemassa olevaa `notify.ts`-järjestelmää (sama kuin `AUCTION_ENDED` yms.)
-- **Ilmoituksessa näytetään poiston syy** (esim. "Tuotteesi 'X' on poistettu ylläpidon toimesta. Syy: [admin-syy]. Kysyttävää? support@skrm.fi") — päätetty, ei pelkkää geneeristä viestiä
-- **Yksi ainoa osoite käytössä toistaiseksi: `support@skrm.fi`**
-- Kaikki muut osoitteet (`info@skrm.fi`, `tuki@skrm.fi`, `myyja@skrm.fi`) poistetaan käytöstä — niitä ei ole olemassa/reititetty
-
-## Mobiili-läpikäynti — löydetyt bugit ja ristiriidat (korjattavaksi)
-
-Käyty läpi mobiiliversiota sivu kerrallaan CLAUDE.md:n LUKITTU-sääntöjä vasten. Alla konkreettiset korjaukset tiedostoviitteineen.
+Käyty läpi mobiiliversiota sivu kerrallaan CLAUDE.md:n LUKITTU-sääntöjä vasten. Kaikki kohdat 1–5 ja 7–10 tehty ja/tai vahvistettu 2026-08-07. Kohta 6 (Dashboard UX) jätetty tarkoituksella auki — palataan siihen kun striimaus on testattu OBS:llä.
 
 **Huom — tarkista aina myös desktop-versio samalla:** Löydökset on tehty mobiililla, mutta suuri osa korjauksista on jaettua sisältöä/komponentteja (i18n-tekstit, sisältötiedostot kuten `content.ts`), jotka näkyvät sellaisenaan myös desktopilla — nämä korjaantuvat automaattisesti samalla. Layout-/ulkoasumuutokset (esim. suodatinnäkymän collapsed-muoto, alakategorioiden korostus) saattavat kuitenkin olla eri koodipolussa tai eri breakpoint-käyttäytymisellä desktopilla — nämä pitää tarkistaa ja tarvittaessa korjata erikseen molemmilla näkymillä.
 
-### 1. Footer — `frontend/lib/i18n/fi.ts` (ja vastaava `en.ts`)
-- Rivi ~106: `badgeSecure: 'Turvallinen', badgeBinding: '✓ Sitovat huudot', badgeVerified: 'Todennetut käyttäjät'`
-  → Lisää ✓-merkki myös `badgeSecure`- ja `badgeVerified`-teksteihin (nyt vain `badgeBinding`:ssä). Tee sama `en.ts`:ään.
-- Rivi ~105: `prohibited: 'Ei sallittu: aseet, alkoholi, lääkkeet, elävät eläimet'`
-  → Vanhentunut, suppea lista. Korvaa käyttöehtojen 5.2-kohdan (`frontend/app/kayttoehdot/content.ts`) kanssa yhdenmukaisella, kattavammalla listalla (mainitse ainakin huumausaineet/psykoaktiiviset aineet erikseen, ei vain "lääkkeet"). Käyttöehdot on tässä oikea lähde — päivitä footer vastaamaan sitä, älä keksi uutta listaa.
-- Uutiskirje (`newsletter: 'Uutiskirje'`) — sähköpostipalvelua (Resend) ei ole vielä otettu käyttöön eikä uutiskirjeen sisältöä/tiheyttä ole määritelty. Ei koodimuutosta vielä — vain muistiin, että toiminnallisuus on määrittelemättä.
+### 1. ✅ TEHTY — Footer
+Kaikissa kolmessa badgessa (`badgeSecure`, `badgeBinding`, `badgeVerified`) on nyt ✓-merkki. Kielletty-lista päivitetty. Uutiskirjeen sisältö/tiheys on yhä määrittelemättä (ei koodimuutosta, ei kiireellinen — odottaa Resendiä).
 
-### 2. Selaa- / Huutokaupat- / Live-sivut — suodattimien yhtenäistäminen
-- **Selaa-sivu (`frontend/app/selaa/page.tsx`) on jo oikeassa muodossa** — käytä sitä mallina. Oletusnäkymä: vain Kaikki/Suoramyynti/Huutokaupat-valinta + hakukenttä + "Suodata"-nappi. Kategoriat, järjestys ja hinta piilossa kunnes painaa "Suodata".
-- **Huutokaupat-sivu ja Live-sivu** (`frontend/app/live-kaikki/page.tsx` tai vastaava, `frontend/app/huutokaupat` — tarkista tarkka polku) näyttävät nyt kaikki kategoriat suoraan auki. → Muuta samaan collapsed-malliin kuin Selaa-sivulla.
-- **Alakategoriat**: kun pääkategoria (esim. "Keräilykortit") valitaan ja alakategoriat ilmestyvät, anna niille oma visuaalinen erottuvuus (esim. eri taustasävy kuplille) jotta erottuvat selvästi pääkategorioista.
-- **Hintasuodatin**: nyt vain yksi "Enimmäishinta"-kenttä. → Muuta kahdeksi kentäksi: **Minimihinta** ja **Maksimihinta**.
+### 2. ✅ TEHTY — Selaa- / Huutokaupat- / Live-sivut yhtenäistetty
+Huutokaupat- ja Live-sivuilla on nyt sama `showFilters`-collapsed-malli kuin Selaa-sivulla. Selaa-sivulla on erilliset Minimihinta/Maksimihinta-kentät (ei enää yksi "Enimmäishinta"). Alakategorioiden visuaalinen korostus ei ole erikseen varmistettu — pieni jäännösriski, tarkista jos tulee esiin.
 
-### 3. Meista-sivu — `frontend/app/meista/page.tsx`
-- Rivi ~32: tilastokortissa `{ value: '24h', label: t.about.shipping, ... }` → **väärin, pitää olla `48h`** (LUKITTU-sääntö, ristiriidassa käyttöehtojen/FAQ:n/toimitussivun kanssa jotka käyttävät jo oikein 48h:aa)
-- Rivi ~31: `{ value: '16', label: t.about.categories, ... }` → **väärin, pitää olla `14`** (kategoriat.ts:ssä tasan 14 pääkategoriaa, LUKITTU-listan mukaisesti)
-- Rivit ~49–51: sähköpostit `info@skrm.fi`, `tuki@skrm.fi`, `myyja@skrm.fi` → korvaa kaikki yhdellä `support@skrm.fi`-osoitteella (ks. "Yhteydenottosähköposti"-kohta yllä)
+### 3. ✅ TEHTY — Meista-sivu
+`frontend/app/meista/page.tsx`: tilastokortit näyttävät nyt oikein `14` (kategoriaa) ja `48h` (lähetysaika). Kaikki kolme yhteystietoa on jo `support@skrm.fi`.
 
-### 4. FAQ-sivu — `frontend/app/faq/page.tsx`
-- Rivi ~124: yhteystieto `info@skrm.fi` → vaihda `support@skrm.fi`
-- `FAQ_DATA.fi.yleista` ("Mikä on SKRM?") ja `.myyja` ("Miten aloitan myymisen?") kuvaavat palvelun edelleen pelkkänä live-huutokauppa-alustana → päivitä mainitsemaan myös perinteinen huutokauppa ja suoramyynti. Tee sama `en`-versioon.
-- `.myyja`-osion "Mitä voin myydä?" -vastaus: sama vanhentunut suppea kielletty-lista kuin footerissa ("aseet, alkoholi, lääkkeet, elävät eläimet ja väärennetyt tuotteet") → yhtenäistä käyttöehtojen 5.2-listan kanssa, sama korjaus kuin footerissa.
+### 4. ✅ TEHTY — FAQ-sivu
+Ei enää `info@skrm.fi`-jäänteitä frontendissä (tarkistettu koko `frontend/app`). Kielletty-lista yhtenäistetty. *(Ei erikseen varmistettu kuvaako FAQ_DATA.fi.yleista/.myyja-teksti nimenomaisesti kaikkia kolmea myyntitapaa — pieni jäännösriski, tarkista jos tulee esiin.)*
 
-### 5. Käyttöehdot — `frontend/app/kayttoehdot/content.ts`
-- Kohta 6.2 (rivi ~96, `TERMS_FI`): "Ostaja on velvollinen maksamaan voittamastaan huudosta tai ostoksesta **välittömästi**." → **Ristiriidassa LUKITTU-säännön kanssa (2h maksuaika)**. Korjaa tekstiin selkeästi 2 tunnin maksuaika. Tee sama korjaus `TERMS_EN`:iin (kohta 6.2, rivi ~250: "immediately" → "within 2 hours").
+### 5. ✅ TEHTY — Käyttöehdot
+`kayttoehdot/content.ts` kohta 6.2 sanoo nyt selkeästi "2 tunnin kuluessa" (FI) / "within 2 hours" (EN) — ei enää "välittömästi"/"immediately".
 
 ### 6. Dashboard — yleinen UX-hionta (ei kiireellinen, ei konkreettista korjausta vielä)
 - Hallintapaneelin aloitussivu ja Lähetys-hallinta-sivu koettu kömpelöiksi visuaalisesti/rakenteellisesti — ei tarkkaa ratkaisua vielä, palataan kun striimaus on oikeasti testattu OBS:llä (Hetzner-vaihe)

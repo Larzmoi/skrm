@@ -15,11 +15,11 @@ function getOptionalUserId(req: Request): string | null {
   }
 }
 
-// GET /users/:username — julkinen profiili
+// GET /users/:username — julkinen profiili (storefront: myyjän tiedot + tulevat lähetykset/huutokaupat)
 router.get('/:username', async (req, res) => {
   const user = await prisma.user.findFirst({
     where: { username: decodeURIComponent(String(req.params.username)) },
-    select: { id: true, name: true, username: true, avatarUrl: true, createdAt: true },
+    select: { id: true, name: true, username: true, avatarUrl: true, createdAt: true, vacationUntil: true, vacationMessage: true },
   })
   if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
 
@@ -39,10 +39,28 @@ router.get('/:username', async (req, res) => {
     _count: true,
   })
 
+  const now = new Date()
+  const onVacation = !!(user.vacationUntil && user.vacationUntil > now)
+
+  const upcomingShows = await prisma.show.findMany({
+    where: { sellerId: user.id, status: 'SCHEDULED' },
+    orderBy: { scheduledAt: 'asc' },
+    select: { id: true, title: true, thumbnailUrl: true, scheduledAt: true, category: true },
+  })
+
+  const activeAuctions = await prisma.product.findMany({
+    where: { sellerId: user.id, saleType: 'auction', status: 'PENDING', auctionEndsAt: { gt: now } },
+    orderBy: { auctionEndsAt: 'asc' },
+    select: { id: true, name: true, imageUrl: true, currentBid: true, startPrice: true, auctionEndsAt: true },
+  })
+
   res.json({
     ...user, followerCount, isFollowing,
     avgRating: ratingAgg._avg.rating,
     reviewCount: ratingAgg._count,
+    onVacation,
+    upcomingShows,
+    activeAuctions,
   })
 })
 
@@ -88,7 +106,7 @@ const USERNAME_CHANGE_COOLDOWN_DAYS = 365
 
 // PATCH /users/me — päivitä oma profiili
 router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl } = req.body
+  const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl, vacationUntil, vacationMessage } = req.body
 
   const current = await prisma.user.findUnique({ where: { id: req.userId! } })
   if (!current) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
@@ -100,6 +118,11 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     businessId: businessId ?? undefined,
     avatarUrl: avatarUrl ?? undefined,
   }
+
+  // Lomamoodi — 'in' tarkistus koska nollaus (pois päältä) pitää voida lähettää eksplisiittisenä nullina,
+  // toisin kuin muut kentät joissa ?? undefined riittää (ne eivät tarvitse "tyhjennä"-tilaa erikseen)
+  if ('vacationUntil' in req.body) data.vacationUntil = vacationUntil ? new Date(vacationUntil) : null
+  if ('vacationMessage' in req.body) data.vacationMessage = vacationMessage || null
 
   if (typeof email === 'string' && email.trim() && email.trim() !== current.email) {
     data.email = email.trim()
@@ -127,7 +150,7 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       select: {
         id: true, name: true, username: true, email: true, bio: true, avatarUrl: true,
         phone: true, address: true, postalCode: true, city: true, businessId: true,
-        usernameChangedAt: true,
+        usernameChangedAt: true, vacationUntil: true, vacationMessage: true,
       },
     })
     res.json(user)

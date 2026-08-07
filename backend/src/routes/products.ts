@@ -6,10 +6,11 @@ const router = Router()
 
 // GET /products
 router.get('/', async (req, res) => {
-  const { category, alakategoria, sort, search, limit } = req.query
+  const { category, alakategoria, tyyppi, sort, search, limit } = req.query
   const where: any = { status: 'PENDING', saleType: { in: ['buy_now', 'both'] } }
   if (category && category !== 'kaikki') where.category = String(category)
   if (alakategoria) where.alakategoria = String(alakategoria)
+  if (tyyppi) where.tyyppi = String(tyyppi)
   if (search) where.name = { contains: String(search), mode: 'insensitive' }
   let orderBy: any = { createdAt: 'desc' }
   if (sort === 'price_asc') orderBy = { startPrice: 'asc' }
@@ -43,7 +44,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /products
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, city, pakettikoko, showId } = req.body
+  const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, tyyppi, city, pakettikoko, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
 
   // Perinteinen huutokauppa: auctionDurationDays/Hours on kesto luontihetkellä, ei tallenneta sellaisenaan —
@@ -70,7 +71,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       quantity: Number(quantity ?? 1),
       condition: condition ?? null, description: description ?? null,
       imageUrl: imageUrl ?? null, category: category ?? null,
-      alakategoria: alakategoria ?? null, city: city ?? null, pakettikoko: pakettikoko ?? null,
+      alakategoria: alakategoria ?? null, tyyppi: tyyppi ?? null, city: city ?? null, pakettikoko: pakettikoko ?? null,
       sellerId: req.userId!, showId: showId ?? null,
     },
   })
@@ -94,7 +95,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
       condition: req.body.condition ?? null, description: req.body.description ?? null,
       imageUrl: req.body.imageUrl ?? undefined, category: req.body.category ?? null,
-      alakategoria: req.body.alakategoria ?? null, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
+      alakategoria: req.body.alakategoria ?? null, tyyppi: req.body.tyyppi ?? null, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
     },
   })
   res.json(updated)

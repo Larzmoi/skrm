@@ -23,7 +23,7 @@ async function isUserBanned(userId: string) {
 
 // GET /auctions — hae aktiiviset huutokaupat
 router.get('/', async (req, res) => {
-  const { category, alakategoria, sort, limit } = req.query
+  const { category, alakategoria, tyyppi, sort, limit } = req.query
   const now = new Date()
 
   const where: any = {
@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
   }
   if (category && category !== 'kaikki') where.category = String(category)
   if (alakategoria) where.alakategoria = String(alakategoria)
+  if (tyyppi) where.tyyppi = String(tyyppi)
 
   let orderBy: any = { auctionEndsAt: 'asc' } // päättyy pian ensin
   if (sort === 'newest') orderBy = { createdAt: 'desc' }

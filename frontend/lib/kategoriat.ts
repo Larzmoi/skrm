@@ -1,18 +1,35 @@
+import { AKTIIVISET_KATEGORIAT } from './config'
+
+// Keräilykortit-kategorian pelien yhteinen tyyppisetti (kolmas kategoriataso) — sama viisi tyyppiä joka pelillä.
+// "Muu {peli}" -id rakennetaan pelin id:stä, jotta se pysyy uniikkina pelien välillä.
+function keraiLykorttiTyypit(peliId: string, peliNimi: { fi: string; en: string }) {
+  return [
+    { id: 'slabit', nimi: { fi: 'Släbit', en: 'Slabs' } },
+    { id: 'sealed', nimi: { fi: 'Sealed', en: 'Sealed' } },
+    { id: 'irtokortit', nimi: { fi: 'Irtokortit', en: 'Loose Cards' } },
+    { id: 'tarvikkeet', nimi: { fi: 'Tarvikkeet', en: 'Supplies' } },
+    { id: `muu-${peliId}`, nimi: { fi: `Muu ${peliNimi.fi}`, en: `Other ${peliNimi.en}` } },
+  ]
+}
+
+const KERAILYKORTIT_PELIT = [
+  { id: 'pokemon', nimi: { fi: 'Pokémon', en: 'Pokémon' } },
+  { id: 'magic', nimi: { fi: 'Magic: The Gathering', en: 'Magic: The Gathering' } },
+  { id: 'yugioh', nimi: { fi: 'Yu-Gi-Oh!', en: 'Yu-Gi-Oh!' } },
+  { id: 'lorcana', nimi: { fi: 'Lorcana', en: 'Lorcana' } },
+  { id: 'one-piece', nimi: { fi: 'One Piece', en: 'One Piece' } },
+  { id: 'sports-cards', nimi: { fi: 'Urheilukortit', en: 'Sports Cards' } },
+  { id: 'muut-kerailytuotteet', nimi: { fi: 'Muut keräilytuotteet', en: 'Other Collectibles' } },
+].map(peli => ({ ...peli, tyypit: keraiLykorttiTyypit(peli.id, peli.nimi) }))
+
 export const KATEGORIAT = [
   {
     id: 'kerailykortit',
     nimi: { fi: 'Keräilykortit', en: 'Trading Cards' },
     kuvaus: 'Pokémon, Magic, Sports Cards',
-    alakategoriat: [
-      { id: 'pokemon', nimi: { fi: 'Pokémon', en: 'Pokémon' } },
-      { id: 'magic', nimi: { fi: 'Magic: The Gathering', en: 'Magic: The Gathering' } },
-      { id: 'yugioh', nimi: { fi: 'Yu-Gi-Oh!', en: 'Yu-Gi-Oh!' } },
-      { id: 'lorcana', nimi: { fi: 'Lorcana', en: 'Lorcana' } },
-      { id: 'one-piece', nimi: { fi: 'One Piece', en: 'One Piece' } },
-      { id: 'sports-cards', nimi: { fi: 'Urheilukortit', en: 'Sports Cards' } },
-      { id: 'tarvikkeet', nimi: { fi: 'Tarvikkeet', en: 'Supplies' } },
-      { id: 'muut-kortit', nimi: { fi: 'Muut kortit', en: 'Other Cards' } },
-    ],
+    // Kolmitasoinen rakenne (Kategoria → Peli → Tyyppi), päätetty 2026-08-07 — korvaa aiemman tasaisen listan
+    // jossa "Tarvikkeet"/"Muut kortit" olivat samalla tasolla pelien kanssa. Jokainen peli saa nyt oman tyypit-listansa.
+    alakategoriat: KERAILYKORTIT_PELIT,
   },
   {
     id: 'elektroniikka',
@@ -186,4 +203,18 @@ export function getAlaNimi(ala: any, lang: Lang): string {
 
 export function getKategoria(id: string) {
   return KATEGORIAT.find(k => k.id === id)
+}
+
+export function getTyyppiNimi(tyyppi: any, lang: Lang): string {
+  if (!tyyppi?.nimi) return ''
+  if (typeof tyyppi.nimi === 'string') return tyyppi.nimi
+  return tyyppi.nimi[lang] ?? tyyppi.nimi.fi ?? ''
+}
+
+// Selaus-/valintanäkymissä käytettävä kategorialista — rajattu AKTIIVISET_KATEGORIAT-asetuksella (ks. config.ts).
+// KATEGORIAT itse pysyy aina täytenä (getKategoria/getKatNimi toimivat kaikilla 14:llä, jotta jo olemassa olevien
+// tuotteiden kategorianimet näkyvät oikein vaikka kategoria olisi piilotettu uusilta valinnoilta).
+export function getNakyvatKategoriat() {
+  if (AKTIIVISET_KATEGORIAT.length === 0) return KATEGORIAT
+  return KATEGORIAT.filter(k => AKTIIVISET_KATEGORIAT.includes(k.id))
 }

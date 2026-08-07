@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import { useTheme } from '@/lib/theme-context'
-import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { useLang } from '@/lib/lang-context'
 import { api, auctionApi, userApi } from '@/lib/api'
 
@@ -38,6 +38,7 @@ function SelaaContent() {
   const urlHaku = searchParams.get('haku') ?? ''
   const [activeKat, setActiveKat] = useState(urlKat)
   const [activeAla, setActiveAla] = useState('')
+  const [activeTyyppi, setActiveTyyppi] = useState('')
   const [search, setSearch] = useState(urlHaku)
   const [sort, setSort] = useState('newest')
   const [minPrice, setMinPrice] = useState('')
@@ -81,8 +82,11 @@ function SelaaContent() {
         const params: Record<string, string> = { sort }
         if (activeKat !== 'kaikki') params.category = activeKat
         if (activeAla) params.alakategoria = activeAla
+        if (activeTyyppi) params.tyyppi = activeTyyppi
         const auctionParams: Record<string, string> = { sort: sort === 'price_desc' ? 'newest' : sort }
         if (activeKat !== 'kaikki') auctionParams.category = activeKat
+        if (activeAla) auctionParams.alakategoria = activeAla
+        if (activeTyyppi) auctionParams.tyyppi = activeTyyppi
 
         let combined: Product[] = []
         if (saleTab === 'suora') {
@@ -103,7 +107,7 @@ function SelaaContent() {
       }
     }
     loadProducts()
-  }, [activeKat, activeAla, sort, saleTab])
+  }, [activeKat, activeAla, activeTyyppi, sort, saleTab])
 
   const filtered = useMemo(() => {
     let p = products
@@ -114,10 +118,10 @@ function SelaaContent() {
     return p
   }, [products, search, minPrice, maxPrice, city])
 
-  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!search.trim() || !!minPrice || !!maxPrice || !!city
+  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!activeTyyppi || !!search.trim() || !!minPrice || !!maxPrice || !!city
 
   function clearFilters() {
-    setActiveKat('kaikki'); setActiveAla(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
+    setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
   }
 
   // Suora käyttäjähaku — löytää myyjän tililtä vaikka hänellä ei olisi juuri nyt tuotteita myynnissä
@@ -136,7 +140,7 @@ function SelaaContent() {
     return Array.from(set).sort()
   }, [products])
 
-  const allKats = [{ id: 'kaikki', nimi: { fi: t.selaa.allCategories, en: t.selaa.allCategories } }, ...KATEGORIAT]
+  const allKats = [{ id: 'kaikki', nimi: { fi: t.selaa.allCategories, en: t.selaa.allCategories } }, ...getNakyvatKategoriat()]
 
   const saleTabs: { id: SaleTab; label: string }[] = [
     { id: 'kaikki', label: t.selaa.allCategories },
@@ -170,7 +174,7 @@ function SelaaContent() {
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.category}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
             {allKats.map(kat => (
-              <button key={kat.id} onClick={() => { setActiveKat(kat.id); setActiveAla('') }} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${activeKat === kat.id ? C.accent : C.border}`, background: activeKat === kat.id ? C.accentLight : C.cardBg, color: activeKat === kat.id ? C.accent : C.textSub, fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, cursor: 'pointer' }}>
+              <button key={kat.id} onClick={() => { setActiveKat(kat.id); setActiveAla(''); setActiveTyyppi('') }} style={{ padding: '6px 12px', borderRadius: 20, border: `1px solid ${activeKat === kat.id ? C.accent : C.border}`, background: activeKat === kat.id ? C.accentLight : C.cardBg, color: activeKat === kat.id ? C.accent : C.textSub, fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, cursor: 'pointer' }}>
                 {getKatNimi(kat as any, lang as any)}
               </button>
             ))}
@@ -180,11 +184,23 @@ function SelaaContent() {
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.subcategory}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14, background: C.surface, borderRadius: 10, padding: 8 }}>
                 {(KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []).map((ala: any) => (
-                  <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.surface2, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
+                  <button key={ala.id} onClick={() => { setActiveAla(activeAla === ala.id ? '' : ala.id); setActiveTyyppi('') }} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeAla === ala.id ? C.accent : C.border}`, background: activeAla === ala.id ? C.accentLight : C.surface2, color: activeAla === ala.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeAla === ala.id ? 700 : 400, cursor: 'pointer' }}>
                     {getAlaNimi(ala, lang as any)}
                   </button>
                 ))}
               </div>
+              {activeAla && (() => {
+                const tyypit = ((KATEGORIAT.find(k => k.id === activeKat)?.alakategoriat ?? []) as any[]).find(a => a.id === activeAla)?.tyypit ?? []
+                return tyypit.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14, background: C.surface2, borderRadius: 10, padding: 8 }}>
+                    {tyypit.map((ty: any) => (
+                      <button key={ty.id} onClick={() => setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id)} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${activeTyyppi === ty.id ? C.accent : C.border}`, background: activeTyyppi === ty.id ? C.accentLight : C.cardBg, color: activeTyyppi === ty.id ? C.accent : C.muted, fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, cursor: 'pointer' }}>
+                        {getTyyppiNimi(ty, lang as any)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null
+              })()}
             </>
           )}
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.sort}</div>
@@ -221,16 +237,27 @@ function SelaaContent() {
               const count = kat.id === 'kaikki' ? products.length : products.filter(p => p.category === kat.id).length
               return (
                 <div key={kat.id}>
-                  <button onClick={() => { setActiveKat(kat.id); setActiveAla('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, color: activeKat === kat.id ? C.accent : C.textSub, background: activeKat === kat.id ? C.accentLight : 'transparent', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
+                  <button onClick={() => { setActiveKat(kat.id); setActiveAla(''); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, color: activeKat === kat.id ? C.accent : C.textSub, background: activeKat === kat.id ? C.accentLight : 'transparent', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
                     <span>{getKatNimi(kat as any, lang as any)}</span>
                     {count > 0 && <span style={{ fontSize: 11, color: C.muted }}>{count}</span>}
                   </button>
                   {activeKat === kat.id && kat.id !== 'kaikki' && (KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).length > 0 && (
                     <div style={{ marginLeft: 8, marginBottom: 4, background: C.surface, borderRadius: 8, padding: '4px', borderLeft: `2px solid ${C.border}` }}>
                       {(KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).map((ala: any) => (
-                        <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ width: '100%', textAlign: 'left', padding: '5px 10px 5px 16px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, color: activeAla === ala.id ? C.accent : C.muted, background: activeAla === ala.id ? C.accentLight : 'transparent', marginBottom: 1 }}>
-                          {getAlaNimi(ala, lang as any)}
-                        </button>
+                        <div key={ala.id}>
+                          <button onClick={() => { setActiveAla(activeAla === ala.id ? '' : ala.id); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '5px 10px 5px 16px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, color: activeAla === ala.id ? C.accent : C.muted, background: activeAla === ala.id ? C.accentLight : 'transparent', marginBottom: 1 }}>
+                            {getAlaNimi(ala, lang as any)}
+                          </button>
+                          {activeAla === ala.id && ala.tyypit?.length > 0 && (
+                            <div style={{ marginLeft: 10, marginBottom: 2, background: C.surface, borderRadius: 6, padding: '2px 0' }}>
+                              {ala.tyypit.map((ty: any) => (
+                                <button key={ty.id} onClick={() => setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id)} style={{ width: '100%', textAlign: 'left', padding: '4px 10px 4px 16px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, color: activeTyyppi === ty.id ? C.accent : C.muted, background: activeTyyppi === ty.id ? C.accentLight : 'transparent' }}>
+                                  {getTyyppiNimi(ty, lang as any)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}

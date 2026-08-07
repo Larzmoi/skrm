@@ -4,6 +4,7 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import Link from 'next/link'
+import { AKTIIVISET_KATEGORIAT } from '@/lib/config'
 
 export default function MeistaPage() {
   const { C } = useTheme()
@@ -28,7 +29,9 @@ export default function MeistaPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
             {[
               { value: '3%', label: t.about.cheapest, sub: t.about.cheapestSub },
-              { value: '14', label: t.about.categories, sub: t.about.categoriesSub },
+              // Piilotettu kategoriafokuksen ajaksi — "14 kategoriaa" olisi harhaanjohtava kun vain Keräilykortit on näkyvissä.
+              // 14 on yhä tekninen totuus taustalla (ei muutettu lukuun 1), palautuu automaattisesti kun AKTIIVISET_KATEGORIAT tyhjennetään.
+              ...(AKTIIVISET_KATEGORIAT.length === 0 ? [{ value: '14', label: t.about.categories, sub: t.about.categoriesSub }] : []),
               { value: '48h', label: t.about.shipping, sub: t.about.shippingSub },
               { value: '100%', label: t.about.binding, sub: t.about.bindingSub },
             ].map(s => (

@@ -36,6 +36,7 @@ export default function HuutokaupatPage() {
   const [sort, setSort] = useState('ending_soon')
   const [activeKat, setActiveKat] = useState('kaikki')
   const [activeAla, setActiveAla] = useState('')
+  const [activeTyyppi, setActiveTyyppi] = useState('')
   const [city, setCity] = useState('')
   const [isMobile, setIsMobile] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
@@ -58,11 +59,12 @@ export default function HuutokaupatPage() {
     const params: Record<string, string> = { sort }
     if (activeKat !== 'kaikki') params.category = activeKat
     if (activeAla) params.alakategoria = activeAla
+    if (activeTyyppi) params.tyyppi = activeTyyppi
     auctionApi.list(params)
       .then((data: Auction[]) => setAuctions(Array.isArray(data) ? data : []))
       .catch(() => setAuctions([]))
       .finally(() => setLoading(false))
-  }, [sort, activeKat, activeAla])
+  }, [sort, activeKat, activeAla, activeTyyppi])
 
   const cities = useMemo(() => {
     const set = new Set(auctions.map(auctionCity).filter(Boolean) as string[])
@@ -87,7 +89,7 @@ export default function HuutokaupatPage() {
       <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto' }}>
         {!isMobile && (
           <>
-            <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} isMobile={false} />
+            <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={false} />
           </>
         )}
 
@@ -119,7 +121,7 @@ export default function HuutokaupatPage() {
 
           {isMobile && showFilters && (
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} isMobile={true} />
+              <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={true} />
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '14px 0 8px' }}>{t.selaa.sort}</div>
               <select value={sort} onChange={e => setSort(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' as const }}>
                 {sortOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}

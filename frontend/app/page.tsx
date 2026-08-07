@@ -5,7 +5,7 @@ import Navbar from '@/components/layout/Navbar'
 import { useTheme } from '@/lib/theme-context'
 import { useState, useMemo, useEffect } from 'react'
 import { useKategoria } from '@/lib/kategoria-context'
-import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { useLang } from '@/lib/lang-context'
 import Footer from '@/components/layout/Footer'
 import { useAuth } from '@/lib/auth-context'
@@ -36,6 +36,7 @@ export default function Home() {
   const [auctions, setAuctions] = useState<any[]>([])
   const [heroHidden, setHeroHidden] = useState(false)
   const [activeAla, setActiveAla] = useState('')
+  const [activeTyyppi, setActiveTyyppi] = useState('')
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function Home() {
     return {
       id: p.id, name: p.name, price: p.startPrice,
       condition: p.condition ?? '', seller: p.seller?.username ?? '',
-      category: p.category ?? 'muu', alakategoria: p.alakategoria ?? '', thumbnail,
+      category: p.category ?? 'muu', alakategoria: p.alakategoria ?? '', tyyppi: p.tyyppi ?? '', thumbnail,
     }
   })
 
@@ -107,10 +108,11 @@ export default function Home() {
     let p = displayProducts
     if (activeKat !== 'kaikki') p = p.filter(x => x.category === activeKat)
     if (activeAla) p = p.filter(x => x.alakategoria === activeAla)
+    if (activeTyyppi) p = p.filter(x => x.tyyppi === activeTyyppi)
     return p
-  }, [activeKat, activeAla, JSON.stringify(displayProducts)])
+  }, [activeKat, activeAla, activeTyyppi, JSON.stringify(displayProducts)])
 
-  const allKats = [{ id: 'kaikki', nimi: { fi: 'Kaikki', en: 'All' } }, ...KATEGORIAT]
+  const allKats = [{ id: 'kaikki', nimi: { fi: 'Kaikki', en: 'All' } }, ...getNakyvatKategoriat()]
 
 
   function hideHero() {
@@ -190,27 +192,42 @@ export default function Home() {
         {/* Desktop sidebar */}
         {!isMobile && (
           <div style={{ width: 200, flexShrink: 0, padding: '16px 10px', borderRight: `1px solid ${C.border}`, position: 'sticky', top: 58, height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
-            <button onClick={() => { setActiveKat('kaikki'); setActiveAla('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === 'kaikki' ? 700 : 400, color: activeKat === 'kaikki' ? C.accent : C.textSub, background: activeKat === 'kaikki' ? C.accentLight : 'transparent', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
+            <button onClick={() => { setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === 'kaikki' ? 700 : 400, color: activeKat === 'kaikki' ? C.accent : C.textSub, background: activeKat === 'kaikki' ? C.accentLight : 'transparent', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
               <span>Kaikki</span>
               <span style={{ fontSize: 11, color: C.muted }}>{displayProducts.length}</span>
             </button>
-            {KATEGORIAT.map(kat => {
+            {getNakyvatKategoriat().map(kat => {
               const count = displayProducts.filter(p => p.category === kat.id).length
               return (
                 <div key={kat.id}>
-                  <button onClick={() => { setActiveKat(kat.id); setActiveAla('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, color: activeKat === kat.id ? C.accent : C.textSub, background: activeKat === kat.id ? C.accentLight : 'transparent', marginBottom: 1, display: 'flex', justifyContent: 'space-between' }}>
+                  <button onClick={() => { setActiveKat(kat.id); setActiveAla(''); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === kat.id ? 700 : 400, color: activeKat === kat.id ? C.accent : C.textSub, background: activeKat === kat.id ? C.accentLight : 'transparent', marginBottom: 1, display: 'flex', justifyContent: 'space-between' }}>
                     <span>{getKatNimi(kat, lang as any)}</span>
                     {count > 0 && <span style={{ fontSize: 11, color: C.muted }}>{count}</span>}
                   </button>
                   {activeKat === kat.id && kat.alakategoriat.length > 0 && (
                     <div style={{ marginLeft: 8, marginBottom: 4 }}>
-                      {kat.alakategoriat.map(ala => {
+                      {kat.alakategoriat.map((ala: any) => {
                         const alaCount = displayProducts.filter(p => p.alakategoria === ala.id).length
                         return (
-                          <button key={ala.id} onClick={() => setActiveAla(activeAla === ala.id ? '' : ala.id)} style={{ width: '100%', textAlign: 'left', padding: '5px 10px 5px 14px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, color: activeAla === ala.id ? C.accent : C.muted, background: activeAla === ala.id ? C.accentLight : 'transparent', marginBottom: 1, display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{getAlaNimi(ala, lang as any)}</span>
-                            {alaCount > 0 && <span style={{ fontSize: 11 }}>{alaCount}</span>}
-                          </button>
+                          <div key={ala.id}>
+                            <button onClick={() => { setActiveAla(activeAla === ala.id ? '' : ala.id); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '5px 10px 5px 14px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, color: activeAla === ala.id ? C.accent : C.muted, background: activeAla === ala.id ? C.accentLight : 'transparent', marginBottom: 1, display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{getAlaNimi(ala, lang as any)}</span>
+                              {alaCount > 0 && <span style={{ fontSize: 11 }}>{alaCount}</span>}
+                            </button>
+                            {activeAla === ala.id && ala.tyypit?.length > 0 && (
+                              <div style={{ marginLeft: 10, marginBottom: 2, background: C.surface, borderRadius: 6, padding: '2px 0' }}>
+                                {ala.tyypit.map((ty: any) => {
+                                  const tyCount = displayProducts.filter(p => p.tyyppi === ty.id).length
+                                  return (
+                                    <button key={ty.id} onClick={() => setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id)} style={{ width: '100%', textAlign: 'left', padding: '4px 10px 4px 16px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, color: activeTyyppi === ty.id ? C.accent : C.muted, background: activeTyyppi === ty.id ? C.accentLight : 'transparent', display: 'flex', justifyContent: 'space-between' }}>
+                                      <span>{getTyyppiNimi(ty, lang as any)}</span>
+                                      {tyCount > 0 && <span style={{ fontSize: 10 }}>{tyCount}</span>}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
                     </div>

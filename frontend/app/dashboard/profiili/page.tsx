@@ -29,10 +29,12 @@ export default function ProfiiliPage() {
 
   const avatarRef = useRef<HTMLInputElement>(null)
 
-  const [vacationOn, setVacationOn] = useState(false)
+  const vacationOn = !!(user?.vacationUntil && new Date(user.vacationUntil) > new Date())
   const [vacationUntil, setVacationUntil] = useState('')
   const [vacationMsg, setVacationMsg] = useState('')
   const [showVacForm, setShowVacForm] = useState(false)
+  const [vacationBusy, setVacationBusy] = useState(false)
+  const [vacationError, setVacationError] = useState('')
 
   useEffect(() => {
     setName(user?.name ?? '')
@@ -47,26 +49,34 @@ export default function ProfiiliPage() {
   }, [user])
 
   useEffect(() => {
-    const v = localStorage.getItem('skrm_vacation')
-    if (v) {
-      const parsed = JSON.parse(v)
-      setVacationOn(parsed.on)
-      setVacationUntil(parsed.until ?? '')
-      setVacationMsg(parsed.msg ?? '')
-    }
-  }, [])
+    setVacationUntil(user?.vacationUntil ? user.vacationUntil.slice(0, 10) : '')
+    setVacationMsg(user?.vacationMessage ?? '')
+  }, [user])
 
-  function saveVacation() {
-    localStorage.setItem('skrm_vacation', JSON.stringify({ on: true, until: vacationUntil, msg: vacationMsg }))
-    setVacationOn(true)
-    setShowVacForm(false)
+  async function saveVacation() {
+    if (!vacationUntil) return
+    setVacationBusy(true); setVacationError('')
+    try {
+      const updated = await userApi.updateProfile({ vacationUntil, vacationMessage: vacationMsg || null })
+      updateUser({ vacationUntil: updated.vacationUntil, vacationMessage: updated.vacationMessage })
+      setShowVacForm(false)
+    } catch (e: any) {
+      setVacationError(e.message ?? 'Tallennus epäonnistui')
+    }
+    setVacationBusy(false)
   }
 
-  function disableVacation() {
-    localStorage.removeItem('skrm_vacation')
-    setVacationOn(false)
-    setVacationUntil('')
-    setVacationMsg('')
+  async function disableVacation() {
+    setVacationBusy(true); setVacationError('')
+    try {
+      const updated = await userApi.updateProfile({ vacationUntil: null, vacationMessage: null })
+      updateUser({ vacationUntil: updated.vacationUntil, vacationMessage: updated.vacationMessage })
+      setVacationUntil('')
+      setVacationMsg('')
+    } catch (e: any) {
+      setVacationError(e.message ?? 'Poisto epäonnistui')
+    }
+    setVacationBusy(false)
   }
 
   function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -185,16 +195,18 @@ export default function ProfiiliPage() {
             <p style={{ fontSize: 13, color: C.muted }}>Lähetysaika pitenee 7 päivään.</p>
           </div>
           {!showVacForm && (
-            <button onClick={() => vacationOn ? disableVacation() : setShowVacForm(true)} style={{ background: C.accent, color: '#fff', border: `1px solid ${C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginLeft: 16, whiteSpace: 'nowrap' }}>
+            <button onClick={() => vacationOn ? disableVacation() : setShowVacForm(true)} disabled={vacationBusy} style={{ background: C.accent, color: '#fff', border: `1px solid ${C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy ? 'default' : 'pointer', opacity: vacationBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
               {vacationOn ? 'Poista lomamoodi' : 'Ota käyttöön'}
             </button>
           )}
         </div>
 
-        {vacationOn && (
+        {vacationError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{vacationError}</div>}
+
+        {vacationOn && !showVacForm && (
           <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B33', borderRadius: 8, padding: '12px 14px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>Lomamoodi on päällä</div>
-            <div style={{ fontSize: 13, color: C.textSub }}>Lähetysaika on tällä hetkellä 7 päivää normaalin 48h sijaan.</div>
+            <div style={{ fontSize: 13, color: C.textSub }}>Lähetysaika on tällä hetkellä 7 päivää normaalin 48h sijaan. Näkyy myös julkisessa profiilissasi.</div>
             {vacationUntil && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Päättyy: {vacationUntil}</div>}
             {vacationMsg && <div style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>"{vacationMsg}"</div>}
           </div>
@@ -203,7 +215,7 @@ export default function ProfiiliPage() {
         {showVacForm && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={lbl}>Loma päättyy (valinnainen)</label>
+              <label style={lbl}>Loma päättyy</label>
               <input type="date" value={vacationUntil} onChange={e => setVacationUntil(e.target.value)} style={inp} />
             </div>
             <div>
@@ -211,10 +223,10 @@ export default function ProfiiliPage() {
               <textarea value={vacationMsg} onChange={e => setVacationMsg(e.target.value)} placeholder="esim. Olen lomalla 10.8. asti, tilaukset lähtevät viimeistään 11.8." rows={2} style={{ ...inp, resize: 'vertical' as const }} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={saveVacation} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={saveVacation} disabled={vacationBusy || !vacationUntil} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy || !vacationUntil ? 'default' : 'pointer', opacity: vacationBusy || !vacationUntil ? 0.7 : 1 }}>
                 Tallenna
               </button>
-              <button onClick={() => setShowVacForm(false)} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '9px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              <button onClick={() => setShowVacForm(false)} disabled={vacationBusy} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '9px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
                 Peruuta
               </button>
             </div>

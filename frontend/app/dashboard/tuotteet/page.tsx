@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
-import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { api } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
@@ -24,7 +24,7 @@ interface Product {
   startPrice: number; buyNowPrice?: number; reservePrice?: number; bidIncrement?: number
   auctionDuration?: number; quantity: number; condition?: string
   description?: string; imageUrl?: string; category?: string
-  alakategoria?: string; city?: string; pakettikoko?: string; status: string
+  alakategoria?: string; tyyppi?: string; city?: string; pakettikoko?: string; status: string
 }
 
 export default function TuotteetPage() {
@@ -42,6 +42,7 @@ export default function TuotteetPage() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [alakategoria, setAlakategoria] = useState('')
+  const [tyyppi, setTyyppi] = useState('')
   const [city, setCity] = useState('')
   const [condition, setCondition] = useState('')
   const [quantity, setQuantity] = useState('1')
@@ -75,7 +76,7 @@ export default function TuotteetPage() {
   }
 
   function reset() {
-    setSaleType('live'); setName(''); setCategory(''); setAlakategoria('')
+    setSaleType('live'); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
     setCity('')
     setCondition(''); setQuantity('1'); setDescription(''); setImages([])
     setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
@@ -85,7 +86,7 @@ export default function TuotteetPage() {
 
   function openEdit(p: Product) {
     setEditId(p.id); setSaleType(p.saleType); setName(p.name)
-    setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? '')
+    setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
     setCity(p.city ?? '')
     setCondition(p.condition ?? ''); setQuantity(String(p.quantity ?? 1))
     setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
@@ -135,7 +136,7 @@ export default function TuotteetPage() {
       auctionDurationHours: saleType === 'auction' ? auctionDurationHours : undefined,
       quantity: Number(quantity) || 1,
       condition: condition || undefined, category: category || undefined,
-      alakategoria: alakategoria || undefined, city: city.trim() || undefined, pakettikoko: pakettikoko || undefined,
+      alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined, pakettikoko: pakettikoko || undefined,
       description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
     }
 
@@ -162,6 +163,7 @@ export default function TuotteetPage() {
   }
 
   const currentKat = KATEGORIAT.find(k => k.id === category)
+  const currentAla: any = currentKat?.alakategoriat.find((a: any) => a.id === alakategoria)
   const paketti = PAKETTIKOOT.find(p => p.id === pakettikoko)
   const pending = products.filter(p => p.status === 'PENDING')
 
@@ -244,19 +246,28 @@ export default function TuotteetPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
                   <label style={lbl}>Kategoria</label>
-                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={inp}>
+                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp}>
                     <option value="">Valitse...</option>
-                    {KATEGORIAT.map(k => <option key={k.id} value={k.id}>{k.nimi.fi}</option>)}
+                    {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi.fi}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={lbl}>Alakategoria</label>
-                  <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={inp} disabled={!currentKat || currentKat.alakategoriat.length === 0}>
+                  <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={!currentKat || currentKat.alakategoriat.length === 0}>
                     <option value="">Valitse...</option>
                     {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
                   </select>
                 </div>
               </div>
+              {currentAla?.tyypit?.length > 0 && (
+                <div>
+                  <label style={lbl}>Tyyppi</label>
+                  <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp}>
+                    <option value="">Valitse...</option>
+                    {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
+                  </select>
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
                   <label style={lbl}>Kunto</label>
@@ -392,13 +403,14 @@ export default function TuotteetPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pending.map((p, i) => {
               const kat = KATEGORIAT.find(k => k.id === p.category)
-              const ala = kat?.alakategoriat.find(a => a.id === p.alakategoria)
+              const ala: any = kat?.alakategoriat.find((a: any) => a.id === p.alakategoria)
+              const ty = ala?.tyypit?.find((t: any) => t.id === p.tyyppi)
               const sl = saleLabel[p.saleType] ?? saleLabel.live
               const priceLine = (
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <span>{p.startPrice}€</span>
                   {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
-                  {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}</span>}
+                  {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
                 </div>
               )
               const badge = <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>{sl.label}</span>

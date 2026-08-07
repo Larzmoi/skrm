@@ -78,6 +78,8 @@ model User {
   termsAcceptedAt   DateTime?
   privacyAcceptedAt DateTime?
   policyAcceptedAt  DateTime?
+  vacationUntil    DateTime?
+  vacationMessage  String?
   role             Role     @default(USER)
   stripeCustomerId String?
   stripeAccountId  String?
@@ -139,6 +141,7 @@ model Product {
   imageUrl        String?
   category        String?
   alakategoria    String?
+  tyyppi          String?       // kolmas kategoriataso — toistaiseksi vain Keräilykortit-kategorian peleillä (esim. "slabit"/"sealed"/"irtokortit")
   city            String?
   condition       String?
   startPrice      Float

@@ -366,8 +366,17 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           }
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{show?.seller?.username?.[0]?.toUpperCase() ?? '?'}</div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show?.seller?.username ?? '...'}</span>
+              {show?.seller?.username ? (
+                <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{show.seller.username[0].toUpperCase()}</div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show.seller.username}</span>
+                </Link>
+              ) : (
+                <>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>?</div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
+                </>
+              )}
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite' }} />
             </div>
             <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
@@ -412,8 +421,17 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: '-0.5px' }}>SKRM</Link>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1A1A1A', borderRadius: 20, padding: '5px 12px 5px 8px' }}>
-          <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>{show?.seller?.username?.[0]?.toUpperCase() ?? '?'}</div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show?.seller?.username ?? '...'}</span>
+          {show?.seller?.username ? (
+            <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>{show.seller.username[0].toUpperCase()}</div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show.seller.username}</span>
+            </Link>
+          ) : (
+            <>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>?</div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
+            </>
+          )}
           <span style={{ fontSize: 12, color: '#555' }}>· {viewers} {t.live.viewers}</span>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', marginLeft: 4 }} />
         </div>

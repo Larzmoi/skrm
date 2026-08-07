@@ -17,6 +17,8 @@ interface User {
   businessId?: string
   usernameChangedAt?: string | null
   role?: 'USER' | 'ADMIN'
+  vacationUntil?: string | null
+  vacationMessage?: string | null
 }
 
 interface AuthCtx {
