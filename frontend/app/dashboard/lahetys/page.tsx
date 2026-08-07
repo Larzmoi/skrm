@@ -223,6 +223,9 @@ export default function LahetysPage() {
   const timerColor = auction.timer > 60 ? C.accent : auction.timer > 20 ? '#F59E0B' : '#EF4444'
   const isLast = currentIndex >= products.length - 1
   const isSold = currentProduct && soldItems.includes(currentProduct.id)
+  // Huutokauppa käyty läpi nykyiselle tuotteelle — joko myyty tai päättyi ilman tarjouksia.
+  // "Seuraava tuote" pitää päästä painamaan kummassakin tapauksessa, ei vain kun myytiin.
+  const auctionDoneForCurrent = !!currentProduct && !auction.active && auction.productId === currentProduct.id
 
   return (
     <div style={{ color: C.text }}>
@@ -404,8 +407,8 @@ export default function LahetysPage() {
                   <button onClick={endAuction} style={{ flex: 1, background: C.surface2, border: '1px solid #EF4444', color: '#EF4444', padding: '9px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta huutokauppa</button>
                 </div>
               )}
-              {isSold && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '12px', borderRadius: 9, fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 4 }}>Seuraava tuote →</button>}
-              {isSold && isLast && (
+              {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '12px', borderRadius: 9, fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 4 }}>Seuraava tuote →</button>}
+              {auctionDoneForCurrent && isLast && (
                 <div style={{ textAlign: 'center', marginTop: 4 }}>
                   <div style={{ color: C.accent, fontWeight: 700, marginBottom: 10 }}>Kaikki tuotteet käyty läpi!</div>
                   <button onClick={endShow} style={{ background: C.surface2, border: '1px solid #EF4444', color: '#EF4444', padding: '10px 22px', borderRadius: 9, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Lopeta lähetys</button>
