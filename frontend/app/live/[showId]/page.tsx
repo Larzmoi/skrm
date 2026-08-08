@@ -45,7 +45,16 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
       // lowLatencyMode:a hls.js kohtelisi striimiä tavallisena HLS:nä eikä hyödyntäisi
       // osittaisia segmenttejä matalaan viiveeseen pääsemiseksi. liveSyncDurationCount pitää
       // toiston lähellä live-reunaa, maxLiveSyncPlaybackRate kiriyttää takaisin jos jäädään jälkeen.
-      const hls = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
+      //
+      // xhrSetup: withCredentials = true on PAKOLLINEN - MediaMTX vaatii session-cookien
+      // jokaisella segmentti/part-haulla, ja app.skrm.fi + stream.skrm.fi ovat selaimen
+      // näkökulmasta ERI origineja (eri subdomain). Ilman tätä selain ei lähetä cookieta
+      // cross-origin-pyynnöissä ja JOKAINEN segmenttihaku palautuu 401:nä - juuri tämä
+      // aiheutti "video ei toimi ollenkaan" -regression 2026-08-09 (ks. CLAUDE.md).
+      const hls = new Hls({
+        lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3,
+        xhrSetup: (xhr) => { xhr.withCredentials = true },
+      })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
 

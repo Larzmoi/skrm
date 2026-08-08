@@ -56,7 +56,15 @@ function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
       // lowLatencyMode: true - MediaMTX tarjoilee LL-HLS:ää (200ms part-kesto), ks. CLAUDE.md
       // "KRIITTINEN TILANNEKATSAUS" / MediaMTX-migraatio. Ilman tätä hls.js kohtelisi striimiä
       // tavallisena HLS:nä eikä hyödyntäisi osittaisia segmenttejä matalan viiveen saamiseksi.
-      const hls = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
+      //
+      // xhrSetup: withCredentials = true on PAKOLLINEN - MediaMTX vaatii session-cookien
+      // jokaisella segmentti/part-haulla, ja app.skrm.fi + stream.skrm.fi ovat selaimen
+      // näkökulmasta ERI origineja. Ilman tätä JOKAINEN segmenttihaku palautuu 401:nä -
+      // tämä aiheutti "video ei toimi ollenkaan" -regression 2026-08-09 (ks. CLAUDE.md).
+      const hls = new Hls({
+        lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3,
+        xhrSetup: (xhr) => { xhr.withCredentials = true },
+      })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
 

@@ -139,8 +139,6 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 - **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
 - `socket.ts`:n live-lähetyksen socket-pohjainen huutojärjestelmä ei käytä `bidIncrement`-minimikorotusta ollenkaan (korjattu vain `auctions.ts`:ssä, perinteisille huutokaupoille)
 - Selaa-sivun saleType-kuplat (Kaikki/Suoramyynti/Huutokaupat) voivat olla turha kaksinkertainen jaottelu Navbarin ylätason navigoinnin kanssa — ei päätetty, ks. "Selaa-sivun saleType-kuplat" alempana
-- ✅ **KORJATTU 2026-08-09 — `/lahetys` saattoi resumeta päiviä vanhan unohdetun SCHEDULED-testiluonnoksen** ("jatka olemassa olevaa lähetystä" -korjauksen sivuvaikutus, ks. "Live-konsolin mobiilikorjaukset" -osio) — myyjä päätyi hämmentävästi vanhaan lähetykseen tajuamatta miksi. SCHEDULED resumetaan nyt vain jos alle 3h vanha.
-- **`GET /products/mine` palauttaa täydet base64-kuvat joka kerta, ei vain thumbnaileja** — havaittu 2026-08-09 kun testi2-tunnuksen 5 tuotteen vastaus oli ~480KB (lähes kokonaan kuvadataa). Ei vahvistettu suoraksi syyksi käyttäjän kokemaan "Tuotteiden lataus epäonnistui" -virheeseen, mutta plausiibeli kontribuuttori hitaalla/epävakaalla mobiiliyhteydellä (sama luokka ongelmaa kuin muissakin tämän session mobiili-NAT-löydöksissä). Liittyy jo tiedossa olevaan tekniseen velkaan "Cloudflare R2 — kuvat pois tietokannasta" (ks. "Tekemättä"-lista kohta 7) — ei erillistä pikakorjausta tehty, koska oikea ratkaisu on se jo suunniteltu R2-migraatio, ei paikkaus tälle yhdelle reitille.
 
 ## Infrastruktuuri
 
@@ -434,24 +432,43 @@ Kilpailuedusta johtuen tämä on nyt ensimmäinen tehtävä ennen mitään muuta
 ### Tärkeä korjaus tilannekuvaan (2026-08-09, omistajan tarkennus)
 Omistaja tarkensi: nämä kolme bugia (erityisesti näkyvyys ja mobiilichat) **ei ole yksittäisiä, uusia löydöksiä** — niitä on yritetty korjata 3-5 kertaa aiemmin vaihtelevin tuloksin ("välillä toimii, välillä ei"). **Tämä on signaali, ei sattuma:** toistuva, epäjohdonmukainen epäonnistuminen samassa asiassa useiden korjausyritysten jälkeen tarkoittaa että nykyinen perusta (nginx-rtmp:n klassinen HLS + vakio-Socket.io epävakaiden mobiiliverkkojen yli) on rakenteellisesti liian hauras tähän käyttötarkoitukseen, ei että joku yksittäinen rivi koodia olisi väärin. **Vaatimus on ehdoton: 99% ajasta pitää toimia sulavasti, ei "yleensä toimii".** MediaMTX-migraatio ei siis ole vain latenssikorjaus — se on koko epäluotettavan perustan korvaaminen kunnolla suunnitellulla ratkaisulla.
 
-### MediaMTX-migraatio — ✅ PYSTYSSÄ TUOTANNOSSA 2026-08-09, EI VIELÄ VAHVISTETTU OIKEALLA OBS:LLA/PUHELIMELLA
-**Tehty ja synteettisesti vahvistettu:**
-- MediaMTX v1.20.0 asennettu Hetznerille (`/opt/mediamtx`, systemd-palvelu `mediamtx.service`, `enable`d eli käynnistyy automaattisesti rebootissa) — korvaa nginx-rtmp-moduulin RTMP-vastaanoton kokonaan (`/etc/nginx/rtmp.conf`-include poistettu käytöstä nginx.conf:sta, ei poistettu levyltä)
-- **OBS-asetukset EIVÄT muuttuneet** — sama `rtmp://stream.skrm.fi/live` + pysyvä stream key toimii edelleen, koska MediaMTX konfiguroitu hyväksymään sama `live/{key}`-polkumuoto
-- LL-HLS-ulostulo (`hlsVariant: lowLatency`, 200ms part-kesto, 0.5s hold-back) — vahvistettu synteettisellä ffmpeg-julkaisulla tuotantoa vasten: oikeat `EXT-X-PART`-tagit manifestissa, ei vain tavallinen HLS
-- `runOnAvailable`/`runOnUnavailable`-hookit kutsuvat samoja `POST /webhooks/rtmp/start`/`/rtmp/done`-reittejä kuin ennen (muuttumattomina) — vahvistettu synteettisesti että both julkaisu ja lopetus laukaisevat oikein
-- nginx `stream.skrm.fi`: proxaa `/`:n MediaMTX:n paikalliseen HLS-porttiin (127.0.0.1:8888, ei julkisesti auki), `proxy_buffering off` jottei nginx söisi viiveetua puskuroimalla
-- Backend: `hlsUrlFor()` uuteen URL-muotoon (`/live/{key}/index.m3u8`), `HLS_BASE_URL`-env päivitetty palvelimella
-- Frontend: `lowLatencyMode: true` hls.js:lle sekä myyjän esikatselussa (`HlsPreview`) että ostajan soittimessa (`VideoPlayer`) — vahvistettu buildatussa JS:ssä
-- WebRTC/RTSP/SRT/MoQ tietoisesti pois päältä (ei tarvita, vähemmän avoimia portteja). WebRTC jätettiin pois nimenomaan koska mobiilioperaattoreiden NAT-ongelmat (ks. yllä) tekisivät siitä epäluotettavan ilman TURN-releätä — LL-HLS on pelkkää HTTPS:ää, samaa protokollaa joka jo läpäisee mobiiliverkot (hitaasti, mutta läpäisee)
+### Chat/Socket-arkkitehtuurin uudelleenarviointi (SUUNNITELTU, seuraa MediaMTX:n jälkeen)
+Sama diagnoosi kuin MediaMTX-päätöksessä: mobiilichat epäonnistuu toistuvasti tietyllä operaattoriverkolla useiden korjausyritysten (transport fallback, ping-timeoutit, nginx-timeoutit) jälkeenkin — merkki väärästä perustasta, ei yksittäisestä bugista.
 
-**Rehellisesti auki vielä — EI merkitä valmiiksi ennen näitä:**
-1. **Oikea päästä-päähän-viive OBS:lla mittaamatta.** Synteettinen ffmpeg-testi vahvisti vain että putki teknisesti toimii ja LL-HLS-tagit ovat oikein — ei mittaa todellista selain/verkko/pelaajaviivettä. **Vaatii omistajan oikean OBS-striimin + kellon (esim. stopwatch kameralle, katso viive selaimessa).**
-2. **Näkyvyyden 99%-onnistumisaste testaamatta.** Vaatii useamman peräkkäisen live-yrityksen, ei yhtä kertaa.
-3. **Mobiilichat mobiilidatalla testaamatta uuden pingInterval-korjauksen jälkeen** — tämä ei liity MediaMTX:ään ollenkaan (chat pysyy Socket.io:ssa, MediaMTX koskee vain videota), mutta on yhä auki oleva osa-alue samasta kolmen bugin listasta.
-4. Vanhat testilähetykset (`Show.hlsUrl`-kentässä tallennettu vanha `/hls/{key}.m3u8`-muotoinen URL) eivät toimi enää — ei haittaa, ne olivat kertakäyttöistä testidataa, mutta jos jokin vanha SCHEDULED-lähetys yritetään resumeta, sen `hlsUrl` pitää päivittää manuaalisesti tai luoda lähetys uudestaan.
+**Suunta:** siirretään reaaliaikaliikenne (chat, presence/katsojamäärä, moderointitapahtumat) omalta Socket.io-palvelimelta **managed pub/sub-palveluun** (Pusher tai Ably, ei Firebase — teidän malli, huoneet/broadcast/presence, sopii pub/sub-mallille paremmin kuin Firebasen dokumenttisynkronointiin). Sama etu kuin MediaMTX:ssä: operaattoriverkkojen NAT-ongelmien selvittäminen tulee palveluntarjoajan vastuulle globaalissa mittakaavassa, ei yhden VPS:n varaan.
 
-**Löydös 2026-08-09 — "jumittunut" RTMP-yhteys esti uudelleenyhdistämisen:** omistajan testissä nähtiin TCP-tasolla yhteys joka pysyi `ESTABLISHED`-tilassa yli 7 minuuttia ilman että uutta HLS-sisältöä syntyi (todennäköisesti epävakaa verkko OBS:n ja palvelimen välillä — paketit katosivat toiseen suuntaan mutta TCP-yhteys ei katkennut puhtaasti). Koska MediaMTX sallii vain yhden julkaisijan per polku, tämä esti myyjän OBS:n uudelleenyhdistymisen samalla stream keyllä kunnes palvelu käynnistettiin uudelleen manuaalisesti. **Korjaus:** `readTimeout`/`writeTimeout` tiukennettu MediaMTX:n oletuksesta (10s/10s) arvoihin `5s`/`5s` `/opt/mediamtx/mediamtx.yml`:ssä (ei git-repossa, vain palvelimella) — havaitsee jumiutuneen yhteyden nopeammin ja vapauttaa polun OBS:n oman uudelleenyhdistyslogiikan käyttöön. **Rehellinen varaus:** tämä on lievennys, ei täydellinen ratkaisu — RTMP TCP:n päällä on rakenteellisesti herkkä pakettihäviölle (TCP yrittää uudelleenlähetystä sen sijaan että pudottaisi framen niin kuin UDP-pohjainen protokolla tekisi). Jos tämä toistuu usein epävakaissa verkko-olosuhteissa, SRT (jota MediaMTX tukee, nyt pois päältä) olisi seuraava harkittava vaihtoehto — suunniteltu nimenomaan häviöllisille verkoille paremmin kuin RTMP.
+**Tärkeä rajaus, isompi kuin MediaMTX-vaihto:** video oli puhdas protokollaraja (RTMP sisään, eri ulostuloprotokolla, ei bisneslogiikkaa siinä välissä). Socket välittää myös huutologiikkaa, snipe-protection-ajastimia ja moderointia — oikeaa bisneslogiikkaa, ei vain viestinvälitystä. Pub/sub-palvelu on "tyhmä putki", joten:
+- **Pub/sub-palveluun siirtyy:** chat-viestit, presence/katsojamäärä, moderointi-ilmoitukset (mute/poisto) — puhdas tapahtumien jakelu kaikille kuuntelijoille
+- **Backendille jää:** huutojen validointi, snipe-protection-ajastimet, kaikki raha-/kauppalogiikka — pysyy REST-API:n takana, ei koskaan suoraan client-to-client. Pub/sub vain ilmoittaa lopputuloksen sen jälkeen kun backend on jo validoinut ja tallentanut.
+
+**Ennen toteutusta, vaadittu suunnitelma:**
+1. Konkreettinen vertailu Pusher vs. Ably — hinnoittelu SKRM:n mittakaavassa, presence-tuen kypsyys, server-side-validoidun event-julkaisun tuki
+2. Selkeä, kirjallinen raja mikä siirtyy pub/subiin vs. mikä pysyy backendillä (ks. yllä alustava jako)
+
+**Sekvensointi: EI aloiteta ennen kuin MediaMTX on vahvistettu toimivaksi tuotannossa.** Kaksi isoa reaaliaikainfran migraatiota yhtä aikaa on tarpeeton riski — MediaMTX on kiireellisempi (suoraan kilpailuedun ydin, ks. "KRIITTINEN TILANNEKATSAUS"). Suunnitelman voi kuitenkin laatia rinnakkain nyt, vain itse toteutus odottaa.
+
+### ⚠️ REGRESSIO 2026-08-09 — video ei toimi ENÄÄN OLLENKAAN (oli välillä toimiva, nyt ei koskaan)
+Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii n. 50% ajasta" -tilasta täysin toimimattomaksi. **Tämä on regressio, ei sama vanha ongelma.** Selkeä prioriteettijärjestys omistajalta, ei teknisiä mieltymyksiä toteutustavasta:
+1. **Video/striimi toimimaan luotettavasti ENSIN** — tämä on ainoa tavoite juuri nyt, ei latenssin hienosäätö eikä chat
+2. Chat vasta sen jälkeen kun video on vahvistetusti toimiva
+
+**Toimintaohje:** jos MediaMTX-migraatio on kesken ja epävakaa, harkitse palauttaa väliaikaisesti edellinen toimiva nginx-rtmp-tila (parempi hidas mutta toimiva kuin nopea mutta rikki), ja jatka MediaMTX-työtä huolellisemmin taustalla ilman että tuotanto on rikki sillä välin. Toteutustapa ei ole tärkeä omistajalle — lopputulos ("kuva tulee luotettavasti perille") on.
+
+### ✅ Juurisyy löydetty ja korjattu 2026-08-09 — ei epävakaus, vaan puuttuva CORS-credentials
+
+**Ei ollut MediaMTX:n epävakautta eikä vaatinut nginx-rtmp:hen palaamista.** Diagnosoitiin suoraan tuotannosta: manifesti (.m3u8) latautui aina onnistuneesti, mutta JOKAINEN yksittäinen video/ääni-segmentti (.mp4) palautti **401 Unauthorized** — vahvistettu curlilla sekä ilman evästepurkkia (401) että evästepurkin kanssa (200), mikä paljasti tarkan mekanismin:
+
+- MediaMTX vaatii `hlsSession`-evästeen jokaisella segmentti/part-haulla (asetetaan manifestin 302-uudelleenohjauksella) — nginx-rtmp:n vanha, staattisiin tiedostoihin perustuva HLS-jakelu ei koskaan tarvinnut mitään vastaavaa istuntomekanismia, joten tämä on aidosti UUSI vaatimus jonka MediaMTX toi mukanaan.
+- `app.skrm.fi` (frontend) ja `stream.skrm.fi` (video) ovat selaimen näkökulmasta **eri origineja** (eri subdomain) — cross-origin-pyynnöissä selain EI lähetä evästeitä oletuksena, ja hls.js ei pyytänyt credentials-tilaa oletuksena.
+- Vanha nginx-CORS-konfiguraatio käytti wildcard-origin (`Access-Control-Allow-Origin: *`), mikä on **teknisesti mahdotonta yhdistää credentialed-pyyntöihin** (selaimen oma CORS-spesifikaatio kieltää tämän yhdistelmän) — vaikka olisi yrittänyt lisätä credentials-tuen, wildcard olisi silti estänyt sen.
+- Lopputulos: jokainen segmenttihaku hylättiin 401:llä heti alusta asti, hls.js ajautui toistuvaan fataali-virhe-uudelleenyrityssilmukkaan (uusi HLS-sessio n. 3s välein loputtomiin) — täsmälleen havaittu "video ei toimi ollenkaan" -oire.
+
+**Korjaus (kolme muutosta yhdessä):**
+1. `mediamtx.yml`: `hlsAllowOrigins: ["*"]` → `["https://app.skrm.fi"]` (tarkka origin, ei wildcard)
+2. nginx `stream.skrm.fi`: poistettu duplikoitu wildcard-CORS-header (MediaMTX lähettää jo omansa), lisätty `Access-Control-Allow-Credentials: true` (MediaMTX ei lähetä tätä itse)
+3. Frontend (`HlsPreview`, `VideoPlayer`): `xhrSetup: (xhr) => { xhr.withCredentials = true }` hls.js-konfiguraatioon molemmissa soittimissa — ilman tätä selain ei olisi lähettänyt evästettä vaikka palvelinpuoli sallisi sen
+
+**Erillinen, tarkoituksella koskematon löydös samalla kertaa — OBS:n keyframe-väli:** oikean OBS-striimin segmentit olivat **~8.3 sekuntia** pitkiä (40+ osaa á 0.2s per segmentti) vaikka `hlsSegmentDuration: 1s` on konfiguroitu — HLS/LL-HLS ei voi teknisesti katkaista segmenttiä muualta kuin keyframe-kohdasta, joten OBS:n keyframe-väli (todennäköisesti oletusarvo, ei manuaalisesti asetettu) sanelee todellisen segmenttipituuden riippumatta MediaMTX:n asetuksesta. Tämä ei estänyt videon toimimista (CORS-korjauksen jälkeen segmentit LATAUTUVAT, vain harvemmin/isompina), mutta **estää alle 6s-viivetavoitteen saavuttamisen** kunnes OBS:n encooderin keyframe-väli asetetaan lyhyeksi (esim. 1-2s). **Ei korjattu vielä — odottaa omistajan lupaa latenssityöhön videoluotettavuuden vahvistamisen jälkeen, LUKITTU-priorisoinnin mukaisesti.**
 
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
 
@@ -577,9 +594,6 @@ Tätä projektia kehitetään **kahdessa rinnakkaisessa kanavassa**, molemmat sa
 Tämä tarkoittaa: **palvelin, tietokanta, nginx-konfiguraatio ja CLAUDE.md itse voivat muuttua ilman että VS Coden Claude on tehnyt sitä** — ei kyse ulkopuolisesta toimijasta tai turvallisuusuhkasta, vaan Johanista joka työskentelee kahdella eri kanavalla saman projektin parissa. Jos näet muutoksia joita et tee muistaakseen tehneesi (esim. uusi git-commit, palvelimen tila muuttunut, nginx-konfiguraatio toisenlainen kuin viimeksi), tarkista ensin tilanne Johanilta ennen kuin oletat jotain vialliseksi — todennäköisin selitys on tämä rinnakkainen kanava, ei bugi tai tunkeutuja.
 
 Koko Hetzner-migraatio (2026-08-07, ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio) tehtiin juuri tällä tavalla — suoraan Claude.ai-keskustelussa annetuin komennoin, ei VS Coden Claude Codella.
-
-### Älä testaa synteettisesti myyjän oikean käyttäjätilin streamKeytä vasten kun tuotantotestaus voi olla käynnissä (opittu 2026-08-09)
-RTMP-julkaisu sallii vain yhden julkaisijan per polku kerrallaan (MediaMTX, aiemmin nginx-rtmp). Kun Johan testaa OBS:lla tuotantoa vasten SAMAAN AIKAAN kun täällä ajetaan omaa synteettistä ffmpeg-testiä samalla streamKeyllä, kahden julkaisijan yhteydet kilpailevat samasta polusta — nähtiin suoraan lokeista (oma testi + ulkoinen IP julkaisemassa samaan polkuun sekunnin sisällä toisistaan). Tämä näkyy Johanille juuri MediaMTX-migraation kaltaisten oireiden yhdistelmänä ("Odotetaan OBS-yhteyttä..." jää jumiin vaikka OBS on oikeasti yhdistetty) ilman että kyse on oikeasti koodivirheestä — pelkkä kahden julkaisijan törmäys. **Jos pitää testata synteettisesti RTMP:n/HLS:n toimintaa MediaMTX:n tai vastaavan kautta, käytä joko selvästi eri/keksittyä stream keytä (polku ei ole sidottu oikeaan käyttäjään, backend-webhook vain hylkää sen 403:lla, ei haittaa) tai varmista ensin ettei Johan ole juuri silloin itse aktiivisesti striimaamassa.**
 
 ## Kategoriafokus: Keräilykortit ainoana (PÄÄTETTY — palautettavissa)
 
