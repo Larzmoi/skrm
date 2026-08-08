@@ -432,6 +432,23 @@ Kilpailuedusta johtuen tämä on nyt ensimmäinen tehtävä ennen mitään muuta
 ### Tärkeä korjaus tilannekuvaan (2026-08-09, omistajan tarkennus)
 Omistaja tarkensi: nämä kolme bugia (erityisesti näkyvyys ja mobiilichat) **ei ole yksittäisiä, uusia löydöksiä** — niitä on yritetty korjata 3-5 kertaa aiemmin vaihtelevin tuloksin ("välillä toimii, välillä ei"). **Tämä on signaali, ei sattuma:** toistuva, epäjohdonmukainen epäonnistuminen samassa asiassa useiden korjausyritysten jälkeen tarkoittaa että nykyinen perusta (nginx-rtmp:n klassinen HLS + vakio-Socket.io epävakaiden mobiiliverkkojen yli) on rakenteellisesti liian hauras tähän käyttötarkoitukseen, ei että joku yksittäinen rivi koodia olisi väärin. **Vaatimus on ehdoton: 99% ajasta pitää toimia sulavasti, ei "yleensä toimii".** MediaMTX-migraatio ei siis ole vain latenssikorjaus — se on koko epäluotettavan perustan korvaaminen kunnolla suunnitellulla ratkaisulla.
 
+### MediaMTX-migraatio — ✅ PYSTYSSÄ TUOTANNOSSA 2026-08-09, EI VIELÄ VAHVISTETTU OIKEALLA OBS:LLA/PUHELIMELLA
+**Tehty ja synteettisesti vahvistettu:**
+- MediaMTX v1.20.0 asennettu Hetznerille (`/opt/mediamtx`, systemd-palvelu `mediamtx.service`, `enable`d eli käynnistyy automaattisesti rebootissa) — korvaa nginx-rtmp-moduulin RTMP-vastaanoton kokonaan (`/etc/nginx/rtmp.conf`-include poistettu käytöstä nginx.conf:sta, ei poistettu levyltä)
+- **OBS-asetukset EIVÄT muuttuneet** — sama `rtmp://stream.skrm.fi/live` + pysyvä stream key toimii edelleen, koska MediaMTX konfiguroitu hyväksymään sama `live/{key}`-polkumuoto
+- LL-HLS-ulostulo (`hlsVariant: lowLatency`, 200ms part-kesto, 0.5s hold-back) — vahvistettu synteettisellä ffmpeg-julkaisulla tuotantoa vasten: oikeat `EXT-X-PART`-tagit manifestissa, ei vain tavallinen HLS
+- `runOnAvailable`/`runOnUnavailable`-hookit kutsuvat samoja `POST /webhooks/rtmp/start`/`/rtmp/done`-reittejä kuin ennen (muuttumattomina) — vahvistettu synteettisesti että both julkaisu ja lopetus laukaisevat oikein
+- nginx `stream.skrm.fi`: proxaa `/`:n MediaMTX:n paikalliseen HLS-porttiin (127.0.0.1:8888, ei julkisesti auki), `proxy_buffering off` jottei nginx söisi viiveetua puskuroimalla
+- Backend: `hlsUrlFor()` uuteen URL-muotoon (`/live/{key}/index.m3u8`), `HLS_BASE_URL`-env päivitetty palvelimella
+- Frontend: `lowLatencyMode: true` hls.js:lle sekä myyjän esikatselussa (`HlsPreview`) että ostajan soittimessa (`VideoPlayer`) — vahvistettu buildatussa JS:ssä
+- WebRTC/RTSP/SRT/MoQ tietoisesti pois päältä (ei tarvita, vähemmän avoimia portteja). WebRTC jätettiin pois nimenomaan koska mobiilioperaattoreiden NAT-ongelmat (ks. yllä) tekisivät siitä epäluotettavan ilman TURN-releätä — LL-HLS on pelkkää HTTPS:ää, samaa protokollaa joka jo läpäisee mobiiliverkot (hitaasti, mutta läpäisee)
+
+**Rehellisesti auki vielä — EI merkitä valmiiksi ennen näitä:**
+1. **Oikea päästä-päähän-viive OBS:lla mittaamatta.** Synteettinen ffmpeg-testi vahvisti vain että putki teknisesti toimii ja LL-HLS-tagit ovat oikein — ei mittaa todellista selain/verkko/pelaajaviivettä. **Vaatii omistajan oikean OBS-striimin + kellon (esim. stopwatch kameralle, katso viive selaimessa).**
+2. **Näkyvyyden 99%-onnistumisaste testaamatta.** Vaatii useamman peräkkäisen live-yrityksen, ei yhtä kertaa.
+3. **Mobiilichat mobiilidatalla testaamatta uuden pingInterval-korjauksen jälkeen** — tämä ei liity MediaMTX:ään ollenkaan (chat pysyy Socket.io:ssa, MediaMTX koskee vain videota), mutta on yhä auki oleva osa-alue samasta kolmen bugin listasta.
+4. Vanhat testilähetykset (`Show.hlsUrl`-kentässä tallennettu vanha `/hls/{key}.m3u8`-muotoinen URL) eivät toimi enää — ei haittaa, ne olivat kertakäyttöistä testidataa, mutta jos jokin vanha SCHEDULED-lähetys yritetään resumeta, sen `hlsUrl` pitää päivittää manuaalisesti tai luoda lähetys uudestaan.
+
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
 
 0. **Live-lähetyksen esikatselu ennen julkista näkyvyyttä** (ks. osio alla) — kriittinen ennen julkaisua, havaittu juuri OBS-testauksessa Hetznerillä, kaiken edellä koska striimaus on paraikaa aktiivisessa testauksessa
