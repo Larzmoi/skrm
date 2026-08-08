@@ -40,12 +40,12 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
     if (!video) return
 
     if (Hls.isSupported()) {
-      // liveSyncDurationCount pienempi kuin hls.js:n oletus (3) — pyrkii pysymään lähempänä
-      // live-reunaa, ja maxLiveSyncPlaybackRate nopeuttaa toistoa hieman jos jäädään jälkeen,
-      // jotta katsoja kiriytyy takaisin lähelle reaaliaikaa ilman manuaalista puuttumista.
-      // Ks. CLAUDE.md "Striimin viive" — tämä on Vaihe 1:n pikaparannus klassiselle HLS:lle,
-      // ei korvaa Vaihe 2:n (MediaMTX) todellista alle-5s-ratkaisua.
-      const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
+      // lowLatencyMode: true - MediaMTX (2026-08-09 migraatio nginx-rtmp:stä, ks. CLAUDE.md
+      // "KRIITTINEN TILANNEKATSAUS") tarjoilee LL-HLS:ää 200ms part-kestolla. Ilman
+      // lowLatencyMode:a hls.js kohtelisi striimiä tavallisena HLS:nä eikä hyödyntäisi
+      // osittaisia segmenttejä matalaan viiveeseen pääsemiseksi. liveSyncDurationCount pitää
+      // toiston lähellä live-reunaa, maxLiveSyncPlaybackRate kiriyttää takaisin jos jäädään jälkeen.
+      const hls = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
 

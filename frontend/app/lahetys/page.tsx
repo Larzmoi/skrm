@@ -53,7 +53,10 @@ function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
     setWaiting(true)
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
+      // lowLatencyMode: true - MediaMTX tarjoilee LL-HLS:ää (200ms part-kesto), ks. CLAUDE.md
+      // "KRIITTINEN TILANNEKATSAUS" / MediaMTX-migraatio. Ilman tätä hls.js kohtelisi striimiä
+      // tavallisena HLS:nä eikä hyödyntäisi osittaisia segmenttejä matalan viiveen saamiseksi.
+      const hls = new Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
 

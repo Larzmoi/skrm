@@ -2,10 +2,13 @@ import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 
 export const RTMP_URL = process.env.RTMP_URL || 'rtmp://stream.skrm.fi/live'
-export const HLS_BASE_URL = process.env.HLS_BASE_URL || 'https://stream.skrm.fi/hls'
+// MediaMTX (2026-08-09 migraatio nginx-rtmp:stä, ks. CLAUDE.md "KRIITTINEN TILANNEKATSAUS")
+// tarjoilee LL-HLS:n omalla URL-muodollaan /{path}/index.m3u8 - path on sama kuin RTMP-
+// julkaisupolku ("live/{streamKey}"), joten HLS_BASE_URL ei enää sisällä /hls-päätettä.
+export const HLS_BASE_URL = process.env.HLS_BASE_URL || 'https://stream.skrm.fi'
 
 export function hlsUrlFor(streamKey: string) {
-  return `${HLS_BASE_URL}/${streamKey}.m3u8`
+  return `${HLS_BASE_URL}/live/${streamKey}/index.m3u8`
 }
 
 // Hakee käyttäjän pysyvän stream keyn, generoi sen lazily jos puuttuu (esim. ensimmäinen kerta
