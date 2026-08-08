@@ -25,7 +25,17 @@ dotenv.config()
 const app = express()
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
-  cors: { origin: true, credentials: true } // salli kaikki originit kehityksessä
+  cors: { origin: true, credentials: true }, // salli kaikki originit kehityksessä
+  // Oletus (pingInterval 25s + pingTimeout 20s) kestäisi jopa ~45s ennen kuin palvelin
+  // huomaa kuolleen yhteyden ja pakottaa uudelleenyhdistämisen. Osa mobiilioperaattoreista
+  // suodattaa/pudottaa vain palvelin->asiakas-suunnan liikenteen NAT/middlebox-verkossaan
+  // (asiakas näyttää silti "yhdistettynä" ja pystyy lähettämään, muttei koskaan vastaanota
+  // mitään) — havaittu 2026-08-09 Android-puhelimella mobiilidatalla, toistui sekä Chromella
+  // että Firefoxilla, ei toistunut WiFillä/tietokoneella. Tiukempi ping-aikaraja saa
+  // socket.io:n huomaamaan ja korjaamaan tämän nopeammin sen sijaan että katsoja jäisi
+  // "yhdistettynä mutta mykkänä" -tilaan pitkäksi aikaa.
+  pingInterval: 10000,
+  pingTimeout: 8000,
 })
 
 app.use(cors({
