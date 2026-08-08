@@ -54,11 +54,26 @@ function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
 
     if (Hls.isSupported()) {
       const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
-      hls.loadSource(hlsUrl)
+      let destroyed = false
+      let retryTimer: ReturnType<typeof setTimeout> | null = null
+
       hls.attachMedia(video)
+      hls.loadSource(hlsUrl)
       hls.on(Hls.Events.MANIFEST_PARSED, () => setWaiting(false))
-      hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) setWaiting(true) })
-      return () => hls.destroy()
+      // Manifestia ei vielä löydy kun OBS ei ole vielä ehtinyt yhdistää — hls.js EI yritä
+      // automaattisesti uudestaan fataalin verkkovirheen jälkeen, joten ilman tätä soitin jää
+      // pysyvästi "Odotetaan OBS-yhteyttä..." -tilaan vaikka OBS yhdistyisi hetkeä myöhemmin.
+      // Yritetään siis ladata manifesti uudelleen muutaman sekunnin välein kunnes se onnistuu.
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (!data.fatal || destroyed) return
+        setWaiting(true)
+        retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
+      })
+      return () => {
+        destroyed = true
+        if (retryTimer) clearTimeout(retryTimer)
+        hls.destroy()
+      }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl
       video.addEventListener('loadedmetadata', () => setWaiting(false))

@@ -38,9 +38,23 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
       // Ks. CLAUDE.md "Striimin viive" — tämä on Vaihe 1:n pikaparannus klassiselle HLS:lle,
       // ei korvaa Vaihe 2:n (MediaMTX) todellista alle-5s-ratkaisua.
       const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
-      hls.loadSource(hlsUrl)
+      let destroyed = false
+      let retryTimer: ReturnType<typeof setTimeout> | null = null
+
       hls.attachMedia(video)
-      return () => hls.destroy()
+      hls.loadSource(hlsUrl)
+      // hls.js ei yritä automaattisesti uudestaan fataalin verkkovirheen (esim. manifesti ei
+      // vielä saatavilla, tai hetkellinen katko OBS-yhteydessä) jälkeen — ilman uudelleenyritystä
+      // toisto jäisi pysyvästi jumiin vaikka striimi palautuisi hetkeä myöhemmin.
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (!data.fatal || destroyed) return
+        retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
+      })
+      return () => {
+        destroyed = true
+        if (retryTimer) clearTimeout(retryTimer)
+        hls.destroy()
+      }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl // Safari — natiivi HLS-tuki
     }
