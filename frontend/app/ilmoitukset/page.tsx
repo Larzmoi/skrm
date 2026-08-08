@@ -22,12 +22,17 @@ export default function IlmoituksetPage() {
   const { C } = useTheme()
   const { t } = useLang()
   const router = useRouter()
-  const { notifications, unreadNotifCount, refresh, markAllRead } = useNotifications()
+  const { notifications, unreadNotifCount, refresh, markAllRead, remove } = useNotifications()
 
   async function openNotification(id: string, link: string | null) {
     await notificationApi.markRead(id)
     await refresh()
     if (link) router.push(link)
+  }
+
+  function deleteNotification(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    remove(id)
   }
 
   return (
@@ -53,7 +58,7 @@ export default function IlmoituksetPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {notifications.map(n => (
-              <button
+              <div
                 key={n.id}
                 onClick={() => openNotification(n.id, n.link)}
                 style={{
@@ -68,8 +73,11 @@ export default function IlmoituksetPage() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2, overflowWrap: 'break-word' }}>{n.title}</div>
                   <div style={{ fontSize: 13, color: C.muted, overflowWrap: 'break-word' }}>{n.body}</div>
                 </div>
-                <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(n.createdAt, t)}</div>
-              </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, color: C.muted, whiteSpace: 'nowrap' }}>{timeAgo(n.createdAt, t)}</div>
+                  <button onClick={e => deleteNotification(e, n.id)} title="Poista ilmoitus" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 14, padding: '2px 4px', lineHeight: 1 }}>✕</button>
+                </div>
+              </div>
             ))}
           </div>
         )}

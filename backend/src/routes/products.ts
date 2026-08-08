@@ -83,6 +83,17 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.params.id)
   const product = await prisma.product.findUnique({ where: { id } })
   if (!product || product.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+
+  // Perinteinen huutokauppa jolla on jo huutoja: kategoriaa ei saa enää vaihtaa kesken huutokaupan —
+  // bidaajat ovat voineet löytää/huutaa tuotteen juuri sen kategorian perusteella.
+  const newCategory = req.body.category ?? null
+  const newAlakategoria = req.body.alakategoria ?? null
+  const newTyyppi = req.body.tyyppi ?? null
+  const categoryChanged = newCategory !== product.category || newAlakategoria !== product.alakategoria || newTyyppi !== product.tyyppi
+  if (categoryChanged && product.saleType === 'auction' && product.currentBid != null) {
+    return res.status(400).json({ error: 'Kategoriaa ei voi enää muuttaa — huutokauppa on jo käynnissä' })
+  }
+
   const updated = await prisma.product.update({
     where: { id },
     data: {
@@ -94,8 +105,8 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       auctionDuration: req.body.auctionDuration ? Number(req.body.auctionDuration) : null,
       quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
       condition: req.body.condition ?? null, description: req.body.description ?? null,
-      imageUrl: req.body.imageUrl ?? undefined, category: req.body.category ?? null,
-      alakategoria: req.body.alakategoria ?? null, tyyppi: req.body.tyyppi ?? null, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
+      imageUrl: req.body.imageUrl ?? undefined, category: newCategory,
+      alakategoria: newAlakategoria, tyyppi: newTyyppi, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
     },
   })
   res.json(updated)
@@ -104,8 +115,20 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 // DELETE /products/:id
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.params.id)
-  const product = await prisma.product.findUnique({ where: { id } })
+  const product = await prisma.product.findUnique({ where: { id }, include: { orderItems: true } })
   if (!product || product.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (product.orderItems.length > 0) return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' })
+
+  // Perinteinen huutokauppa: ei voi poistaa jos varaushinta on jo ylittynyt (tai jos ei varaushintaa
+  // ollenkaan ja huuto on jo tullut) — huuto on silloin LUKITTU-säännön mukaisesti sitova.
+  if (product.saleType === 'auction' && product.currentBid != null && (!product.reservePrice || product.currentBid >= product.reservePrice)) {
+    return res.status(400).json({ error: 'Tuotetta ei voi poistaa — varaushinta on ylittynyt, huuto on sitova' })
+  }
+
+  await prisma.autoBid.deleteMany({ where: { productId: id } })
+  await prisma.bid.deleteMany({ where: { productId: id } })
+  await prisma.cartItem.deleteMany({ where: { productId: id } })
+  await prisma.message.updateMany({ where: { productId: id }, data: { productId: null } })
   await prisma.product.delete({ where: { id } })
   res.json({ ok: true })
 })

@@ -82,6 +82,7 @@ export const auctionApi = {
 export const notificationApi = {
   list: () => request('/notifications'),
   markRead: (id?: string) => request('/notifications/read', { method: 'POST', body: JSON.stringify(id ? { id } : {}) }),
+  remove: (id: string) => request(`/notifications/${id}`, { method: 'DELETE' }),
 }
 
 export const reportApi = {

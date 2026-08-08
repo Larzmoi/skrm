@@ -384,35 +384,17 @@ export default function LahetysPage() {
   const elapsedSeconds = liveSince ? Math.floor((now - liveSince) / 1000) : 0
   const todaySales = Object.values(soldAmounts).reduce((sum, v) => sum + v, 0)
 
-  const quickBtn: React.CSSProperties = { flex: '1 1 auto', minWidth: 74, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '9px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }
+  const quickBtn: React.CSSProperties = { flex: '1 1 auto', minWidth: 74, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '10px 6px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }
   const quickBtnDisabled: React.CSSProperties = { ...quickBtn, opacity: 0.4, cursor: 'not-allowed', color: C.muted }
 
   const quickActionsRow = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
-        <span style={{ fontSize: 15 }}>+10s</span>
-        <span>Lisää aikaa</span>
-      </button>
-      <button onClick={() => stub('Kiinnitä')} style={quickBtn}>
-        <span style={{ fontSize: 15 }}>📌</span>
-        <span>Kiinnitä</span>
-      </button>
-      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
-        <span style={{ fontSize: 15 }}>✓</span>
-        <span>Myyty</span>
-      </button>
-      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtn : quickBtnDisabled}>
-        <span style={{ fontSize: 15 }}>→</span>
-        <span>Seuraava</span>
-      </button>
-      <button onClick={() => stub('Giveaway')} style={quickBtn}>
-        <span style={{ fontSize: 15 }}>🎁</span>
-        <span>Giveaway</span>
-      </button>
-      <button onClick={endShow} style={{ ...quickBtn, borderColor: '#EF4444', color: '#EF4444' }}>
-        <span style={{ fontSize: 15 }}>✕</span>
-        <span>Lopeta</span>
-      </button>
+      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>+10s</button>
+      <button onClick={() => stub('Kiinnitä')} style={quickBtn}>Kiinnitä</button>
+      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>Myyty</button>
+      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtn : quickBtnDisabled}>Seuraava</button>
+      <button onClick={() => stub('Giveaway')} style={quickBtn}>Giveaway</button>
+      <button onClick={endShow} style={{ ...quickBtn, borderColor: '#EF4444', color: '#EF4444' }}>Lopeta</button>
     </div>
   )
 
@@ -711,7 +693,7 @@ export default function LahetysPage() {
                         <span style={{ color: C.textSub, overflowWrap: 'break-word' }}>{item.message}</span>
                       </div>
                       <button onClick={() => deleteMessage(item.id)} title="Poista" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>✕</button>
-                      <button onClick={() => muteUser(item.userId)} title="Mykistä" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>🔇</button>
+                      <button onClick={() => muteUser(item.userId)} title="Mykistä" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: 0, flexShrink: 0 }}>MYKISTÄ</button>
                     </div>
                   )
                 })}
@@ -737,10 +719,10 @@ export default function LahetysPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', backdropFilter: 'blur(8px)' }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{fmtDuration(elapsedSeconds)}</span>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>· {viewers} 👁</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>· {viewers} katsojaa</span>
               </div>
               <div style={{ flex: 1 }} />
-              <button onClick={() => setShowObsInfo(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 13, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>⚙</button>
+              <button onClick={() => setShowObsInfo(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>OBS</button>
               <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 13, cursor: 'pointer' }}>✕</button>
             </div>
 

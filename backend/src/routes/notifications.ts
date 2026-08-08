@@ -25,4 +25,11 @@ router.post('/read', authMiddleware, async (req: AuthRequest, res: Response) => 
   res.json({ ok: true })
 })
 
+// DELETE /notifications/:id — poista oma ilmoitus listasta
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { count } = await prisma.notification.deleteMany({ where: { id: String(req.params.id), userId: req.userId! } })
+  if (count === 0) return res.status(404).json({ error: 'Ilmoitusta ei löydy' })
+  res.json({ ok: true })
+})
+
 export default router

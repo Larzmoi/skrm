@@ -20,11 +20,12 @@ interface NotificationCtx {
   unreadMessageCount: number
   refresh: () => Promise<void>
   markAllRead: () => Promise<void>
+  remove: (id: string) => Promise<void>
 }
 
 const NotificationContext = createContext<NotificationCtx>({
   notifications: [], conversations: [], unreadNotifCount: 0, unreadMessageCount: 0,
-  refresh: async () => {}, markAllRead: async () => {},
+  refresh: async () => {}, markAllRead: async () => {}, remove: async () => {},
 })
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
@@ -64,11 +65,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     await refresh()
   }
 
+  async function remove(id: string) {
+    setNotifications(n => n.filter(x => x.id !== id))
+    try { await notificationApi.remove(id) } catch { await refresh() }
+  }
+
   const unreadNotifCount = notifications.filter(n => !n.read).length
   const unreadMessageCount = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
   return (
-    <NotificationContext.Provider value={{ notifications, conversations, unreadNotifCount, unreadMessageCount, refresh, markAllRead }}>
+    <NotificationContext.Provider value={{ notifications, conversations, unreadNotifCount, unreadMessageCount, refresh, markAllRead, remove }}>
       {children}
     </NotificationContext.Provider>
   )

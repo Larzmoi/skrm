@@ -25,6 +25,16 @@ interface Product {
   auctionDuration?: number; quantity: number; condition?: string
   description?: string; imageUrl?: string; category?: string
   alakategoria?: string; tyyppi?: string; city?: string; pakettikoko?: string; status: string
+  currentBid?: number
+}
+
+// Perinteinen huutokauppa jolla on jo huutoja — kategoriaa ei saa enää vaihtaa (bidaajat löysivät/huusivat sen kategorian perusteella)
+function isCategoryLocked(p: Pick<Product, 'saleType' | 'currentBid'>) {
+  return p.saleType === 'auction' && p.currentBid != null
+}
+// Perinteinen huutokauppa jonka varaushinta on jo ylittynyt (tai ei varaushintaa ja huuto on jo tullut) — huuto on sitova, ei voi poistaa
+function isDeleteLocked(p: Pick<Product, 'saleType' | 'currentBid' | 'reservePrice'>) {
+  return p.saleType === 'auction' && p.currentBid != null && (!p.reservePrice || p.currentBid >= p.reservePrice)
 }
 
 export default function TuotteetPage() {
@@ -166,6 +176,8 @@ export default function TuotteetPage() {
   const currentAla: any = currentKat?.alakategoriat.find((a: any) => a.id === alakategoria)
   const paketti = PAKETTIKOOT.find(p => p.id === pakettikoko)
   const pending = products.filter(p => p.status === 'PENDING')
+  const editingProduct = editId ? products.find(p => p.id === editId) : null
+  const editCategoryLocked = editingProduct ? isCategoryLocked(editingProduct) : false
 
   const inp: React.CSSProperties = { width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }
   const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4 }
@@ -243,17 +255,22 @@ export default function TuotteetPage() {
             {/* Perustiedot */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div><label style={lbl}>Tuotteen nimi *</label><input value={name} onChange={e => setName(e.target.value)} placeholder="esim. Charizard Holo PSA 9" style={inp} /></div>
+              {editCategoryLocked && (
+                <div style={{ fontSize: 11, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 6, padding: '6px 10px' }}>
+                  Kategoriaa ei voi enää muuttaa — huutokauppa on jo käynnissä ja on saanut huutoja.
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
                   <label style={lbl}>Kategoria</label>
-                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp}>
+                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp} disabled={editCategoryLocked}>
                     <option value="">Valitse...</option>
                     {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi.fi}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={lbl}>Alakategoria</label>
-                  <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={!currentKat || currentKat.alakategoriat.length === 0}>
+                  <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={editCategoryLocked || !currentKat || currentKat.alakategoriat.length === 0}>
                     <option value="">Valitse...</option>
                     {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
                   </select>
@@ -262,7 +279,7 @@ export default function TuotteetPage() {
               {currentAla?.tyypit?.length > 0 && (
                 <div>
                   <label style={lbl}>Tyyppi</label>
-                  <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp}>
+                  <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp} disabled={editCategoryLocked}>
                     <option value="">Valitse...</option>
                     {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
                   </select>
@@ -420,6 +437,16 @@ export default function TuotteetPage() {
                 </div>
               )
               const index = <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+              const deleteLocked = isDeleteLocked(p)
+              const deleteTitle = deleteLocked ? 'Ei voi poistaa — varaushinta on ylittynyt, huuto on sitova' : undefined
+              const deleteBtn = (mobile: boolean) => (
+                <button
+                  onClick={() => !deleteLocked && deleteProduct(p.id)}
+                  disabled={deleteLocked}
+                  title={deleteTitle}
+                  style={{ background: 'none', border: 'none', color: deleteLocked ? C.dim : C.muted, cursor: deleteLocked ? 'not-allowed' : 'pointer', fontSize: mobile ? 16 : 16, padding: '4px 8px' }}
+                >✕</button>
+              )
 
               return isMobile ? (
                 <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -429,11 +456,12 @@ export default function TuotteetPage() {
                     <Link href={`/tuotteet/${p.id}`} style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
                   </div>
                   {priceLine}
+                  {deleteLocked && <div style={{ fontSize: 11, color: '#B45309' }}>Varaushinta ylittynyt — ei voi poistaa</div>}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     {badge}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>Muokkaa</button>
-                      <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '4px 8px' }}>✕</button>
+                      {deleteBtn(true)}
                     </div>
                   </div>
                 </div>
@@ -444,10 +472,11 @@ export default function TuotteetPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
                     {priceLine}
+                    {deleteLocked && <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>Varaushinta ylittynyt — ei voi poistaa</div>}
                   </div>
                   {badge}
                   <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>Muokkaa</button>
-                  <button onClick={() => deleteProduct(p.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, padding: '4px 8px', flexShrink: 0 }}>✕</button>
+                  {deleteBtn(false)}
                 </div>
               )
             })}
