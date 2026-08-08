@@ -106,11 +106,23 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 
 ## Tärkeät koodaussäännöt
 - **Käännökset:** Käytä AINA `t.xxx` — ei kovakoodattua suomea/englantia
+- **EI EMOJEJA SIVUSTOLLA, EI KOSKAAN.** Ei UI-teksteissä, ei ilmoituksissa, ei painikkeissa, ei chatin oletusviesteissä, ei missään käyttäjälle näkyvässä kohdassa. Käytä tarvittaessa ikoneja (esim. samaa ikonikirjastoa mitä sivustolla jo on) tai pelkkää tekstiä, ei koskaan emojeja kuten ✅🎉😀. Tämä sääntö on toistunut ongelmana koska sitä ei ollut aiemmin kirjattu tänne — nyt LUKITTU, ei poikkeuksia.
 - **Kategoriat:** `getKatNimi(kat, lang)` ja `getAlaNimi(ala, lang)` — nimi on objekti `{fi, en}`
 - **Kuvat:** Tallennetaan base64:na, erotin `|||` useampien välillä. Ota ensimmäinen: `imageUrl.split('|||')[0]`
 - **Teemat:** Käytä `C.xxx` värejä (C.accent, C.bg, C.text, C.muted, C.border, C.cardBg jne.)
 - **Ei mock-dataa:** Kaikki data haetaan backendistä. Jos ei löydy → tyhjä tila
 - **API (paikallinen kehitys):** NEXT_PUBLIC_BACKEND_URL=http://localhost:4000 — **huom, tämä koskee vain paikallista kehitystä omalla koneella**. Tuotannossa (Hetzner) portit 4000 (backend) ja 3000 (frontend) ovat PM2:n sisäisiä portteja joita nginx reitittää `app.skrm.fi`:n takana — ei suoraan julkisesti näkyviä. Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio alempana täydelliselle infralle.
+
+## VISUAALINEN JÄÄDYTYS — prioriteetti ennen kaikkea muuta (päätetty 2026-08-08)
+Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään läpi visuaalisesti ja "jäädytetään" ammattimaisen näköiseksi — tavoite on että omistaja kehtaa esitellä sivua yhteistyökumppaneille sellaisenaan, vaikka kaikki toiminnot eivät vielä toimisi täydellisesti. **Ulkoasu ja tyylikkyys menevät toiminnallisuuden edelle juuri nyt.**
+- Käy läpi jokainen sivu: emojit pois (ks. yllä oleva LUKITTU sääntö), layoutit jotka eivät mahdu näyttöön korjataan, epäjohdonmukaiset välit/fontit/värit yhtenäistetään
+- Kun omistaja on visuaalisesti tyytyväinen sivuun kokonaisuutena, tämä osio päivitetään "VALMIS"-tilaan eikä ulkoasuun enää kosketa ilman erikseen pyydettyä syytä — keskitytään sen jälkeen toiminnallisuuden loppuunsaattamiseen taustalla, ilman että omistajan tarvitsee jännittää miltä sivu näyttää kesken sen
+
+**Läpikäynti tehty 2026-08-08 (odottaa omistajan lopullista visuaalista hyväksyntää ennen VALMIS-merkintää):**
+- Koko sivusto käyty läpi regexillä emojien varalta (kaikki `.tsx`-tiedostot, ei vain aiemmin muokatut) — löytyi yksi rikkomus: 🏖-emoji lomamoodi-bannerissa (`u/[username]`), **poistettu**
+- Vahvistettu: muut sivustolla käytetyt merkit (✓ ✕ ⚑ ★ ☆ ➤) ovat sivuston oma vakiintunut ei-värillinen ikonikieli, ei emojisääntöä rikkovia — ei vaadi muutosta
+- Layout-ylivuoto oli spesifisti lähetys-sivulla (jo korjattu aiemmin), muut `height:100vh`-tyyppiset sivut (mm. `/live/[showId]`) tarkistettu, olivat jo oikein
+- Fontit/välit/värit pistokoetarkistettu, ei löytynyt konkreettisia poikkeamia ilman tarkempaa kohdennusta — **jos omistaja löytää jotain silmämääräisesti tarkistaessaan, kerro tarkka sivu/kohta niin korjataan kohdennetusti**
 
 ## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
 1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
@@ -120,9 +132,10 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
-8. ✅ **OBS-testi Hetznerillä — TEHTY KOKONAAN.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu + frontendin videotoisto + socket.io (chat/huudot/katsojamäärä) vahvistettu toimivaksi end-to-end oikealla OBS-yhteydellä. Ks. "Stream-konsolin uudelleenrakennus" -osion "Löydetty jatkotestauksessa" -alaosio socket.io-polkubugista joka esti chatin/huutojen toiminnan tuotannossa — korjattu 2026-08-08.
+8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
 
 ## Tunnettuja bugeja / kehityskohteita
+- **Live-video ei näy sivustolla vaikka HLS-jakelu toimii palvelinpuolella** — vahvistettu 2026-08-07 että OBS→RTMP→HLS-tiedostot→nginx-jakelu toimii täysin (`curl https://stream.skrm.fi/hls/{streamKey}.m3u8` → 200 OK, oikea content-type). Ongelma on frontendin `VideoPlayer`-komponentissa — HLS-URL:in rakennus `Show.hlsUrl`/`HLS_BASE_URL`:sta ei näytä täsmäävän oikeaan muotoon, tai selaimen konsolissa on CORS/verkkovirhe. Vaatii koodin tarkistuksen, ei enää palvelinpuolen debuggausta.
 - **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
 - `socket.ts`:n live-lähetyksen socket-pohjainen huutojärjestelmä ei käytä `bidIncrement`-minimikorotusta ollenkaan (korjattu vain `auctions.ts`:ssä, perinteisille huutokaupoille)
 - Selaa-sivun saleType-kuplat (Kaikki/Suoramyynti/Huutokaupat) voivat olla turha kaksinkertainen jaottelu Navbarin ylätason navigoinnin kanssa — ei päätetty, ks. "Selaa-sivun saleType-kuplat" alempana
@@ -157,12 +170,12 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 - Windowsin/selaimen DNS-välimuisti voi näyttää vanhaa osoitetta hetken vaikka Cloudflaren tietue on jo oikein — `ipconfig /flushdns` tai yksityinen selainikkuna auttaa
 - `pg_dump --disable-triggers` -lippu antaa "permission denied" -virheitä system-triggereille ilman superuser-oikeuksia, mutta itse `COPY`-komennot menevät silti läpi oikein jos taulut tuodaan riippuvuusjärjestyksessä — virheistä ei tarvitse hätääntyä, tarkista aina lopuksi `SELECT COUNT(*)` oikealla taululla
 
-### Hosting — Railway ja app.skrm.fi:n Netlify POISSA KÄYTÖSTÄ, landing pysyy
-Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). Railwayn backend/DB-palvelu ja `app.skrm.fi`:n Netlify-sivusto voidaan sammuttaa Railway/Netlify-dashboardeista (ei kiireellistä, mutta säästää turhaa kuukausimaksua Railwaylta kun ei enää käytössä).
+### Hosting — Railway POISTETTU KOKONAAN, app.skrm.fi:n Netlify pois käytöstä, landing pysyy
+Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti on poistettu kokonaan** (2026-08-08) — ei enää olemassa, ei varakopiota sieltä saatavilla jos joskus tarvittaisiin (kaikki tarpeellinen data on jo siirretty Hetznerille aiemmin tehdyllä `pg_dump`-migraatiolla). `app.skrm.fi`:n Netlify-sivusto voidaan sammuttaa Netlify-dashboardista jos ei jo tehty.
 - **skrm.fi** (landing page) → **pysyy Netlifyssä** (`skrm.netlify.app`) — staattinen HTML, FI/SV/EN, "tulossa"-sivu, ei liity backendiin, ei syytä siirtää
 - **app.skrm.fi** (sovellus) → **Hetzner**, ks. yllä oleva tekninen kokoonpano
 - **Backend** → **Hetzner**, PM2 `skrm-backend`
-- **Tietokanta** → **Hetzner**, paikallinen PostgreSQL
+- **Tietokanta** → **Hetzner**, paikallinen PostgreSQL — **ainoa tietokanta, ei enää Railway-varakopiota olemassa**
 - Repot: GitLab (https://gitlab.com/lpjr86/skrm, private) ja GitHub (https://github.com/Larzmoi/skrm, **julkinen**)
 
 ## Kategoriat (14 kpl — LUKITTU)
@@ -413,76 +426,106 @@ Lisää:
 
 **SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
 
-## Pysyvä stream key käyttäjäkohtaisesti (✅ TEHTY 2026-08-07)
+## Striimin viive — LUKITTU vaatimus, kahdessa vaiheessa (päivitetty 2026-08-08)
 
-Havaittu OBS-testauksessa: `streamKey` generoitiin aiemmin **per Show** (`POST /shows`, `crypto.randomBytes`) — jokainen uusi lähetys pakotti myyjän kaivamaan uuden avaimen ja syöttämään sen OBS:iin uudestaan. Toteutettu ratkaisu:
+Nykyinen viive (OBS→katsoja) on **~30 sekuntia** nginx-rtmp:n klassisella HLS:llä.
 
-- `User.streamKey String? @unique` (Prisma-migraatio, `Show.streamKey` poistettu kokonaan mallista) — generoidaan lazily ensimmäisellä pyynnöllä (`backend/src/lib/stream.ts` → `getOrCreateStreamKey()`), ei rekisteröitymisessä (välttää turhan avaimen generoinnin ostajille jotka eivät koskaan myy)
-- `GET /users/me/stream-info` — uusi ensisijainen reitti, palauttaa RTMP-palvelimen + pysyvän avaimen milloin tahansa, ei vaadi lähetystä luotuna. `GET /shows/:id/stream-info` säilytetty taaksepäin yhteensopivuuden vuoksi, palauttaa nyt saman käyttäjäkohtaisen avaimen.
-- **"Generoi uusi avain" -nappi** dashboardin OBS-asetuksissa (`dashboard/lahetys/page.tsx`) → `POST /users/me/stream-key/regenerate` (`backend/src/lib/stream.ts` → `regenerateStreamKey()`), varoitusdialogi ennen suoritusta, vanha avain mitätöityy välittömästi
-- `on_publish`/`on_publish_done`-webhookit (`backend/src/routes/webhooks.ts`) kirjoitettu uudelleen: streamKey → `User` (myyjä) → etsii myyjän uusimman `SCHEDULED`-lähetyksen (`orderBy createdAt desc`) → merkitsee `LIVE`:ksi. Jos ei yhtään `SCHEDULED`-lähetystä: 403 "Ei aktiivista ajastettua lähetystä". `rtmp/done` vastaavasti hakee myyjän `LIVE`-lähetyksen (`orderBy startedAt desc`) ja päättää sen.
-- `Show.hlsUrl` rakennetaan ja tallennetaan yhä per Show luontihetkellä (`hlsUrlFor()`), mutta perustuu nyt myyjän pysyvään avaimeen — sama HLS-polku toistuu kaikissa saman myyjän lähetyksissä
-- Testattu end-to-end paikallisesti skriptillä: avain pysyy samana peräkkäisillä hauilla, uusi Show käyttää samaa avainta, `rtmp/start`→`LIVE`→`rtmp/done`→`ENDED` toimii oikein, regenerointi mitätöi vanhan avaimen (vanhalla avaimella `rtmp/start` palauttaa 403 regeneroinnin jälkeen)
+**Vaihe 1 — ✅ TEHTY 2026-08-08, tavoite 5-10 sekuntia:**
+- `hls_fragment` 2s → 1s
+- `hls_playlist_length` 10s → 4s
+- hls.js: `liveSyncDurationCount: 2`, `maxLiveSyncPlaybackRate: 1.3` sekä katsojan että myyjän soittimiin
+- **Mittaustulos:** synteettinen ffmpeg-publikointi tuotantoa vasten, segmentit tulevat tasaisesti 1.0s välein, playlist pitää tarkan 4s-ikkunan — palvelinpuolen laskennallinen viive n. 3-5s, tavoitteen (5-10s) sisällä
+- **Rehellinen varaus, ei vielä lopullisesti vahvistettu:** mittaus on palvelinpuolinen (synteettinen lähde, paikallinen RTMP) — oikea OBS + verkkoyhteys + katsojan laite lisäävät päälle jonkin verran viivettä. **Seuraava askel: mittaa oikea päästä-päähän-viive oikealla OBS-striimillä ja kellolla (esim. näytä stopwatch kameralle, katso viive selaimessa).** Jos oikea mitattu viive ylittää 10s, Vaihe 2 kannattaa aikaistaa.
 
-## Stream-konsolin uudelleenrakennus (✅ TEHTY 2026-08-07)
+**Vaihe 2 (vahvistettu tulevaksi, ei enää kysymysmerkki, EI ALOITETTU): MediaMTX-migraatio, tavoite alle 5 sekuntia, mieluiten 3.** Klassinen HLS ei pysty luotettavasti alle 5s:n riippumatta viritystasosta — tämä vaatii WebRTC:tä (alle 1s) tai LL-HLS:ää (2-5s), kumpaakaan nginx-rtmp ei tue. MediaMTX ratkaisee tämän, ja sama työ palvelee myös mobiilin asennuksetonta striimausta (ks. "Selainpohjainen mobiilistriimaus" -osio) — yksi migraatio, kaksi hyötyä. Ei aikataulutettu vielä tarkasti, mutta on vahvistettu tehtäväksi, ei valinnainen "ehkä joskus" -kohta.
 
-Nykyinen myyjän live-hallintanäkymä koettiin liian suppeaksi, ei ammattimaisen tuntuiseksi, ei "Whatnot-tasoa". Uusi rakenne toteutettu `frontend/app/dashboard/lahetys/page.tsx`:ään, sivuston omilla `C.xxx`-väreillä (ei geneeristä palettia) — pre-live-asetusnäkymä (kamera-esikatselu, lomake, "Aloita lähetys") jätetty ennalleen, vain `isLive`-tilan jälkeinen näkymä rakennettu uudelleen.
+## Mobiilin live-näkymä — LUKITTU vaatimus (2026-08-08)
 
-### Rakenne (kolme paneelia + yläpalkki, kaikki näkyvissä yhtä aikaa ilman scrollausta/välilehtiä)
+Koska suuri osa käyttäjistä on mobiililla, tämä on lyötävä lukkoon molemmille — sekä myyjän live-konsolille (kuvattu "Stream-konsolin uudelleenrakennus" -osiossa) että katsojan `/live/[showId]`-sivulle:
 
-**Yläpalkki:** LIVE-indikaattori (+ "yhdistetään..." jos socket ei ole vielä kytkeytynyt), kesto (mm:ss / h:mm:ss), katsojamäärä (reaaliaikainen `viewer_count`-socket-tapahtuma), päivän myynti €, myytyjen tuotteiden määrä. "OBS-asetukset ▾" laajentaa/piilottaa RTMP-URL+key-kortin (kollapsoitu oletuksena), "Lopeta lähetys" aina näkyvissä.
+- **Video täyttää koko ruudun** (full-screen, ei skaalattu pieneksi laatikoksi sivun sisällä)
+- **Sivu ei saa liikkua/scrollata mihinkään suuntaan** kun ollaan live-näkymässä — ei ylös/alas eikä sivuille. Kiinteä viewport, ei normaalia sivun scrollausta.
+- **Kaikki muu (napit, chat, tuotetiedot, huutokauppadata) rakennetaan videon PÄÄLLE overlayna**, ei erillisinä paneeleina jotka veisivät tilaa videolta tai pakottaisivat scrollaamaan nähdäkseen ne
 
-**Vasen paneeli — tuotejono:** raahattava (native HTML5 drag-and-drop) lista jonossa olevista tuotteista. Nykyinen tuote seurataan `currentProductId`:llä (ei numeerisella indeksillä) nimenomaan siksi että raahaus voi turvallisesti järjestää `products`-taulukon uudelleen sekoittamatta kumpi tuote on "nykyinen". Jonon järjestys on istuntokohtainen (ei tallenneta `Product.order`-kenttään). "+ Lisää tuote" avaa inline-minilomakkeen joka luo tuotteen suoraan `saleType: 'live'`:nä poistumatta näkymästä.
+Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitellään erikseen (nykyinen kolmen paneelin rinnakkaisrakenne — jono/nykyinen tuote/chat — sopii paremmin isommalle näytölle eikä sitä tarvitse pakottaa samaan full-screen-overlay-malliin kuin mobiilia).
 
-**Keskipaneeli — nykyinen tuote (suurin, tärkein):** pieni video-esikatselu ylhäällä + iso kuva/nimi/kuvaus + nykyinen huuto isolla numerolla. Pikatoimintorivi aina näkyvissä:
-- `+10s` — toimiva, emittoi `extend_timer`
-- `Kiinnitä` — **stub**, "tulossa pian" (odottaa pinned item -konseptia)
-- `Myyty` — toimiva, päättää huutokaupan heti nykyiselle johtajalle
-- `Seuraava` — toimiva
-- `Aloita giveaway` — **stub**, "tulossa pian" (odottaa giveaway-toteutusta)
-- `Lopeta lähetys` — toimiva
+## Selainpohjainen mobiilistriimaus (WebRTC) — TULEVAISUUDEN HARKINTA, ei kiireellinen, mutta hyvin tutkittu 2026-08-08
 
-**Oikea paneeli — chat:** reaaliaikainen yhdistetty viestivirta (`chat`/`bid`/`purchase`/`system`) — huudot korostettu, **ostohälytykset upotettu suoraan virtaan** vihreällä. Moderointi: ✕ (poista, `delete_chat_message`) ja 🔇 (mykistä, `mute_user`) jokaisen chat-viestin vieressä, vain lähetyksen omistavalle myyjälle.
+**Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
 
-### Backend-muutokset (`backend/src/socket.ts`)
-`broadcastViewerCount()` + `socketShows`-Map, `extend_timer`, `delete_chat_message` + `mute_user` (in-memory `mutedUsers`-Map per show), `chat_message` sai pysyvän `id`-kentän.
+### Tutkittu referenssi: miten Whatnot tekee tämän yhdellä laitteella
+Whatnot ei vaadi kahta laitetta (kamera + ohjain erikseen) — yksi puhelin riittää sekä kuvaamiseen että hallintaan. Havaittu rakenne (kuvakaappauksin dokumentoitu):
+1. **Ennen liveä:** puhelimen kamera näkyy suoraan, chat-kenttä + "Store"-nappi (tuotteet) päällekkäin kuvan kanssa, iso "Start Show" -nappi
+2. **Live käynnissä:** "Live Listings" -näkymä, jossa tuotteet jaettu välilehtiin: **Auction | Buy Now | Giveaway | Sold | Offers**. Tuotteesta suoraan "Start Auction"
+3. **Huutokaupan asetukset ennen käynnistystä:** pieni popup — lähtöhinta, kesto ("Required Time"), counter-bid-aika (esim. 5s/7s/10s, resetoi laskurin jos uusi huuto tulee alle 10s jäljellä), "Sudden Death" -kytkin (viimeinen huutaja voittaa kun aika loppuu)
+4. **Huutokauppa käynnissä:** kuva jatkuu, huutokauppa-data näkyy päällä (korkein huuto, huutaja, aika)
 
-### Tekemättä / rajattu pois tarkoituksella
-`Kiinnitä` ja `Aloita giveaway` ovat visuaalisia stubbeja — odottavat omia speksejään ("Live-ominaisuudet Whatnot-tasolle"). Jonon uudelleenjärjestys ei persistoidu.
+### Ehdotettu SKRM-mobiilirakenne (hahmoteltu yhdessä, ei lopullinen)
+```
+Ennen liveä: kamera + chat + tuotelista + "Aloita huutokauppa"
+Tuotteen valinta: Lähtöhinta / Kesto / Jatkoaika → "Aloita"
+Huutokauppa käynnissä: 🔴 LIVE, katsojat, korkein huuto + huutajalista, "Seuraava tuote", tuotteet/chat pikakuvakkeina
+```
+Tämä on hyvin lähellä jo speksattua "Stream-konsolin uudelleenrakennus" -rakennetta (jono/nykyinen tuote/chat), mutta mobiilioptimoituna yhdeksi virtaviivaiseksi näkymäksi kolmen erillisen paneelin sijaan — vahvistaa aiemman "mobiili tarvitsee oman layoutin" -havainnon.
 
-### ⚠️ Löydetty jatkotestauksessa 2026-08-08: koko socket-yhteys ei toiminut tuotannossa
-Sekä chat että "Aloita huutokauppa" -nappi eivät tehneet mitään tuotannossa (`app.skrm.fi`) — ei virhettä, täysi hiljaisuus. Juurisyy: `NEXT_PUBLIC_BACKEND_URL=https://app.skrm.fi/api` tuotannossa (nginx reitittää vain `/api/`-alkuiset pyynnöt backendille). `socket.io-client` tulkitsee `io(url)`-kutsun URL:in POLKUOSAN nimiavaruudeksi, ei reittiin välitettäväksi prefiksiksi — pelkkä `io(BACKEND_URL)` yhdisti siis oletuspolkuun `/socket.io/` eikä `/api/socket.io/`, jonka nginx reitittäisi backendille. Koska nginxin `location /` (kaikki muu) osoittaa frontendiin, pyyntö päätyi Next.js:lle → 502. **Koko socket-kerros (chat, huudot, katsojamäärä) ei siis ole koskaan toiminut luotettavasti tuotannossa** — tämä selittää myös aiemmin "ratkaisemattomaksi" jääneen raportin huutokaupan näkymättömyydestä toisella laitteella (ks. "Tunnettuja bugeja"-historiaa, poistettu nyt korjattuna).
+### Tekninen huomio, ennallaan
+nginx-rtmp (nykyinen) ei osaa vastaanottaa WebRTC:tä — tarvitsee joko rinnakkaisen työkalun (esim. **MediaMTX**, tukee sekä RTMP:tä että WebRTC:tä samassa binäärissä, voisi mahdollisesti korvata koko nykyisen pinon) tai managed-palvelun (esim. LiveKit). Tämä on edelleen iso infratyö, ei pieni lisäys — odottaa kunnes visuaalinen jäädytys ja nykyisten toimintojen viimeistely on ohi.
 
-**Korjaus, kaksiosainen** (molemmat tarvittiin — pelkkä ensimmäinen ei riittänyt):
-1. `frontend/lib/socket.ts`: `io()`-kutsulle annetaan eksplisiittinen `path`-optio, laskettu `BACKEND_URL`:in `URL().pathname`:stä + `/socket.io/` — toimii automaattisesti sekä paikallisessa kehityksessä (`http://localhost:4000` → `/socket.io/`) että tuotannossa (`https://app.skrm.fi/api` → `/api/socket.io/`) ilman ympäristökohtaista erikoislogiikkaa.
-2. **Hetzner-palvelimen nginx** (`/etc/nginx/sites-available/app.skrm.fi`, `location /api/`): puuttui kokonaan WebSocket-upgrade-headerit (`proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`) — `location /`-lohkolla (frontend) ne olivat jo (Next.js HMR:n takia), mutta `/api/`-lohkolla ei koskaan. Ilman näitäkin socket.io:n WebSocket-handshake epäonnistuu vaikka polku olisi oikein. Lisätty suoraan palvelimelle SSH:lla (varmuuskopio otettu ennen muokkausta: `app.skrm.fi.bak-<timestamp>`), `nginx -t` + `systemctl reload nginx`.
+Havaittu 2026-08-07 OBS-testauksessa: `streamKey` generoidaan nyt **per Show** (`POST /shows`, `crypto.randomBytes`) — eli jokainen uusi lähetys pakottaa myyjän kaivamaan uuden avaimen ja syöttämään sen OBS:iin uudestaan. Tämä on turhaa kitkaa — myyjä ei jaksa säätää OBS-asetuksia joka kerta.
 
-Molemmat vahvistettu yhdessä oikealla `socket.io-client`-yhteydellä `https://app.skrm.fi/api/socket.io/`:hin — WebSocket-handshake onnistuu, `join_show` toimii. Koko deploy (git pull, `prisma db push --accept-data-loss` — ei aktiivisia LIVE-lähetyksiä tarkistettu ennen ajoa, tuotanto-DB:ssä vain testidataa — `npm run build` backend+frontend, `pm2 restart` molemmat) tehty ja vahvistettu 2026-08-08.
+### Ratkaisu: streamKey siirtyy Userille, pysyvä + manuaalinen regenerointi
+- Uusi kenttä `User.streamKey String? @unique` — generoidaan **kerran** (esim. lasi rekisteröitymisessä, tai lazily ensimmäisellä pyynnöllä)
+- Sama avain toimii kaikissa myyjän tulevissa lähetyksissä — OBS konfiguroidaan kerran, ei koskaan uudestaan normaalikäytössä
+- **"Generoi uusi avain" -nappi** dashboardin OBS-asetuksissa — manuaalinen escape hatch (esim. jos avain vuotaa), vanha avain mitätöityy heti kun uusi generoidaan, varoita käyttäjää että vanha OBS-konfiguraatio pitää päivittää
 
-### Suhde muihin jo suunniteltuihin ominaisuuksiin
-Tämä konsoli on se paikka johon seuraavat jo speksatut ominaisuudet asettuvat käytännössä kun ne toteutetaan: pinned item, giveaway/onnenpyörä (molemmat vielä stub-tilassa yllä), sekä "Testaa yhteys" -esikatselu (ks. alla oleva osio) ennen kuin tämä konsoli edes aktivoituu julkisesti. Chat-moderointi ("Live-ominaisuudet Whatnot-tasolle" -osion kohta 2) on jo toteutettu osana tätä.
+### Tekninen muutos webhookiin (tärkeä, ei triviaali)
+Koska `streamKey` ei enää yksilöi suoraan yhtä `Show`ia, `on_publish`-webhookin logiikka muuttuu:
+- **Ennen:** streamKey → suoraan yksi Show
+- **Jälkeen:** streamKey → `User` (myyjä) → etsi kyseisen myyjän **`SCHEDULED`-tilassa oleva lähetys** (uusin, jos useampia — mutta normaalisti pitäisi olla korkeintaan yksi kerrallaan) → merkitse se `LIVE`:ksi kun OBS yhdistää
+- Jos myyjällä ei ole yhtään `SCHEDULED`-lähetystä kun OBS yrittää yhdistää: hylkää selkeällä virheellä ("luo lähetys ensin dashboardista") — ei voi striimata tyhjyyteen
 
-## Live-lähetyksen esikatselu ennen julkista näkyvyyttä (SUUNNITELTU — päätetty, tärkeä ennen julkaisua)
+### Muut vaikutukset
+- `GET /shows/:id/stream-info` korvautuu/täydentyy `GET /users/me/stream-info`:lla — palauttaa RTMP-palvelimen + käyttäjän pysyvän avaimen, saatavilla milloin tahansa, ei tarvitse edes olla lähetystä luotuna nähdäkseen omat OBS-asetuksensa
+- `Show.hlsUrl` voidaan yhä rakentaa/tallentaa per lähetys näyttöä varten, mutta itse `streamKey` ei enää liity Show-riviin
 
-Havaittu testauksessa 2026-08-07: myyjä ei pääse testaamaan OBS-yhteyttä/kameraa ennen kuin painaa "Mene liveen" — mutta se tekee striimin heti julkisesti näkyväksi kaikille. Kaiken pitää olla valmiina ja testattuna **ennen** kuin kuva menee maailmalle, ei vasta sen jälkeen.
+## Stream-konsolin uudelleenrakennus — TARKENNETTU KOLMANNEN KERRAN JÄLKEEN (2026-08-08, tämä versio on lopullinen)
 
-**Hyvä uutinen: backend tukee tätä jo osittain.** Tarkistettu koodista (`backend/src/routes/shows.ts`):
-- `streamKey` generoidaan jo **heti kun lähetys luodaan** (`POST /shows`), ei vasta kun mennään liveksi
-- `GET /shows/:id/stream-info` (RTMP-palvelin + stream key) toimii jo riippumatta Show'n statuksesta (`SCHEDULED` tai `LIVE`) — myyjä voisi jo teknisesti hakea nämä tiedot heti luonnin jälkeen
+**Miksi aiemmat yritykset eivät osuneet kohdalleen:** speksi kuvasi paneelien SISÄLLÖN mutta ei koskaan eksplisiittisesti kieltänyt sivuston normaalia navigaatiokehystä (dashboard-sidebar, navbar) näkymästä. Tuloksena live-konsoli rakennettiin dashboardin *sisälle* yhtenä alisivuna, jolloin koko vasen navigaatio (Hallintapaneeli/Tuotteet/Lähetys/Ostot/Myynnit/Tilitykset/Profiili + käyttäjätiedot) vie ison osan leveydestä eikä video koskaan pääse hallitsemaan näkymää niin kuin Whatnot-referensseissä. Tämä ei ole hienosäätöasia — se on rakenteellinen virhe joka pitää korjata juuresta.
 
-**Puuttuva pala on puhtaasti frontendissä:** dashboard paljastaa/hakee stream-infon vasta "Mene liveen" -askeleessa sen sijaan että se olisi saatavilla heti, ja UI:ssa ei ole erillistä käsitettä "testaa yhteys yksityisesti" vs. "aloita julkinen lähetys".
+**LUKITTU vaatimus: Live-tila on TÄYSNÄKYMÄ (full takeover), ei dashboardin alisivu.**
+- Kun myyjä menee lähetys-sivulle TAI kun striimi on tilassa `LIVE`/`SCHEDULED`-esikatselu, **koko sivuston normaali kehys (navbar ylhäällä, dashboard-sidebar vasemmalla) piiloutuu kokonaan**. Ei osittain kutistettuna, ei minimoituna — pois näkyvistä.
+- Tilalle tulee oma erillinen, koko selainikkunan täyttävä layout, jolla ei ole mitään yhteistä komponenttia tavallisen dashboardin kanssa (paitsi tietysti sama teema/värit)
+- Poistumiseen pieni, huomaamaton paluu-/sulkunappi (esim. vasemmassa yläkulmassa, pieni ←-ikoni) — ei täyttä navigaatiota takaisin
 
-### Ratkaisu: kaksi erillistä toimintoa, ei yksi
-1. **"Testaa yhteys"** — saatavilla heti kun lähetys on luotu (`status: SCHEDULED`), näyttää RTMP-palvelimen + stream keyn dashboardissa suoraan (ei tarvitse odottaa mitään). Myyjä syöttää nämä OBS:iin, näkee oman esikatselunsa **vain itse**, yksityisessä näkymässä dashboardissa (ei julkisella `/live/[showId]`-sivulla).
-2. **"Aloita julkinen lähetys"** (nykyinen "Mene liveen", nimi selkeytettävä) — erillinen, tietoinen painallus joka vasta tässä vaiheessa vaihtaa `Show.status` → `LIVE`, jolloin lähetys ilmestyy julkiseen "Live nyt" -listaan ja on katsottavissa `/live/[showId]`-sivulla.
+### Tilankäytön suhteet (desktop) — noudata näitä prosentteja, älä arvaa
+- **Video: n. 70-75% näkymän leveydestä**, korkeus täyttää koko käytettävissä olevan pystytilan (ei pieni laatikko sivun keskellä, vaan dominoiva elementti)
+- **Chat: kapea sarake oikealla, n. 20-25% leveydestä** — ei yhtä leveä kuin video, selvästi kapeampi
+- **Tuotejono ja nykyisen tuotteen kontrollit: OVERLAY videon päällä/alla**, ei omana isona laatikkonaan joka vie tilaa videolta. Esim. ohut pikatoimintopalkki videon alaosan päällä (puoliläpinäkyvä tausta), tuotejono pienenä liukuvana listana jonka saa auki/kiinni, ei aina auki isona pysyvänä laatikkona.
+- **Yläpalkki (kesto/katsojat/myynti):** ohut rivi videon YLÄPUOLELLA overlayna, ei erillinen iso laatikko
 
-### Huomio yksityisyydestä testausvaiheessa
+### Mobiili (jo LUKITTU aiemmin, pätee edelleen)
+Video täyttää koko ruudun, kaikki muu overlay-tyylisesti sen päällä, ei sivupaneeleita ollenkaan. Sama täysnäkymä-periaate kuin desktopilla, vain vielä tiukempana koska tilaa on vähemmän.
+
+### Sisältö (mikä paneeleissa on, tämä osa oli jo oikein aiemmin — ei muutu)
+- **Tuotejono:** raahattava lista, "Lisää tuote" -nappi
+- **Nykyinen tuote:** kuva, nimi, huuto, aikalaskuri, pikatoiminnot (+10s, Kiinnitä, Myyty, Seuraava, Aloita giveaway, Lopeta lähetys)
+- **Chat:** viestivirta + ostohälytykset upotettuna (esim. "joonas osti Gengar TG06" vihreällä) + moderointitoiminnot (ks. "Chat & moderointi" -osio)
+
+### Väri
+Sivuston oma tumma teema, `C.xxx`-värit — ei muutu.
+
+## Live-lähetyksen esikatselu ennen julkista näkyvyyttä — ✅ TEHTY 2026-08-08
+
+Havaittu testauksessa 2026-08-07: myyjä ei päässyt testaamaan OBS-yhteyttä/kameraa ennen kuin painoi "Mene liveen" — mutta se teki striimin heti julkisesti näkyväksi kaikille.
+
+**Toteutettu ja tuotannossa vahvistettu:**
+- RTMP-palvelin + pysyvä stream key + "Generoi uusi avain" näkyvät heti sivulle tultaessa, ennen kuin mitään on luotu
+- Lähetyksen luonti ei enää tee siitä julkista — pysyy `SCHEDULED`-tilassa, myyjä näkee oikean OBS-lähdön yksityisenä esikatseluna (oikea hls.js-toistin, ei paikallinen webkamera)
+- `on_publish`-webhook ei enää automaattisesti julkaise lähetystä OBS:n yhdistyessä — vain eksplisiittinen "Aloita julkinen lähetys" -painike tekee sen
+- Testattu tuotannossa oikealla RTMP-yhteydellä: status pysyi `SCHEDULED` koko testipublikoinnin ajan, manuaalinen julkaisu/lopetus toimivat oikein
+
+### Huomio yksityisyydestä testausvaiheessa (yhä relevantti)
 Vaikka `status` on yhä `SCHEDULED`, HLS-tiedostot alkavat teknisesti syntyä palvelimelle heti kun OBS yhdistää — tekninen raakavideo-URL (`https://stream.skrm.fi/hls/{streamKey}.m3u8`) on siis olemassa ja periaatteessa saavutettavissa jos joku arvaisi/saisi tarkan URL:n, vaikka sitä ei näytetä julkisella sivulla ennen `LIVE`-statusta. Koska `streamKey` on 32-merkkinen satunnainen hex-merkkijono, tämä on käytännössä turvallinen "security through obscurity" -taso MVP:lle — ei täydellinen yksityisyys, mutta riittävä nyt. Täydellisempi ratkaisu (esim. token-suojattu HLS-pääsy) voidaan harkita myöhemmin jos tarve ilmenee.
-
-### Toteutus
-- Dashboard/Lähetys: näytä "Testaa yhteys" -osio heti lähetyksen luonnin jälkeen, hakee `GET /shows/:id/stream-info` suoraan (ei odota mitään tilaa)
-- Yksityinen esikatselu-video dashboardissa käyttäen samaa `hlsUrl`ia, näkyy vain myyjälle itselleen kirjautuneena
-- Selkeä, erillinen "Aloita julkinen lähetys" -nappi joka on eri toiminto kuin yhteyden testaus — vasta tämä muuttaa statuksen ja tekee näkyväksi
 
 ## Työskentelytapa — huom VS Coden Claudelle (lisätty 2026-08-07 väärinkäsityksen jälkeen)
 
@@ -665,10 +708,55 @@ Pohjautuu Whatnot-vertailuun. Neljä ominaisuutta päätetty, muodostavat yhdess
 - Toteutus: salli huudon jättäminen tuotteelle jonka `Show.status === 'SCHEDULED'` (nyt oletettavasti sallitaan huudot vain kun `status === 'LIVE'` — tarkista ja avaa tämä ehto scheduled-tuotteille). Kun show alkaa, korkein ennakkotarjous on jo `Product.currentBid`, live jatkuu siitä normaalisti.
 - Ilmoita huutaneelle jos hänet ohitetaan ennakkovaiheessa (käytä olemassa olevaa `OUTBID`-ilmoitustyyppiä).
 
-### 2. Chat-moderointi
-- **Myyjä moderoi vain omaa chattiään** (oman huutokaupan/liven aikana) — ei sivustonlaajuista moderointityökalua tässä vaiheessa.
-- Toiminnot: viestin poisto, käyttäjän mykistys kyseisessä chatissä (ei koko sivuston laajuinen banni — se on eri, jo olemassa oleva `Ban`-mekanismi).
-- Yksinkertaisin toteutus: `Message`-malliin (tai vastaavaan live-chatin tauluun) `deletedAt`-kenttä + kevyt "muted user in this show" -lista Socket.io-tasolla.
+### 2. Chat & moderointi — laajennettu speksi (tutkittu Whatnotilta, tarkennettu 2026-08-08, korvaa aiemman suppean version)
+
+**Perustoiminnot:**
+- Reaaliaikainen viestien lähetys, @-maininnat (autocomplete käyttäjänimestä kirjoittaessa), mainitulle käyttäjälle ilmoitus — rajoita mainintojen/ilmoitusten määrää spämmin estämiseksi
+- Chat toimii osana yhtä livea, katsojat keskustelevat keskenään ja myyjän kanssa
+
+**Myyjän/moderaattorin toiminnot (klikkaa käyttäjää chatissa avataksesi hallintatoiminnot):**
+- Tee käyttäjästä moderaattori / poista moderaattorin oikeudet — voidaan tehdä sekä ennen liveä että kesken sen
+- **Poista liven ajaksi** ("Remove from Show") vs. **Estä/Banni** — nämä ovat eri tasoisia, tärkeä ero: poistettu käyttäjä ei voi chatata/huutaa/liittyä takaisin siihen yhteen liveen, mutta ei ole sivustonlaajuisesti bannattu. Sivustonlaajuinen banni on eri, jo olemassa oleva `Ban`-mekanismi.
+- Moderaattori voi: poistaa käyttäjän livestä, nähdä mutetut viestit (katsojat eivät näe), valvoa keskustelua, poistaa sopimattomia viestejä, vastata kysymyksiin
+
+**Suodattimet/mute:**
+- Chat-välilehdet: **Kysymykset / Ostajat / Moderaattorit / Mutetut** — kysymykset korostetaan omana kategorianaan
+- **"Muted Words"** — myyjä määrittää kiellettyjä sanoja, viestit joissa niitä esiintyy piilotetaan normaalilta yleisöltä mutta moderaattorit näkevät ne yhä
+
+**Chat-komennot (harkittava kevyempänä tulevaisuuden lisäyksenä, ei kriittinen v1:ssä):**
+- `/announce viesti` — nostaa viestin näkyvästi esiin
+- `/hide viesti` — näkyy vain myyjälle ja moderaattoreille (hyödyllinen kulissien takaiseen koordinointiin kesken liven)
+- `/slow 5` — asettaa chattiin 5s cooldownin viestien välille
+- `/raid käyttäjänimi` — liven lopussa yleisö ohjataan toiseen liveen (tämä on sama konsepti kuin aiemmin Whatnot-vertailussa mainittu "Raidit"-ominaisuus)
+
+**Katsojalista (Viewer list):**
+- **Watching**-välilehti: kaikki katsojat, ystävät, host+moderaattorit, top-ostajat
+- **Activity**-välilehti: raidit, uudet seuraajat, tipit, huutokauppavoitot, ostot
+- Käyttäjän vieressä @-nappi tägätäksesi suoraan chattiin
+
+**Co-host (erillinen ominaisuus, liittyy käyttäjienhallintaan):**
+- Myyjä voi kutsua yhden käyttäjän co-hostiksi — tulee mukaan omalla video/äänisyötteellään, näkyy videolla, voi puhua/chattailla/esitellä tuotteita
+- Co-host ei hallitse itse liveä (ei voi aloittaa/lopettaa, ei pääsyä myyjän omaan konsoliin)
+
+**Toteutusprioriteetti:** perustoiminnot (mod-status, remove-from-show, muted words, viewer list) ensin. Chat-komennot ja co-host ovat pienemmän prioriteetin lisäyksiä, voidaan tehdä myöhemmin erikseen.
+
+### Katsojan Shop-paneeli livessä — PÄÄTETTY 2026-08-08 (mobiilikäyttäytyminen nyt vahvistettu)
+Whatnotilla katsojalla on oma selauspaneeli livessä: haku, suodattimet (**Filter / Sort / Auction / Buy Now**), tuotelista jossa jokaisella tuotteella oma "Pre-bid"/"Buy Now" -nappi.
+
+**Mobiilikäyttäytyminen vahvistettu (screenshotein 2026-08-08):**
+- Mobiilissa Shop **ei ole kiinteä sivupaneeli** (kuten desktopilla) vaan **täysruudun overlay/modaali** joka liukuu esiin "Shop"-napista
+- Kun Shop avataan, itse live-video **pienenee automaattisesti pieneksi picture-in-picture-ikkunaksi** ruudun kulmaan (ei katoa, jatkaa toistoa pienenä) — käyttäjä ei menetä yhteyttä liveen vaikka selaa tuotteita
+- Sama PiP-käytös toistuu kun käyttäjä painaa pientä alanuolta palatakseen etusivun selaukseen kesken liven — video jää pieneksi kelluvaksi ikkunaksi ruudun kulmaan, voi sulkea sen X:llä tai jatkaa selailua sen kanssa auki
+
+**Päätös SKRM:lle:** toteutetaan samalla periaatteella — mobiilissa Shop-paneeli täysruudun overlaina, live-video pienenee PiP:ksi kun se avataan. Tämä ratkaisee myös aiemman "video ei saa koskaan kadota näkyvistä" -tyyppisen huolen elegantisti.
+
+### Muita mobiilista havaittuja UI-kuvioita (talteen, ei vielä priorisoitu toteutukseen)
+- **"More"-valikko** kokoaa harvemmin käytetyt toiminnot piiloon (esim. Report, Sound/äänenhallinta) — pitää pääruudun siistinä, ei tungeta kaikkea kerralla näkyviin
+- **Maksutiedot kysytään vasta ensimmäisen huudon/oston yhteydessä**, ei etukäteen pakotettuna — huom, tämä eroaa SKRM:n mallista jossa korttia ei vaadita pakolliseksi ollenkaan (LUKITTU sääntö), joten tätä ei kopioida suoraan, mutta ajoitusperiaate (kysy vasta kun oikeasti tarvitaan, ei etukäteen) on hyvä yleinen UX-periaate
+- Giveaway-osallistujamäärä näkyy pienenä laskurina videon oikeassa yläkulmassa koko ajan kun giveaway on käynnissä
+
+### Sivun layout-periaate — kiinteä runko (LUKITTU, täydentää "Mobiilin live-näkymä" -osiota)
+Havaittu Whatnotilta: koko live-sivun runko (video, tuotelaatikko, chat-laatikko) **pysyy kiinteän kokoisena ja paikallaan riippumatta selainikkunan koosta** — ei koskaan tarvitse scrollata koko sivua ylös/alas nähdäkseen kaiken. **Ainoastaan chatin sisältö scrollaa oman laatikkonsa sisällä**, video/tuotelaatikko eivät liiku. Tämä koskee sekä desktopia (ikkunan koon muutos) että mobiilia (jo LUKITTU "Mobiilin live-näkymä" -osiossa) — sama periaate, molemmat muodot.
 
 ### 3. Giveaway / Onnenpyörä — Vaihtoehto A (avainsana-ilmoittautuminen)
 Päätetty: avainsana-malli, ei läsnäoloseurantaa (yksinkertaisempi rakentaa, ei vaadi reaaliaikaista "kuka on juuri nyt paikalla" -logiikkaa).

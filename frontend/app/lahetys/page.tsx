@@ -582,11 +582,11 @@ export default function LahetysPage() {
             </div>
           )
           if (item.kind === 'purchase') return (
-            <div key={item.id} style={{ padding: '7px 9px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: 7, fontSize: 12 }}>
-              <span style={{ color: '#22c55e', fontWeight: 700 }}>{item.username}</span>
+            <div key={item.id} style={{ padding: '7px 9px', background: C.accentLight, border: `1px solid ${C.accentBright}55`, borderRadius: 7, fontSize: 12 }}>
+              <span style={{ color: C.accentBright, fontWeight: 700 }}>{item.username}</span>
               <span style={{ color: C.text }}> osti </span>
               <span style={{ color: C.text, fontWeight: 700 }}>{item.productName}</span>
-              <span style={{ color: '#22c55e', fontWeight: 800 }}> {item.amount}€</span>
+              <span style={{ color: C.accentBright, fontWeight: 800 }}> {item.amount}€</span>
             </div>
           )
           return (
@@ -845,7 +845,7 @@ export default function LahetysPage() {
             {feed.slice(-5).map(item => {
               if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{item.text}</div>
               if (item.kind === 'purchase') return (
-                <div key={item.id} style={{ background: 'rgba(34,197,94,0.4)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start' }}>
+                <div key={item.id} style={{ background: 'rgba(46,204,113,0.4)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start' }}>
                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{item.username} osti {item.productName} · {item.amount}€</span>
                 </div>
               )
