@@ -9,6 +9,7 @@ import { useLang } from '@/lib/lang-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { BACKEND_URL } from '@/lib/backend'
 import ReportModal from '@/components/ReportModal'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface ChatMsg { id: string; userId?: string; username: string; message: string; isBid?: boolean; hidden?: boolean }
 interface ViewerEntry { userId: string; username: string; isSeller: boolean; isModerator: boolean }
@@ -356,6 +357,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [viewerList, setViewerList] = useState<ViewerEntry[]>([])
   const [chatTab, setChatTab] = useState<'chat' | 'watching'>('chat')
   const [modMenuUser, setModMenuUser] = useState<{ userId: string; username: string } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; danger?: boolean; onConfirm: () => void } | null>(null)
   const [removedBlocked, setRemovedBlocked] = useState(false)
 
   // Shop-paneeli (mobiili: täysruudun overlay + video pienenee PiP:ksi)
@@ -512,10 +514,16 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     setModMenuUser(null)
   }
   function removeFromShow(userId: string) {
-    if (!confirm('Poistetaanko tämä käyttäjä tästä livestä? Hän ei voi enää chatata tai huutaa tässä livessä.')) { setModMenuUser(null); return }
-    const token = localStorage.getItem('skrm_token')
-    connectSocket().emit('remove_from_show', { showId, userId, token })
     setModMenuUser(null)
+    setConfirmDialog({
+      message: 'Poistetaanko tämä käyttäjä tästä livestä? Hän ei voi enää chatata tai huutaa tässä livessä.',
+      danger: true,
+      onConfirm: () => {
+        setConfirmDialog(null)
+        const token = localStorage.getItem('skrm_token')
+        connectSocket().emit('remove_from_show', { showId, userId, token })
+      },
+    })
   }
 
   async function buyNow(productId: string) {
@@ -661,6 +669,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           </>
         )}
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
+        {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       </div>
     )
   }
@@ -737,6 +746,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
       </div>
       {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
+      {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { resizeImage } from '@/lib/imageUtils'
 import { getNakyvatKategoriat, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
 import { useIsMobile } from '@/lib/useIsMobile'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number }
 interface VideoDevice { deviceId: string; label: string }
@@ -100,6 +101,7 @@ export default function LahetysPage() {
   const [showObsInfo, setShowObsInfo] = useState(false)
   const [showModTools, setShowModTools] = useState(false)
   const [showQueue, setShowQueue] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; danger?: boolean; onConfirm: () => void } | null>(null)
   const [mutedWordsInput, setMutedWordsInput] = useState('')
   const [mutedWordsSaved, setMutedWordsSaved] = useState(false)
 
@@ -344,8 +346,11 @@ export default function LahetysPage() {
     setGoingPublic(false)
   }
 
-  async function endShow() {
-    if (!confirm('Haluatko varmasti lopettaa lähetyksen?')) return
+  function endShow() {
+    setConfirmDialog({ message: 'Haluatko varmasti lopettaa lähetyksen?', danger: true, onConfirm: () => { setConfirmDialog(null); doEndShow() } })
+  }
+
+  async function doEndShow() {
     const token = localStorage.getItem('skrm_token')
     if (show && auction.active) {
       connectSocket().emit('stop_auction', { showId: show.id, token })
@@ -402,8 +407,14 @@ export default function LahetysPage() {
     setTimeout(() => setCopied(''), 2000)
   }
 
-  async function regenerateKey() {
-    if (!confirm('Vanha stream key lakkaa toimimasta heti — OBS:n Stream-asetuksiin pitää syöttää uusi avain. Jatketaanko?')) return
+  function regenerateKey() {
+    setConfirmDialog({
+      message: 'Vanha stream key lakkaa toimimasta heti — OBS:n Stream-asetuksiin pitää syöttää uusi avain. Jatketaanko?',
+      onConfirm: () => { setConfirmDialog(null); doRegenerateKey() },
+    })
+  }
+
+  async function doRegenerateKey() {
     try {
       const { userApi } = await import('@/lib/api')
       const info = await userApi.regenerateStreamKey()
@@ -433,7 +444,11 @@ export default function LahetysPage() {
 
   function muteUser(userId: string) {
     if (!show) return
-    if (!confirm('Mykistetäänkö tämä käyttäjä tässä lähetyksessä?')) return
+    setConfirmDialog({ message: 'Mykistetäänkö tämä käyttäjä tässä lähetyksessä?', onConfirm: () => { setConfirmDialog(null); doMuteUser(userId) } })
+  }
+
+  function doMuteUser(userId: string) {
+    if (!show) return
     const token = localStorage.getItem('skrm_token')
     connectSocket().emit('mute_user', { showId: show.id, userId, token })
   }
@@ -759,6 +774,7 @@ export default function LahetysPage() {
             </div>
           )}
         </div>
+        {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       </div>
     )
   }
@@ -879,6 +895,7 @@ export default function LahetysPage() {
           </div>
         </div>
       )}
+      {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
     </div>
   )
 }
