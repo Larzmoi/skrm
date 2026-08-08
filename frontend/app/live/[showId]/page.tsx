@@ -10,7 +10,8 @@ import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { BACKEND_URL } from '@/lib/backend'
 import ReportModal from '@/components/ReportModal'
 
-interface ChatMsg { id: number; userId?: string; username: string; message: string; isBid?: boolean }
+interface ChatMsg { id: string; userId?: string; username: string; message: string; isBid?: boolean; hidden?: boolean }
+interface ViewerEntry { userId: string; username: string; isSeller: boolean; isModerator: boolean }
 interface AuctionState {
   productId: string | null
   currentBid: number
@@ -19,8 +20,8 @@ interface AuctionState {
   active: boolean
 }
 
-interface ShowProduct { id: string; name: string; condition?: string; startPrice: number; imageUrl?: string; status: string }
-interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { username: string }; products: ShowProduct[]; hlsUrl?: string | null }
+interface ShowProduct { id: string; name: string; condition?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
+interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { id: string; username: string }; products: ShowProduct[]; hlsUrl?: string | null }
 
 function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -148,6 +149,21 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
   )
 }
 
+interface ModMenuProps { C: any; targetIsModerator: boolean; onAssign: () => void; onRemoveMod: () => void; onRemoveFromShow: () => void; onClose: () => void }
+function ModMenu({ C, targetIsModerator, onAssign, onRemoveMod, onRemoveFromShow, onClose }: ModMenuProps) {
+  return (
+    <div style={{ position: 'absolute', zIndex: 30, background: '#161616', border: '1px solid #2A2A2A', borderRadius: 8, padding: 6, minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+      {targetIsModerator ? (
+        <button onClick={onRemoveMod} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#fff', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Poista moderaattorin oikeudet</button>
+      ) : (
+        <button onClick={onAssign} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#fff', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Tee moderaattoriksi</button>
+      )}
+      <button onClick={onRemoveFromShow} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Poista tästä livestä</button>
+      <button onClick={onClose} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#666', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Sulje</button>
+    </div>
+  )
+}
+
 interface ChatAreaProps {
   dark: boolean
   isMobile: boolean
@@ -158,25 +174,71 @@ interface ChatAreaProps {
   setChatInput: (v: string) => void
   sendChat: () => void
   user: any
+  canModerate: boolean
+  chatTab: 'chat' | 'watching'
+  setChatTab: (v: 'chat' | 'watching') => void
+  viewerList: ViewerEntry[]
+  modMenuUser: { userId: string; username: string } | null
+  setModMenuUser: (v: { userId: string; username: string } | null) => void
+  onAssignMod: (userId: string) => void
+  onRemoveMod: (userId: string) => void
+  onRemoveFromShow: (userId: string) => void
 }
 
-function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput, sendChat, user }: ChatAreaProps) {
+function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput, sendChat, user, canModerate, chatTab, setChatTab, viewerList, modMenuUser, setModMenuUser, onAssignMod, onRemoveMod, onRemoveFromShow }: ChatAreaProps) {
+  const visibleChat = chat.filter(m => !m.hidden || canModerate)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: dark ? '#0A0A0A' : C.surface }}>
-      {!isMobile && <div style={{ padding: '12px 14px', borderBottom: `1px solid ${dark ? '#1A1A1A' : C.border}`, fontSize: 13, fontWeight: 700, color: dark ? '#fff' : C.text }}>{t.live.chat}</div>}
-      <div ref={chatRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {chat.map(msg => (
-          <div key={msg.id} style={{ display: 'flex', gap: 7, alignItems: 'flex-start' }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, marginTop: 1 }}>
-              {msg.username[0].toUpperCase()}
+      {!isMobile && (
+        <div style={{ display: 'flex', borderBottom: `1px solid ${dark ? '#1A1A1A' : C.border}`, flexShrink: 0 }}>
+          <button onClick={() => setChatTab('chat')} style={{ flex: 1, background: 'none', border: 'none', padding: '11px 0', fontSize: 12, fontWeight: 700, color: chatTab === 'chat' ? (dark ? '#fff' : C.text) : (dark ? '#666' : C.muted), borderBottom: chatTab === 'chat' ? `2px solid ${C.accent}` : '2px solid transparent', cursor: 'pointer' }}>{t.live.chat}</button>
+          <button onClick={() => setChatTab('watching')} style={{ flex: 1, background: 'none', border: 'none', padding: '11px 0', fontSize: 12, fontWeight: 700, color: chatTab === 'watching' ? (dark ? '#fff' : C.text) : (dark ? '#666' : C.muted), borderBottom: chatTab === 'watching' ? `2px solid ${C.accent}` : '2px solid transparent', cursor: 'pointer' }}>Watching ({viewerList.length})</button>
+        </div>
+      )}
+      {chatTab === 'watching' ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {viewerList.length === 0 && <div style={{ fontSize: 12, color: dark ? '#666' : C.muted, textAlign: 'center', padding: '20px 0' }}>Ei kirjautuneita katsojia juuri nyt</div>}
+          {viewerList.map(v => (
+            <div key={v.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: v.isSeller ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{v.username[0].toUpperCase()}</div>
+              <span style={{ fontSize: 12, color: dark ? '#ccc' : C.text, flex: 1 }}>{v.username}</span>
+              {v.isSeller && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent }}>HOST</span>}
+              {!v.isSeller && v.isModerator && <span style={{ fontSize: 10, fontWeight: 700, color: '#8B5CF6' }}>MOD</span>}
             </div>
-            <div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
-              <span style={{ fontSize: 12, color: dark ? '#ccc' : C.text }}>{msg.message}</span>
+          ))}
+        </div>
+      ) : (
+        <div ref={chatRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {visibleChat.map(msg => (
+            <div key={msg.id} style={{ position: 'relative', display: 'flex', gap: 7, alignItems: 'flex-start', opacity: msg.hidden ? 0.5 : 1 }}>
+              <div
+                onClick={() => canModerate && msg.userId && setModMenuUser(modMenuUser?.userId === msg.userId ? null : { userId: msg.userId, username: msg.username })}
+                style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, marginTop: 1, cursor: canModerate && msg.userId ? 'pointer' : 'default' }}
+              >
+                {msg.username[0].toUpperCase()}
+              </div>
+              <div>
+                <span
+                  onClick={() => canModerate && msg.userId && setModMenuUser(modMenuUser?.userId === msg.userId ? null : { userId: msg.userId, username: msg.username })}
+                  style={{ fontSize: 12, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent, cursor: canModerate && msg.userId ? 'pointer' : 'default' }}
+                >{msg.username} </span>
+                <span style={{ fontSize: 12, color: dark ? '#ccc' : C.text }}>{msg.message}</span>
+                {msg.hidden && <span style={{ fontSize: 10, color: '#EF4444', marginLeft: 6 }}>(piilotettu — kielletty sana)</span>}
+              </div>
+              {modMenuUser?.userId === msg.userId && (
+                <ModMenu
+                  C={C}
+                  targetIsModerator={viewerList.find(v => v.userId === msg.userId)?.isModerator ?? false}
+                  onAssign={() => onAssignMod(msg.userId!)}
+                  onRemoveMod={() => onRemoveMod(msg.userId!)}
+                  onRemoveFromShow={() => onRemoveFromShow(msg.userId!)}
+                  onClose={() => setModMenuUser(null)}
+                />
+              )}
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <div style={{ padding: '8px 12px', borderTop: `1px solid ${dark ? '#1A1A1A' : C.border}`, display: 'flex', gap: 8 }}>
         <input
           value={chatInput}
@@ -191,6 +253,73 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
         </button>
       </div>
     </div>
+  )
+}
+
+interface ShopPanelProps {
+  C: any
+  products: ShowProduct[]
+  activeProductId: string | null
+  search: string; setSearch: (v: string) => void
+  filter: 'all' | 'buynow'; setFilter: (v: 'all' | 'buynow') => void
+  sort: 'default' | 'price_asc' | 'price_desc'; setSort: (v: 'default' | 'price_asc' | 'price_desc') => void
+  onBuyNow: (productId: string) => void
+  onPreBid: () => void
+}
+
+function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onPreBid }: ShopPanelProps) {
+  let list = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
+  if (filter === 'buynow') list = list.filter(p => !!p.buyNowPrice)
+  if (sort === 'price_asc') list = [...list].sort((a, b) => a.startPrice - b.startPrice)
+  if (sort === 'price_desc') list = [...list].sort((a, b) => b.startPrice - a.startPrice)
+
+  return (
+    <>
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Hae tuotteita..." style={{ width: '100%', background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 7, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+        <div style={{ display: 'flex', gap: 6 }}>
+          {([['all', 'Kaikki'], ['buynow', 'Osta heti']] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setFilter(id)} style={{ flex: 1, background: filter === id ? C.accent : '#1A1A1A', border: 'none', color: filter === id ? '#fff' : '#888', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+          ))}
+          <select value={sort} onChange={e => setSort(e.target.value as any)} style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 6, color: '#ccc', fontSize: 11, padding: '0 6px' }}>
+            <option value="default">Järjestys</option>
+            <option value="price_asc">Hinta ↑</option>
+            <option value="price_desc">Hinta ↓</option>
+          </select>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {list.length === 0 && <div style={{ padding: '12px 4px', fontSize: 12, color: '#555' }}>Ei tuotteita</div>}
+        {list.map((p, i) => {
+          const isActive = p.id === activeProductId
+          const isSold = p.status === 'SOLD'
+          return (
+            <div key={p.id} style={{ background: isActive ? '#0D2818' : '#111', border: `1px solid ${isActive ? C.accent + '55' : '#1A1A1A'}`, borderRadius: 8, padding: '9px 11px', opacity: isSold ? 0.4 : 1 }}>
+              <div style={{ display: 'flex', gap: 9, alignItems: 'center', marginBottom: 8 }}>
+                {p.imageUrl
+                  ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} />
+                  : <div style={{ width: 36, height: 36, borderRadius: 5, background: '#1A1A1A', flexShrink: 0 }} />
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: '#555', marginBottom: 1 }}>#{i + 1}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{p.startPrice}€</div>
+                  {isActive && <div style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>NOW</div>}
+                </div>
+              </div>
+              {!isSold && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={onPreBid} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>
+                  {p.buyNowPrice && <button onClick={() => onBuyNow(p.id)} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -221,8 +350,24 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [isMobile, setIsMobile] = useState(true)
   const [showReport, setShowReport] = useState(false)
 
+  // Chat & moderointi -laajennus
+  const [isSeller, setIsSeller] = useState(false)
+  const [isModerator, setIsModerator] = useState(false)
+  const [viewerList, setViewerList] = useState<ViewerEntry[]>([])
+  const [chatTab, setChatTab] = useState<'chat' | 'watching'>('chat')
+  const [modMenuUser, setModMenuUser] = useState<{ userId: string; username: string } | null>(null)
+  const [removedBlocked, setRemovedBlocked] = useState(false)
+
+  // Shop-paneeli (mobiili: täysruudun overlay + video pienenee PiP:ksi)
+  const [shopOpen, setShopOpen] = useState(false)
+  const [shopSearch, setShopSearch] = useState('')
+  const [shopFilter, setShopFilter] = useState<'all' | 'buynow'>('all')
+  const [shopSort, setShopSort] = useState<'default' | 'price_asc' | 'price_desc'>('default')
+  const [toast, setToast] = useState('')
+
   const slideTrackRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
+  const canModerate = isSeller || isModerator
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -252,13 +397,36 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('connect', () => {
       setConnected(true)
-      socket.emit('join_show', showId)
+      const token = localStorage.getItem('skrm_token') || undefined
+      socket.emit('join_show', { showId, token })
     })
 
     socket.on('disconnect', () => setConnected(false))
 
     socket.on('chat_message', (data: any) => {
-      setChat(c => [...c, { id: Date.now(), username: data.username, message: data.message }])
+      setChat(c => [...c, { id: data.id ?? String(Date.now()), userId: data.userId, username: data.username, message: data.message, hidden: data.hidden }])
+    })
+
+    socket.on('chat_message_deleted', (data: { messageId: string }) => {
+      setChat(c => c.filter(m => m.id !== data.messageId))
+    })
+
+    socket.on('your_status', (data: { isSeller: boolean; isModerator: boolean }) => {
+      setIsSeller(data.isSeller); setIsModerator(data.isModerator)
+    })
+
+    socket.on('viewer_list', (data: { viewers: ViewerEntry[] }) => setViewerList(data.viewers))
+
+    socket.on('moderator_status', (data: { userId: string; isModerator: boolean }) => {
+      if (data.userId === user?.id) setIsModerator(data.isModerator)
+    })
+
+    socket.on('user_removed_from_show', (data: { userId: string }) => {
+      if (data.userId === user?.id) setRemovedBlocked(true)
+    })
+
+    socket.on('join_rejected', (data: { reason: string }) => {
+      if (data.reason === 'removed') setRemovedBlocked(true)
     })
 
     socket.on('auction_started', (data: any) => {
@@ -268,7 +436,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('new_bid', (data: any) => {
       setAuction(a => ({ ...a, currentBid: data.amount, leaderName: data.username, timer: data.timer }))
-      setChat(c => [...c, { id: Date.now(), username: data.username, message: `Huusi ${data.amount}€`, isBid: true }])
+      setChat(c => [...c, { id: `bid-${data.userId}-${data.amount}-${Date.now()}`, username: data.username, message: `Huusi ${data.amount}€`, isBid: true }])
       setBidAmount(data.amount + 1)
     })
 
@@ -279,7 +447,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     socket.on('auction_ended', (data: any) => {
       setAuction(a => ({ ...a, active: false, timer: 0 }))
       if (data.winnerName) {
-        setChat(c => [...c, { id: Date.now(), username: 'SKRM', message: `${data.winnerName} voitti hinnalla ${data.finalPrice}€!`, isBid: true }])
+        setChat(c => [...c, { id: `sold-${data.productId}-${Date.now()}`, username: 'SKRM', message: `${data.winnerName} voitti hinnalla ${data.finalPrice}€!`, isBid: true }])
       }
     })
 
@@ -307,6 +475,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       socket.off('connect')
       socket.off('disconnect')
       socket.off('chat_message')
+      socket.off('chat_message_deleted')
+      socket.off('your_status')
+      socket.off('viewer_list')
+      socket.off('moderator_status')
+      socket.off('user_removed_from_show')
+      socket.off('join_rejected')
       socket.off('auction_started')
       socket.off('new_bid')
       socket.off('timer_tick')
@@ -316,6 +490,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       socket.off('auction_state')
       socket.off('show_status')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showId])
 
   function sendChat() {
@@ -324,6 +499,39 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     const socket = connectSocket()
     socket.emit('chat_message', { showId, message: chatInput.trim(), token })
     setChatInput('')
+  }
+
+  function assignModerator(userId: string) {
+    const token = localStorage.getItem('skrm_token')
+    connectSocket().emit('assign_moderator', { showId, userId, token })
+    setModMenuUser(null)
+  }
+  function removeModerator(userId: string) {
+    const token = localStorage.getItem('skrm_token')
+    connectSocket().emit('remove_moderator', { showId, userId, token })
+    setModMenuUser(null)
+  }
+  function removeFromShow(userId: string) {
+    if (!confirm('Poistetaanko tämä käyttäjä tästä livestä? Hän ei voi enää chatata tai huutaa tässä livessä.')) { setModMenuUser(null); return }
+    const token = localStorage.getItem('skrm_token')
+    connectSocket().emit('remove_from_show', { showId, userId, token })
+    setModMenuUser(null)
+  }
+
+  async function buyNow(productId: string) {
+    if (!user) { router.push(`/login?redirect=/live/${showId}`); return }
+    try {
+      const { cartApi } = await import('@/lib/api')
+      await cartApi.add(productId, 'live', 1)
+      router.push('/kori')
+    } catch (e: any) {
+      setToast(e.message ?? 'Ostoskoriin lisäys epäonnistui')
+      setTimeout(() => setToast(''), 2500)
+    }
+  }
+  function preBidStub() {
+    setToast('Ennakkotarjoukset — tulossa pian')
+    setTimeout(() => setToast(''), 2000)
   }
 
   function placeBid() {
@@ -361,60 +569,97 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const maxSlideX = (slideTrackRef.current?.offsetWidth ?? 300) - 46 - 8
   const isLeading = auction.leaderName === user?.username
 
+  if (removedBlocked) {
+    return (
+      <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#fff', textAlign: 'center', padding: 24 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Sinut on poistettu tästä lähetyksestä</div>
+          <div style={{ fontSize: 13, color: '#999', marginBottom: 16 }}>Voit yhä käyttää muuten sivustoa ja katsoa muita lähetyksiä normaalisti.</div>
+          <Link href="/" style={{ color: C.accentBright, fontSize: 13 }}>Etusivulle</Link>
+        </div>
+      </div>
+    )
+  }
+
+  const videoContent = show?.status === 'LIVE' && show?.hlsUrl
+    ? <VideoPlayer hlsUrl={show.hlsUrl} />
+    : <WaitingForStream dark t={t} />
+
   if (isMobile) {
     return (
-      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#000', maxWidth: 480, margin: '0 auto', overflow: 'hidden' }}>
-        <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
-          {show?.status === 'LIVE' && show?.hlsUrl
-            ? <VideoPlayer hlsUrl={show.hlsUrl} />
-            : <WaitingForStream dark t={t} />
-          }
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1 }}>
-              {show?.seller?.username ? (
-                <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{show.seller.username[0].toUpperCase()}</div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show.seller.username}</span>
-                </Link>
-              ) : (
-                <>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>?</div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
-                </>
-              )}
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite' }} />
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#000', maxWidth: 480, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
+        {toast && <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, zIndex: 100 }}>{toast}</div>}
+
+        {shopOpen && (
+          <>
+            {/* PiP: video pienenee kelluvaksi ikkunaksi kun Shop avataan — ei katoa */}
+            <div onClick={() => setShopOpen(false)} style={{ position: 'fixed', bottom: 16, right: 16, width: 100, height: 178, borderRadius: 12, overflow: 'hidden', zIndex: 60, boxShadow: '0 6px 24px rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', cursor: 'pointer' }}>
+              {videoContent}
+              <div style={{ position: 'absolute', top: 4, left: 4, background: '#EF4444', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>LIVE</div>
             </div>
-            <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
-            <button onClick={openReport} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.report.button}>⚑</button>
-            <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
-          </div>
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 10px', zIndex: 10 }}>
-            <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
-              {chat.slice(-5).map(msg => (
-                <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{msg.username[0].toUpperCase()}</div>
-                  <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', maxWidth: '80%' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
-                    <span style={{ fontSize: 11, color: '#fff' }}>{msg.message}</span>
-                  </div>
+            <div style={{ position: 'fixed', inset: 0, background: '#0A0A0A', zIndex: 55, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
+                <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
+              </div>
+              <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
+            </div>
+          </>
+        )}
+
+        {!shopOpen && (
+          <>
+            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
+              {videoContent}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1, minWidth: 0 }}>
+                  {show?.seller?.username ? (
+                    <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', minWidth: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{show.seller.username[0].toUpperCase()}</div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{show.seller.username}</span>
+                    </Link>
+                  ) : (
+                    <>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>?</div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
+                    </>
+                  )}
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', flexShrink: 0 }} />
                 </div>
-              ))}
+                <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
+                <button onClick={openReport} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.report.button}>⚑</button>
+                <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
+              </div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 10px', zIndex: 10 }}>
+                <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
+                  {chat.filter(m => !m.hidden || canModerate).slice(-5).map(msg => (
+                    <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{msg.username[0].toUpperCase()}</div>
+                      <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', maxWidth: '80%' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
+                        <span style={{ fontSize: 11, color: '#fff' }}>{msg.message}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setShopOpen(true)} style={{ background: C.accent, border: 'none', borderRadius: 20, padding: '0 16px', height: 38, color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>Shop</button>
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px', color: '#fff', fontSize: 13, minWidth: 0 }} />
+                  <button onClick={sendChat} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px', color: '#fff', fontSize: 13 }} />
-              <button onClick={sendChat} style={{ background: C.accent, border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <BidPanel
-          C={C} t={t} bidError={bidError} currentProduct={currentProduct} currentLot={currentLot}
-          auction={auction} isLeading={isLeading} timerColor={timerColor} bidAmount={bidAmount}
-          setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
-          connected={connected} maxSlideX={maxSlideX} slideX={slideX}
-          onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
-        />
+            <BidPanel
+              C={C} t={t} bidError={bidError} currentProduct={currentProduct} currentLot={currentLot}
+              auction={auction} isLeading={isLeading} timerColor={timerColor} bidAmount={bidAmount}
+              setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
+              connected={connected} maxSlideX={maxSlideX} slideX={slideX}
+              onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
+            />
+          </>
+        )}
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
       </div>
     )
@@ -422,6 +667,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#080808' }}>
+      {toast && <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, zIndex: 100 }}>{toast}</div>}
       <div style={{ background: '#0A0A0A', borderBottom: '1px solid #1A1A1A', height: 50, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, flexShrink: 0 }}>
         <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: '-0.5px' }}>SKRM</Link>
         <div style={{ flex: 1 }} />
@@ -444,44 +690,17 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '260px 1fr 300px', minHeight: 0 }}>
-        {/* Tuotelista */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '280px 1fr 300px', minHeight: 0 }}>
+        {/* Shop-paneeli (desktop: kiinteä sivupaneeli, ei koskaan piilossa) */}
         <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid #1A1A1A', fontSize: 13, fontWeight: 700, color: '#fff' }}>{t.live.products}</div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {products.length === 0 && <div style={{ padding: '12px 4px', fontSize: 12, color: '#555' }}>{t.live.noProducts}</div>}
-            {products.map((p, i) => {
-              const isActive = p.id === auction.productId
-              const isSold = p.status === 'SOLD'
-              return (
-                <div key={p.id} style={{ background: isActive ? '#0D2818' : '#111', border: `1px solid ${isActive ? C.accent + '55' : '#1A1A1A'}`, borderRadius: 8, padding: '9px 11px', display: 'flex', gap: 9, alignItems: 'center', opacity: isSold ? 0.4 : 1 }}>
-                  {p.imageUrl
-                    ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: 5, background: '#1A1A1A', flexShrink: 0 }} />
-                  }
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: '#555', marginBottom: 1 }}>#{i + 1}</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontSize: 10, color: '#555' }}>{p.condition}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    {isActive && auction.active && <div style={{ fontSize: 13, fontWeight: 800, color: C.accentBright }}>{auction.currentBid}€</div>}
-                    {!isActive && <div style={{ fontSize: 11, color: '#555' }}>{p.startPrice}€</div>}
-                    {isActive && <div style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>NOW</div>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
+          <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
         </div>
 
         {/* Video + bid */}
         <div style={{ display: 'flex', flexDirection: 'column', background: '#080808' }}>
           <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
-            {show?.status === 'LIVE' && show?.hlsUrl
-              ? <VideoPlayer hlsUrl={show.hlsUrl} />
-              : <WaitingForStream dark t={t} />
-            }
+            {videoContent}
             <div style={{ position: 'absolute', top: 14, left: 14, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 4 }}>LIVE</div>
             {auction.active && (
               <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
@@ -509,7 +728,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
         {/* Chat */}
         <div style={{ borderLeft: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <ChatArea dark={true} isMobile={isMobile} t={t} C={C} chatRef={chatRef} chat={chat} chatInput={chatInput} setChatInput={setChatInput} sendChat={sendChat} user={user} />
+          <ChatArea
+            dark={true} isMobile={isMobile} t={t} C={C} chatRef={chatRef} chat={chat} chatInput={chatInput} setChatInput={setChatInput} sendChat={sendChat} user={user}
+            canModerate={canModerate} chatTab={chatTab} setChatTab={setChatTab} viewerList={viewerList}
+            modMenuUser={modMenuUser} setModMenuUser={setModMenuUser}
+            onAssignMod={assignModerator} onRemoveMod={removeModerator} onRemoveFromShow={removeFromShow}
+          />
         </div>
       </div>
       {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}

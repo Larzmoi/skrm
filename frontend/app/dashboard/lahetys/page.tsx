@@ -78,6 +78,9 @@ export default function LahetysPage() {
   const [startError, setStartError] = useState('')
   const [connected, setConnected] = useState(false)
   const [showObsInfo, setShowObsInfo] = useState(false)
+  const [showModTools, setShowModTools] = useState(false)
+  const [mutedWordsInput, setMutedWordsInput] = useState('')
+  const [mutedWordsSaved, setMutedWordsSaved] = useState(false)
 
   const [currentProductId, setCurrentProductId] = useState<string | null>(null)
   const [auction, setAuction] = useState<AuctionState>({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
@@ -203,7 +206,8 @@ export default function LahetysPage() {
     if (!show) return
     const socket = connectSocket()
 
-    socket.on('connect', () => { setConnected(true); socket.emit('join_show', show.id) })
+    const token = localStorage.getItem('skrm_token') || undefined
+    socket.on('connect', () => { setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
     socket.on('disconnect', () => setConnected(false))
 
     socket.on('auction_started', (data: any) => {
@@ -240,13 +244,18 @@ export default function LahetysPage() {
       setFeed(f => f.filter(item => item.id !== data.messageId))
     })
 
-    if (socket.connected) { setConnected(true); socket.emit('join_show', show.id) }
+    socket.on('muted_words_saved', () => {
+      setMutedWordsSaved(true)
+      setTimeout(() => setMutedWordsSaved(false), 2000)
+    })
+
+    if (socket.connected) { setConnected(true); socket.emit('join_show', { showId: show.id, token }) }
 
     return () => {
       socket.emit('leave_show', show.id)
       socket.off('connect'); socket.off('disconnect')
       socket.off('auction_started'); socket.off('new_bid'); socket.off('timer_tick'); socket.off('auction_ended')
-      socket.off('viewer_count'); socket.off('chat_message'); socket.off('chat_message_deleted')
+      socket.off('viewer_count'); socket.off('chat_message'); socket.off('chat_message_deleted'); socket.off('muted_words_saved')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show])
@@ -381,6 +390,13 @@ export default function LahetysPage() {
     } catch {}
   }
 
+  function saveMutedWords() {
+    if (!show) return
+    const token = localStorage.getItem('skrm_token')
+    const words = mutedWordsInput.split('\n').map(w => w.trim()).filter(Boolean)
+    connectSocket().emit('set_muted_words', { showId: show.id, words, token })
+  }
+
   function sendChat() {
     if (!chatInput.trim() || !show) return
     const token = localStorage.getItem('skrm_token')
@@ -481,6 +497,15 @@ export default function LahetysPage() {
     </div>
   )
   const obsPanel = showObsInfo && obsCard
+
+  const modToolsPanel = showModTools && (
+    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 12, flexShrink: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 6 }}>Kielletyt sanat</div>
+      <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Viestit joissa esiintyy jokin näistä sanoista piilotetaan katsojilta — sinä ja moderaattorit näette ne yhä. Yksi sana per rivi.</div>
+      <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={'esim.\nhuijaus\nkielletty sana'} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', color: C.text, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
+      <button onClick={saveMutedWords} style={{ marginTop: 8, background: C.accent, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? 'Tallennettu' : 'Tallenna'}</button>
+    </div>
+  )
 
   const queuePanel = (
     <>
@@ -690,6 +715,7 @@ export default function LahetysPage() {
               </div>
             ))}
             <div style={{ flex: 1 }} />
+            <button onClick={() => setShowModTools(s => !s)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Moderointi {showModTools ? '▴' : '▾'}</button>
             <button onClick={() => setShowObsInfo(s => !s)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>OBS-asetukset {showObsInfo ? '▴' : '▾'}</button>
             {showStatus === 'SCHEDULED' && (
               <button onClick={goPublic} disabled={goingPublic} style={{ background: C.accent, border: 'none', color: '#fff', padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 800, cursor: goingPublic ? 'default' : 'pointer', opacity: goingPublic ? 0.7 : 1, whiteSpace: 'nowrap' }}>
@@ -700,6 +726,7 @@ export default function LahetysPage() {
           </div>
 
           {obsPanel}
+          {modToolsPanel}
 
           {/* Kolme paneelia — koko jäljellä oleva korkeus, sisäinen scroll kussakin */}
           <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', gap: 16 }}>
@@ -809,6 +836,7 @@ export default function LahetysPage() {
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>· {viewers} katsojaa</span>
               </div>
               <div style={{ flex: 1 }} />
+              <button onClick={() => setShowModTools(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>MOD</button>
               <button onClick={() => setShowObsInfo(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>OBS</button>
               {showStatus === 'SCHEDULED' && (
                 <button onClick={goPublic} disabled={goingPublic} style={{ background: C.accent, border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 800, cursor: goingPublic ? 'default' : 'pointer', opacity: goingPublic ? 0.7 : 1 }}>
@@ -854,6 +882,7 @@ export default function LahetysPage() {
           {/* Video alla: nykyinen tuote + pikatoiminnot + jono, vieritettävä */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {obsPanel}
+            {modToolsPanel}
 
             <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
               {topStats.slice(2).map(s => (
