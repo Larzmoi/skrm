@@ -20,7 +20,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const navItems = [
     { href: '/dashboard', label: t.nav.dashboard, icon: '▦', exact: true },
     { href: '/dashboard/tuotteet', label: t.nav.products, icon: '◫' },
-    { href: '/dashboard/lahetys', label: t.nav.broadcast, icon: '◉' },
+    { href: '/lahetys', label: t.nav.broadcast, icon: '◉' },
     { href: '/ostot', label: t.nav.purchases, icon: '◇' },
     { href: '/dashboard/tilaukset', label: t.nav.sales, icon: '▧' },
     { href: '/dashboard/tilitykset', label: t.nav.payouts, icon: '◈' },

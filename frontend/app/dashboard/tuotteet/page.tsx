@@ -487,7 +487,7 @@ export default function TuotteetPage() {
               <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} suoramyynnissä</span>
               <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} huutokaupassa</span>
             </div>
-            <Link href="/dashboard/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>Mene liveen</Link>
+            <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>Mene liveen</Link>
           </div>
         </div>
       ) : !showForm && (

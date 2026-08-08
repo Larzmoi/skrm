@@ -115,7 +115,7 @@ export default function DashboardPage() {
 
       {/* Pikatoiminnot — selkeästi erillään: live-lähetys vs. tuotteiden hallinta */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
-        <Link href="/dashboard/lahetys" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '18px 20px' }}>
+        <Link href="/lahetys" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '18px 20px' }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#fff', flexShrink: 0 }}>◉</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{t.dashboard.quickLiveTitle}</div>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
             {[
               { step: '1', title: t.dashboard.addProducts, desc: t.dashboard.addProductsDesc, href: '/dashboard/tuotteet', done: productCount > 0 },
               { step: '2', title: t.dashboard.scheduleShow, desc: t.dashboard.scheduleShowDesc, href: '#', done: futureShows.length > 0 },
-              { step: '3', title: t.dashboard.goLive, desc: t.dashboard.startLiveDesc, href: '/dashboard/lahetys', done: false },
+              { step: '3', title: t.dashboard.goLive, desc: t.dashboard.startLiveDesc, href: '/lahetys', done: false },
             ].map(item => (
               <Link key={item.step} href={item.href} style={{ display: 'flex', gap: 12, alignItems: 'center', textDecoration: 'none', padding: '12px', borderRadius: 8, background: C.surface, border: `1px solid ${item.done ? C.accent + '44' : C.border}` }}>
                 <div style={{ width: 24, height: 24, borderRadius: '50%', background: item.done ? C.accent : C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: item.done ? '#fff' : C.muted, flexShrink: 0 }}>
