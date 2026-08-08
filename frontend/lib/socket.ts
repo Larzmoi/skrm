@@ -24,7 +24,11 @@ export function getSocket(): Socket {
     const { origin, path } = parseBackend()
     socket = io(origin, {
       path,
-      transports: ['websocket'],
+      // websocket ensisijaisena (pienempi viive), mutta polling sallittu varana — pelkkä
+      // websocket jää joillain mobiiliverkoilla/operaattoriproksyilla ikuisesti "yhdistetään..."
+      // -tilaan koska ne rikkovat WebSocket-upgrade-kättelyn hiljaa, vaikka tavallinen HTTP
+      // (jota polling käyttää) toimisi täysin normaalisti samalla yhteydellä.
+      transports: ['websocket', 'polling'],
       autoConnect: false,
     })
   }
