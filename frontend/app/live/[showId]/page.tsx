@@ -26,6 +26,14 @@ interface ShowData { id: string; title: string; status: string; viewerCount: num
 
 function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [muted, setMuted] = useState(true)
+
+  // Natiivit videosäätimet (controls) poistettu — ne törmäsivät visuaalisesti omien
+  // chat/shop-overlayjemme kanssa mobiilissa (peittyivät/piiloutuivat niiden taakse) eikä niitä
+  // tarvita muuhun kuin äänen mykistyksen poistoon, joten korvattu tällä yhdellä omalla napilla.
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted
+  }, [muted])
 
   useEffect(() => {
     const video = videoRef.current
@@ -61,14 +69,20 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
   }, [hlsUrl])
 
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      muted
-      controls
-      playsInline
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-    />
+    <>
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+      <button
+        onClick={() => setMuted(m => !m)}
+        title={muted ? 'Poista mykistys' : 'Mykistä'}
+        style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', zIndex: 9, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, cursor: 'pointer', backdropFilter: 'blur(6px)' }}
+      >{muted ? '🔇' : '🔊'}</button>
+    </>
   )
 }
 
@@ -666,8 +680,15 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setShopOpen(true)} style={{ background: C.accent, border: 'none', borderRadius: 20, padding: '0 16px', height: 38, color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>Shop</button>
-                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px', color: '#fff', fontSize: 13, minWidth: 0 }} />
-                  <button onClick={sendChat} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                  <input
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendChat()}
+                    placeholder={user ? 'Kirjoita viesti...' : 'Kirjaudu kirjoittaaksesi...'}
+                    disabled={!user}
+                    style={{ flex: 1, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '8px 12px', color: '#fff', fontSize: 13, minWidth: 0, opacity: user ? 1 : 0.6 }}
+                  />
+                  <button onClick={sendChat} disabled={!user} style={{ background: user ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: user ? 'pointer' : 'not-allowed', flexShrink: 0 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
                 </div>

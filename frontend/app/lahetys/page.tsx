@@ -186,7 +186,7 @@ export default function LahetysPage() {
   }
 
   useEffect(() => {
-    import('@/lib/api').then(({ api, userApi }) => {
+    import('@/lib/api').then(({ api, userApi, showApi }) => {
       api.getMyProducts().then((p: Product[]) => {
         setProducts(p.filter(x => x.status === 'PENDING'))
       }).catch(() => {})
@@ -194,6 +194,22 @@ export default function LahetysPage() {
       // ei vasta kun lähetys on jo luotu tai livenä. Ks. CLAUDE.md "esikatselu ennen julkista näkyvyyttä".
       userApi.getStreamInfo().then((info: { rtmpUrl: string; streamKey: string; hlsUrl: string }) => {
         setStreamUrl(info.rtmpUrl); setStreamKey(info.streamKey); setHlsUrl(info.hlsUrl)
+      }).catch(() => {})
+      // Jatka olemassa olevaa lähetystä jos myyjällä on jo yksi kesken (esim. luotu toisella
+      // laitteella/välilehdellä) — muuten sivun avaaminen esim. puhelimella loisi VIELÄ YHDEN
+      // erillisen Show:n omalla chat-huoneellaan, eikä keskustelu/tila synkronoituisi ollenkaan
+      // tietokoneen kanssa jolla lähetys oikeasti on käynnissä.
+      showApi.mine().then((shows: any[]) => {
+        const active = shows
+          .filter(s => s.status === 'LIVE' || s.status === 'SCHEDULED')
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        if (active) {
+          setShow({ id: active.id, title: active.title })
+          setShowStatus(active.status)
+          setIsLive(true)
+          if (active.status === 'LIVE' && active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
+          if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+        }
       }).catch(() => {})
     })
     loadDevices()
@@ -798,7 +814,7 @@ export default function LahetysPage() {
 
   // ===== Live/esikatselukonsoli — TÄYSNÄKYMÄ, ei dashboard-kehystä, video hallitsee =====
   return (
-    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', background: C.bg, display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
+    <div style={{ height: '100dvh', width: '100vw', overflow: 'hidden', background: C.bg, display: 'flex', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
         <HlsPreview hlsUrl={hlsUrl} />
