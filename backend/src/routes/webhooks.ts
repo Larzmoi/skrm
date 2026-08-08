@@ -65,9 +65,16 @@ router.post('/payment-expired', async (_req: Request, res: Response) => {
 })
 
 // POST /webhooks/rtmp/start — nginx-rtmp (on_publish) kutsuu kun OBS aloittaa striimin.
-// streamKey on nykyään pysyvä ja käyttäjäkohtainen (User.streamKey), ei enää yksilöi suoraan
-// yhtä Show'ta — pitää ensin löytää myyjä avaimesta, sitten hänen SCHEDULED-tilassa oleva
-// lähetyksensä (uusin, jos useampia). Ei voi striimata jos yhtäkään SCHEDULED-lähetystä ei ole.
+// streamKey on pysyvä ja käyttäjäkohtainen (User.streamKey) — pitää ensin löytää myyjä
+// avaimesta, sitten hänen SCHEDULED- tai LIVE-tilassa oleva lähetyksensä (LIVE sallitaan
+// mukaan jotta OBS:n uudelleenyhdistys kesken julkisen lähetyksen ei hylkäänny).
+// Ei voi striimata jos yhtäkään sopivaa lähetystä ei ole.
+//
+// TÄRKEÄÄ: tämä EI enää muuta Show'n statusta SCHEDULED → LIVE automaattisesti. OBS-yhteyden
+// muodostuminen tarkoittaa vain että HLS-tiedostot alkavat syntyä palvelimelle — myyjä näkee
+// tämän yksityisenä esikatseluna dashboardissa. Julkiseksi lähetys tulee vasta kun myyjä painaa
+// eksplisiittisesti "Aloita julkinen lähetys" (PATCH /shows/:id/status). Ks. CLAUDE.md
+// "Live-lähetyksen esikatselu ennen julkista näkyvyyttä".
 router.post('/rtmp/start', express.urlencoded({ extended: true }), async (req: Request, res: Response) => {
   const streamKey = req.body.name // nginx lähettää RTMP stream keyn "name"-kenttänä
 
@@ -75,13 +82,10 @@ router.post('/rtmp/start', express.urlencoded({ extended: true }), async (req: R
   if (!seller) return res.status(403).send('Invalid stream key')
 
   const show = await prisma.show.findFirst({
-    where: { sellerId: seller.id, status: 'SCHEDULED' },
+    where: { sellerId: seller.id, status: { in: ['SCHEDULED', 'LIVE'] } },
     orderBy: { createdAt: 'desc' },
   })
-  if (!show) return res.status(403).send('Ei aktiivista ajastettua lähetystä — luo lähetys ensin dashboardista')
-
-  await prisma.show.update({ where: { id: show.id }, data: { status: 'LIVE', startedAt: new Date() } })
-  emitToShow(show.id, 'show_status', { status: 'LIVE' })
+  if (!show) return res.status(403).send('Ei aktiivista lähetystä — luo lähetys ensin dashboardista')
 
   res.status(200).send('ok')
 })

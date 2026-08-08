@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import Hls from 'hls.js'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
@@ -11,12 +12,49 @@ import { useIsMobile } from '@/lib/useIsMobile'
 interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number }
 interface VideoDevice { deviceId: string; label: string }
 interface ShowInfo { id: string; title: string }
+type ShowStatus = 'SCHEDULED' | 'LIVE' | null
 interface AuctionState { productId: string | null; currentBid: number; leaderName: string | null; timer: number; active: boolean }
 type FeedItem =
   | { kind: 'chat'; id: string; userId: string; username: string; message: string }
   | { kind: 'bid'; id: string; username: string; amount: number }
   | { kind: 'purchase'; id: string; username: string; productName: string; amount: number }
   | { kind: 'system'; id: string; text: string }
+
+// Myyjän oma HLS-esikatselu — sama Hls.js-tekniikka kuin ostajan /live/[showId]-sivulla, mutta
+// tiukemmalla liveSyncDurationCount-arvolla pienemmän puskuriviiveen tavoittelemiseksi.
+function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [waiting, setWaiting] = useState(true)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !hlsUrl) return
+    setWaiting(true)
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
+      hls.loadSource(hlsUrl)
+      hls.attachMedia(video)
+      hls.on(Hls.Events.MANIFEST_PARSED, () => setWaiting(false))
+      hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) setWaiting(true) })
+      return () => hls.destroy()
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl
+      video.addEventListener('loadedmetadata', () => setWaiting(false))
+    }
+  }, [hlsUrl])
+
+  return (
+    <div style={{ position: 'absolute', inset: 0 }}>
+      <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      {waiting && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16 }}>
+          Odotetaan OBS-yhteyttä...
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function LahetysPage() {
   const { C } = useTheme()
@@ -30,8 +68,11 @@ export default function LahetysPage() {
   const [city, setCity] = useState('')
   const [thumbnail, setThumbnail] = useState<string | null>(null)
   const [show, setShow] = useState<ShowInfo | null>(null)
+  const [showStatus, setShowStatus] = useState<ShowStatus>(null)
+  const [goingPublic, setGoingPublic] = useState(false)
   const [streamKey, setStreamKey] = useState('')
   const [streamUrl, setStreamUrl] = useState('')
+  const [hlsUrl, setHlsUrl] = useState('')
   const [isLive, setIsLive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
@@ -104,9 +145,14 @@ export default function LahetysPage() {
   }
 
   useEffect(() => {
-    import('@/lib/api').then(({ api }) => {
+    import('@/lib/api').then(({ api, userApi }) => {
       api.getMyProducts().then((p: Product[]) => {
         setProducts(p.filter(x => x.status === 'PENDING'))
+      }).catch(() => {})
+      // OBS-asetukset (RTMP-palvelin + pysyvä stream key) haetaan heti sivulle tultaessa —
+      // ei vasta kun lähetys on jo luotu tai livenä. Ks. CLAUDE.md "esikatselu ennen julkista näkyvyyttä".
+      userApi.getStreamInfo().then((info: { rtmpUrl: string; streamKey: string; hlsUrl: string }) => {
+        setStreamUrl(info.rtmpUrl); setStreamKey(info.streamKey); setHlsUrl(info.hlsUrl)
       }).catch(() => {})
     })
     loadDevices()
@@ -233,25 +279,39 @@ export default function LahetysPage() {
     setCamReady(false)
   }
 
-  async function goLive() {
+  // Luo lähetyksen (status SCHEDULED) ja avaa yksityisen esikatselukonsolin — EI vielä julkinen.
+  // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
+  async function createShow() {
     if (!title.trim()) { setStartError('Anna lähetykselle nimi'); return }
     setStarting(true); setStartError('')
     try {
-      const { showApi, userApi } = await import('@/lib/api')
+      const { showApi } = await import('@/lib/api')
       const created = await showApi.create({ title: title.trim(), category: category || undefined, alakategoria: alakategoria || undefined, city: city.trim() || undefined, thumbnailUrl: thumbnail ?? undefined })
-      const info = await userApi.getStreamInfo()
       setShow({ id: created.id, title: created.title })
-      setStreamKey(info.streamKey)
-      setStreamUrl(info.rtmpUrl)
+      setShowStatus('SCHEDULED')
       setIsLive(true)
-      setLiveSince(Date.now())
       setViewers(0)
       setFeed([])
       setSoldAmounts({})
     } catch (e: any) {
-      setStartError(e.message ?? 'Lähetyksen aloitus epäonnistui')
+      setStartError(e.message ?? 'Lähetyksen luonti epäonnistui')
     }
     setStarting(false)
+  }
+
+  // Ainoa toiminto joka tekee lähetyksestä julkisesti näkyvän — erillinen, tietoinen painallus
+  async function goPublic() {
+    if (!show) return
+    setGoingPublic(true)
+    try {
+      const { showApi } = await import('@/lib/api')
+      await showApi.setStatus(show.id, 'LIVE')
+      setShowStatus('LIVE')
+      setLiveSince(Date.now())
+    } catch (e: any) {
+      setStartError(e.message ?? 'Julkaisu epäonnistui')
+    }
+    setGoingPublic(false)
   }
 
   async function endShow() {
@@ -268,7 +328,7 @@ export default function LahetysPage() {
     }
     disconnectSocket()
     stopCamera()
-    setIsLive(false); setShow(null); setStreamKey(''); setStreamUrl(''); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? '')
+    setIsLive(false); setShow(null); setShowStatus(null); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? '')
     setCurrentProductId(null); setSoldItems([]); setSoldAmounts({}); setFeed([]); setLiveSince(null); setViewers(0); setShowObsInfo(false)
     setAuction({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
   }
@@ -317,7 +377,7 @@ export default function LahetysPage() {
     try {
       const { userApi } = await import('@/lib/api')
       const info = await userApi.regenerateStreamKey()
-      setStreamKey(info.streamKey)
+      setStreamKey(info.streamKey); setHlsUrl(info.hlsUrl)
     } catch {}
   }
 
@@ -398,23 +458,29 @@ export default function LahetysPage() {
     </div>
   )
 
-  const obsPanel = showObsInfo && (
-    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 12, flexShrink: 0 }}>
+  const obsCardContent = (
+    <>
       <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>OBS-asetukset</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl}</div>
+          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl || 'Ladataan...'}</div>
           <button onClick={() => copy(streamUrl, 'server')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey}</div>
+          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey || 'Ladataan...'}</div>
           <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
         </div>
       </div>
       <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi — OBS:ää ei tarvitse säätää uudestaan ensi kerralla. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
       <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
+    </>
+  )
+  const obsCard = (
+    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 12, flexShrink: 0 }}>
+      {obsCardContent}
     </div>
   )
+  const obsPanel = showObsInfo && obsCard
 
   const queuePanel = (
     <>
@@ -479,6 +545,14 @@ export default function LahetysPage() {
             <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{products.length} tuotetta jonossa</p>
           </div>
           <button onClick={() => setShowSettings(s => !s)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Asetukset</button>
+        </div>
+      )}
+
+      {!isLive && (
+        <div style={{ maxWidth: 560, margin: '0 auto 20px' }}>
+          <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px' }}>
+            {obsCardContent}
+          </div>
         </div>
       )}
 
@@ -585,10 +659,11 @@ export default function LahetysPage() {
               ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 22px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Testaa kamera</button>
               : <button onClick={stopCamera} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 22px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Sammuta esikatselu</button>
             }
-            <button onClick={goLive} disabled={starting} style={{ background: '#EF4444', color: '#fff', border: 'none', padding: '10px 30px', borderRadius: 8, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1, boxShadow: '0 4px 16px rgba(239,68,68,0.35)' }}>
-              {starting ? 'Aloitetaan...' : 'Aloita lähetys'}
+            <button onClick={createShow} disabled={starting} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 30px', borderRadius: 8, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
+              {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}
             </button>
           </div>
+          <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
         </div>
       )}
 
@@ -596,11 +671,18 @@ export default function LahetysPage() {
       {isLive && show && currentProduct && !isMobile && (
         <div style={{ height: 'calc(100vh - 114px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Yläpalkki */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 18px', marginBottom: 12, flexWrap: 'wrap', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#EF4444' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, background: C.cardBg, border: `1px solid ${showStatus === 'LIVE' ? '#EF4444' : C.accent}`, borderRadius: 12, padding: '12px 18px', marginBottom: 12, flexWrap: 'wrap', flexShrink: 0 }}>
+            {showStatus === 'LIVE' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#EF4444' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.accent }}>YKSITYINEN ESIKATSELU</span>
+              </div>
+            )}
             {topStats.map(s => (
               <div key={s.label} style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</span>
@@ -609,6 +691,11 @@ export default function LahetysPage() {
             ))}
             <div style={{ flex: 1 }} />
             <button onClick={() => setShowObsInfo(s => !s)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>OBS-asetukset {showObsInfo ? '▴' : '▾'}</button>
+            {showStatus === 'SCHEDULED' && (
+              <button onClick={goPublic} disabled={goingPublic} style={{ background: C.accent, border: 'none', color: '#fff', padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 800, cursor: goingPublic ? 'default' : 'pointer', opacity: goingPublic ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                {goingPublic ? 'Julkaistaan...' : 'Aloita julkinen lähetys'}
+              </button>
+            )}
             <button onClick={endShow} style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Lopeta lähetys</button>
           </div>
 
@@ -625,8 +712,8 @@ export default function LahetysPage() {
             {/* Keskipaneeli — nykyinen tuote */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflowY: 'auto' }}>
               <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', flexShrink: 0 }}>
-                <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                <div style={{ position: 'absolute', top: 10, left: 10, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>LIVE</div>
+                {hlsUrl && <HlsPreview hlsUrl={hlsUrl} />}
+                <div style={{ position: 'absolute', top: 10, left: 10, background: showStatus === 'LIVE' ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>{showStatus === 'LIVE' ? 'LIVE' : 'ESIKATSELU'}</div>
                 {auction.active && (
                   <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.85)', border: `1px solid ${timerColor}`, borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: timerColor }}>{fmt(auction.timer)}</div>
@@ -712,17 +799,22 @@ export default function LahetysPage() {
         <div style={{ height: 'calc(100dvh - 120px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '-16px' }}>
           {/* Video + kaikki overlayt sen päällä */}
           <div style={{ position: 'relative', flexShrink: 0, height: '48vh', minHeight: 220, background: '#080C16', overflow: 'hidden' }}>
-            <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            {hlsUrl && <HlsPreview hlsUrl={hlsUrl} />}
 
             {/* Yläreuna: live-tila + kesto/katsojat + toiminnot */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '10px 10px 0', display: 'flex', alignItems: 'center', gap: 6, zIndex: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', backdropFilter: 'blur(8px)' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{fmtDuration(elapsedSeconds)}</span>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: showStatus === 'LIVE' ? '#EF4444' : C.accent }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{showStatus === 'LIVE' ? fmtDuration(elapsedSeconds) : 'ESIKATSELU'}</span>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>· {viewers} katsojaa</span>
               </div>
               <div style={{ flex: 1 }} />
               <button onClick={() => setShowObsInfo(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>OBS</button>
+              {showStatus === 'SCHEDULED' && (
+                <button onClick={goPublic} disabled={goingPublic} style={{ background: C.accent, border: 'none', borderRadius: 16, padding: '0 10px', height: 30, color: '#fff', fontSize: 11, fontWeight: 800, cursor: goingPublic ? 'default' : 'pointer', opacity: goingPublic ? 0.7 : 1 }}>
+                  {goingPublic ? '...' : 'Julkaise'}
+                </button>
+              )}
               <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 13, cursor: 'pointer' }}>✕</button>
             </div>
 

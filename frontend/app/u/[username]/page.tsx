@@ -77,7 +77,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         {/* Lomamoodi */}
         {profile?.onVacation && (
           <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>🏖</span>
             <div>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#92400E' }}>{t.profile.vacationActive}</span>
               {profile.vacationUntil && <span style={{ fontSize: 13, color: '#92400E' }}> — {t.profile.vacationUntil} {new Date(profile.vacationUntil).toLocaleDateString(lang === 'en' ? 'en-GB' : 'fi-FI')}</span>}

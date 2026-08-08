@@ -30,7 +30,12 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
     if (!video) return
 
     if (Hls.isSupported()) {
-      const hls = new Hls()
+      // liveSyncDurationCount pienempi kuin hls.js:n oletus (3) — pyrkii pysymään lähempänä
+      // live-reunaa, ja maxLiveSyncPlaybackRate nopeuttaa toistoa hieman jos jäädään jälkeen,
+      // jotta katsoja kiriytyy takaisin lähelle reaaliaikaa ilman manuaalista puuttumista.
+      // Ks. CLAUDE.md "Striimin viive" — tämä on Vaihe 1:n pikaparannus klassiselle HLS:lle,
+      // ei korvaa Vaihe 2:n (MediaMTX) todellista alle-5s-ratkaisua.
+      const hls = new Hls({ liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3 })
       hls.loadSource(hlsUrl)
       hls.attachMedia(video)
       return () => hls.destroy()
