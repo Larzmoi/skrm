@@ -204,7 +204,13 @@ export default function LahetysPage() {
       // tietokoneen kanssa jolla lähetys oikeasti on käynnissä.
       showApi.mine().then((shows: any[]) => {
         const active = shows
-          .filter(s => s.status === 'LIVE' || s.status === 'SCHEDULED')
+          // SCHEDULED-lähetys on yksityinen esikatselu/testivaihe joka ei realistisesti kestä
+          // päiviä — vanha unohdettu testiluonnos (esim. selain suljettu ilman "Lopeta
+          // lähetys" -painallusta) ei saa jäädä "aktiiviseksi" ikuisesti ja yllättäen resumeta
+          // vahingossa myöhemmin, jolloin myyjä päätyisi hämmentävästi vanhaan lähetykseen
+          // tajuamatta miksi. LIVE-lähetykselle ei ole vastaavaa rajaa, koska julkinen lähetys
+          // pitää aina pystyä jatkamaan riippumatta siitä miten kauan se on ollut käynnissä.
+          .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000))
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
         if (active) {
           setShow({ id: active.id, title: active.title })
