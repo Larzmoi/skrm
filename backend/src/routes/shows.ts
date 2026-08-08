@@ -12,11 +12,23 @@ const publicShowSelect = {
   viewerCount: true, createdAt: true,
 }
 
-// GET /shows — julkiset live ja tulevat
+// GET /shows — julkiset live ja tulevat.
+// Huom: SCHEDULED-lähetys jolla ei ole scheduledAt-ajankohtaa on myyjän yksityinen esikatselu-/
+// testilähetys (ks. dashboard/lähetys "Luo lähetys ja testaa yhteys" — ei koskaan aseta scheduledAt:ia),
+// ei todellinen julkisesti ilmoitettu "tuleva" lähetys — sellaista ei näytetä tässä listauksessa
+// ennen kuin se joko menee oikeasti LIVE:ksi tai myyjä ajastaa sille julkaisuajan.
 router.get('/', async (req, res) => {
   const { status } = req.query
+  let where: any
+  if (!status) {
+    where = { OR: [{ status: 'LIVE' }, { status: 'SCHEDULED', scheduledAt: { not: null } }] }
+  } else if (String(status) === 'SCHEDULED') {
+    where = { status: 'SCHEDULED', scheduledAt: { not: null } }
+  } else {
+    where = { status: String(status) as any }
+  }
   const shows = await prisma.show.findMany({
-    where: status ? { status: String(status) as any } : { status: { in: ['LIVE', 'SCHEDULED'] } },
+    where,
     orderBy: { scheduledAt: 'asc' },
     select: {
       ...publicShowSelect,
