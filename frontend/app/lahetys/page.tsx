@@ -488,7 +488,7 @@ export default function LahetysPage() {
   const quickBtnBase: React.CSSProperties = { flex: '1 1 auto', minWidth: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '9px 8px', borderRadius: 9, fontSize: 11, fontWeight: 800, letterSpacing: 0.2, cursor: 'pointer', backdropFilter: 'blur(8px)' }
   const quickBtnGhost: React.CSSProperties = { ...quickBtnBase, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }
   const quickBtnGhostDisabled: React.CSSProperties = { ...quickBtnGhost, opacity: 0.35, cursor: 'not-allowed', boxShadow: 'none' }
-  const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: `linear-gradient(180deg, ${C.accentBright} 0%, ${C.accent} 100%)`, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${C.accent}77` }
+  const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: C.accentBright, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${C.accentBright}66` }
   const quickBtnDanger: React.CSSProperties = { ...quickBtnBase, background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.45)', color: '#FCA5A5' }
 
   const quickActionsRow = (
