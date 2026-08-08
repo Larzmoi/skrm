@@ -80,6 +80,7 @@ model User {
   policyAcceptedAt  DateTime?
   vacationUntil    DateTime?
   vacationMessage  String?
+  streamKey        String?  @unique // pysyvä RTMP stream key — sama kaikissa myyjän lähetyksissä, ei per-Show
   role             Role     @default(USER)
   stripeCustomerId String?
   stripeAccountId  String?
@@ -117,8 +118,7 @@ model Show {
   alakategoria  String?
   city          String?
   thumbnailUrl  String?
-  streamKey     String?   @unique // salainen — vain myyjälle (OBS-striimauksen RTMP stream key)
-  hlsUrl        String? // HLS-toistolinkki katsojille
+  hlsUrl        String? // HLS-toistolinkki katsojille — rakennettu myyjän pysyvästä User.streamKey:stä luontihetkellä
   scheduledAt   DateTime?
   startedAt     DateTime?
   endedAt       DateTime?

@@ -236,9 +236,9 @@ export default function LahetysPage() {
     if (!title.trim()) { setStartError('Anna lähetykselle nimi'); return }
     setStarting(true); setStartError('')
     try {
-      const { showApi } = await import('@/lib/api')
+      const { showApi, userApi } = await import('@/lib/api')
       const created = await showApi.create({ title: title.trim(), category: category || undefined, alakategoria: alakategoria || undefined, city: city.trim() || undefined, thumbnailUrl: thumbnail ?? undefined })
-      const info = await showApi.getStreamInfo(created.id)
+      const info = await userApi.getStreamInfo()
       setShow({ id: created.id, title: created.title })
       setStreamKey(info.streamKey)
       setStreamUrl(info.rtmpUrl)
@@ -309,6 +309,15 @@ export default function LahetysPage() {
     navigator.clipboard.writeText(text)
     setCopied(label)
     setTimeout(() => setCopied(''), 2000)
+  }
+
+  async function regenerateKey() {
+    if (!confirm('Vanha stream key lakkaa toimimasta heti — OBS:n Stream-asetuksiin pitää syöttää uusi avain. Jatketaanko?')) return
+    try {
+      const { userApi } = await import('@/lib/api')
+      const info = await userApi.regenerateStreamKey()
+      setStreamKey(info.streamKey)
+    } catch {}
   }
 
   function sendChat() {
@@ -533,7 +542,8 @@ export default function LahetysPage() {
                   <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi — OBS:ää ei tarvitse säätää uudestaan ensi kerralla. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
+              <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
             </div>
           )}
 

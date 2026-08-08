@@ -1,12 +1,9 @@
 import { Router, Response } from 'express'
-import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { RTMP_URL, hlsUrlFor, getOrCreateStreamKey } from '../lib/stream'
 
 const router = Router()
-
-const RTMP_URL = process.env.RTMP_URL || 'rtmp://stream.skrm.fi/live'
-const HLS_BASE_URL = process.env.HLS_BASE_URL || 'https://stream.skrm.fi/hls'
 
 // Julkinen valinta — streamKey on salainen eikä saa koskaan päätyä julkisiin vastauksiin
 const publicShowSelect = {
@@ -59,7 +56,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { title, category, alakategoria, city, scheduledAt, thumbnailUrl } = req.body
   if (!title) return res.status(400).json({ error: 'Nimi vaaditaan' })
 
-  const streamKey = crypto.randomBytes(16).toString('hex')
+  const streamKey = await getOrCreateStreamKey(req.userId!)
 
   const show = await prisma.show.create({
     data: {
@@ -69,8 +66,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       city: city ?? null,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       sellerId: req.userId!,
-      streamKey,
-      hlsUrl: `${HLS_BASE_URL}/${streamKey}.m3u8`,
+      hlsUrl: hlsUrlFor(streamKey),
       thumbnailUrl: thumbnailUrl ?? null,
     },
   })
@@ -78,11 +74,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 // GET /shows/:id/stream-info — hae RTMP-tiedot myyjälle (OBS-striimausta varten)
+// Huom: streamKey on nykyään pysyvä ja käyttäjäkohtainen — sama kaikilla myyjän lähetyksillä.
+// Ks. myös GET /users/me/stream-info, joka toimii ilman että lähetystä on vielä luotu.
 router.get('/:id/stream-info', authMiddleware, async (req: AuthRequest, res: Response) => {
   const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })
   if (!show || show.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  if (!show.streamKey) return res.status(404).json({ error: 'Stream keytä ei löydy tälle lähetykselle' })
-  res.json({ rtmpUrl: RTMP_URL, streamKey: show.streamKey })
+  const streamKey = await getOrCreateStreamKey(req.userId!)
+  res.json({ rtmpUrl: RTMP_URL, streamKey })
 })
 
 // PATCH /shows/:id/status — muuta tila (LIVE/ENDED)

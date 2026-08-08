@@ -64,17 +64,24 @@ router.post('/payment-expired', async (_req: Request, res: Response) => {
   res.json({ cancelled })
 })
 
-// POST /webhooks/rtmp/start — nginx-rtmp (on_publish) kutsuu kun OBS aloittaa striimin
+// POST /webhooks/rtmp/start — nginx-rtmp (on_publish) kutsuu kun OBS aloittaa striimin.
+// streamKey on nykyään pysyvä ja käyttäjäkohtainen (User.streamKey), ei enää yksilöi suoraan
+// yhtä Show'ta — pitää ensin löytää myyjä avaimesta, sitten hänen SCHEDULED-tilassa oleva
+// lähetyksensä (uusin, jos useampia). Ei voi striimata jos yhtäkään SCHEDULED-lähetystä ei ole.
 router.post('/rtmp/start', express.urlencoded({ extended: true }), async (req: Request, res: Response) => {
   const streamKey = req.body.name // nginx lähettää RTMP stream keyn "name"-kenttänä
 
-  const show = await prisma.show.findFirst({ where: { streamKey } })
-  if (!show) return res.status(403).send('Invalid stream key')
+  const seller = await prisma.user.findFirst({ where: { streamKey } })
+  if (!seller) return res.status(403).send('Invalid stream key')
 
-  if (show.status !== 'LIVE') {
-    await prisma.show.update({ where: { id: show.id }, data: { status: 'LIVE', startedAt: new Date() } })
-    emitToShow(show.id, 'show_status', { status: 'LIVE' })
-  }
+  const show = await prisma.show.findFirst({
+    where: { sellerId: seller.id, status: 'SCHEDULED' },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!show) return res.status(403).send('Ei aktiivista ajastettua lähetystä — luo lähetys ensin dashboardista')
+
+  await prisma.show.update({ where: { id: show.id }, data: { status: 'LIVE', startedAt: new Date() } })
+  emitToShow(show.id, 'show_status', { status: 'LIVE' })
 
   res.status(200).send('ok')
 })
@@ -83,13 +90,17 @@ router.post('/rtmp/start', express.urlencoded({ extended: true }), async (req: R
 router.post('/rtmp/done', express.urlencoded({ extended: true }), async (req: Request, res: Response) => {
   const streamKey = req.body.name
 
-  const show = await prisma.show.findFirst({ where: { streamKey } })
+  const seller = await prisma.user.findFirst({ where: { streamKey } })
+  if (!seller) return res.status(200).send('ok')
+
+  const show = await prisma.show.findFirst({
+    where: { sellerId: seller.id, status: 'LIVE' },
+    orderBy: { startedAt: 'desc' },
+  })
   if (!show) return res.status(200).send('ok')
 
-  if (show.status !== 'ENDED') {
-    await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
-    emitToShow(show.id, 'show_status', { status: 'ENDED' })
-  }
+  await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
+  emitToShow(show.id, 'show_status', { status: 'ENDED' })
 
   res.status(200).send('ok')
 })

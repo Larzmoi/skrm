@@ -120,7 +120,7 @@ XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,9
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
-8. ✅ **OBS-testi Hetznerillä — TEHTY KOKONAAN 2026-08-07.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu + frontendin videotoisto vahvistettu toimivaksi end-to-end oikealla OBS-yhteydellä. Kaksi erillistä juurisyytä videon näkymättömyydelle löydettiin ja korjattiin matkan varrella (ks. "Tunnettuja bugeja" alla ollut merkintä, nyt poistettu ratkaistuna): (1) `stream.skrm.fi` ei kuunnellut HTTPS:ää porttia 443 → asennettu certbot + Let's Encrypt-sertifikaatti, (2) katsojan koneelta testattaessa katsottiin väärää tietokantaa (Railway paikallisen Hetzner-Postgresin sijaan) koko projektin siirryttyä Hetznerille — ei koodivirhe.
+8. ✅ **OBS-testi Hetznerillä — TEHTY KOKONAAN.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu + frontendin videotoisto + socket.io (chat/huudot/katsojamäärä) vahvistettu toimivaksi end-to-end oikealla OBS-yhteydellä. Ks. "Stream-konsolin uudelleenrakennus" -osion "Löydetty jatkotestauksessa" -alaosio socket.io-polkubugista joka esti chatin/huutojen toiminnan tuotannossa — korjattu 2026-08-08.
 
 ## Tunnettuja bugeja / kehityskohteita
 - **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
@@ -413,35 +413,47 @@ Lisää:
 
 **SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
 
+## Pysyvä stream key käyttäjäkohtaisesti (✅ TEHTY 2026-08-07)
+
+Havaittu OBS-testauksessa: `streamKey` generoitiin aiemmin **per Show** (`POST /shows`, `crypto.randomBytes`) — jokainen uusi lähetys pakotti myyjän kaivamaan uuden avaimen ja syöttämään sen OBS:iin uudestaan. Toteutettu ratkaisu:
+
+- `User.streamKey String? @unique` (Prisma-migraatio, `Show.streamKey` poistettu kokonaan mallista) — generoidaan lazily ensimmäisellä pyynnöllä (`backend/src/lib/stream.ts` → `getOrCreateStreamKey()`), ei rekisteröitymisessä (välttää turhan avaimen generoinnin ostajille jotka eivät koskaan myy)
+- `GET /users/me/stream-info` — uusi ensisijainen reitti, palauttaa RTMP-palvelimen + pysyvän avaimen milloin tahansa, ei vaadi lähetystä luotuna. `GET /shows/:id/stream-info` säilytetty taaksepäin yhteensopivuuden vuoksi, palauttaa nyt saman käyttäjäkohtaisen avaimen.
+- **"Generoi uusi avain" -nappi** dashboardin OBS-asetuksissa (`dashboard/lahetys/page.tsx`) → `POST /users/me/stream-key/regenerate` (`backend/src/lib/stream.ts` → `regenerateStreamKey()`), varoitusdialogi ennen suoritusta, vanha avain mitätöityy välittömästi
+- `on_publish`/`on_publish_done`-webhookit (`backend/src/routes/webhooks.ts`) kirjoitettu uudelleen: streamKey → `User` (myyjä) → etsii myyjän uusimman `SCHEDULED`-lähetyksen (`orderBy createdAt desc`) → merkitsee `LIVE`:ksi. Jos ei yhtään `SCHEDULED`-lähetystä: 403 "Ei aktiivista ajastettua lähetystä". `rtmp/done` vastaavasti hakee myyjän `LIVE`-lähetyksen (`orderBy startedAt desc`) ja päättää sen.
+- `Show.hlsUrl` rakennetaan ja tallennetaan yhä per Show luontihetkellä (`hlsUrlFor()`), mutta perustuu nyt myyjän pysyvään avaimeen — sama HLS-polku toistuu kaikissa saman myyjän lähetyksissä
+- Testattu end-to-end paikallisesti skriptillä: avain pysyy samana peräkkäisillä hauilla, uusi Show käyttää samaa avainta, `rtmp/start`→`LIVE`→`rtmp/done`→`ENDED` toimii oikein, regenerointi mitätöi vanhan avaimen (vanhalla avaimella `rtmp/start` palauttaa 403 regeneroinnin jälkeen)
+
 ## Stream-konsolin uudelleenrakennus (✅ TEHTY 2026-08-07)
 
-Nykyinen myyjän live-hallintanäkymä koettiin liian suppeaksi, ei ammattimaisen tuntuiseksi, ei "Whatnot-tasoa". Uusi rakenne toteutettu `frontend/app/dashboard/lahetys/page.tsx`:ään, sivuston omilla `C.xxx`-väreillä (ei geneeristä palettia) — pre-live-asetusnäkymä (kamera-esikatselu, lomake, "Aloita lähetys") jätetty täysin ennalleen, vain `isLive`-tilan jälkeinen näkymä rakennettu uudelleen.
+Nykyinen myyjän live-hallintanäkymä koettiin liian suppeaksi, ei ammattimaisen tuntuiseksi, ei "Whatnot-tasoa". Uusi rakenne toteutettu `frontend/app/dashboard/lahetys/page.tsx`:ään, sivuston omilla `C.xxx`-väreillä (ei geneeristä palettia) — pre-live-asetusnäkymä (kamera-esikatselu, lomake, "Aloita lähetys") jätetty ennalleen, vain `isLive`-tilan jälkeinen näkymä rakennettu uudelleen.
 
 ### Rakenne (kolme paneelia + yläpalkki, kaikki näkyvissä yhtä aikaa ilman scrollausta/välilehtiä)
 
-**Yläpalkki:** LIVE-indikaattori (+ "yhdistetään..." jos socket ei ole vielä kytkeytynyt), kesto (mm:ss / h:mm:ss, päivittyy sekunnin välein `liveSince`-aikaleimasta), katsojamäärä (reaaliaikainen `viewer_count`-socket-tapahtuma), päivän myynti € (summattu `soldAmounts`-mapista), myytyjen tuotteiden määrä. "OBS-asetukset ▾" -nappi laajentaa/piilottaa RTMP-URL+key-kortin (kollapsoitu oletuksena — ei enää vie tilaa kun OBS on jo yhdistetty), "Lopeta lähetys" aina näkyvissä.
+**Yläpalkki:** LIVE-indikaattori (+ "yhdistetään..." jos socket ei ole vielä kytkeytynyt), kesto (mm:ss / h:mm:ss), katsojamäärä (reaaliaikainen `viewer_count`-socket-tapahtuma), päivän myynti €, myytyjen tuotteiden määrä. "OBS-asetukset ▾" laajentaa/piilottaa RTMP-URL+key-kortin (kollapsoitu oletuksena), "Lopeta lähetys" aina näkyvissä.
 
-**Vasen paneeli — tuotejono:** raahattava (native HTML5 drag-and-drop, `draggable`+`onDragStart`/`onDragOver`/`onDrop`) lista jonossa olevista tuotteista pienine kuvineen. Nykyinen tuote seurataan `currentProductId`:llä (ei enää numeerisella indeksillä) nimenomaan siksi että raahaus voi turvallisesti järjestää `products`-taulukon uudelleen sekoittamatta kumpi tuote on "nykyinen" — **tämä on tarkoituksellinen poikkeama alkuperäisestä `currentIndex`-toteutuksesta**, tehty juuri drag-to-reorderia varten. Jonon järjestys on istuntokohtainen (ei tallenneta `Product.order`-kenttään). "+ Lisää tuote" avaa inline-minilomakkeen (nimi, hinta, valinnainen kuva) joka luo tuotteen suoraan `saleType: 'live'`:nä poistumatta näkymästä.
+**Vasen paneeli — tuotejono:** raahattava (native HTML5 drag-and-drop) lista jonossa olevista tuotteista. Nykyinen tuote seurataan `currentProductId`:llä (ei numeerisella indeksillä) nimenomaan siksi että raahaus voi turvallisesti järjestää `products`-taulukon uudelleen sekoittamatta kumpi tuote on "nykyinen". Jonon järjestys on istuntokohtainen (ei tallenneta `Product.order`-kenttään). "+ Lisää tuote" avaa inline-minilomakkeen joka luo tuotteen suoraan `saleType: 'live'`:nä poistumatta näkymästä.
 
-**Keskipaneeli — nykyinen tuote (suurin, tärkein):** pieni video-esikatselu ylhäällä (LIVE-badge + ajastin kun huutokauppa aktiivinen) + iso kuva/nimi/kuvaus + nykyinen huuto isolla numerolla. "Aloita huutokauppa" ensisijaisena CTA:na kun ei aktiivinen. Pikatoimintorivi aina näkyvissä:
-- `+10s` — toimiva, emittoi `extend_timer`-socket-tapahtuman (disabloitu kun huutokauppa ei aktiivinen)
-- `Kiinnitä` — **stub**, näyttää "tulossa pian" -ilmoituksen (odottaa pinned item -konseptin toteutusta, ks. "Live-ominaisuudet Whatnot-tasolle")
-- `Myyty` — toimiva, päättää huutokaupan heti nykyiselle johtajalle (= `endAuction()`)
-- `Seuraava` — toimiva, siirtää `currentProductId`:n jonossa seuraavaan (disabloitu kunnes nykyinen on käyty läpi)
-- `Aloita giveaway` — **stub**, näyttää "tulossa pian" -ilmoituksen (odottaa giveaway-toteutusta, ks. sama osio)
+**Keskipaneeli — nykyinen tuote (suurin, tärkein):** pieni video-esikatselu ylhäällä + iso kuva/nimi/kuvaus + nykyinen huuto isolla numerolla. Pikatoimintorivi aina näkyvissä:
+- `+10s` — toimiva, emittoi `extend_timer`
+- `Kiinnitä` — **stub**, "tulossa pian" (odottaa pinned item -konseptia)
+- `Myyty` — toimiva, päättää huutokaupan heti nykyiselle johtajalle
+- `Seuraava` — toimiva
+- `Aloita giveaway` — **stub**, "tulossa pian" (odottaa giveaway-toteutusta)
 - `Lopeta lähetys` — toimiva
 
-**Oikea paneeli — chat:** reaaliaikainen yhdistetty viestivirta (`FeedItem`-tyyppi: `chat`/`bid`/`purchase`/`system`) — huudot korostettu vihreällä taustalla, **ostohälytykset upotettu suoraan virtaan** vihreällä kehyksellä ("username osti tuote hintaan X€", laukeaa `auction_ended`-tapahtumasta kun on voittaja). Myyjä voi myös itse kirjoittaa chattiin. Moderointi: jokaisen chat-viestin (ei bid/purchase/system-tyyppien) vieressä ✕ (poista, `delete_chat_message`) ja 🔇 (mykistä, `mute_user`, vahvistusdialogilla) — molemmat vain lähetyksen omistavalle myyjälle sallittuja (tarkistettu backendissä `show.sellerId`).
+**Oikea paneeli — chat:** reaaliaikainen yhdistetty viestivirta (`chat`/`bid`/`purchase`/`system`) — huudot korostettu, **ostohälytykset upotettu suoraan virtaan** vihreällä. Moderointi: ✕ (poista, `delete_chat_message`) ja 🔇 (mykistä, `mute_user`) jokaisen chat-viestin vieressä, vain lähetyksen omistavalle myyjälle.
 
 ### Backend-muutokset (`backend/src/socket.ts`)
-- `broadcastViewerCount()` + `socketShows`-Map (koska `socket.rooms` on jo tyhjä `disconnect`-tapahtumassa, pitää seurata manuaalisesti mitä huoneita socket oli liittynyt)
-- `extend_timer` — myyjä-only, pidentää käynnissä olevan huudon ajastinta
-- `delete_chat_message` + `mute_user` — myyjä-only, in-memory `mutedUsers`-Map per show (chat ei ole pysyvä, joten mykistyskään ei tarvitse tietokantamallia)
-- `chat_message` sai pysyvän `id`-kentän (tarvitaan poiston kohdistamiseen frontendissä)
+`broadcastViewerCount()` + `socketShows`-Map, `extend_timer`, `delete_chat_message` + `mute_user` (in-memory `mutedUsers`-Map per show), `chat_message` sai pysyvän `id`-kentän.
 
 ### Tekemättä / rajattu pois tarkoituksella
-- `Kiinnitä` ja `Aloita giveaway` ovat visuaalisia stubbeja — oikea toiminnallisuus odottaa niiden omia speksejä ("Live-ominaisuudet Whatnot-tasolle" -osion kohdat pinned item ja giveaway, ei vielä toteutettu)
-- Jonon uudelleenjärjestys ei persistoidu — vain istunnon ajan muistissa, resetoituu jos sivu ladataan uudelleen kesken lähetyksen (ei koettu kriittiseksi, sama rajoite koski jo aiempaakin toteutusta koska koko lähetysnäkymä ei säilynyt sivun uudelleenlatauksen yli)
+`Kiinnitä` ja `Aloita giveaway` ovat visuaalisia stubbeja — odottavat omia speksejään ("Live-ominaisuudet Whatnot-tasolle"). Jonon uudelleenjärjestys ei persistoidu.
+
+### ⚠️ Löydetty jatkotestauksessa 2026-08-08: koko socket-yhteys ei toiminut tuotannossa
+Sekä chat että "Aloita huutokauppa" -nappi eivät tehneet mitään tuotannossa (`app.skrm.fi`) — ei virhettä, täysi hiljaisuus. Juurisyy: `NEXT_PUBLIC_BACKEND_URL=https://app.skrm.fi/api` tuotannossa (nginx reitittää vain `/api/`-alkuiset pyynnöt backendille). `socket.io-client` tulkitsee `io(url)`-kutsun URL:in POLKUOSAN nimiavaruudeksi, ei reittiin välitettäväksi prefiksiksi — pelkkä `io(BACKEND_URL)` yhdisti siis oletuspolkuun `/socket.io/` eikä `/api/socket.io/`, jonka nginx reitittäisi backendille. Koska nginxin `location /` (kaikki muu) osoittaa frontendiin, pyyntö päätyi Next.js:lle → 502. **Koko socket-kerros (chat, huudot, katsojamäärä) ei siis ole koskaan toiminut luotettavasti tuotannossa** — tämä selittää myös aiemmin "ratkaisemattomaksi" jääneen raportin huutokaupan näkymättömyydestä toisella laitteella (ks. "Tunnettuja bugeja"-historiaa, poistettu nyt korjattuna).
+
+**Korjaus** (`frontend/lib/socket.ts`): `io()`-kutsulle annetaan eksplisiittinen `path`-optio, laskettu `BACKEND_URL`:in `URL().pathname`:stä + `/socket.io/` — toimii automaattisesti sekä paikallisessa kehityksessä (`http://localhost:4000` → `/socket.io/`) että tuotannossa (`https://app.skrm.fi/api` → `/api/socket.io/`) ilman ympäristökohtaista erikoislogiikkaa. Vahvistettu `curl`illa palvelimelta: `/socket.io/` → 502, `/api/socket.io/` → 200 oikealla Engine.IO-handshakella.
 
 ### Suhde muihin jo suunniteltuihin ominaisuuksiin
 Tämä konsoli on se paikka johon seuraavat jo speksatut ominaisuudet asettuvat käytännössä kun ne toteutetaan: pinned item, giveaway/onnenpyörä (molemmat vielä stub-tilassa yllä), sekä "Testaa yhteys" -esikatselu (ks. alla oleva osio) ennen kuin tämä konsoli edes aktivoituu julkisesti. Chat-moderointi ("Live-ominaisuudet Whatnot-tasolle" -osion kohta 2) on jo toteutettu osana tätä.
