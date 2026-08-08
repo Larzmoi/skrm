@@ -62,6 +62,7 @@ export default function LahetysPage() {
   const [qaPrice, setQaPrice] = useState('')
   const [qaImage, setQaImage] = useState<string | null>(null)
   const [qaSaving, setQaSaving] = useState(false)
+  const [qaError, setQaError] = useState('')
   const qaImageRef = useRef<HTMLInputElement>(null)
 
   // Chat + pikatoimintojen "tulossa pian" -ilmoitus
@@ -342,13 +343,17 @@ export default function LahetysPage() {
 
   async function quickAddProduct() {
     if (!qaName.trim() || !qaPrice) return
-    setQaSaving(true)
+    const price = Number(qaPrice.replace(',', '.'))
+    if (!price || price <= 0) { setQaError('Anna kelvollinen hinta'); return }
+    setQaSaving(true); setQaError('')
     try {
       const { api } = await import('@/lib/api')
-      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: Number(qaPrice), imageUrl: qaImage ?? undefined })
+      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, imageUrl: qaImage ?? undefined })
       setProducts(p => [...p, created])
       setQaName(''); setQaPrice(''); setQaImage(null); setShowQuickAdd(false)
-    } catch {}
+    } catch (e: any) {
+      setQaError(e.message ?? 'Lisäys epäonnistui')
+    }
     setQaSaving(false)
   }
 
@@ -381,6 +386,107 @@ export default function LahetysPage() {
 
   const quickBtn: React.CSSProperties = { flex: '1 1 auto', minWidth: 74, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '9px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }
   const quickBtnDisabled: React.CSSProperties = { ...quickBtn, opacity: 0.4, cursor: 'not-allowed', color: C.muted }
+
+  const quickActionsRow = (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
+        <span style={{ fontSize: 15 }}>+10s</span>
+        <span>Lisää aikaa</span>
+      </button>
+      <button onClick={() => stub('Kiinnitä')} style={quickBtn}>
+        <span style={{ fontSize: 15 }}>📌</span>
+        <span>Kiinnitä</span>
+      </button>
+      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
+        <span style={{ fontSize: 15 }}>✓</span>
+        <span>Myyty</span>
+      </button>
+      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtn : quickBtnDisabled}>
+        <span style={{ fontSize: 15 }}>→</span>
+        <span>Seuraava</span>
+      </button>
+      <button onClick={() => stub('Giveaway')} style={quickBtn}>
+        <span style={{ fontSize: 15 }}>🎁</span>
+        <span>Giveaway</span>
+      </button>
+      <button onClick={endShow} style={{ ...quickBtn, borderColor: '#EF4444', color: '#EF4444' }}>
+        <span style={{ fontSize: 15 }}>✕</span>
+        <span>Lopeta</span>
+      </button>
+    </div>
+  )
+
+  const obsPanel = showObsInfo && (
+    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 12, flexShrink: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>OBS-asetukset</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl}</div>
+          <button onClick={() => copy(streamUrl, 'server')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey}</div>
+          <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
+        </div>
+      </div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi — OBS:ää ei tarvitse säätää uudestaan ensi kerralla. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
+      <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
+    </div>
+  )
+
+  const queuePanel = (
+    <>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({products.length})</div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {products.map((p, i) => {
+          const sold = soldItems.includes(p.id); const active = p.id === currentProductId
+          return (
+            <div
+              key={p.id}
+              draggable
+              onDragStart={() => setDragIndex(i)}
+              onDragOver={e => e.preventDefault()}
+              onDrop={() => handleDrop(i)}
+              onClick={() => !isSold && setCurrentProductId(p.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? C.accentLight : 'transparent', opacity: sold ? 0.4 : 1, cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
+            >
+              <span style={{ fontSize: 10, color: C.dim, flexShrink: 0 }}>⠿</span>
+              {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: C.surface2, flexShrink: 0 }} />}
+              <span style={{ fontSize: 12, color: active ? C.accent : C.text, fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              {sold && <span style={{ fontSize: 10, color: C.accent, fontWeight: 700, flexShrink: 0 }}>✓</span>}
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ flexShrink: 0 }}>
+        {showQuickAdd ? (
+          <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+            <input value={qaName} onChange={e => setQaName(e.target.value)} placeholder="Tuotteen nimi" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 9px', color: C.text, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 9px', color: C.text, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: `1px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
+              {qaImage ? <img src={qaImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: C.muted }}>+ Kuva</span>}
+            </div>
+            <input ref={qaImageRef} type="file" accept="image/*" onChange={handleQaImage} style={{ display: 'none' }} />
+            {qaError && <div style={{ fontSize: 11, color: '#EF4444', marginBottom: 6 }}>{qaError}</div>}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => { setShowQuickAdd(false); setQaError('') }} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
+              <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowQuickAdd(true)} style={{ width: '100%', marginTop: 10, background: C.surface2, border: `1px dashed ${C.border}`, color: C.muted, padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Lisää tuote</button>
+        )}
+      </div>
+    </>
+  )
+
+  const topStats = [
+    { label: 'Kesto', value: fmtDuration(elapsedSeconds) },
+    { label: 'Katsojia', value: String(viewers) },
+    { label: 'Myynti tänään', value: `${todaySales.toLocaleString('fi-FI')}€` },
+    { label: 'Myyty', value: `${soldItems.length} kpl` },
+  ]
 
   return (
     <div style={{ color: C.text }}>
@@ -505,20 +611,15 @@ export default function LahetysPage() {
       )}
 
       {/* ===== STREAM-KONSOLI ===== */}
-      {isLive && show && currentProduct && (
-        <div>
+      {isLive && show && currentProduct && !isMobile && (
+        <div style={{ height: 'calc(100vh - 114px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Yläpalkki */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 24, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 18px', marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 18px', marginBottom: 12, flexWrap: 'wrap', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
               <span style={{ fontSize: 13, fontWeight: 800, color: '#EF4444' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
             </div>
-            {[
-              { label: 'Kesto', value: fmtDuration(elapsedSeconds) },
-              { label: 'Katsojia', value: String(viewers) },
-              { label: 'Myynti tänään', value: `${todaySales.toLocaleString('fi-FI')}€` },
-              { label: 'Myyty', value: `${soldItems.length} kpl` },
-            ].map(s => (
+            {topStats.map(s => (
               <div key={s.label} style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</span>
                 <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
@@ -529,73 +630,19 @@ export default function LahetysPage() {
             <button onClick={endShow} style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Lopeta lähetys</button>
           </div>
 
-          {showObsInfo && (
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>OBS-asetukset</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl}</div>
-                  <button onClick={() => copy(streamUrl, 'server')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey}</div>
-                  <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
-                </div>
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi — OBS:ää ei tarvitse säätää uudestaan ensi kerralla. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
-              <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
-            </div>
-          )}
+          {obsPanel}
 
-          {/* Kolme paneelia */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '220px minmax(0,1fr) 300px', gap: 16, alignItems: 'start' }}>
+          {/* Kolme paneelia — koko jäljellä oleva korkeus, sisäinen scroll kussakin */}
+          <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '220px minmax(0,1fr) 300px', gap: 16 }}>
 
             {/* Vasen paneeli — jono */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 12px', order: isMobile ? 3 : 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Jono ({products.length})</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: isMobile ? 220 : 420, overflowY: 'auto' }}>
-                {products.map((p, i) => {
-                  const sold = soldItems.includes(p.id); const active = p.id === currentProductId
-                  return (
-                    <div
-                      key={p.id}
-                      draggable
-                      onDragStart={() => setDragIndex(i)}
-                      onDragOver={e => e.preventDefault()}
-                      onDrop={() => handleDrop(i)}
-                      onClick={() => !isSold && setCurrentProductId(p.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? C.accentLight : 'transparent', opacity: sold ? 0.4 : 1, cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}` }}
-                    >
-                      <span style={{ fontSize: 10, color: C.dim, flexShrink: 0 }}>⠿</span>
-                      {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: C.surface2, flexShrink: 0 }} />}
-                      <span style={{ fontSize: 12, color: active ? C.accent : C.text, fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                      {sold && <span style={{ fontSize: 10, color: C.accent, fontWeight: 700, flexShrink: 0 }}>✓</span>}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {showQuickAdd ? (
-                <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                  <input value={qaName} onChange={e => setQaName(e.target.value)} placeholder="Tuotteen nimi" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 9px', color: C.text, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
-                  <input type="number" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 9px', color: C.text, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
-                  <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: `1px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
-                    {qaImage ? <img src={qaImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: C.muted }}>+ Kuva</span>}
-                  </div>
-                  <input ref={qaImageRef} type="file" accept="image/*" onChange={handleQaImage} style={{ display: 'none' }} />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setShowQuickAdd(false)} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
-                    <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setShowQuickAdd(true)} style={{ width: '100%', marginTop: 10, background: C.surface2, border: `1px dashed ${C.border}`, color: C.muted, padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Lisää tuote</button>
-              )}
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 12px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {queuePanel}
             </div>
 
             {/* Keskipaneeli — nykyinen tuote */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, order: isMobile ? 1 : 2 }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', overflowY: 'auto' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', flexShrink: 0 }}>
                 <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 <div style={{ position: 'absolute', top: 10, left: 10, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>LIVE</div>
                 {auction.active && (
@@ -605,7 +652,7 @@ export default function LahetysPage() {
                 )}
               </div>
 
-              <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px' }}>
+              <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
                   {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 9, flexShrink: 0, border: `2px solid ${C.accent}` }} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -631,41 +678,15 @@ export default function LahetysPage() {
                   <div style={{ fontSize: 12, color: C.muted, textAlign: 'center', marginBottom: 12 }}>Huutokauppa päättyi ilman tarjouksia</div>
                 )}
 
-                {/* Pikatoiminnot */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
-                    <span style={{ fontSize: 15 }}>+10s</span>
-                    <span>Lisää aikaa</span>
-                  </button>
-                  <button onClick={() => stub('Kiinnitä')} style={quickBtn}>
-                    <span style={{ fontSize: 15 }}>📌</span>
-                    <span>Kiinnitä</span>
-                  </button>
-                  <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>
-                    <span style={{ fontSize: 15 }}>✓</span>
-                    <span>Myyty</span>
-                  </button>
-                  <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtn : quickBtnDisabled}>
-                    <span style={{ fontSize: 15 }}>→</span>
-                    <span>Seuraava</span>
-                  </button>
-                  <button onClick={() => stub('Giveaway')} style={quickBtn}>
-                    <span style={{ fontSize: 15 }}>🎁</span>
-                    <span>Giveaway</span>
-                  </button>
-                  <button onClick={endShow} style={{ ...quickBtn, borderColor: '#EF4444', color: '#EF4444' }}>
-                    <span style={{ fontSize: 15 }}>✕</span>
-                    <span>Lopeta</span>
-                  </button>
-                </div>
+                {quickActionsRow}
                 {stubMsg && <div style={{ marginTop: 8, fontSize: 12, color: C.muted, textAlign: 'center' }}>{stubMsg}</div>}
               </div>
             </div>
 
             {/* Oikea paneeli — chat */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, display: 'flex', flexDirection: 'column', height: isMobile ? 320 : 'calc(100vh - 220px)', order: isMobile ? 2 : 3 }}>
-              <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>Chat</div>
-              <div ref={feedRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0 }}>Chat</div>
+              <div ref={feedRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {feed.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Ei viestejä vielä</div>}
                 {feed.map(item => {
                   if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 11, color: C.muted, textAlign: 'center', padding: '4px 0' }}>{item.text}</div>
@@ -695,10 +716,101 @@ export default function LahetysPage() {
                   )
                 })}
               </div>
-              <div style={{ padding: '8px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 6 }}>
+              <div style={{ padding: '8px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 6, flexShrink: 0 }}>
                 <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 18, padding: '7px 12px', color: C.text, fontSize: 12, outline: 'none', minWidth: 0 }} />
                 <button onClick={sendChat} style={{ background: C.accent, border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13 }}>➤</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== STREAM-KONSOLI — MOBIILI: video + chat-overlay, Whatnot/TikTok-tyyliin ===== */}
+      {isLive && show && currentProduct && isMobile && (
+        <div style={{ height: 'calc(100dvh - 120px)', display: 'flex', flexDirection: 'column', overflow: 'hidden', margin: '-16px' }}>
+          {/* Video + kaikki overlayt sen päällä */}
+          <div style={{ position: 'relative', flexShrink: 0, height: '48vh', minHeight: 220, background: '#080C16', overflow: 'hidden' }}>
+            <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+
+            {/* Yläreuna: live-tila + kesto/katsojat + toiminnot */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '10px 10px 0', display: 'flex', alignItems: 'center', gap: 6, zIndex: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', backdropFilter: 'blur(8px)' }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{fmtDuration(elapsedSeconds)}</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>· {viewers} 👁</span>
+              </div>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setShowObsInfo(s => !s)} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 13, cursor: 'pointer', backdropFilter: 'blur(8px)' }}>⚙</button>
+              <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 13, cursor: 'pointer' }}>✕</button>
+            </div>
+
+            {auction.active && (
+              <div style={{ position: 'absolute', top: 52, right: 10, background: 'rgba(0,0,0,0.75)', border: `1px solid ${timerColor}`, borderRadius: 8, padding: '5px 10px', textAlign: 'center', zIndex: 2 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: timerColor }}>{fmt(auction.timer)}</div>
+              </div>
+            )}
+
+            {/* Alareuna: chat overlay */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 10px 8px', zIndex: 2 }}>
+              <div style={{ maxHeight: 130, overflowY: 'auto', marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {feed.slice(-6).map(item => {
+                  if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{item.text}</div>
+                  if (item.kind === 'purchase') return (
+                    <div key={item.id} style={{ background: 'rgba(34,197,94,0.35)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)' }}>
+                      <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{item.username} osti {item.productName} · {item.amount}€</span>
+                    </div>
+                  )
+                  const username = item.kind === 'bid' ? item.username : item.username
+                  const text = item.kind === 'bid' ? `Huusi ${item.amount}€` : item.message
+                  return (
+                    <div key={item.id} style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', maxWidth: '85%' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: item.kind === 'bid' ? C.accentBright : C.accent }}>{username} </span>
+                      <span style={{ fontSize: 11, color: '#fff' }}>{text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '7px 12px', color: '#fff', fontSize: 12, outline: 'none', minWidth: 0 }} />
+                <button onClick={sendChat} style={{ background: C.accent, border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 12 }}>➤</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Video alla: nykyinen tuote + pikatoiminnot + jono, vieritettävä */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {obsPanel}
+
+            <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+              {topStats.slice(2).map(s => (
+                <div key={s.label} style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase' }}>{s.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: `2px solid ${C.accent}` }} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>{auction.active ? 'Nykyinen huuto' : 'Lähtöhinta'}</div>
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: auction.active && auction.leaderName ? C.accent : C.text, flexShrink: 0 }}>{auction.active ? auction.currentBid : currentProduct.startPrice}€</div>
+              </div>
+              {auction.leaderName && <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>Johdossa: {auction.leaderName}</div>}
+
+              {!auction.active && !isSold && <button onClick={startAuction} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 10 }}>Aloita huutokauppa</button>}
+              {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '12px', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 10 }}>Seuraava tuote →</button>}
+              {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: C.accent, fontWeight: 700, marginBottom: 10 }}>Kaikki tuotteet käyty läpi!</div>}
+
+              {quickActionsRow}
+              {stubMsg && <div style={{ marginTop: 8, fontSize: 12, color: C.muted, textAlign: 'center' }}>{stubMsg}</div>}
+            </div>
+
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 12px', flexShrink: 0, display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
+              {queuePanel}
             </div>
           </div>
         </div>
