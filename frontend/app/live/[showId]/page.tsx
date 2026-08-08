@@ -384,6 +384,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [bidSuccess, setBidSuccess] = useState(false)
   const [bidError, setBidError] = useState('')
   const [connected, setConnected] = useState(false)
+  // TILAPÄINEN DIAGNOSTIIKKA (2026-08-09, ks. CLAUDE.md "Ennen migraatiota") - erottaa
+  // saapuuko chat_message-tapahtuma puhelimelle ollenkaan (verkko-ongelma) siitä että se
+  // saapuu mutta CSS piilottaa sen (renderöintibugi). Poistettava kun diagnoosi on tehty.
+  const [debugEventCount, setDebugEventCount] = useState(0)
+  const [debugLastEvent, setDebugLastEvent] = useState('')
   const [viewers, setViewers] = useState(0)
   const [isMobile, setIsMobile] = useState(true)
   const [showReport, setShowReport] = useState(false)
@@ -444,6 +449,8 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('chat_message', (data: any) => {
       setChat(c => [...c, { id: data.id ?? String(Date.now()), userId: data.userId, username: data.username, message: data.message, hidden: data.hidden }])
+      setDebugEventCount(n => n + 1)
+      setDebugLastEvent(`${new Date().toLocaleTimeString()} ${data.username}: ${data.message}`)
     })
 
     socket.on('chat_message_deleted', (data: { messageId: string }) => {
@@ -634,6 +641,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     return (
       <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#000', maxWidth: 480, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
         {toast && <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, zIndex: 100 }}>{toast}</div>}
+
+        {/* TILAPÄINEN DIAGNOSTIIKKA - poistettava kun mobiilichat-syy on selvitetty, ks. CLAUDE.md */}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999, background: '#F59E0B', color: '#000', fontSize: 10, fontFamily: 'monospace', padding: '3px 8px', textAlign: 'center' }}>
+          DEBUG socket: {connected ? 'yhdistetty' : 'EI yhdistetty'} · viestejä saapunut: {debugEventCount}{debugLastEvent ? ` · viimeisin: ${debugLastEvent}` : ''}
+        </div>
 
         {shopOpen && (
           <>
