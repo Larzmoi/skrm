@@ -135,7 +135,7 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
 
 ## Tunnettuja bugeja / kehityskohteita
-- **Live-video ei näy sivustolla vaikka HLS-jakelu toimii palvelinpuolella** — vahvistettu 2026-08-07 että OBS→RTMP→HLS-tiedostot→nginx-jakelu toimii täysin (`curl https://stream.skrm.fi/hls/{streamKey}.m3u8` → 200 OK, oikea content-type). Ongelma on frontendin `VideoPlayer`-komponentissa — HLS-URL:in rakennus `Show.hlsUrl`/`HLS_BASE_URL`:sta ei näytä täsmäävän oikeaan muotoon, tai selaimen konsolissa on CORS/verkkovirhe. Vaatii koodin tarkistuksen, ei enää palvelinpuolen debuggausta.
+- ✅ **KORJATTU 2026-08-08/09 — Live-video ei näytä latautuvan / chat ei toimi luotettavasti kaikilla laitteilla.** Alkuperäinen epäily (HLS-URL:in rakennusvirhe) osoittautui vääräksi — juurisyy oli useampi kerros, ks. "Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset" alempana täydelliselle selvitykselle (hls.js:n puuttuva uudelleenyritys, nginxin 60s oletus-proxy_read_timeout tappamassa pitkäkestoisia socket.io-yhteyksiä, ja mobiilioperaattorin NAT joka pudotti vain palvelin→asiakas-suunnan liikenteen).
 - **Tuotteen poisto jolla on jo huutoja kaatuu raakaan Prisma-virheeseen** (`DELETE /products/:id`, myyjän oma poisto dashboardista) — FK constraint violation, ei käsitelty. Admin-poistoon (`DELETE /admin/products/:id`) tämä on jo korjattu (siivoaa Bid/AutoBid/CartItem ensin) — sama korjaus pitäisi tehdä myös myyjän omaan poistoreittiin.
 - `socket.ts`:n live-lähetyksen socket-pohjainen huutojärjestelmä ei käytä `bidIncrement`-minimikorotusta ollenkaan (korjattu vain `auctions.ts`:ssä, perinteisille huutokaupoille)
 - Selaa-sivun saleType-kuplat (Kaikki/Suoramyynti/Huutokaupat) voivat olla turha kaksinkertainen jaottelu Navbarin ylätason navigoinnin kanssa — ei päätetty, ks. "Selaa-sivun saleType-kuplat" alempana
@@ -415,16 +415,36 @@ Lisää:
 - Kynnysarvojen alle ei näytetä lukuja — vältetään negatiivinen sosiaalinen todiste
 - Sijoitus: footer tai etusivun luottamuspalkki
 
+## KRIITTINEN TILANNEKATSAUS — 2026-08-09, kilpailutilanne muuttui
+
+Kilpailija (n. 20 striimaajaa, oma puhelinsovellus) laajentaa kuulemma Ruotsiin ennen kuin on edes saanut jalansijaa Suomessa. **Tämä on tilaisuus, ei vain uhka** — jos SKRM saadaan oikeasti kuntoon nyt, kilpailija voidaan ohittaa kokonaan sekä Suomessa että Ruotsissa ennen kuin he ehtivät vakiinnuttaa asemaansa. Tästä eteenpäin: **ei pelleilyä, tehdään oikein.**
+
+### Kolme bugia raportoitu 2026-08-09 — tila epäselvä suhteessa juuri tehtyihin korjauksiin
+Omistaja raportoi nämä kolme, mutta ei ole vahvistettu testattiinko ennen vai jälkeen alla dokumentoitujen infrakorjausten (ks. "Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset" -osio):
+
+1. **Viive edelleen todella pitkä (koettu ~30s).** Ei ole tehty mitään uutta latenssin eteen tämän korjauskierroksen aikana — vain Vaihe 1 (ks. "Striimin viive" -osio) on tehty, eikä sitäkään ole vielä vahvistettu oikealla OBS-striimillä, vain synteettisesti. **Vaihe 1:n oma ehto laukesi: "jos oikea mitattu viive ylittää 10s, Vaihe 2 kannattaa aikaistaa" — 30s ylittää tämän selvästi. Vaihe 2 (MediaMTX) starttaa NYT, ei enää "myöhemmin".**
+2. **Live näkyy vain ~50% todennäköisyydellä.** Täsmää mahdollisesti jo korjattuihin syihin: nginx `proxy_read_timeout` tappoi pitkät socket-yhteydet (korjattu), HLS ei yrittänyt uudestaan fataalin virheen jälkeen jos OBS ei ollut vielä ehtinyt yhdistää (korjattu 3s retry-loopilla). **Vaatii uuden testikierroksen korjausten jälkeen sen vahvistamiseksi onko tämä yhä ongelma.**
+3. **Puhelimen chat ei näytä viestejä, vaikka lähetys toimii** (viestit näkyvät pöytäkoneella/läppärillä). Täsmää täsmälleen löydettyyn juurisyyhyn: mobiilioperaattorin NAT pudotti vain palvelin→asiakas-suunnan liikenteen — koneelta lähetetyt viestit näkyivät muille, mutta puhelin ei koskaan vastaanottanut mitään. Osittainen korjaus tehty (`pingInterval`/`pingTimeout` tiukennettu ~18s:iin nopeampaa uudelleenyhdistämistä varten), mutta tämä **ei poista itse operaattorin verkko-ongelmaa**, vain lyhentää aikaa jolloin yhteys on "kuollut mutta ei vielä havaittu". **Vaatii uuden testikierroksen vahvistaakseen riittääkö tämä lievennys, vai tarvitaanko perustavanlaatuisempi ratkaisu (esim. Socket.io:n polling-fallback pakotettuna tietyille operaattoriverkoille, tai kokonaan eri reaaliaikaprotokolla).**
+
+### Uusi prioriteetti: MediaMTX-migraatio NYT (ei enää "vahvistettu myöhemmäksi")
+Kilpailuedusta johtuen tämä on nyt ensimmäinen tehtävä ennen mitään muuta visuaalista hiontaa. Tavoite: **alle 6 sekuntia, ei kompromisseja** (tiukennettu aiemmasta 5-10s-välitavoitteesta liiketoiminnan kiireellisyyden vuoksi). Ks. "Selainpohjainen mobiilistriimaus (WebRTC)" -osio teknisille yksityiskohdille — sama työ ratkaisee myös puhelimen asennuksettoman striimauksen, joka on toinen kilpailuetu kilpailijan omaa appia vastaan.
+
+### Tärkeä korjaus tilannekuvaan (2026-08-09, omistajan tarkennus)
+Omistaja tarkensi: nämä kolme bugia (erityisesti näkyvyys ja mobiilichat) **ei ole yksittäisiä, uusia löydöksiä** — niitä on yritetty korjata 3-5 kertaa aiemmin vaihtelevin tuloksin ("välillä toimii, välillä ei"). **Tämä on signaali, ei sattuma:** toistuva, epäjohdonmukainen epäonnistuminen samassa asiassa useiden korjausyritysten jälkeen tarkoittaa että nykyinen perusta (nginx-rtmp:n klassinen HLS + vakio-Socket.io epävakaiden mobiiliverkkojen yli) on rakenteellisesti liian hauras tähän käyttötarkoitukseen, ei että joku yksittäinen rivi koodia olisi väärin. **Vaatimus on ehdoton: 99% ajasta pitää toimia sulavasti, ei "yleensä toimii".** MediaMTX-migraatio ei siis ole vain latenssikorjaus — se on koko epäluotettavan perustan korvaaminen kunnolla suunnitellulla ratkaisulla.
+
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
 
 0. **Live-lähetyksen esikatselu ennen julkista näkyvyyttä** (ks. osio alla) — kriittinen ennen julkaisua, havaittu juuri OBS-testauksessa Hetznerillä, kaiken edellä koska striimaus on paraikaa aktiivisessa testauksessa
-1. **Kategoriafokus: Keräilykortit ainoana** (ks. osio alla) — yhteistyökumppanin palaute, ajankohtainen
-2. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY, ks. "Tehty ✅" alla
-3. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY 2026-08-07, ks. "Live-ominaisuudet Whatnot-tasolle" -osion kohta 4
-4. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — seuraava tehtävä kategoriafokuksen jälkeen. Suositeltu järjestys: 1 (ennakkotarjoukset) ensin, koska storefront on nyt valmis sen edellytykseksi (ostaja löytää tulevat huutokaupat korostettuna myyjäprofiilista).
-5. **Tarjoa hintaa -toiminto** (ks. osio alla) — päätetty ja valmis toteutettavaksi, ei vielä tarkkaa sijaintia järjestyksessä loppujen live-ominaisuuksien jälkeen
+1. **MediaMTX-migraatio** (ks. "KRIITTINEN TILANNEKATSAUS" yllä) — kilpailutilanteen vuoksi ehdoton ykkönen nyt, tavoite alle 6s viive
+2. **Uusi testikierros kolmesta raportoidusta bugista** (viive, epäluotettava näkyvyys, mobiilichat) infrakorjausten jälkeen — vahvista mitkä ovat oikeasti ratkaistu
+3. **Visuaalisen jäädytyksen loppuunsaattaminen** (ks. "Uudet löydökset 2026-08-08" -osio: esikatselu-sivun layout, tumma/vaalea-sekoittuminen, väriyhtenäistys, nappien visuaalinen viimeistely) — odottaa omistajan silmämääräistä hyväksyntää
+4. **Kategoriafokus: Keräilykortit ainoana** — ks. osio alla, suurelta osin tehty, tarkista jäännöskohdat
+5. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY
+6. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY
+7. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — Katsojan Shop-paneeli päätetty mutta **ei aloiteta vielä**, ks. "Uudet löydökset" -osio
+8. **Tarjoa hintaa -toiminto** — päätetty ja valmis toteutettavaksi, ei vielä sijoitettu tarkkaan kohtaan
 
-**SV-käännös (`frontend/lib/i18n/sv.ts`) jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat. FI ja EN ovat ajan tasalla.
+**SV-käännös jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat.
 
 ## Striimin viive — LUKITTU vaatimus, kahdessa vaiheessa (päivitetty 2026-08-08)
 
@@ -437,7 +457,7 @@ Nykyinen viive (OBS→katsoja) on **~30 sekuntia** nginx-rtmp:n klassisella HLS:
 - **Mittaustulos:** synteettinen ffmpeg-publikointi tuotantoa vasten, segmentit tulevat tasaisesti 1.0s välein, playlist pitää tarkan 4s-ikkunan — palvelinpuolen laskennallinen viive n. 3-5s, tavoitteen (5-10s) sisällä
 - **Rehellinen varaus, ei vielä lopullisesti vahvistettu:** mittaus on palvelinpuolinen (synteettinen lähde, paikallinen RTMP) — oikea OBS + verkkoyhteys + katsojan laite lisäävät päälle jonkin verran viivettä. **Seuraava askel: mittaa oikea päästä-päähän-viive oikealla OBS-striimillä ja kellolla (esim. näytä stopwatch kameralle, katso viive selaimessa).** Jos oikea mitattu viive ylittää 10s, Vaihe 2 kannattaa aikaistaa.
 
-**Vaihe 2 (vahvistettu tulevaksi, ei enää kysymysmerkki, EI ALOITETTU): MediaMTX-migraatio, tavoite alle 5 sekuntia, mieluiten 3.** Klassinen HLS ei pysty luotettavasti alle 5s:n riippumatta viritystasosta — tämä vaatii WebRTC:tä (alle 1s) tai LL-HLS:ää (2-5s), kumpaakaan nginx-rtmp ei tue. MediaMTX ratkaisee tämän, ja sama työ palvelee myös mobiilin asennuksetonta striimausta (ks. "Selainpohjainen mobiilistriimaus" -osio) — yksi migraatio, kaksi hyötyä. Ei aikataulutettu vielä tarkasti, mutta on vahvistettu tehtäväksi, ei valinnainen "ehkä joskus" -kohta.
+**Vaihe 2 — KÄYNNISTETÄÄN NYT (2026-08-09, kilpailutilanteen vuoksi aikaistettu), tavoite alle 6 sekuntia:** Oikea päästä-päähän-viive vahvistettu omistajan toimesta ~30 sekunniksi — Vaihe 1:n oma ehto ("jos ylittää 10s, aikaista Vaihe 2:ta") on täyttynyt selvästi. MediaMTX-migraatio klassisen HLS:n tilalle/rinnalle: WebRTC (alle 1s) tai LL-HLS (2-5s), kumpaakaan nginx-rtmp ei tue. Sama työ ratkaisee myös mobiilin asennuksettoman striimauksen (ks. "Selainpohjainen mobiilistriimaus" -osio) — yksi migraatio, kaksi kilpailuetua kilpailijaa vastaan.
 
 ## Mobiilin live-näkymä — LUKITTU vaatimus (2026-08-08)
 
@@ -892,3 +912,28 @@ Tuotekortit pinoutuvat nyt pystysuuntaisesti mobiilissa (kuva+nimi → hinta/kun
 - Ilmoitusten deep-linkit korjattu osoittamaan oikeaan paikkaan: ostaja → `/ostot` (missä oikeasti voi maksaa), myyjä → `/dashboard/tilaukset` (ei enää `/dashboard/tuotteet`, koska nyt on oikea Order seurattavana)
 - Sivuvaikutus korjattu: `webhooks.ts`:n `checkExpiredPayments()` palautti ennen KAIKKI peruutetut tuotteet `PENDING`-tilaan — huutokauppatuotteelle tämä olisi aiheuttanut äärettömän silmukan (`auctionEndsAt` on jo mennyt → `closeAuctions` poimisi sen heti uudestaan). Huutokauppatuotteet menevät nyt `UNSOLD`-tilaan (kentät nollattu) maksamattoman voiton jälkeen — myyjä listaa uudestaan manuaalisesti jos haluaa. Suoramyynti/live-tuotteet toimivat kuten ennen (palaavat `PENDING`-tilaan).
 - Testattu curlilla end-to-end kolmessa skenaariossa: (1) passiivinen voitto → 24h Order + mock-pay toimii, (2) osta heti → 2h Order, yhdistyi oikein olemassaolevaan samalta myyjältä 6h sisällä olevaan tilaukseen, (3) maksamaton voitto → tuote `UNSOLD`, ei ääretöntä ilmoitussilmukkaa
+
+## Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset (✅ TEHTY 2026-08-08 — 2026-08-09)
+
+Useampi testauskierros oikealla OBS-striimillä ja useammalla laitteella (tietokone joka streamaa, toinen tietokone katsojana, puhelin katsojana) paljasti sekä UI-bugeja että kaksi eri infrastruktuuritason juurisyytä epäluotettavalle videolle/chatille. Ks. myös päivitetty "Tunnettuja bugeja" -kohta.
+
+### UI/UX-korjaukset (`/lahetys`, `/live/[showId]`)
+- Kategoriapudotusvalikko `/lahetys`:n esikatselulomakkeessa käytti raakaa `KATEGORIAT`-listaa `getNakyvatKategoriat()`:n sijaan — rikkoi kategoriafokuksen (näytti kaikki 14 vaikka pitäisi näyttää vain keräilykortit)
+- `/lahetys`:n esikatselulomake muutettu yksisarakkeisesta (`maxWidth:560`, pakotti scrollaamaan) kaksisarakkeiseksi CSS-gridiksi (`maxWidth:1080`) — OBS-asetukset+kamera vasemmalla, lomake oikealla, kaikki näkyy kerralla leveämmällä näytöllä
+- Väriteeman yhtenäistys: löytyi useita kovakoodattuja "väärän vihreitä" (`#22c55e`, `#16a34a`, `rgba(34,197,94,...)`) sekaisin `C.accent`/`C.accentBright`-teemavärien kanssa eri puolilla lähetys-konsolia ja dashboardia — kaikki yhtenäistetty teemavärehin
+- `quickBtnPrimary` (Myyty/Seuraava-tyyppiset napit) vaihdettu gradientista (tummeni alaspäin, näytti "halvalta") kiinteään `C.accentBright`-täyttöön + eriytetty ghost/danger-variantit pikatoiminnoille visuaalisen hierarkian selkeyttämiseksi
+- `components/ConfirmDialog.tsx` (uusi) — korvaa natiivit `confirm()`-dialogit (esim. "Haluatko varmasti lopettaa lähetyksen?") sivuston tyylin mukaisilla, tummilla, aina-tumma-teemaisilla modaaleilla sekä `/lahetys`:ssä että `/live/[showId]`:ssä (lopeta lähetys, regeneroi stream key, mykistä käyttäjä, poista livestä)
+- `HlsPreview` (myyjän esikatselu) ja `VideoPlayer` (ostajan `/live/[showId]`): hls.js **ei yritä automaattisesti uudestaan** fataalin virheen jälkeen (esim. manifesti ei vielä saatavilla koska OBS ei ole ehtinyt yhdistää) — soitin jäi pysyvästi "Odotetaan..."-tilaan vaikka striimi tulisi hetkeä myöhemmin. Lisätty 3s uudelleenyritys-looppi molempiin.
+- `frontend/lib/socket.ts`: `transports: ['websocket']` → `['websocket', 'polling']` — osa mobiiliverkoista/operaattoriproksyista rikkoo WebSocket-upgrade-kättelyn hiljaa, jolloin yhteys jäi ikuisesti "yhdistetään..."-tilaan vaikka polling (tavallinen HTTP) olisi toiminut
+- **`/lahetys` jatkaa nyt olemassa olevaa SCHEDULED/LIVE-lähetystä sivun avatessa** (`GET /shows/mine`, uusin LIVE/SCHEDULED otetaan) sen sijaan että loisi aina uuden Show:n — ilman tätä toisella laitteella/välilehdellä avattu `/lahetys` loi täysin erillisen lähetyksen omalla chat-huoneellaan eikä keskustelu synkronoitunut alkuperäisen kanssa
+- `/live/[showId]`:n mobiilin chat-inputista puuttui sama `disabled={!user}` + "Kirjaudu kirjoittaaksesi..." -esto joka desktopin `ChatArea`:lla jo oli — kirjautumaton käyttäjä pystyi kirjoittamaan/lähettämään mutta mitään ei tapahtunut, ei virhettä eikä selitystä. Yhtenäistetty desktopin kanssa.
+- `VideoPlayer`:in natiivi `controls`-attribuutti poistettu — törmäsi visuaalisesti omien chat/shop-overlayjen kanssa mobiilissa. Korvattu yhdellä omantyylisellä mykistys-napilla (oli ainoa syy `controls`:in olemassaololle, koska video on oletuksena mykistetty)
+- `/lahetys`:n täysnäkymä-konsolin ulkokehys: `100vh` → `100dvh` + eksplisiittinen `position:'relative'` — ilman näitä mobiilin virtuaalinäppäimistön avautuminen saattoi työntää koko overlay-layoutin (OBS-paneeli, chat-input) väärään kohtaan koska `100vh` ei ota näppäimistöä huomioon eikä `position:absolute`-lapsilla ollut vakaata sijoituskontekstia
+- `GET /shows` (julkinen listaus): lisätty suodatin joka piilottaa `SCHEDULED`-lähetykset joilla ei ole `scheduledAt`-arvoa (= myyjän yksityinen esikatselu-/testilähetys `/lahetys`:n "Luo lähetys ja testaa yhteys" -napista) — nämä näkyivät virheellisesti julkisessa "tulevat lähetykset" -listassa heti kun myyjä poistui konsolista
+
+### Infrastruktuurikorjaukset (EI git-repossa — vain tuotantopalvelimen elävä tila)
+Kaksi erillistä, peräkkäistä juurisyytä epäluotettavalle chatille/videolle, löydetty testaamalla suoraan tuotantoa vasten (kaksi rinnakkaista socket.io-yhteyttä simuloimaan eri laitteita) sen sijaan että arvattaisiin frontend-koodista:
+1. **nginx `proxy_read_timeout`/`proxy_send_timeout` puuttui `/api/`-lohkosta** (`/etc/nginx/sites-available/app.skrm.fi` Hetznerillä) → oletus 60s tappoi pitkäkestoiset socket.io-yhteydet hiljaisuuden aikana vaikka socket.io:n oma ping piti ne teknisesti hengissä, näkyi jatkuvana yhdistä/katkea-syklinä backendin lokeissa ja kadonneina chat-viesteinä katkon aikana. **Korjaus:** `proxy_read_timeout 3600s; proxy_send_timeout 3600s;` lisätty `/api/`-lohkoon, `nginx -t` + `systemctl reload nginx`. Vanha konfiguraatio varmuuskopioitu ennen muutosta (`app.skrm.fi.bak-*`).
+2. **Mobiilioperaattorin NAT/middlebox pudotti vain palvelin→asiakas-suunnan liikenteen** — havaittu 2026-08-09: Android-puhelin mobiilidatalla (ei WiFi) pystyi lähettämään chat-viestejä (näkyivät muille laitteille) muttei koskaan vastaanottanut mitään, ei edes omaa kaikuaan — toistui identtisenä sekä Chromella että Firefoxilla samalla puhelimella/verkolla, ei toistunut WiFillä/tietokoneella. Palvelin/nginx/Cloudflare vahvistettu terveiksi kolmella erillisellä testillä tuotantoa vasten (mm. pakotettu polling-only-yhteys). **Korjaus:** `backend/src/index.ts`, socket.io-serverin `pingInterval`/`pingTimeout` tiukennettu oletuksesta (25s/20s, ~45s ennen kuolleen yhteyden havaitsemista) arvoihin `10000`/`8000` (~18s) — ei poista operaattorin verkko-ongelmaa mutta saa katsojan nopeammin pois "yhdistetty mutta mykkä" -tilasta automaattisen uudelleenyhdistämisen kautta.
+
+**Huom jatkoa varten:** kohta 1 (nginx) ja socket.io:n `pingInterval`/`pingTimeout`-asetus (kohta 2) EIVÄT ole git-repossa — nginx-konfiguraatio on suoraan palvelimen `/etc/nginx/`:ssa, ei koskaan synkronoitu repoon (vain `infra/nginx-rtmp.conf` on referenssikonfig repossa, ei elävä tiedosto). Jos palvelin joskus provisioidaan uudestaan tai konfiguraatio nollataan, nämä kaksi asetusta pitää muistaa lisätä uudestaan manuaalisesti.
