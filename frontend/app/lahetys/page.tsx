@@ -7,7 +7,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { resizeImage } from '@/lib/imageUtils'
-import { KATEGORIAT, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { getNakyvatKategoriat, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
 import { useIsMobile } from '@/lib/useIsMobile'
 
 interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number }
@@ -481,17 +481,24 @@ export default function LahetysPage() {
   const elapsedSeconds = liveSince ? Math.floor((now - liveSince) / 1000) : 0
   const todaySales = Object.values(soldAmounts).reduce((sum, v) => sum + v, 0)
 
-  const quickBtn: React.CSSProperties = { flex: '1 1 auto', minWidth: 68, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '8px 6px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(6px)' }
-  const quickBtnDisabled: React.CSSProperties = { ...quickBtn, opacity: 0.4, cursor: 'not-allowed' }
+  // Pikatoimintojen napit — eriytetty visuaalinen hierarkia: PRIMARY (kirkas vihreä liukuväri,
+  // pääasiallinen "vie eteenpäin" -toiminto), GHOST (neutraali lasimainen, aina-käytettävissä
+  // apu­toiminnot) ja DANGER (Lopeta). Kaikki lasittavat hieman ja saavat kevyen varjon, jotta
+  // ne erottuvat videon päällä eivätkä näytä litteiltä yleispainikkeilta.
+  const quickBtnBase: React.CSSProperties = { flex: '1 1 auto', minWidth: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '9px 8px', borderRadius: 9, fontSize: 11, fontWeight: 800, letterSpacing: 0.2, cursor: 'pointer', backdropFilter: 'blur(8px)' }
+  const quickBtnGhost: React.CSSProperties = { ...quickBtnBase, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }
+  const quickBtnGhostDisabled: React.CSSProperties = { ...quickBtnGhost, opacity: 0.35, cursor: 'not-allowed', boxShadow: 'none' }
+  const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: `linear-gradient(180deg, ${C.accentBright} 0%, ${C.accent} 100%)`, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${C.accent}77` }
+  const quickBtnDanger: React.CSSProperties = { ...quickBtnBase, background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.45)', color: '#FCA5A5' }
 
   const quickActionsRow = (
-    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>+10s</button>
-      <button onClick={() => stub('Kiinnitä')} style={quickBtn}>Kiinnitä</button>
-      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtn : quickBtnDisabled}>Myyty</button>
-      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtn : quickBtnDisabled}>Seuraava</button>
-      <button onClick={() => stub('Giveaway')} style={quickBtn}>Giveaway</button>
-      <button onClick={endShow} style={{ ...quickBtn, borderColor: '#EF4444', color: '#FCA5A5' }}>Lopeta</button>
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtnGhost : quickBtnGhostDisabled}>+10s</button>
+      <button onClick={() => stub('Kiinnitä')} style={quickBtnGhost}>Kiinnitä</button>
+      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtnPrimary : quickBtnGhostDisabled}>✓ Myyty</button>
+      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtnPrimary : quickBtnGhostDisabled}>Seuraava →</button>
+      <button onClick={() => stub('Giveaway')} style={quickBtnGhost}>Giveaway</button>
+      <button onClick={endShow} style={quickBtnDanger}>✕ Lopeta</button>
     </div>
   )
 
@@ -622,17 +629,13 @@ export default function LahetysPage() {
     return (
       <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
         <BackButton />
-        <div style={{ maxWidth: 560, margin: '0 auto', padding: '60px 20px 40px' }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '60px 20px 40px' : '60px 32px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Lähetys</h1>
               <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{products.length} tuotetta jonossa</p>
             </div>
             <button onClick={() => setShowSettings(s => !s)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Asetukset</button>
-          </div>
-
-          <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
-            {obsCardContent}
           </div>
 
           {showSettings && (
@@ -655,92 +658,104 @@ export default function LahetysPage() {
               <a href="/dashboard/tuotteet" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
             </div>
           ) : (
-            <div>
-              <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', marginBottom: 16 }}>
-                <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                {!camReady && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: C.muted }}>
-                    <div style={{ fontSize: 36, marginBottom: 8 }}>●</div>
-                    <div style={{ fontSize: 14 }}>Kamera ei ole päällä</div>
-                  </div>
-                )}
-                {camReady && <div style={{ position: 'absolute', top: 10, left: 10, background: C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>ESIKATSELU</div>}
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+              {/* Vasen: OBS-asetukset + kamera-esikatselu */}
+              <div>
+                <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                  {obsCardContent}
+                </div>
 
-              <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Lähetyksen nimi *</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon-kortteja livenä" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
-
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kategoria</label>
-                <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12 }}>
-                  <option value="">Valitse...</option>
-                  {KATEGORIAT.map(k => <option key={k.id} value={k.id}>{getKatNimi(k, lang as any)}</option>)}
-                </select>
-
-                {(KATEGORIAT.find(k => k.id === category)?.alakategoriat ?? []).length > 0 && (
-                  <>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Alakategoria</label>
-                    <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12 }}>
-                      <option value="">Valitse...</option>
-                      {KATEGORIAT.find(k => k.id === category)?.alakategoriat.map(a => <option key={a.id} value={a.id}>{getAlaNimi(a, lang as any)}</option>)}
-                    </select>
-                  </>
-                )}
-
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
-                <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
-
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>
-                <div
-                  onClick={() => thumbnailRef.current?.click()}
-                  style={{
-                    width: '100%', aspectRatio: '16/9', borderRadius: 10,
-                    border: `2px dashed ${thumbnail ? C.accent : C.border}`, background: C.surface2,
-                    cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', position: 'relative', marginBottom: 12,
-                  }}
-                >
-                  {thumbnail ? (
-                    <>
-                      <img src={thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        onClick={e => { e.stopPropagation(); setThumbnail(null) }}
-                        style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14 }}
-                      >✕</button>
-                    </>
-                  ) : (
-                    <div style={{ textAlign: 'center', color: C.muted }}>
-                      <div style={{ fontSize: 32, marginBottom: 6 }}>+</div>
-                      <div style={{ fontSize: 13 }}>Lisää markkinointikuva</div>
-                      <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>Suositus: 1280×720px · Max 5MB</div>
+                <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', marginBottom: 12 }}>
+                  <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  {!camReady && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                      <div style={{ fontSize: 36, marginBottom: 8 }}>●</div>
+                      <div style={{ fontSize: 14 }}>Kamera ei ole päällä</div>
                     </div>
                   )}
+                  {camReady && <div style={{ position: 'absolute', top: 10, left: 10, background: C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>ESIKATSELU</div>}
                 </div>
-                <input ref={thumbnailRef} type="file" accept="image/*" onChange={handleThumbnail} style={{ display: 'none' }} />
-
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kameralähde (esikatselu)</label>
-                {devices.length === 0
-                  ? <div style={{ fontSize: 13, color: C.muted }}>Paina "Testaa kamera" salliaksesi käytön</div>
-                  : <select value={selectedDevice} onChange={e => { setSelectedDevice(e.target.value); if (camReady) startCamera(e.target.value) }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 8 }}>
-                      {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
-                    </select>
-                }
+                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                  {!camReady
+                    ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
+                    : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
+                  }
+                </div>
                 <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>
                 {camError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{camError}</div>}
               </div>
 
-              {startError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{startError}</div>}
+              {/* Oikea: lähetyksen tiedot -lomake */}
+              <div>
+                <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Lähetyksen nimi *</label>
+                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon-kortteja livenä" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                {!camReady
-                  ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 22px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Testaa kamera</button>
-                  : <button onClick={stopCamera} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 22px', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Sammuta esikatselu</button>
-                }
-                <button onClick={createShow} disabled={starting} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 30px', borderRadius: 8, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kategoria</label>
+                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                        <option value="">Valitse...</option>
+                        {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{getKatNimi(k, lang as any)}</option>)}
+                      </select>
+                    </div>
+                    {(getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat ?? []).length > 0 && (
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Alakategoria</label>
+                        <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                          <option value="">Valitse...</option>
+                          {getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat.map(a => <option key={a.id} value={a.id}>{getAlaNimi(a, lang as any)}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
+                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kameralähde (esikatselu)</label>
+                  {devices.length === 0
+                    ? <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Paina "Testaa kamera" salliaksesi käytön</div>
+                    : <select value={selectedDevice} onChange={e => { setSelectedDevice(e.target.value); if (camReady) startCamera(e.target.value) }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                        {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
+                      </select>
+                  }
+
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>
+                  <div
+                    onClick={() => thumbnailRef.current?.click()}
+                    style={{
+                      width: '100%', aspectRatio: '21/9', borderRadius: 10,
+                      border: `2px dashed ${thumbnail ? C.accent : C.border}`, background: C.surface2,
+                      cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', position: 'relative',
+                    }}
+                  >
+                    {thumbnail ? (
+                      <>
+                        <img src={thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          onClick={e => { e.stopPropagation(); setThumbnail(null) }}
+                          style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14 }}
+                        >✕</button>
+                      </>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: C.muted }}>
+                        <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
+                        <div style={{ fontSize: 12 }}>Lisää markkinointikuva</div>
+                      </div>
+                    )}
+                  </div>
+                  <input ref={thumbnailRef} type="file" accept="image/*" onChange={handleThumbnail} style={{ display: 'none' }} />
+                </div>
+
+                {startError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{startError}</div>}
+
+                <button onClick={createShow} disabled={starting} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
                   {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}
                 </button>
+                <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
               </div>
-              <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
             </div>
           )}
         </div>
@@ -752,7 +767,7 @@ export default function LahetysPage() {
 
   // ===== Live/esikatselukonsoli — TÄYSNÄKYMÄ, ei dashboard-kehystä, video hallitsee =====
   return (
-    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', background: '#000', display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
+    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', background: C.bg, display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
         <HlsPreview hlsUrl={hlsUrl} />

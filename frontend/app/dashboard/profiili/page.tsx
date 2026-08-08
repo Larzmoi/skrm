@@ -151,7 +151,7 @@ export default function ProfiiliPage() {
           <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Kerro itsestäsi..." style={{ ...inp, resize: 'vertical' as const }} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
-        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? '#22c55e' : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>
       </div>
@@ -181,7 +181,7 @@ export default function ProfiiliPage() {
           <input value={businessId} onChange={e => setBusinessId(e.target.value)} placeholder="1234567-8" style={inp} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
-        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? '#22c55e' : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>
       </div>
