@@ -691,7 +691,6 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
                   {chat.filter(m => !m.hidden || canModerate).slice(-5).map(msg => (
                     <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
-                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{msg.username[0].toUpperCase()}</div>
                       <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', maxWidth: '80%' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
                         <span style={{ fontSize: 11, color: '#fff' }}>{msg.message}</span>
