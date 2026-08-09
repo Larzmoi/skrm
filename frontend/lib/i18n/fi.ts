@@ -26,6 +26,7 @@ const fi = {
     leading: 'Sinä johdossa', next: 'Seuraava', sold: 'Myyty', from: 'alkaen',
     bid: 'Huuda', bidPlaced: 'Huuto tehty!', timeLeft: 's jäljellä',
     waitAuction: 'Odota huutokauppaa', viewers: 'katsojaa',
+    youWon: 'Sinä voitit!', auctionEndedNoWinner: 'Huutokauppa päättynyt — ei huutoja',
     leaveShow: '✕ Poistu', connecting: 'Yhdistetään...',
     waitingForStream: 'Odotetaan lähetyksen alkua...', noProducts: 'Ei tuotteita jonossa',
     showsCount: 'lähetystä',

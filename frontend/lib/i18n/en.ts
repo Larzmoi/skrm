@@ -26,6 +26,7 @@ const en = {
     leading: 'You are winning', next: 'Next', sold: 'Sold', from: 'from',
     bid: 'Bid', bidPlaced: 'Bid placed!', timeLeft: 's left',
     waitAuction: 'Waiting for auction', viewers: 'viewers',
+    youWon: 'You won!', auctionEndedNoWinner: 'Auction ended — no bids',
     leaveShow: '✕ Leave', connecting: 'Connecting...',
     waitingForStream: 'Waiting for the stream to start...', noProducts: 'No products queued',
     showsCount: 'shows',

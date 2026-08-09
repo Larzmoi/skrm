@@ -433,6 +433,15 @@ Kilpailuedusta johtuen tämä on nyt ensimmäinen tehtävä ennen mitään muuta
 Omistaja tarkensi: nämä kolme bugia (erityisesti näkyvyys ja mobiilichat) **ei ole yksittäisiä, uusia löydöksiä** — niitä on yritetty korjata 3-5 kertaa aiemmin vaihtelevin tuloksin ("välillä toimii, välillä ei"). **Tämä on signaali, ei sattuma:** toistuva, epäjohdonmukainen epäonnistuminen samassa asiassa useiden korjausyritysten jälkeen tarkoittaa että nykyinen perusta (nginx-rtmp:n klassinen HLS + vakio-Socket.io epävakaiden mobiiliverkkojen yli) on rakenteellisesti liian hauras tähän käyttötarkoitukseen, ei että joku yksittäinen rivi koodia olisi väärin. **Vaatimus on ehdoton: 99% ajasta pitää toimia sulavasti, ei "yleensä toimii".** MediaMTX-migraatio ei siis ole vain latenssikorjaus — se on koko epäluotettavan perustan korvaaminen kunnolla suunnitellulla ratkaisulla.
 
 ### Chat/Socket-arkkitehtuurin uudelleenarviointi (SUUNNITELTU, seuraa MediaMTX:n jälkeen)
+
+**⚠️ Ennen migraatiota: erota kaksi mahdollista syytä toisistaan (2026-08-09, omistajan huomio)**
+Omistaja raportoi: mobiilissa chat ei näy ollenkaan, ei edes silloin kun se muuten "toimii". Tämä voi olla jompikumpi kahdesta eri ongelmasta, jotka näyttävät samalta mutta vaativat eri korjauksen:
+1. **Verkkokerros** — viestit eivät koskaan saavu puhelimelle (jo tunnistettu operaattorin NAT-ongelma, pudottaa palvelin→asiakas-liikennettä)
+2. **Renderöintikerros** — viestit SAAPUVAT puhelimelle mutta CSS piilottaa ne. Tämä on nyt aidosti mahdollista koska stream-konsolin uudistuksessa mobiilichat muutettiin "overlay videon päällä" -tyyliseksi (`position:absolute`) — jos kontin korkeus/z-index/overflow on väärin, data voi tulla perille mutta ei näy ruudulla.
+
+**Diagnoosi ennen korjausta:** avaa mobiiliselaimen kehittäjätyökalut (tai käytä remote debuggingia, esim. Chrome DevTools puhelimeen liitettynä), tarkista **saapuuko** Socket.io-tapahtuma ollenkaan (console.log tai Network-välilehden WS-rivi) kun joku kirjoittaa chattiin. Jos data saapuu mutta ei näy → CSS-bugi, nopea korjaus, ei vaadi koko arkkitehtuurimuutosta. Jos data ei saavu ollenkaan → vahvistaa alkuperäisen verkko-diagnoosin, pub/sub-migraatio on oikea ratkaisu.
+
+**Älä aloita täyttä pub/sub-migraatiota ennen tätä diagnoosia** — jos kyse on pelkästä CSS-bugista, migraatio olisi täysin turhaa työtä väärän ongelman ratkaisemiseksi.
 Sama diagnoosi kuin MediaMTX-päätöksessä: mobiilichat epäonnistuu toistuvasti tietyllä operaattoriverkolla useiden korjausyritysten (transport fallback, ping-timeoutit, nginx-timeoutit) jälkeenkin — merkki väärästä perustasta, ei yksittäisestä bugista.
 
 **Suunta:** siirretään reaaliaikaliikenne (chat, presence/katsojamäärä, moderointitapahtumat) omalta Socket.io-palvelimelta **managed pub/sub-palveluun** (Pusher tai Ably, ei Firebase — teidän malli, huoneet/broadcast/presence, sopii pub/sub-mallille paremmin kuin Firebasen dokumenttisynkronointiin). Sama etu kuin MediaMTX:ssä: operaattoriverkkojen NAT-ongelmien selvittäminen tulee palveluntarjoajan vastuulle globaalissa mittakaavassa, ei yhden VPS:n varaan.
@@ -454,33 +463,39 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 
 **Toimintaohje:** jos MediaMTX-migraatio on kesken ja epävakaa, harkitse palauttaa väliaikaisesti edellinen toimiva nginx-rtmp-tila (parempi hidas mutta toimiva kuin nopea mutta rikki), ja jatka MediaMTX-työtä huolellisemmin taustalla ilman että tuotanto on rikki sillä välin. Toteutustapa ei ole tärkeä omistajalle — lopputulos ("kuva tulee luotettavasti perille") on.
 
-### ✅ Juurisyy löydetty ja korjattu 2026-08-09 — ei epävakaus, vaan puuttuva CORS-credentials
+### Tilannepäivitys 2026-08-09: video toimii jälleen, viive parantunut mutta ei tavoitteessa
+- **Video-regressio korjattu** — MediaMTX toimii luotettavasti, toistettu testaus vahvisti (ei enää "toimii kerran, ei toisella kerralla")
+- **Viive nyt 8-20s** (aiemmasta 30s) — parannus, mutta ei vielä alle 6s -tavoitteessa
+- **Syy tunnistettu:** OBS:n keyframe-väli oli 8.3s, pitäisi olla 1-2s jotta segmentit pysyvät lyhyinä. **Tämä on omistajan oma OBS-asetus, ei korjattavissa palvelinpuolelta** — omistaja päivittää: Asetukset → Lähtö → Advanced-tila → Streaming-välilehti → Keyframe Interval → 2s
+- **Seuraava askel:** mittaa viive uudelleen keyframe-korjauksen jälkeen, useampi kerta peräkkäin
+- **Mux vs. jatka itse -päätös on yhä auki** — ei päätetty vielä, odottaa tätä seuraavaa mittausta ennen lopullista arviota kannattaako jatkaa itse rakennetulla MediaMTX-pohjalla vai vaihtaa managed-palveluun
 
-**Ei ollut MediaMTX:n epävakautta eikä vaatinut nginx-rtmp:hen palaamista.** Diagnosoitiin suoraan tuotannosta: manifesti (.m3u8) latautui aina onnistuneesti, mutta JOKAINEN yksittäinen video/ääni-segmentti (.mp4) palautti **401 Unauthorized** — vahvistettu curlilla sekä ilman evästepurkkia (401) että evästepurkin kanssa (200), mikä paljasti tarkan mekanismin:
+## Uudet löydökset 2026-08-09 (chat toimii, huutokauppa testattu ensi kertaa)
 
-- MediaMTX vaatii `hlsSession`-evästeen jokaisella segmentti/part-haulla (asetetaan manifestin 302-uudelleenohjauksella) — nginx-rtmp:n vanha, staattisiin tiedostoihin perustuva HLS-jakelu ei koskaan tarvinnut mitään vastaavaa istuntomekanismia, joten tämä on aidosti UUSI vaatimus jonka MediaMTX toi mukanaan.
-- `app.skrm.fi` (frontend) ja `stream.skrm.fi` (video) ovat selaimen näkökulmasta **eri origineja** (eri subdomain) — cross-origin-pyynnöissä selain EI lähetä evästeitä oletuksena, ja hls.js ei pyytänyt credentials-tilaa oletuksena.
-- Vanha nginx-CORS-konfiguraatio käytti wildcard-origin (`Access-Control-Allow-Origin: *`), mikä on **teknisesti mahdotonta yhdistää credentialed-pyyntöihin** (selaimen oma CORS-spesifikaatio kieltää tämän yhdistelmän) — vaikka olisi yrittänyt lisätä credentials-tuen, wildcard olisi silti estänyt sen.
-- Lopputulos: jokainen segmenttihaku hylättiin 401:llä heti alusta asti, hls.js ajautui toistuvaan fataali-virhe-uudelleenyrityssilmukkaan (uusi HLS-sessio n. 3s välein loputtomiin) — täsmälleen havaittu "video ei toimi ollenkaan" -oire.
+**Hyvä uutinen:** chat saatiin toimimaan. **Kumpi syy se oli jäi lopulta varmistamatta** — rakennettiin tilapäinen näkyvä diagnostiikkabadge (`/live/[showId]` mobiili, näytti socket-yhteyden tilan + vastaanotettujen chat-tapahtumien laskurin, koska VS Coden Claudella ei ole fyysistä pääsyä puhelimeen DevTools/USB-debuggausta varten), mutta omistaja ilmoitti vain "chat toimii" viittaamatta laskurin lukemaan ennen badgen poistopyyntöä. **Pub/sub-migraation tarve on siis yhä auki kysymys** — jos chat pysyy luotettavana jatkossakin, todennäköisesti kyseessä oli renderöintikerroksen (CSS) korjaus (esim. mobiilichatin `disabled`/login-esto tai jokin aiempi kierroksen korjaus), ei verkkokerroksen NAT-ongelma — mutta tätä ei voida sanoa varmaksi ilman toistokoetta.
 
-**Korjaus (kolme muutosta yhdessä):**
-1. `mediamtx.yml`: `hlsAllowOrigins: ["*"]` → `["https://app.skrm.fi"]` (tarkka origin, ei wildcard)
-2. nginx `stream.skrm.fi`: poistettu duplikoitu wildcard-CORS-header (MediaMTX lähettää jo omansa), lisätty `Access-Control-Allow-Credentials: true` (MediaMTX ei lähetä tätä itse)
-3. Frontend (`HlsPreview`, `VideoPlayer`): `xhrSetup: (xhr) => { xhr.withCredentials = true }` hls.js-konfiguraatioon molemmissa soittimissa — ilman tätä selain ei olisi lähettänyt evästettä vaikka palvelinpuoli sallisi sen
+**Neljä uutta löydöstä huutokaupan/liven testauksesta — kaikki käsitelty 2026-08-09:**
 
-**Erillinen, tarkoituksella koskematon löydös samalla kertaa — OBS:n keyframe-väli:** oikean OBS-striimin segmentit olivat **~8.3 sekuntia** pitkiä (40+ osaa á 0.2s per segmentti) vaikka `hlsSegmentDuration: 1s` on konfiguroitu — HLS/LL-HLS ei voi teknisesti katkaista segmenttiä muualta kuin keyframe-kohdasta, joten OBS:n keyframe-väli (todennäköisesti oletusarvo, ei manuaalisesti asetettu) sanelee todellisen segmenttipituuden riippumatta MediaMTX:n asetuksesta. Tämä ei estänyt videon toimimista (CORS-korjauksen jälkeen segmentit LATAUTUVAT, vain harvemmin/isompina), mutta **estää alle 6s-viivetavoitteen saavuttamisen** kunnes OBS:n encooderin keyframe-väli asetetaan lyhyeksi (esim. 1-2s). **Ei korjattu vielä — odottaa omistajan lupaa latenssityöhön videoluotettavuuden vahvistamisen jälkeen, LUKITTU-priorisoinnin mukaisesti.**
+1. ✅ **KORJATTU — Huutokaupan päättymisen jälkeinen jäänteinen UI-tila.** Juurisyy: `auction_ended`-socket-tapahtuma nollasi `active:false`:n mutta mikään ei erottanut "ei ole vielä alkanut" ja "juuri päättyi" -tiloja UI:ssa, joten "Sinä johdossa" / "X johtaa" -badge ja huutosumman +/- -syöttökenttä jäivät näyttämään vanhaa, edelleen-käynnissä-olevaa tekstiä. Lisätty `endedProductId`-tila joka nollataan uuden huutokaupan alkaessa ja asetetaan `auction_ended`:n productId:hen; UI näyttää nyt selvästi "Sinä voitit!" / "X voitti" ja huutosumman syöttökenttä piilotetaan kokonaan huutokaupan päätyttyä liukupainikkeen tekstin vaihtuessa "Myyty"/"Huutokauppa päättynyt — ei huutoja" -tekstiksi (`t.live.sold`/uusi `t.live.auctionEndedNoWinner`). Korjattu sekä `BidPanel`-komponentissa että desktopin erillisessä video-overlay-duplikaatissa.
 
-## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-07)
+2. **Live "toimii mutta tökkii"** — **ei vielä testattavissa**, koska OBS:n keyframe-väli on VS Coden Clauden vahvistuksen mukaan yhä 8.3s tuotannossa (suoraan tarkistettu oikean aktiivisen striimin manifestista) — omistaja ei ole vielä tehnyt Asetukset → Lähtö → Keyframe Interval → 2s -muutosta. Ei voida arvioida onko "tökkiminen" pelkkää keyframe-oiretta vai jotain muuta ennen kuin tämä on tehty ja mitattu uudelleen.
 
-0. **Live-lähetyksen esikatselu ennen julkista näkyvyyttä** (ks. osio alla) — kriittinen ennen julkaisua, havaittu juuri OBS-testauksessa Hetznerillä, kaiken edellä koska striimaus on paraikaa aktiivisessa testauksessa
-1. **MediaMTX-migraatio** (ks. "KRIITTINEN TILANNEKATSAUS" yllä) — kilpailutilanteen vuoksi ehdoton ykkönen nyt, tavoite alle 6s viive
-2. **Uusi testikierros kolmesta raportoidusta bugista** (viive, epäluotettava näkyvyys, mobiilichat) infrakorjausten jälkeen — vahvista mitkä ovat oikeasti ratkaistu
-3. **Visuaalisen jäädytyksen loppuunsaattaminen** (ks. "Uudet löydökset 2026-08-08" -osio: esikatselu-sivun layout, tumma/vaalea-sekoittuminen, väriyhtenäistys, nappien visuaalinen viimeistely) — odottaa omistajan silmämääräistä hyväksyntää
-4. **Kategoriafokus: Keräilykortit ainoana** — ks. osio alla, suurelta osin tehty, tarkista jäännöskohdat
-5. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY
-6. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY
-7. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — Katsojan Shop-paneeli päätetty mutta **ei aloiteta vielä**, ks. "Uudet löydökset" -osio
-8. **Tarjoa hintaa -toiminto** — päätetty ja valmis toteutettavaksi, ei vielä sijoitettu tarkkaan kohtaan
+3. ✅ **KORJATTU — Shop-paneelin PiP-video oli tyhjä.** Juurisyy löydetty ja vahvistettu: `videoContent` (sisältää `<VideoPlayer>`+hls.js-instanssin) oli aiemmin renderöity KAHDESSA ERI ehdollisessa JSX-haarassa (`{shopOpen && ...}` vs. `{!shopOpen && ...}`) — nämä ovat toisensa poissulkevia, joten Shopin avaus/sulku pakotti Reactin joka kerta UNMOUNTTAAMAAN koko VideoPlayerin (siis tuhoamaan hls.js:n) yhdestä paikasta ja MOUNTTAAMAAN täysin uuden toiseen paikkaan — striimi piti puskuroida kokonaan alusta joka kerta, mikä yhdistettynä 8.3s-segmentteihin (ks. kohta 2) näytti mustalta/tyhjältä pitkän aikaa. **Korjaus:** `frontend/app/live/[showId]/page.tsx`, React Portal (`createPortal`) - video renderöidään nyt YHTEEN pysyvään React-instanssiin joka portaloidaan sille kumpi kahdesta AINA-DOM:ssa-olevasta "kotipesästä" (pääkuva-alue / PiP-kulma) on kulloinkin näkyvissä (`display` vaihtuu, ei koskaan mount/unmount). hls.js-instanssi pysyy siis elossa koko Shop-avaus/sulku-syklin yli.
+
+4. **Striimin uudelleenkäynnistys: epäsymmetrinen viive myyjän ja katsojan välillä** — **ei löytynyt selvää koodieroa** `HlsPreview`- (myyjä) ja `VideoPlayer`- (katsoja) komponenttien väliltä, molemmilla identtinen virhepohjainen 3s-uudelleenyrityslogiikka. Paras selitys: ajoitussattuma yhdistettynä kohdan 2 8.3s-segmentteihin — myyjä katsoo koko katkoksen ajan (kokee täyden viiveen), katsoja joka avaa sivun VASTA palautumisen jälkeen näkee sen jo vakaana. **Ei jätetty pelkäksi arveluksi:** lisätty itsenäinen "vahtikoira"-ajastin MOLEMPIIN soittimiin (`HlsPreview` + `VideoPlayer`) — jos yhtään uutta segmenttiä ei ole ladattu 12s aikana riippumatta siitä luokitteleeko hls.js mitään "fataaliksi", pakotetaan manifest uudelleen joka tapauksessa. Puolustava parannus riippumatta lopullisesta juurisyystä. **Vaatii omistajan uutta testiä vahvistaakseen onko epäsymmetria poissa.**
+
+## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-09)
+
+1. **Viiveen jatkomittaus OBS-keyframe-korjauksen jälkeen** — ks. "Tilannepäivitys 2026-08-09" yllä, odottaa omistajan uutta mittausta
+2. **Chat/Socket-arkkitehtuurin korjaus** (ks. "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osio) — **päätetty seuraavaksi ennen WHIP/selainstriimausta**, koska nykyiset 2-3 testikäyttäjää käyttävät OBS:ää pöytäkoneella, joten selainstriimaus ei toisi heille lisäarvoa juuri nyt, mutta chat koskettaa kaikkia katsojia mukaan lukien mobiilikäyttäjät
+3. **WHIP/selainstriimaus ilman OBS:ää** (ks. "Selainpohjainen mobiilistriimaus" -osio) — siirretty chatin jälkeen, ei unohdettu, tärkeä myöhemmin kun käyttäjäkunta laajenee puhelinkäyttäjiin
+4. **Mux vs. jatka itse -päätös** — yhä auki, arvioidaan lopullisesti kun sekä viive että chat on saatu kuntoon itse rakennetulla pohjalla
+5. **Visuaalisen jäädytyksen loppuunsaattaminen** (ks. "Uudet löydökset 2026-08-08" -osio: esikatselu-sivun layout, tumma/vaalea-sekoittuminen, väriyhtenäistys, nappien visuaalinen viimeistely) — odottaa omistajan silmämääräistä hyväksyntää
+6. **Kategoriafokus: Keräilykortit ainoana** — ks. osio alla, suurelta osin tehty, tarkista jäännöskohdat
+7. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY
+8. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY
+9. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — Katsojan Shop-paneeli päätetty mutta **ei aloiteta vielä**, ks. "Uudet löydökset" -osio
+10. **Tarjoa hintaa -toiminto** — päätetty ja valmis toteutettavaksi, ei vielä sijoitettu tarkkaan kohtaan
 
 **SV-käännös jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat.
 

@@ -67,10 +67,12 @@ function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
       })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
+      let lastFragAt = Date.now()
 
       hls.attachMedia(video)
       hls.loadSource(hlsUrl)
       hls.on(Hls.Events.MANIFEST_PARSED, () => setWaiting(false))
+      hls.on(Hls.Events.FRAG_LOADED, () => { lastFragAt = Date.now() })
       // Manifestia ei vielä löydy kun OBS ei ole vielä ehtinyt yhdistää — hls.js EI yritä
       // automaattisesti uudestaan fataalin verkkovirheen jälkeen, joten ilman tätä soitin jää
       // pysyvästi "Odotetaan OBS-yhteyttä..." -tilaan vaikka OBS yhdistyisi hetkeä myöhemmin.
@@ -80,9 +82,23 @@ function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
         setWaiting(true)
         retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
       })
+      // Vahtikoira: jos OBS katkeaa/käynnistyy uudelleen ilman että hls.js ehdi luokitella
+      // mitään "fataaliksi" virheeksi (esim. vain hiljainen puskurijumi kun MediaMTX:n
+      // muxer tuhoutuu ja uusi syntyy toisella media-sekvenssillä), yllä oleva
+      // virhepohjainen uudelleenyritys ei koskaan laukea. Itsenäinen turvaverkko: jos yhtään
+      // uutta segmenttiä ei ole ladattu 12s aikana, pakota manifest uudelleen joka tapauksessa.
+      const watchdog = setInterval(() => {
+        if (destroyed) return
+        if (Date.now() - lastFragAt > 12000) {
+          lastFragAt = Date.now()
+          setWaiting(true)
+          hls.loadSource(hlsUrl)
+        }
+      }, 4000)
       return () => {
         destroyed = true
         if (retryTimer) clearTimeout(retryTimer)
+        clearInterval(watchdog)
         hls.destroy()
       }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {

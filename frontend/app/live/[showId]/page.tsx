@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, use } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Hls from 'hls.js'
@@ -57,9 +58,11 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
       })
       let destroyed = false
       let retryTimer: ReturnType<typeof setTimeout> | null = null
+      let lastFragAt = Date.now()
 
       hls.attachMedia(video)
       hls.loadSource(hlsUrl)
+      hls.on(Hls.Events.FRAG_LOADED, () => { lastFragAt = Date.now() })
       // hls.js ei yritä automaattisesti uudestaan fataalin verkkovirheen (esim. manifesti ei
       // vielä saatavilla, tai hetkellinen katko OBS-yhteydessä) jälkeen — ilman uudelleenyritystä
       // toisto jäisi pysyvästi jumiin vaikka striimi palautuisi hetkeä myöhemmin.
@@ -67,9 +70,21 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
         if (!data.fatal || destroyed) return
         retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
       })
+      // Vahtikoira: jos OBS katkeaa/käynnistyy uudelleen ilman että hls.js ehdi luokitella
+      // mitään "fataaliksi" virheeksi, yllä oleva virhepohjainen uudelleenyritys ei koskaan
+      // laukea. Itsenäinen turvaverkko: jos yhtään uutta segmenttiä ei ole ladattu 12s
+      // aikana, pakota manifest uudelleen joka tapauksessa.
+      const watchdog = setInterval(() => {
+        if (destroyed) return
+        if (Date.now() - lastFragAt > 12000) {
+          lastFragAt = Date.now()
+          hls.loadSource(hlsUrl)
+        }
+      }, 4000)
       return () => {
         destroyed = true
         if (retryTimer) clearTimeout(retryTimer)
+        clearInterval(watchdog)
         hls.destroy()
       }
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -110,6 +125,7 @@ interface BidPanelProps {
   currentLot: number
   auction: AuctionState
   isLeading: boolean
+  ended: boolean
   timerColor: string
   bidAmount: number
   setBidAmount: React.Dispatch<React.SetStateAction<number>>
@@ -124,7 +140,7 @@ interface BidPanelProps {
   onSlideEnd: () => void
 }
 
-function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd }: BidPanelProps) {
+function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd }: BidPanelProps) {
   return (
     <div style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '12px 14px 14px' }}>
       {bidError && <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{bidError}</div>}
@@ -148,17 +164,21 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
       {auction.leaderName && (
         <div style={{ marginBottom: 8 }}>
           <span style={{ background: isLeading ? C.accent : '#222', borderRadius: 10, padding: '3px 10px', fontSize: 12, fontWeight: 600, color: isLeading ? '#fff' : '#888' }}>
-            {isLeading ? t.live.leading : `${auction.leaderName} johtaa`}
+            {ended
+              ? (isLeading ? t.live.youWon : `${auction.leaderName} voitti`)
+              : (isLeading ? t.live.leading : `${auction.leaderName} johtaa`)}
           </span>
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <button onClick={() => setBidAmount(b => Math.max(auction.currentBid + 1, b - 1))} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
-        <input type="number" value={bidAmount} onChange={e => setBidAmount(Math.max(auction.currentBid + 1, Number(e.target.value)))} style={{ flex: 1, background: '#1A1A1A', border: `1px solid ${C.accent}44`, borderRadius: 7, padding: '10px 14px', color: '#fff', fontSize: 17, fontWeight: 700, textAlign: 'center', boxSizing: 'border-box' as const }} />
-        <span style={{ color: '#555', fontSize: 13 }}>€</span>
-        <button onClick={() => setBidAmount(b => b + 1)} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: C.accentBright, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
-      </div>
+      {!ended && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <button onClick={() => setBidAmount(b => Math.max(auction.currentBid + 1, b - 1))} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
+          <input type="number" value={bidAmount} onChange={e => setBidAmount(Math.max(auction.currentBid + 1, Number(e.target.value)))} style={{ flex: 1, background: '#1A1A1A', border: `1px solid ${C.accent}44`, borderRadius: 7, padding: '10px 14px', color: '#fff', fontSize: 17, fontWeight: 700, textAlign: 'center', boxSizing: 'border-box' as const }} />
+          <span style={{ color: '#555', fontSize: 13 }}>€</span>
+          <button onClick={() => setBidAmount(b => b + 1)} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: C.accentBright, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
+        </div>
+      )}
 
       <div
         ref={slideTrackRef}
@@ -174,7 +194,10 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
         <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${C.accent}44 0%, ${C.accent}22 100%)`, width: `${maxSlideX > 0 ? (slideX / maxSlideX) * 100 : 0}%`, transition: sliding ? 'none' : 'width 0.3s', borderRadius: 26 }} />
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: bidSuccess ? '#fff' : C.accentBright }}>
-            {bidSuccess ? t.live.bidPlaced : auction.active ? `${t.live.bid} ${bidAmount}€` : t.live.waitAuction}
+            {bidSuccess ? t.live.bidPlaced
+              : auction.active ? `${t.live.bid} ${bidAmount}€`
+              : ended ? (auction.leaderName ? t.live.sold : t.live.auctionEndedNoWinner)
+              : t.live.waitAuction}
           </span>
         </div>
         <div style={{ position: 'absolute', top: 3, left: 4 + slideX, width: 46, height: 46, borderRadius: 23, background: auction.active ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: sliding ? 'none' : 'left 0.3s', boxShadow: `0 2px 12px ${C.accent}88` }}>
@@ -378,17 +401,16 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     timer: 120,
     active: false,
   })
+  // Erottaa "huutokauppa ei ole vielä alkanut" ja "huutokauppa juuri päättyi" -tilat
+  // toisistaan - molemmissa auction.active on false, mutta UI:n pitää näyttää eri asian
+  // (odota vs. myyty/päättynyt). Nollataan kun UUSI huutokauppa alkaa.
+  const [endedProductId, setEndedProductId] = useState<string | null>(null)
   const [bidAmount, setBidAmount] = useState(1)
   const [slideX, setSlideX] = useState(0)
   const [sliding, setSliding] = useState(false)
   const [bidSuccess, setBidSuccess] = useState(false)
   const [bidError, setBidError] = useState('')
   const [connected, setConnected] = useState(false)
-  // TILAPÄINEN DIAGNOSTIIKKA (2026-08-09, ks. CLAUDE.md "Ennen migraatiota") - erottaa
-  // saapuuko chat_message-tapahtuma puhelimelle ollenkaan (verkko-ongelma) siitä että se
-  // saapuu mutta CSS piilottaa sen (renderöintibugi). Poistettava kun diagnoosi on tehty.
-  const [debugEventCount, setDebugEventCount] = useState(0)
-  const [debugLastEvent, setDebugLastEvent] = useState('')
   const [viewers, setViewers] = useState(0)
   const [isMobile, setIsMobile] = useState(true)
   const [showReport, setShowReport] = useState(false)
@@ -404,6 +426,15 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
   // Shop-paneeli (mobiili: täysruudun overlay + video pienenee PiP:ksi)
   const [shopOpen, setShopOpen] = useState(false)
+  // Video-elementin "kotipesät" mobiilin pääkuvalle ja Shopin PiP-ikkunalle. Video
+  // portaloidaan (React Portal) sille kumpi on aktiivinen, EI koskaan renderöidä kahdessa
+  // erillisessä ehdollisessa JSX-haarassa kuten aiemmin - se pakotti Reactin unmounttaamaan
+  // ja remounttaamaan koko VideoPlayerin (siis hls.js:n) joka kerta kun Shop avattiin/
+  // suljettiin, mikä näkyi mustana/tyhjänä PiP-videona koska striimi piti puskuroida
+  // kokonaan uudelleen tyhjästä. Molemmat kotipesät ovat AINA DOM:ssa, joten refit
+  // asettuvat kerran eivätkä koskaan palaa nulliksi.
+  const [mainVideoSlot, setMainVideoSlot] = useState<HTMLDivElement | null>(null)
+  const [pipVideoSlot, setPipVideoSlot] = useState<HTMLDivElement | null>(null)
   const [shopSearch, setShopSearch] = useState('')
   const [shopFilter, setShopFilter] = useState<'all' | 'buynow'>('all')
   const [shopSort, setShopSort] = useState<'default' | 'price_asc' | 'price_desc'>('default')
@@ -449,8 +480,6 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('chat_message', (data: any) => {
       setChat(c => [...c, { id: data.id ?? String(Date.now()), userId: data.userId, username: data.username, message: data.message, hidden: data.hidden }])
-      setDebugEventCount(n => n + 1)
-      setDebugLastEvent(`${new Date().toLocaleTimeString()} ${data.username}: ${data.message}`)
     })
 
     socket.on('chat_message_deleted', (data: { messageId: string }) => {
@@ -478,6 +507,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     socket.on('auction_started', (data: any) => {
       setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
       setBidAmount(data.startPrice + 1)
+      setEndedProductId(null)
     })
 
     socket.on('new_bid', (data: any) => {
@@ -492,6 +522,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('auction_ended', (data: any) => {
       setAuction(a => ({ ...a, active: false, timer: 0 }))
+      setEndedProductId(data.productId ?? null)
       if (data.winnerName) {
         setChat(c => [...c, { id: `sold-${data.productId}-${Date.now()}`, username: 'SKRM', message: `${data.winnerName} voitti hinnalla ${data.finalPrice}€!`, isBid: true }])
       }
@@ -620,6 +651,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const timerColor = auction.timer > 30 ? C.accent : auction.timer > 10 ? '#F59E0B' : '#EF4444'
   const maxSlideX = (slideTrackRef.current?.offsetWidth ?? 300) - 46 - 8
   const isLeading = auction.leaderName === user?.username
+  const auctionEnded = !auction.active && endedProductId === currentProduct.id
 
   if (removedBlocked) {
     return (
@@ -642,32 +674,35 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#000', maxWidth: 480, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
         {toast && <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, zIndex: 100 }}>{toast}</div>}
 
-        {/* TILAPÄINEN DIAGNOSTIIKKA - poistettava kun mobiilichat-syy on selvitetty, ks. CLAUDE.md */}
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999, background: '#F59E0B', color: '#000', fontSize: 10, fontFamily: 'monospace', padding: '3px 8px', textAlign: 'center' }}>
-          DEBUG socket: {connected ? 'yhdistetty' : 'EI yhdistetty'} · viestejä saapunut: {debugEventCount}{debugLastEvent ? ` · viimeisin: ${debugLastEvent}` : ''}
+        {/* Video-portaalin kohde: molemmat kotipesät ovat aina DOM:ssa (kummankin
+            ympärillä oleva lohko ei enää unmounttaudu shopOpenin mukaan, ks. alla) - vain
+            display vaihtuu. Refit asettuvat kerran eivätkä koskaan palaa nulliksi kesken
+            Shopin avaus/sulku-vaihdon, joten videoContent (ja sen hls.js-instanssi)
+            portaloidaan turvallisesti aina samaan, koskaan katkeamattomaan React-instanssiin. */}
+        {mainVideoSlot && pipVideoSlot && createPortal(videoContent, shopOpen ? pipVideoSlot : mainVideoSlot)}
+
+        {/* PiP: video pienenee kelluvaksi ikkunaksi kun Shop avataan — ei katoa. Lohko on
+            AINA mountattuna (vain display vaihtuu) jottei VideoPlayer/hls.js jouduta
+            unmounttaamaan+remounttaamaan Shopin avaus/sulku-vaihdon yhteydessä - se
+            aiheutti mustan/tyhjän PiP-videon koska striimi piti puskuroida kokonaan
+            uudelleen tyhjästä joka kerta. */}
+        <div style={{ display: shopOpen ? 'contents' : 'none' }}>
+          <div onClick={() => setShopOpen(false)} style={{ position: 'fixed', bottom: 16, right: 16, width: 100, height: 178, borderRadius: 12, overflow: 'hidden', zIndex: 60, boxShadow: '0 6px 24px rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', cursor: 'pointer' }}>
+            <div ref={setPipVideoSlot} style={{ position: 'absolute', inset: 0 }} />
+            <div style={{ position: 'absolute', top: 4, left: 4, background: '#EF4444', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>LIVE</div>
+          </div>
+          <div style={{ position: 'fixed', inset: 0, background: '#0A0A0A', zIndex: 55, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
+              <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
+            </div>
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
+          </div>
         </div>
 
-        {shopOpen && (
-          <>
-            {/* PiP: video pienenee kelluvaksi ikkunaksi kun Shop avataan — ei katoa */}
-            <div onClick={() => setShopOpen(false)} style={{ position: 'fixed', bottom: 16, right: 16, width: 100, height: 178, borderRadius: 12, overflow: 'hidden', zIndex: 60, boxShadow: '0 6px 24px rgba(0,0,0,0.6)', border: '2px solid rgba(255,255,255,0.25)', cursor: 'pointer' }}>
-              {videoContent}
-              <div style={{ position: 'absolute', top: 4, left: 4, background: '#EF4444', color: '#fff', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 3 }}>LIVE</div>
-            </div>
-            <div style={{ position: 'fixed', inset: 0, background: '#0A0A0A', zIndex: 55, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
-                <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
-              </div>
-              <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
-            </div>
-          </>
-        )}
-
-        {!shopOpen && (
-          <>
+        <div style={{ display: !shopOpen ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
             <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
-              {videoContent}
+              <div ref={setMainVideoSlot} style={{ position: 'absolute', inset: 0 }} />
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1, minWidth: 0 }}>
                   {show?.seller?.username ? (
@@ -716,13 +751,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             </div>
             <BidPanel
               C={C} t={t} bidError={bidError} currentProduct={currentProduct} currentLot={currentLot}
-              auction={auction} isLeading={isLeading} timerColor={timerColor} bidAmount={bidAmount}
+              auction={auction} isLeading={isLeading} ended={auctionEnded} timerColor={timerColor} bidAmount={bidAmount}
               setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
               connected={connected} maxSlideX={maxSlideX} slideX={slideX}
               onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
             />
-          </>
-        )}
+        </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       </div>
@@ -778,12 +812,18 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             </div>
             <div style={{ position: 'absolute', bottom: 16, right: 16, textAlign: 'right' }}>
               <div style={{ fontSize: 26, fontWeight: 900, color: isLeading ? C.accentBright : '#fff' }}>{auction.currentBid}€</div>
-              {auction.leaderName && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{isLeading ? t.live.leading : `${auction.leaderName} johtaa`}</div>}
+              {auction.leaderName && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                  {auctionEnded
+                    ? (isLeading ? t.live.youWon : `${auction.leaderName} voitti`)
+                    : (isLeading ? t.live.leading : `${auction.leaderName} johtaa`)}
+                </div>
+              )}
             </div>
           </div>
           <BidPanel
             C={C} t={t} bidError={bidError} currentProduct={currentProduct} currentLot={currentLot}
-            auction={auction} isLeading={isLeading} timerColor={timerColor} bidAmount={bidAmount}
+            auction={auction} isLeading={isLeading} ended={auctionEnded} timerColor={timerColor} bidAmount={bidAmount}
             setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
             connected={connected} maxSlideX={maxSlideX} slideX={slideX}
             onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
