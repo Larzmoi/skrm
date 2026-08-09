@@ -1,14 +1,18 @@
 import { Router, Response } from 'express'
+import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { RTMP_URL, hlsUrlFor, getOrCreateStreamKey } from '../lib/stream'
+import { RTMP_URL, getOrCreateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 
 const router = Router()
 
-// Julkinen valinta — streamKey on salainen eikä saa koskaan päätyä julkisiin vastauksiin
+// Julkinen valinta — streamKey on salainen eikä saa koskaan päätyä julkisiin vastauksiin.
+// hlsUrl on jäänne MediaMTX-ajalta (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX ->
+// LiveKit") — LiveKitissä katsoja ei tarvitse URL:ia vaan huoneen nimen (johdettavissa
+// suoraan sellerId:stä, ks. roomNameForSeller) + tuoreen tokenin (POST /shows/:id/viewer-token).
 const publicShowSelect = {
   id: true, title: true, sellerId: true, status: true, category: true, alakategoria: true, city: true, thumbnailUrl: true,
-  hlsUrl: true, scheduledAt: true, startedAt: true, endedAt: true,
+  scheduledAt: true, startedAt: true, endedAt: true,
   viewerCount: true, createdAt: true,
 }
 
@@ -63,12 +67,14 @@ router.get('/:id', async (req, res) => {
   res.json(show)
 })
 
-// POST /shows — luo lähetys + generoi oma RTMP stream key (nginx-rtmp, Hetzner)
+// POST /shows — luo lähetys. Ei enää generoi/tallenna striimi-URLia tähän riviin — LiveKitissä
+// katsoja liittyy huoneeseen (johdettu sellerId:stä) tuoreella tokenilla, ei kiinteällä URL:lla.
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { title, category, alakategoria, city, scheduledAt, thumbnailUrl } = req.body
   if (!title) return res.status(400).json({ error: 'Nimi vaaditaan' })
 
-  const streamKey = await getOrCreateStreamKey(req.userId!)
+  // Varmistaa että myyjän Ingress on olemassa (lazy-luonti) vaikka ei suoraan tarvita tässä.
+  await getOrCreateStreamKey(req.userId!)
 
   const show = await prisma.show.create({
     data: {
@@ -78,7 +84,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       city: city ?? null,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       sellerId: req.userId!,
-      hlsUrl: hlsUrlFor(streamKey),
       thumbnailUrl: thumbnailUrl ?? null,
     },
   })
@@ -86,13 +91,36 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 // GET /shows/:id/stream-info — hae RTMP-tiedot myyjälle (OBS-striimausta varten)
-// Huom: streamKey on nykyään pysyvä ja käyttäjäkohtainen — sama kaikilla myyjän lähetyksillä.
+// Huom: streamKey on pysyvä ja käyttäjäkohtainen — sama kaikilla myyjän lähetyksillä.
 // Ks. myös GET /users/me/stream-info, joka toimii ilman että lähetystä on vielä luotu.
 router.get('/:id/stream-info', authMiddleware, async (req: AuthRequest, res: Response) => {
   const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })
   if (!show || show.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   const streamKey = await getOrCreateStreamKey(req.userId!)
   res.json({ rtmpUrl: RTMP_URL, streamKey })
+})
+
+// POST /shows/:id/viewer-token — tuore LiveKit-liittymistoken katsojalle (vain kuuntelu).
+// Ei vaadi kirjautumista — katsominen on aina sallittua, vain chat/huuto vaatii tunnuksen
+// (sama periaate kuin ennenkin). Kirjautumaton käyttäjä saa satunnaisen anonyymi-identiteetin.
+router.post('/:id/viewer-token', async (req: AuthRequest, res: Response) => {
+  const show = await prisma.show.findUnique({ where: { id: String(req.params.id) }, select: { sellerId: true, status: true } })
+  if (!show) return res.status(404).json({ error: 'Lähetystä ei löydy' })
+
+  let identity = `anon-${Math.random().toString(36).slice(2, 10)}`
+  let name = 'Katsoja'
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+      const user = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { id: true, username: true } })
+      if (user) { identity = user.id; name = user.username }
+    } catch {}
+  }
+
+  const roomName = roomNameForSeller(show.sellerId)
+  const viewerToken = await createViewerToken(roomName, identity, name)
+  res.json({ wsUrl: LIVEKIT_WS_URL_PUBLIC, token: viewerToken, roomName })
 })
 
 // PATCH /shows/:id/status — muuta tila (LIVE/ENDED)

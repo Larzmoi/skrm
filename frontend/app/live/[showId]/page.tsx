@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, use } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Hls from 'hls.js'
+import { Room, RoomEvent, Track } from 'livekit-client'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
@@ -23,74 +23,51 @@ interface AuctionState {
 }
 
 interface ShowProduct { id: string; name: string; condition?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
-interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { id: string; username: string }; products: ShowProduct[]; hlsUrl?: string | null }
+interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { id: string; username: string }; products: ShowProduct[] }
 
-function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
+// LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX -> LiveKit").
+// hls.js/manuaalinen uudelleenyritys-/vahtikoiralogiikka poistettu kokonaan — livekit-client
+// hoitaa WebRTC-yhteyden uudelleenmuodostuksen sisäisesti, ei tarvetta omalle versiolle siitä.
+function VideoPlayer({ showId }: { showId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [muted, setMuted] = useState(true)
+  const [waiting, setWaiting] = useState(true)
 
-  // Natiivit videosäätimet (controls) poistettu — ne törmäsivät visuaalisesti omien
-  // chat/shop-overlayjemme kanssa mobiilissa (peittyivät/piiloutuivat niiden taakse) eikä niitä
-  // tarvita muuhun kuin äänen mykistyksen poistoon, joten korvattu tällä yhdellä omalla napilla.
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted
   }, [muted])
 
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
+    let destroyed = false
+    const room = new Room()
 
-    if (Hls.isSupported()) {
-      // lowLatencyMode: true - MediaMTX (2026-08-09 migraatio nginx-rtmp:stä, ks. CLAUDE.md
-      // "KRIITTINEN TILANNEKATSAUS") tarjoilee LL-HLS:ää 200ms part-kestolla. Ilman
-      // lowLatencyMode:a hls.js kohtelisi striimiä tavallisena HLS:nä eikä hyödyntäisi
-      // osittaisia segmenttejä matalaan viiveeseen pääsemiseksi. liveSyncDurationCount pitää
-      // toiston lähellä live-reunaa, maxLiveSyncPlaybackRate kiriyttää takaisin jos jäädään jälkeen.
-      //
-      // xhrSetup: withCredentials = true on PAKOLLINEN - MediaMTX vaatii session-cookien
-      // jokaisella segmentti/part-haulla, ja app.skrm.fi + stream.skrm.fi ovat selaimen
-      // näkökulmasta ERI origineja (eri subdomain). Ilman tätä selain ei lähetä cookieta
-      // cross-origin-pyynnöissä ja JOKAINEN segmenttihaku palautuu 401:nä - juuri tämä
-      // aiheutti "video ei toimi ollenkaan" -regression 2026-08-09 (ks. CLAUDE.md).
-      const hls = new Hls({
-        lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3,
-        xhrSetup: (xhr) => { xhr.withCredentials = true },
-      })
-      let destroyed = false
-      let retryTimer: ReturnType<typeof setTimeout> | null = null
-      let lastFragAt = Date.now()
-
-      hls.attachMedia(video)
-      hls.loadSource(hlsUrl)
-      hls.on(Hls.Events.FRAG_LOADED, () => { lastFragAt = Date.now() })
-      // hls.js ei yritä automaattisesti uudestaan fataalin verkkovirheen (esim. manifesti ei
-      // vielä saatavilla, tai hetkellinen katko OBS-yhteydessä) jälkeen — ilman uudelleenyritystä
-      // toisto jäisi pysyvästi jumiin vaikka striimi palautuisi hetkeä myöhemmin.
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data.fatal || destroyed) return
-        retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
-      })
-      // Vahtikoira: jos OBS katkeaa/käynnistyy uudelleen ilman että hls.js ehdi luokitella
-      // mitään "fataaliksi" virheeksi, yllä oleva virhepohjainen uudelleenyritys ei koskaan
-      // laukea. Itsenäinen turvaverkko: jos yhtään uutta segmenttiä ei ole ladattu 12s
-      // aikana, pakota manifest uudelleen joka tapauksessa.
-      const watchdog = setInterval(() => {
-        if (destroyed) return
-        if (Date.now() - lastFragAt > 12000) {
-          lastFragAt = Date.now()
-          hls.loadSource(hlsUrl)
-        }
-      }, 4000)
-      return () => {
-        destroyed = true
-        if (retryTimer) clearTimeout(retryTimer)
-        clearInterval(watchdog)
-        hls.destroy()
+    function attachIfMedia(track: any) {
+      if ((track.kind === Track.Kind.Video || track.kind === Track.Kind.Audio) && videoRef.current) {
+        track.attach(videoRef.current)
+        if (track.kind === Track.Kind.Video) setWaiting(false)
       }
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl // Safari — natiivi HLS-tuki
     }
-  }, [hlsUrl])
+
+    room.on(RoomEvent.TrackSubscribed, (track) => attachIfMedia(track))
+    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
+    room.on(RoomEvent.Disconnected, () => setWaiting(true))
+    room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+
+    async function connect() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/shows/${showId}/viewer-token`, { method: 'POST' })
+        const data = await res.json()
+        if (destroyed || !data.wsUrl || !data.token) return
+        await room.connect(data.wsUrl, data.token)
+      } catch {}
+    }
+    connect()
+
+    return () => {
+      destroyed = true
+      room.disconnect()
+    }
+  }, [showId])
 
   return (
     <>
@@ -101,6 +78,11 @@ function VideoPlayer({ hlsUrl }: { hlsUrl: string }) {
         playsInline
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
       />
+      {waiting && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16, background: '#080808' }}>
+          Odotetaan lähetyksen alkua...
+        </div>
+      )}
       <button
         onClick={() => setMuted(m => !m)}
         title={muted ? 'Poista mykistys' : 'Mykistä'}
@@ -665,8 +647,8 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     )
   }
 
-  const videoContent = show?.status === 'LIVE' && show?.hlsUrl
-    ? <VideoPlayer hlsUrl={show.hlsUrl} />
+  const videoContent = show?.status === 'LIVE'
+    ? <VideoPlayer showId={showId} />
     : <WaitingForStream dark t={t} />
 
   if (isMobile) {
@@ -677,7 +659,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         {/* Video-portaalin kohde: molemmat kotipesät ovat aina DOM:ssa (kummankin
             ympärillä oleva lohko ei enää unmounttaudu shopOpenin mukaan, ks. alla) - vain
             display vaihtuu. Refit asettuvat kerran eivätkä koskaan palaa nulliksi kesken
-            Shopin avaus/sulku-vaihdon, joten videoContent (ja sen hls.js-instanssi)
+            Shopin avaus/sulku-vaihdon, joten videoContent (ja sen LiveKit-huoneyhteys)
             portaloidaan turvallisesti aina samaan, koskaan katkeamattomaan React-instanssiin. */}
         {mainVideoSlot && pipVideoSlot && createPortal(videoContent, shopOpen ? pipVideoSlot : mainVideoSlot)}
 

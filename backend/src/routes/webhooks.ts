@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import express from 'express'
 import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
+import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
 
 const router = Router()
 
@@ -64,47 +65,39 @@ router.post('/payment-expired', async (_req: Request, res: Response) => {
   res.json({ cancelled })
 })
 
-// POST /webhooks/rtmp/start — nginx-rtmp (on_publish) kutsuu kun OBS aloittaa striimin.
-// streamKey on pysyvä ja käyttäjäkohtainen (User.streamKey) — pitää ensin löytää myyjä
-// avaimesta, sitten hänen SCHEDULED- tai LIVE-tilassa oleva lähetyksensä (LIVE sallitaan
-// mukaan jotta OBS:n uudelleenyhdistys kesken julkisen lähetyksen ei hylkäänny).
-// Ei voi striimata jos yhtäkään sopivaa lähetystä ei ole.
-//
-// TÄRKEÄÄ: tämä EI enää muuta Show'n statusta SCHEDULED → LIVE automaattisesti. OBS-yhteyden
-// muodostuminen tarkoittaa vain että HLS-tiedostot alkavat syntyä palvelimelle — myyjä näkee
-// tämän yksityisenä esikatseluna dashboardissa. Julkiseksi lähetys tulee vasta kun myyjä painaa
-// eksplisiittisesti "Aloita julkinen lähetys" (PATCH /shows/:id/status). Ks. CLAUDE.md
-// "Live-lähetyksen esikatselu ennen julkista näkyvyyttä".
-router.post('/rtmp/start', express.urlencoded({ extended: true }), async (req: Request, res: Response) => {
-  const streamKey = req.body.name // nginx lähettää RTMP stream keyn "name"-kenttänä
+// POST /webhooks/livekit — LiveKit kutsuu Ingress-tapahtumista (2026-08-09 migraatio
+// MediaMTX:n runOnAvailable/runOnUnavailable-shell-hookeista, ks. CLAUDE.md "PÄÄTÖS
+// 2026-08-09"). Huoneen nimestä ("seller-{userId}") pääteltävä myyjä ja hänen aktiivinen
+// lähetyksensä samalla logiikalla kuin ennen. Vaatii raa'an pyyntörungon allekirjoituksen
+// varmistamiseksi (WebhookReceiver.receive), ei siis express.json()-jäsennystä tälle reitille.
+router.post('/livekit', express.raw({ type: '*/*' }), async (req: Request, res: Response) => {
+  let event
+  try {
+    event = await webhookReceiver.receive(req.body.toString('utf8'), req.headers.authorization)
+  } catch {
+    return res.status(401).send('invalid signature')
+  }
 
-  const seller = await prisma.user.findFirst({ where: { streamKey } })
-  if (!seller) return res.status(403).send('Invalid stream key')
+  const roomName = event.ingressInfo?.roomName ?? event.room?.name
+  const sellerId = roomName ? sellerIdFromRoomName(roomName) : null
 
-  const show = await prisma.show.findFirst({
-    where: { sellerId: seller.id, status: { in: ['SCHEDULED', 'LIVE'] } },
-    orderBy: { createdAt: 'desc' },
-  })
-  if (!show) return res.status(403).send('Ei aktiivista lähetystä — luo lähetys ensin dashboardista')
-
-  res.status(200).send('ok')
-})
-
-// POST /webhooks/rtmp/done — nginx-rtmp (on_done) kutsuu kun OBS-yhteys katkeaa
-router.post('/rtmp/done', express.urlencoded({ extended: true }), async (req: Request, res: Response) => {
-  const streamKey = req.body.name
-
-  const seller = await prisma.user.findFirst({ where: { streamKey } })
-  if (!seller) return res.status(200).send('ok')
-
-  const show = await prisma.show.findFirst({
-    where: { sellerId: seller.id, status: 'LIVE' },
-    orderBy: { startedAt: 'desc' },
-  })
-  if (!show) return res.status(200).send('ok')
-
-  await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
-  emitToShow(show.id, 'show_status', { status: 'ENDED' })
+  if (event.event === 'ingress_started') {
+    // EI muuta Show'n statusta SCHEDULED -> LIVE automaattisesti — OBS-yhteyden muodostuminen
+    // tarkoittaa vain että myyjä näkee yksityisen esikatselun. Julkiseksi lähetys tulee vasta
+    // eksplisiittisestä "Aloita julkinen lähetys" -painalluksesta (PATCH /shows/:id/status).
+    // Ks. CLAUDE.md "Live-lähetyksen esikatselu ennen julkista näkyvyyttä". Ei siis tarvitse
+    // tehdä mitään tässä paitsi kuitata onnistuneesti - reitti on olemassa lähinnä loggausta/
+    // tulevaa käyttöä varten.
+  } else if (event.event === 'ingress_ended' && sellerId) {
+    const show = await prisma.show.findFirst({
+      where: { sellerId, status: 'LIVE' },
+      orderBy: { startedAt: 'desc' },
+    })
+    if (show) {
+      await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
+      emitToShow(show.id, 'show_status', { status: 'ENDED' })
+    }
+  }
 
   res.status(200).send('ok')
 })

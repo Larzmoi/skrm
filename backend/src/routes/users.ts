@@ -2,23 +2,28 @@ import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { RTMP_URL, hlsUrlFor, getOrCreateStreamKey, regenerateStreamKey } from '../lib/stream'
+import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 
 const router = Router()
 
-// GET /users/me/stream-info — myyjän pysyvät OBS-asetukset (RTMP-palvelin + stream key + oma
-// yksityinen HLS-esikatseluosoite). Generoi avaimen lazily jos sitä ei vielä ole — toimii ilman
-// että lähetystä on luotu, joten dashboard voi näyttää nämä heti sivulle tultaessa.
+// GET /users/me/stream-info — myyjän pysyvät OBS-asetukset (RTMP-palvelin + stream key) PLUS
+// oma esikatselutoken (LiveKit-migraatio 2026-08-09, ks. CLAUDE.md "PÄÄTÖS 2026-08-09").
+// Generoi Ingressin lazily jos sitä ei vielä ole — toimii ilman että lähetystä on luotu, joten
+// dashboard voi näyttää nämä heti sivulle tultaessa.
 // Huom: pitää olla ennen /:username-reittiä ettei "me" osu käyttäjänimi-parametriin.
 router.get('/me/stream-info', authMiddleware, async (req: AuthRequest, res: Response) => {
   const streamKey = await getOrCreateStreamKey(req.userId!)
-  res.json({ rtmpUrl: RTMP_URL, streamKey, hlsUrl: hlsUrlFor(streamKey) })
+  const roomName = roomNameForSeller(req.userId!)
+  const previewToken = await createViewerToken(roomName, `preview-${req.userId}`, 'Esikatselu')
+  res.json({ rtmpUrl: RTMP_URL, streamKey, wsUrl: LIVEKIT_WS_URL_PUBLIC, previewToken, roomName })
 })
 
 // POST /users/me/stream-key/regenerate — mitätöi vanhan avaimen ja luo uuden (esim. jos vuotanut)
 router.post('/me/stream-key/regenerate', authMiddleware, async (req: AuthRequest, res: Response) => {
   const streamKey = await regenerateStreamKey(req.userId!)
-  res.json({ rtmpUrl: RTMP_URL, streamKey, hlsUrl: hlsUrlFor(streamKey) })
+  const roomName = roomNameForSeller(req.userId!)
+  const previewToken = await createViewerToken(roomName, `preview-${req.userId}`, 'Esikatselu')
+  res.json({ rtmpUrl: RTMP_URL, streamKey, wsUrl: LIVEKIT_WS_URL_PUBLIC, previewToken, roomName })
 })
 
 function getOptionalUserId(req: Request): string | null {

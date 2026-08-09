@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Hls from 'hls.js'
+import { Room, RoomEvent, Track } from 'livekit-client'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
@@ -41,71 +41,39 @@ function BackButton({ overlay }: { overlay?: boolean }) {
   )
 }
 
-// Myyjän oma HLS-esikatselu — sama Hls.js-tekniikka kuin ostajan /live/[showId]-sivulla, mutta
-// tiukemmalla liveSyncDurationCount-arvolla pienemmän puskuriviiveen tavoittelemiseksi.
-function HlsPreview({ hlsUrl }: { hlsUrl: string }) {
+// Myyjän oma esikatselu — LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09:
+// Vaihto MediaMTX -> LiveKit"). Liittyy omaan huoneeseensa erillisellä "esikatselu"-
+// identiteetillä (ei julkaisijana — OBS julkaisee Ingressin kautta, ei suoraan selaimesta).
+function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
 
   useEffect(() => {
-    const video = videoRef.current
-    if (!video || !hlsUrl) return
-    setWaiting(true)
+    if (!wsUrl || !token) return
+    let destroyed = false
+    const room = new Room()
 
-    if (Hls.isSupported()) {
-      // lowLatencyMode: true - MediaMTX tarjoilee LL-HLS:ää (200ms part-kesto), ks. CLAUDE.md
-      // "KRIITTINEN TILANNEKATSAUS" / MediaMTX-migraatio. Ilman tätä hls.js kohtelisi striimiä
-      // tavallisena HLS:nä eikä hyödyntäisi osittaisia segmenttejä matalan viiveen saamiseksi.
-      //
-      // xhrSetup: withCredentials = true on PAKOLLINEN - MediaMTX vaatii session-cookien
-      // jokaisella segmentti/part-haulla, ja app.skrm.fi + stream.skrm.fi ovat selaimen
-      // näkökulmasta ERI origineja. Ilman tätä JOKAINEN segmenttihaku palautuu 401:nä -
-      // tämä aiheutti "video ei toimi ollenkaan" -regression 2026-08-09 (ks. CLAUDE.md).
-      const hls = new Hls({
-        lowLatencyMode: true, liveSyncDurationCount: 2, maxLiveSyncPlaybackRate: 1.3,
-        xhrSetup: (xhr) => { xhr.withCredentials = true },
-      })
-      let destroyed = false
-      let retryTimer: ReturnType<typeof setTimeout> | null = null
-      let lastFragAt = Date.now()
-
-      hls.attachMedia(video)
-      hls.loadSource(hlsUrl)
-      hls.on(Hls.Events.MANIFEST_PARSED, () => setWaiting(false))
-      hls.on(Hls.Events.FRAG_LOADED, () => { lastFragAt = Date.now() })
-      // Manifestia ei vielä löydy kun OBS ei ole vielä ehtinyt yhdistää — hls.js EI yritä
-      // automaattisesti uudestaan fataalin verkkovirheen jälkeen, joten ilman tätä soitin jää
-      // pysyvästi "Odotetaan OBS-yhteyttä..." -tilaan vaikka OBS yhdistyisi hetkeä myöhemmin.
-      // Yritetään siis ladata manifesti uudelleen muutaman sekunnin välein kunnes se onnistuu.
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data.fatal || destroyed) return
-        setWaiting(true)
-        retryTimer = setTimeout(() => { if (!destroyed) hls.loadSource(hlsUrl) }, 3000)
-      })
-      // Vahtikoira: jos OBS katkeaa/käynnistyy uudelleen ilman että hls.js ehdi luokitella
-      // mitään "fataaliksi" virheeksi (esim. vain hiljainen puskurijumi kun MediaMTX:n
-      // muxer tuhoutuu ja uusi syntyy toisella media-sekvenssillä), yllä oleva
-      // virhepohjainen uudelleenyritys ei koskaan laukea. Itsenäinen turvaverkko: jos yhtään
-      // uutta segmenttiä ei ole ladattu 12s aikana, pakota manifest uudelleen joka tapauksessa.
-      const watchdog = setInterval(() => {
-        if (destroyed) return
-        if (Date.now() - lastFragAt > 12000) {
-          lastFragAt = Date.now()
-          setWaiting(true)
-          hls.loadSource(hlsUrl)
-        }
-      }, 4000)
-      return () => {
-        destroyed = true
-        if (retryTimer) clearTimeout(retryTimer)
-        clearInterval(watchdog)
-        hls.destroy()
+    function attachIfMedia(track: any) {
+      if ((track.kind === Track.Kind.Video || track.kind === Track.Kind.Audio) && videoRef.current) {
+        track.attach(videoRef.current)
+        if (track.kind === Track.Kind.Video) setWaiting(false)
       }
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl
-      video.addEventListener('loadedmetadata', () => setWaiting(false))
     }
-  }, [hlsUrl])
+
+    room.on(RoomEvent.TrackSubscribed, (track) => attachIfMedia(track))
+    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
+    room.on(RoomEvent.Disconnected, () => setWaiting(true))
+    room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+
+    room.connect(wsUrl, token).catch(() => {
+      if (!destroyed) setWaiting(true)
+    })
+
+    return () => {
+      destroyed = true
+      room.disconnect()
+    }
+  }, [wsUrl, token])
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
@@ -135,7 +103,8 @@ export default function LahetysPage() {
   const [goingPublic, setGoingPublic] = useState(false)
   const [streamKey, setStreamKey] = useState('')
   const [streamUrl, setStreamUrl] = useState('')
-  const [hlsUrl, setHlsUrl] = useState('')
+  const [previewWsUrl, setPreviewWsUrl] = useState('')
+  const [previewToken, setPreviewToken] = useState('')
   const [isLive, setIsLive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
@@ -219,8 +188,8 @@ export default function LahetysPage() {
       }).catch(() => {})
       // OBS-asetukset (RTMP-palvelin + pysyvä stream key) haetaan heti sivulle tultaessa —
       // ei vasta kun lähetys on jo luotu tai livenä. Ks. CLAUDE.md "esikatselu ennen julkista näkyvyyttä".
-      userApi.getStreamInfo().then((info: { rtmpUrl: string; streamKey: string; hlsUrl: string }) => {
-        setStreamUrl(info.rtmpUrl); setStreamKey(info.streamKey); setHlsUrl(info.hlsUrl)
+      userApi.getStreamInfo().then((info: { rtmpUrl: string; streamKey: string; wsUrl: string; previewToken: string }) => {
+        setStreamUrl(info.rtmpUrl); setStreamKey(info.streamKey); setPreviewWsUrl(info.wsUrl); setPreviewToken(info.previewToken)
       }).catch(() => {})
       // Jatka olemassa olevaa lähetystä jos myyjällä on jo yksi kesken (esim. luotu toisella
       // laitteella/välilehdellä) — muuten sivun avaaminen esim. puhelimella loisi VIELÄ YHDEN
@@ -482,7 +451,7 @@ export default function LahetysPage() {
     try {
       const { userApi } = await import('@/lib/api')
       const info = await userApi.regenerateStreamKey()
-      setStreamKey(info.streamKey); setHlsUrl(info.hlsUrl)
+      setStreamKey(info.streamKey); setPreviewWsUrl(info.wsUrl); setPreviewToken(info.previewToken)
     } catch {}
   }
 
@@ -850,7 +819,7 @@ export default function LahetysPage() {
     <div style={{ height: '100dvh', width: '100vw', overflow: 'hidden', background: C.bg, display: 'flex', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
-        <HlsPreview hlsUrl={hlsUrl} />
+        <HlsPreview wsUrl={previewWsUrl} token={previewToken} />
         <BackButton overlay />
 
         {/* Yläpalkki-overlay: tila + kesto/katsojat/myynti + toiminnot, videon YLÄREUNAN päällä */}
