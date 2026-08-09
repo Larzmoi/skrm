@@ -192,20 +192,13 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
   )
 }
 
-interface ModMenuProps { C: any; targetIsModerator: boolean; onAssign: () => void; onRemoveMod: () => void; onRemoveFromShow: () => void; onClose: () => void }
-function ModMenu({ C, targetIsModerator, onAssign, onRemoveMod, onRemoveFromShow, onClose }: ModMenuProps) {
-  return (
-    <div style={{ position: 'absolute', zIndex: 30, background: '#161616', border: '1px solid #2A2A2A', borderRadius: 8, padding: 6, minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-      {targetIsModerator ? (
-        <button onClick={onRemoveMod} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#fff', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Poista moderaattorin oikeudet</button>
-      ) : (
-        <button onClick={onAssign} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#fff', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Tee moderaattoriksi</button>
-      )}
-      <button onClick={onRemoveFromShow} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#EF4444', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Poista tästä livestä</button>
-      <button onClick={onClose} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: '#666', fontSize: 12, padding: '7px 10px', cursor: 'pointer', borderRadius: 5 }}>Sulje</button>
-    </div>
-  )
-}
+// ModMenu (chatista klikkaamalla avattava moderaattorivalikko) poistettu käytöstä 2026-08-10
+// - laukaisin oli virheellisesti kytketty: modMenuUser?.userId === msg.userId toteutui myös
+// kun molemmat olivat undefined (huutoviesteillä ei koskaan asetettu userId:tä, ja
+// modMenuUser on null-tilassa myös undefined), joten valikko ilmestyi automaattisesti JOKA
+// huutoviestille ilman klikkausta - rikkoi koko chatin visuaalisesti. Ks. CLAUDE.md "Uudet
+// löydökset 2026-08-10". Korvaava toiminto (moderaattorin nimeäminen ennen liveä,
+// ei klikkaamalla kesken chatin) suunnitellaan myöhemmin erikseen.
 
 interface ChatAreaProps {
   dark: boolean
@@ -221,14 +214,9 @@ interface ChatAreaProps {
   chatTab: 'chat' | 'watching'
   setChatTab: (v: 'chat' | 'watching') => void
   viewerList: ViewerEntry[]
-  modMenuUser: { userId: string; username: string } | null
-  setModMenuUser: (v: { userId: string; username: string } | null) => void
-  onAssignMod: (userId: string) => void
-  onRemoveMod: (userId: string) => void
-  onRemoveFromShow: (userId: string) => void
 }
 
-function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput, sendChat, user, canModerate, chatTab, setChatTab, viewerList, modMenuUser, setModMenuUser, onAssignMod, onRemoveMod, onRemoveFromShow }: ChatAreaProps) {
+function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput, sendChat, user, canModerate, chatTab, setChatTab, viewerList }: ChatAreaProps) {
   const visibleChat = chat.filter(m => !m.hidden || canModerate)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: dark ? '#0A0A0A' : C.surface }}>
@@ -255,29 +243,15 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
           {visibleChat.map(msg => (
             <div key={msg.id} style={{ position: 'relative', display: 'flex', gap: 7, alignItems: 'flex-start', opacity: msg.hidden ? 0.5 : 1 }}>
               <div
-                onClick={() => canModerate && msg.userId && setModMenuUser(modMenuUser?.userId === msg.userId ? null : { userId: msg.userId, username: msg.username })}
-                style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, marginTop: 1, cursor: canModerate && msg.userId ? 'pointer' : 'default' }}
+                style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, marginTop: 1 }}
               >
                 {msg.username[0].toUpperCase()}
               </div>
               <div>
-                <span
-                  onClick={() => canModerate && msg.userId && setModMenuUser(modMenuUser?.userId === msg.userId ? null : { userId: msg.userId, username: msg.username })}
-                  style={{ fontSize: 12, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent, cursor: canModerate && msg.userId ? 'pointer' : 'default' }}
-                >{msg.username} </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
                 <span style={{ fontSize: 12, color: dark ? '#ccc' : C.text }}>{msg.message}</span>
                 {msg.hidden && <span style={{ fontSize: 10, color: '#EF4444', marginLeft: 6 }}>(piilotettu — kielletty sana)</span>}
               </div>
-              {modMenuUser?.userId === msg.userId && (
-                <ModMenu
-                  C={C}
-                  targetIsModerator={viewerList.find(v => v.userId === msg.userId)?.isModerator ?? false}
-                  onAssign={() => onAssignMod(msg.userId!)}
-                  onRemoveMod={() => onRemoveMod(msg.userId!)}
-                  onRemoveFromShow={() => onRemoveFromShow(msg.userId!)}
-                  onClose={() => setModMenuUser(null)}
-                />
-              )}
             </div>
           ))}
         </div>
@@ -402,7 +376,6 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [isModerator, setIsModerator] = useState(false)
   const [viewerList, setViewerList] = useState<ViewerEntry[]>([])
   const [chatTab, setChatTab] = useState<'chat' | 'watching'>('chat')
-  const [modMenuUser, setModMenuUser] = useState<{ userId: string; username: string } | null>(null)
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; danger?: boolean; onConfirm: () => void } | null>(null)
   const [removedBlocked, setRemovedBlocked] = useState(false)
 
@@ -572,28 +545,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     setChatInput('')
   }
 
-  function assignModerator(userId: string) {
-    const token = localStorage.getItem('skrm_token')
-    connectSocket().emit('assign_moderator', { showId, userId, token })
-    setModMenuUser(null)
-  }
-  function removeModerator(userId: string) {
-    const token = localStorage.getItem('skrm_token')
-    connectSocket().emit('remove_moderator', { showId, userId, token })
-    setModMenuUser(null)
-  }
-  function removeFromShow(userId: string) {
-    setModMenuUser(null)
-    setConfirmDialog({
-      message: 'Poistetaanko tämä käyttäjä tästä livestä? Hän ei voi enää chatata tai huutaa tässä livessä.',
-      danger: true,
-      onConfirm: () => {
-        setConfirmDialog(null)
-        const token = localStorage.getItem('skrm_token')
-        connectSocket().emit('remove_from_show', { showId, userId, token })
-      },
-    })
-  }
+  // assignModerator/removeModerator/removeFromShow poistettu 2026-08-10 yhdessä niiden
+  // ainoan kutsupaikan (ChatArean ModMenu) kanssa, ks. CLAUDE.md "Uudet löydökset 2026-08-10"
+  // kohta 1 - itse backend-tapahtumat (assign_moderator/remove_moderator/remove_from_show)
+  // ovat yhä olemassa socket.ts:ssä, valmiina uudelleenkäytettäväksi kun korvaava
+  // moderaattorin nimeämis-UI (ennen liveä, ei klikkaamalla) rakennetaan.
 
   async function buyNow(productId: string) {
     if (!user) { router.push(`/login?redirect=/live/${showId}`); return }
@@ -834,8 +790,6 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <ChatArea
             dark={true} isMobile={isMobile} t={t} C={C} chatRef={chatRef} chat={chat} chatInput={chatInput} setChatInput={setChatInput} sendChat={sendChat} user={user}
             canModerate={canModerate} chatTab={chatTab} setChatTab={setChatTab} viewerList={viewerList}
-            modMenuUser={modMenuUser} setModMenuUser={setModMenuUser}
-            onAssignMod={assignModerator} onRemoveMod={removeModerator} onRemoveFromShow={removeFromShow}
           />
         </div>
       </div>
