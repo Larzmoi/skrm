@@ -496,33 +496,32 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 
 **Mitä EI oteta käyttöön nyt, huolimatta ehdotuksista:**
 - **Redis** — ehdotettu chatin/huutokaupan nopeuttamiseksi, mutta väärä työkalu juuri tähän. WebSocket (Socket.io) on jo käytössä, ei uusi teknologia. Redis on tarkoitettu horisontaaliseen skaalaukseen (useampi backend-instanssi jakamassa tilaa) — ei ratkaise operaattoriverkon NAT-ongelmaa, koska data lähtisi silti samasta yhdestä origin-palvelimesta. Redis harkitaan myöhemmin nimenomaan skaalaustarpeeseen, ei nyt luotettavuuskorjaukseksi.
+  - **Poikkeus, selvennetty 2026-08-10:** tämä kielto koskee Redisin käyttöä SKRM:n OMAAN chat-/huutokauppalogiikkaan. Se **ei koske** LiveKitin **Ingress-komponentin** (RTMP-vastaanotto OBS:lle) sisäistä pakollista teknistä riippuvuutta Redisiin — tämä on LiveKitin oma toteutusyksityiskohta sen sisäiseen RPC-kommunikointiin, ei jotain jonka SKRM-backend käyttäisi suoraan. **Hyväksytty ratkaisu:** pieni, vain-paikallinen (`localhost`, ei julkisesti auki) Redis-instanssi ainoastaan Ingress-RPC:tä varten, ei kosketa chattia/huutokauppaa/muuta backendiä.
 - **Stripe Connect** — maksut ovat jo LUKITTU Paytrail, ei muuteta
 
 **Chat/Socket-päätös pysyy ennallaan:** ks. "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osio — pub/sub-migraatio (Pusher/Ably) on yhä oikea polku chatille jos verkkodiagnoosi vahvistaa NAT-syyn, tämä ei muutu LiveKit-päätöksen myötä.
 
 **MediaMTX-työ ei mennyt hukkaan** — RTMP-vastaanotto ja koko infra-osaaminen siirtyy suurelta osin LiveKitin asennukseen, ja koodikannan abstraktiokerros (`Show.streamKey`+`Show.hlsUrl`-tyyppinen erottelu) tekee tästäkin vaihdosta hallittavan, ei "rakenna kaikki uusiksi".
 
-### ✅ LiveKit pystyssä tuotannossa 2026-08-09 — synteettisesti vahvistettu, odottaa omistajan oikeaa mittausta
+## PÄIVITYS 2026-08-10: LiveKit-viive vahvistettu — 2-3 sekuntia, tavoite YLITETTY
 
-**⚠️ TÄRKEÄ MUUTOS OMISTAJALLE: OBS-asetukset pitää päivittää.** Toisin kuin aiemmissa migraatioissa, LiveKit generoi oman stream keynsä eikä vanhaa avainta voitu säilyttää. **Uusi Server: `rtmp://stream.skrm.fi/x`** (huom, ei enää `/live`), **uusi Stream Key** näkyy dashboardin OBS-asetukset-paneelissa (hae sieltä tuore, älä käytä vanhaa — vanha ei toimi enää ollenkaan MediaMTX:n pysäyttämisen jälkeen).
+Omistaja vahvisti oikealla testauksella: viive on nyt 2-3 sekuntia, parempi kuin alkuperäinen 5s-tavoitekin. LiveKit-vaihto oli oikea päätös, MediaMTX-työstä luopuminen kannatti.
 
-**Asennettu ja synteettisesti vahvistettu (ffmpeg-julkaisu -> Ingress -> LiveKit-huone -> webhook, koko ketju):**
-- `livekit-server` v1.13.5, systemd-palvelu `/opt/livekit`, ei julkinen (127.0.0.1:7880, nginx proxaa)
-- `livekit-ingress` (RTMP-vastaanotto OBS:lle) Dockerissa `--network host`, systemd-palvelu, kuuntelee porttia 1935 (sama kuin ennen)
-- **Redis** — paikallinen, salasanasuojattu, EI julkisesti auki, käytössä VAIN Ingress<->server-RPC:hen. **Poikkeus CLAUDE.md:n "ei Redis skaalaukseen" -päätöksestä, omistajan hyväksymä 2026-08-09** — tarkistettu ettei liity samaan huoleen: tämä ei ratkaise mitään skaalausongelmaa, on pakollinen pieni sisäinen komponentti Ingress-palvelun toiminnalle ylipäätään, riippumatta solmumäärästä
-- Docker asennettu palvelimelle (uusi riippuvuus) — tarvitaan koska Ingress ei julkaise valmiita binäärejä (GStreamer-riippuvuus), vain Docker-image
-- TURN/TLS portissa 5349 (oma sertifikaatti, sama Let's Encrypt -sertti kuin stream.skrm.fi) — parantaa luotettavuutta tiukoilla operaattoriverkoilla, samaa ongelmaluokkaa kuin chatin NAT-saaga
-- MediaMTX pysäytetty ja poistettu käytöstä (`systemctl disable`)
-- nginx `stream.skrm.fi`: proxaa WSS-signaloinnin LiveKitille (media kulkee suoraan selaimen ja LiveKitin välillä, ei nginxin kautta)
-- Palomuuri: TCP 7881, UDP 50000-50100 (RTC-media), TCP+UDP 5349 (TURN), UDP 30000-30100 (TURN-relay) avattu
-- Backend: `lib/livekit.ts` korvaa `lib/stream.ts`, huone kiinteä per myyjä (`seller-{userId}`), webhook `/webhooks/livekit` vastaanottaa `ingress_started`/`ingress_ended` allekirjoitettuna
-- Frontend: `VideoPlayer`/`HlsPreview` kirjoitettu kokonaan uusiksi `livekit-client`-SDK:lla, hls.js-riippuvuus poistui näiltä komponenteilta kokonaan (jäi silti pakettiin, ei poistettu jos jotain muuta käyttäisi — tarkistamatta erikseen)
-- Sivuvaikutus: `npm install` paljasti npm:n uuden `allowScripts`-suojauksen joka esti Prisma/bcrypt/sharp-pakettien asennusskriptit oletuksena — hyväksytty eksplisiittisesti (`npm install-scripts approve`) sekä backendillä että frontendilla, koska kyseessä ovat jo ennestään luotetut, käytössä olevat riippuvuudet, ei mitään uutta. bcrypt toimi silti valmiiksi mukana tulevan esikäännetyn binäärin ansiosta, tarkistettu erikseen ettei kirjautuminen ollut vaarassa.
+**Kaksi uutta löydöstä samasta testistä:**
 
-**Ei vielä vahvistettu — vaatii omistajan oikeaa testiä (ei voi tehdä etänä):**
-1. Oikea päästä-päähän-viive OBS:lla, useampi mittaus peräkkäin (tavoite alle 500ms)
-2. Näkyvyyden/luotettavuuden 99%-toistokoe (useampi peräkkäinen live-yritys)
-3. Mobiilichat mobiilidatalla vielä kerran samalla — LiveKit koskee vain videota, chat pysyy Socket.io:ssa muuttumattomana, mutta eri infra (uudet portit/reitit) voi vaikuttaa operaattoriverkon käyttäytymiseen epäsuorasti
+1. **"Yhdistetään..." (connecting) -teksti jää roikkumaan näkyviin** vaikka video jo toimii ja näyttää kuvaa — turha/jäänteinen tilaviesti joka ei siivoudu pois kun yhteys on oikeasti muodostunut. Pieni mutta selvä UI-bugi.
+
+2. **Mobiilichat ei näy edelleenkään**, vaikka työpöytäpuolella toimii — **tärkeä diagnostinen huomio: tämä sama oire toistuu identtisenä nyt TÄYSIN ERI videoinfralla (LiveKit) kuin aiemmin (MediaMTX/nginx-rtmp).** Koska koko video-/verkkokerros vaihdettiin kokonaan eikä chat-mobiilibugi muuttunut yhtään, tämä **vahvistaa aiemman epäilyn: kyse on todennäköisesti renderöinti-/CSS-tason bugista mobiilin chat-overlayssä, ei verkko-/operaattori-NAT-ongelmasta.** Jos syy olisi ollut verkkotasolla (operaattorin NAT), video-infran täydellinen vaihto olisi todennäköisesti muuttanut käytöstä edes jonkin verran. Että se pysyi täysin identtisenä, osoittaa vahvasti frontendin renderöintikoodiin, ei infraan.
+
+**Selkeä seuraava askel:** älä enää tutki verkko-/NAT-selitystä tälle — keskity suoraan mobiilin chat-overlay-komponentin CSS:ään/renderöintiin (position/z-index/overflow/korkeus), ks. aiempi "kaksi kerrosta" -diagnoosiohje "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osiossa, mutta paino nyt selvästi kerroksella 2 (renderöinti), ei kerroksella 1 (verkko).
+
+### Vastaus 2026-08-10 (VS Coden Claude): kolme löydöstä, yksi varma, kaksi ei-varmaa
+
+1. ✅ **"Yhdistetään..." korjattu, varma juurisyy löydetty.** `/live/[showId]`:n socket-efekti rekisteröi `socket.on('connect', ...)` mutta ei tarkistanut oliko socket-singleton JO yhdistetty ennen efektin ajoa (esim. käyttäjä navigoi sivulta joka jo käytti samaa socketia ilmoituksiin) — `connect`-tapahtuma ei laukea uudestaan menneisyydessä jo tapahtuneelle yhteydelle, joten `connected`-tila jäi pysyvästi falseksi vaikka yhteys oli täysin kunnossa. Sama varakäsittely oli jo olemassa `/lahetys`:ssä, unohtui vain tästä toisesta tiedostosta. Lisätty `if (socket.connected) { setConnected(true); ... }`.
+
+2. **Kameratestin virheilmoitus parannettu, mutta juurisyy vahvistamatta.** `catch {}` nieli aiemmin todellisen virheen ja näytti aina saman geneerisen tekstin riippumatta syystä. Näyttää nyt oikean syyn selaimen virhenimen mukaan (`NotAllowedError`/`NotReadableError`/`NotFoundError`/`OverconstrainedError`) + yrittää uudelleen ilman tarkkaa laitevaatimusta jos deviceId on vanhentunut. **Omistaja vahvisti antaneensa luvat** — todennäköisin jäljellä oleva selitys on `NotReadableError` (kamera jo OBS:n käytössä, koska esikatselu ja OBS kilpailevat samasta laitteesta), mutta tätä ei voitu vahvistaa koodista, koska vanha virhe ei koskaan paljastanut nimeään. **Seuraavalla kerralla virheteksti kertoo suoraan mikä se oli.**
+
+3. **Mobiilichatin kupliin poistettu `backdropFilter` — matalan riskin kokeilu, EI vahvistettu korjaus.** Tunnettu mobiiliselainten renderöintiongelma: `backdrop-filter` yhdistettynä vieritettävään (`overflowY:auto`) säiliöön voi hävittää elementin näkyvistä kokonaan tietyillä selain/laiteyhdistelmillä vaikka data olisi täysin kunnossa. **Rehellinen varaus:** kävin koko mobiilichatin JSX-rakenteen (asettelu, z-index-pino, flexbox-ketju) läpi useaan kertaan enkä löytänyt yksiselitteistä, todistettavaa bugia — tämä on perusteltu mutta EI VARMISTETTU yritys, ei "korjattu"-tason löydös. **Looginen huomio talteen, ei riitäänny kumoamaan päätöstä mutta on syytä tietää:** video-infran täydellinen vaihto (MediaMTX->LiveKit) todistaa VAIN ettei ongelma liity VIDEO-infraan — se ei suoraan todista ettei kyse ole verkosta, koska chat kulkee edelleen täysin ERI palvelimen/protokollan (Socket.io, app.skrm.fi) kautta, jota video-migraatio ei koskenut lainkaan. Jos backdrop-filter-korjaus EI auta seuraavassa testissä, tämä looginen aukko on syytä ottaa uudelleen käsittelyyn ennen pub/sub-migraatiopäätöstä.
 
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-09)
 
