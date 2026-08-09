@@ -472,21 +472,61 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 
 ## Uudet löydökset 2026-08-09 (chat toimii, huutokauppa testattu ensi kertaa)
 
-**Hyvä uutinen:** chat toimii — vahvistettu kahdesti (2026-08-09). Tarina eteni näin: (1) chat vahvistettiin toimivaksi, debug-badge poistettiin lukemaa tallentamatta; (2) SAMASSA deployssa lähti mukana iso rakennemuutos (Shop-paneelin PiP-video-Portal-korjaus, ks. "Uudet löydökset" kohta 3) — chat "hajosi" omistajan seuraavassa testissä, herättäen epäilyn että Portal-muutos rikkoi jotain; (3) badge palautettiin (näytti nyt myös `shopOpen`-tilan, koska yksi konkreettinen epäily oli että täysruudun Shop-paneeli olisi jäänyt vahingossa peittämään chatin); (4) omistaja testasi uudelleen ja **chat toimi normaalisti, badge näytti odotetut lukemat** — Portal-muutos EI siis rikkonut chattia, badge poistettu lopullisesti. **Kumpi alkuperäinen syy (verkko vai CSS) chatin toimimisen taustalla lopulta oli, jäi silti varmistamatta** — badgen lukemaa ei koskaan raportoitu sanallisesti, vain "toimii". Pub/sub-migraation tarve on siis yhä auki kysymys, mutta chat on nyt kahdesti riippumattomasti vahvistettu toimivaksi tuotannossa.
+**Hyvä uutinen:** chat saatiin toimimaan (diagnoosin jälkeen — ei vielä varmistettu kumpi syy se lopulta oli, verkko vai CSS, kysy VS Coden Claudelta jos ei mainittu).
 
-**Neljä uutta löydöstä huutokaupan/liven testauksesta — kaikki käsitelty 2026-08-09:**
+**Neljä uutta löydöstä huutokaupan/liven testauksesta:**
 
-1. ✅ **KORJATTU — Huutokaupan päättymisen jälkeinen jäänteinen UI-tila.** Juurisyy: `auction_ended`-socket-tapahtuma nollasi `active:false`:n mutta mikään ei erottanut "ei ole vielä alkanut" ja "juuri päättyi" -tiloja UI:ssa, joten "Sinä johdossa" / "X johtaa" -badge ja huutosumman +/- -syöttökenttä jäivät näyttämään vanhaa, edelleen-käynnissä-olevaa tekstiä. Lisätty `endedProductId`-tila joka nollataan uuden huutokaupan alkaessa ja asetetaan `auction_ended`:n productId:hen; UI näyttää nyt selvästi "Sinä voitit!" / "X voitti" ja huutosumman syöttökenttä piilotetaan kokonaan huutokaupan päätyttyä liukupainikkeen tekstin vaihtuessa "Myyty"/"Huutokauppa päättynyt — ei huutoja" -tekstiksi (`t.live.sold`/uusi `t.live.auctionEndedNoWinner`). Korjattu sekä `BidPanel`-komponentissa että desktopin erillisessä video-overlay-duplikaatissa.
+1. **Huutokaupan päättymisen jälkeen jää jäänteinen UI-tila.** Testattu: omistaja voitti oman huutokaupan. Sen jälkeen "Sinä johdossa" -teksti ja "nykyinen huuto" jäävät näkyviin vaikka huutokauppa on jo päättynyt, eikä UI päivity "myyty/päättynyt"-tilaan. Lisäksi huutokenttä näyttää yhä seuraavan minimihuudon summan, vaikka huutokauppa on jo ohi (pitäisi olla joko piilossa tai selvästi merkitty "päättynyt"). **Selkeä bugi:** auktion päättymistapahtuma ei siivoa/päivitä frontendin tilaa oikein.
 
-2. **Live "toimii mutta tökkii"** — **ei vielä testattavissa**, koska OBS:n keyframe-väli on VS Coden Clauden vahvistuksen mukaan yhä 8.3s tuotannossa (suoraan tarkistettu oikean aktiivisen striimin manifestista) — omistaja ei ole vielä tehnyt Asetukset → Lähtö → Keyframe Interval → 2s -muutosta. Ei voida arvioida onko "tökkiminen" pelkkää keyframe-oiretta vai jotain muuta ennen kuin tämä on tehty ja mitattu uudelleen.
+2. **Live "toimii mutta tökkii"** — epämääräinen, vaatii tarkempaa havainnointia (nykäyksiä toistossa? puskurointitaukoja?). Voi liittyä siihen samaan keyframe-interval-asiaan (8.3s, ei vielä korjattu) — pidemmät segmentit voivat aiheuttaa nykäyksiä lyhyemmän hls.js-puskurin kanssa. Korjaa keyframe-väli ensin (ks. "Tilannepäivitys 2026-08-09" -osio), tarkista tökkiikö vielä sen jälkeen.
 
-3. ✅ **KORJATTU — Shop-paneelin PiP-video oli tyhjä.** Juurisyy löydetty ja vahvistettu: `videoContent` (sisältää `<VideoPlayer>`+hls.js-instanssin) oli aiemmin renderöity KAHDESSA ERI ehdollisessa JSX-haarassa (`{shopOpen && ...}` vs. `{!shopOpen && ...}`) — nämä ovat toisensa poissulkevia, joten Shopin avaus/sulku pakotti Reactin joka kerta UNMOUNTTAAMAAN koko VideoPlayerin (siis tuhoamaan hls.js:n) yhdestä paikasta ja MOUNTTAAMAAN täysin uuden toiseen paikkaan — striimi piti puskuroida kokonaan alusta joka kerta, mikä yhdistettynä 8.3s-segmentteihin (ks. kohta 2) näytti mustalta/tyhjältä pitkän aikaa. **Korjaus:** `frontend/app/live/[showId]/page.tsx`, React Portal (`createPortal`) - video renderöidään nyt YHTEEN pysyvään React-instanssiin joka portaloidaan sille kumpi kahdesta AINA-DOM:ssa-olevasta "kotipesästä" (pääkuva-alue / PiP-kulma) on kulloinkin näkyvissä (`display` vaihtuu, ei koskaan mount/unmount). hls.js-instanssi pysyy siis elossa koko Shop-avaus/sulku-syklin yli.
+3. **Shop-paneelin PiP-video on tyhjä.** Klikattiin "Shop", video pieneni oikein picture-in-picture-ikkunaksi (rakenne toimii), mutta itse PiP-ikkunassa ei näkynyt kuvaa — musta/tyhjä. Regressio Shop-paneelin toteutuksessa, videoelementti ei toistu PiP-tilassa vaikka pienentyminen itsessään toimii.
 
-4. **Striimin uudelleenkäynnistys: epäsymmetrinen viive myyjän ja katsojan välillä** — **ei löytynyt selvää koodieroa** `HlsPreview`- (myyjä) ja `VideoPlayer`- (katsoja) komponenttien väliltä, molemmilla identtinen virhepohjainen 3s-uudelleenyrityslogiikka. Paras selitys: ajoitussattuma yhdistettynä kohdan 2 8.3s-segmentteihin — myyjä katsoo koko katkoksen ajan (kokee täyden viiveen), katsoja joka avaa sivun VASTA palautumisen jälkeen näkee sen jo vakaana. **Ei jätetty pelkäksi arveluksi:** lisätty itsenäinen "vahtikoira"-ajastin MOLEMPIIN soittimiin (`HlsPreview` + `VideoPlayer`) — jos yhtään uutta segmenttiä ei ole ladattu 12s aikana riippumatta siitä luokitteleeko hls.js mitään "fataaliksi", pakotetaan manifest uudelleen joka tapauksessa. Puolustava parannus riippumatta lopullisesta juurisyystä. **Vaatii omistajan uutta testiä vahvistaakseen onko epäsymmetria poissa.**
+4. **Striimin uudelleenkäynnistys: epäsymmetrinen viive myyjän ja katsojan välillä.** Kun omistaja käynnisti striimin uudelleen samalla koneella, hänen OMA esikatselunsa kesti 15-30s ennen kuvan tuloa — mutta **toisella laitteella (katsojana) kuva tuli nopeasti/normaalisti**. Tämä viittaa siihen että myyjän oma esikatselukomponentti ei havaitse/reagoi striimin uudelleenkäynnistykseen kunnolla (esim. vanha hls.js-instanssi ei lataa manifestia uudelleen), erillinen ongelma yleisestä striimin viiveestä.
+
+## PÄÄTÖS 2026-08-09: Vaihto MediaMTX → LiveKit
+
+**Testi ja tulos:** OBS-keyframe-korjaus (8.3s→2s, tunnistettu tarkka syy pitkälle viiveelle) tehtiin, **ei tuottanut mitään parannusta viiveeseen.** Tämä täytti aiemmin asetetun päätöskriteerin: jos tunnistettu, konkreettinen korjaus ei auta, kyse ei ole enää yksittäisestä asetuksesta vaan väärästä perustasta.
+
+**Päätös: siirrytään LiveKitiin (WebRTC SFU, WHIP/WHEP).** Perustelut:
+- MediaMTX:n paras realistinen kattoarvo olisi ollut n. 2-5s (LL-HLS) — LiveKit tähtää alle 500ms:ään, eri luokka kokonaan
+- LiveKit ratkaisee **kaksi jonossa ollutta tehtävää samalla migraatiolla**: viiveen JA sen myöhemmäksi siirretyn "selainstriimaus ilman OBS:ää" -ominaisuuden (LiveKit tukee sekä WHIP-vastaanottoa suoraan selaimesta/puhelimesta että perinteistä RTMP-syötettä OBS:lle)
+- Avoimen lähdekoodin — voidaan hostata itse Hetznerillä (kontrolli+kustannus hallinnassa) tai vaihtaa LiveKit Cloudiin myöhemmin jos operatiivinen taakka kasvaa liikaa, sama "voi vaihtaa myöhemmin ilman uudelleenrakennusta" -periaate kuin Mux-vertailussa
+- 24h+ työtä MediaMTX:n kanssa vaihtelevin tuloksin, sama toistuvan epäonnistumisen kuvio kuin aiemmissa vaihdoissa (nginx-rtmp→MediaMTX-päätöksen taustalla)
+
+**Mitä EI oteta käyttöön nyt, huolimatta ehdotuksista:**
+- **Redis** — ehdotettu chatin/huutokaupan nopeuttamiseksi, mutta väärä työkalu juuri tähän. WebSocket (Socket.io) on jo käytössä, ei uusi teknologia. Redis on tarkoitettu horisontaaliseen skaalaukseen (useampi backend-instanssi jakamassa tilaa) — ei ratkaise operaattoriverkon NAT-ongelmaa, koska data lähtisi silti samasta yhdestä origin-palvelimesta. Redis harkitaan myöhemmin nimenomaan skaalaustarpeeseen, ei nyt luotettavuuskorjaukseksi.
+- **Stripe Connect** — maksut ovat jo LUKITTU Paytrail, ei muuteta
+
+**Chat/Socket-päätös pysyy ennallaan:** ks. "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osio — pub/sub-migraatio (Pusher/Ably) on yhä oikea polku chatille jos verkkodiagnoosi vahvistaa NAT-syyn, tämä ei muutu LiveKit-päätöksen myötä.
+
+**MediaMTX-työ ei mennyt hukkaan** — RTMP-vastaanotto ja koko infra-osaaminen siirtyy suurelta osin LiveKitin asennukseen, ja koodikannan abstraktiokerros (`Show.streamKey`+`Show.hlsUrl`-tyyppinen erottelu) tekee tästäkin vaihdosta hallittavan, ei "rakenna kaikki uusiksi".
+
+### ✅ LiveKit pystyssä tuotannossa 2026-08-09 — synteettisesti vahvistettu, odottaa omistajan oikeaa mittausta
+
+**⚠️ TÄRKEÄ MUUTOS OMISTAJALLE: OBS-asetukset pitää päivittää.** Toisin kuin aiemmissa migraatioissa, LiveKit generoi oman stream keynsä eikä vanhaa avainta voitu säilyttää. **Uusi Server: `rtmp://stream.skrm.fi/x`** (huom, ei enää `/live`), **uusi Stream Key** näkyy dashboardin OBS-asetukset-paneelissa (hae sieltä tuore, älä käytä vanhaa — vanha ei toimi enää ollenkaan MediaMTX:n pysäyttämisen jälkeen).
+
+**Asennettu ja synteettisesti vahvistettu (ffmpeg-julkaisu -> Ingress -> LiveKit-huone -> webhook, koko ketju):**
+- `livekit-server` v1.13.5, systemd-palvelu `/opt/livekit`, ei julkinen (127.0.0.1:7880, nginx proxaa)
+- `livekit-ingress` (RTMP-vastaanotto OBS:lle) Dockerissa `--network host`, systemd-palvelu, kuuntelee porttia 1935 (sama kuin ennen)
+- **Redis** — paikallinen, salasanasuojattu, EI julkisesti auki, käytössä VAIN Ingress<->server-RPC:hen. **Poikkeus CLAUDE.md:n "ei Redis skaalaukseen" -päätöksestä, omistajan hyväksymä 2026-08-09** — tarkistettu ettei liity samaan huoleen: tämä ei ratkaise mitään skaalausongelmaa, on pakollinen pieni sisäinen komponentti Ingress-palvelun toiminnalle ylipäätään, riippumatta solmumäärästä
+- Docker asennettu palvelimelle (uusi riippuvuus) — tarvitaan koska Ingress ei julkaise valmiita binäärejä (GStreamer-riippuvuus), vain Docker-image
+- TURN/TLS portissa 5349 (oma sertifikaatti, sama Let's Encrypt -sertti kuin stream.skrm.fi) — parantaa luotettavuutta tiukoilla operaattoriverkoilla, samaa ongelmaluokkaa kuin chatin NAT-saaga
+- MediaMTX pysäytetty ja poistettu käytöstä (`systemctl disable`)
+- nginx `stream.skrm.fi`: proxaa WSS-signaloinnin LiveKitille (media kulkee suoraan selaimen ja LiveKitin välillä, ei nginxin kautta)
+- Palomuuri: TCP 7881, UDP 50000-50100 (RTC-media), TCP+UDP 5349 (TURN), UDP 30000-30100 (TURN-relay) avattu
+- Backend: `lib/livekit.ts` korvaa `lib/stream.ts`, huone kiinteä per myyjä (`seller-{userId}`), webhook `/webhooks/livekit` vastaanottaa `ingress_started`/`ingress_ended` allekirjoitettuna
+- Frontend: `VideoPlayer`/`HlsPreview` kirjoitettu kokonaan uusiksi `livekit-client`-SDK:lla, hls.js-riippuvuus poistui näiltä komponenteilta kokonaan (jäi silti pakettiin, ei poistettu jos jotain muuta käyttäisi — tarkistamatta erikseen)
+- Sivuvaikutus: `npm install` paljasti npm:n uuden `allowScripts`-suojauksen joka esti Prisma/bcrypt/sharp-pakettien asennusskriptit oletuksena — hyväksytty eksplisiittisesti (`npm install-scripts approve`) sekä backendillä että frontendilla, koska kyseessä ovat jo ennestään luotetut, käytössä olevat riippuvuudet, ei mitään uutta. bcrypt toimi silti valmiiksi mukana tulevan esikäännetyn binäärin ansiosta, tarkistettu erikseen ettei kirjautuminen ollut vaarassa.
+
+**Ei vielä vahvistettu — vaatii omistajan oikeaa testiä (ei voi tehdä etänä):**
+1. Oikea päästä-päähän-viive OBS:lla, useampi mittaus peräkkäin (tavoite alle 500ms)
+2. Näkyvyyden/luotettavuuden 99%-toistokoe (useampi peräkkäinen live-yritys)
+3. Mobiilichat mobiilidatalla vielä kerran samalla — LiveKit koskee vain videota, chat pysyy Socket.io:ssa muuttumattomana, mutta eri infra (uudet portit/reitit) voi vaikuttaa operaattoriverkon käyttäytymiseen epäsuorasti
 
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-09)
 
-1. **Viiveen jatkomittaus OBS-keyframe-korjauksen jälkeen** — ks. "Tilannepäivitys 2026-08-09" yllä, odottaa omistajan uutta mittausta
+1. **LiveKit-migraatio** (ks. "PÄÄTÖS 2026-08-09: Vaihto MediaMTX → LiveKit" yllä) — ehdoton ykkönen, korvaa MediaMTX-työn kokonaan, tavoite alle 500ms viive
 2. **Chat/Socket-arkkitehtuurin korjaus** (ks. "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osio) — **päätetty seuraavaksi ennen WHIP/selainstriimausta**, koska nykyiset 2-3 testikäyttäjää käyttävät OBS:ää pöytäkoneella, joten selainstriimaus ei toisi heille lisäarvoa juuri nyt, mutta chat koskettaa kaikkia katsojia mukaan lukien mobiilikäyttäjät
 3. **WHIP/selainstriimaus ilman OBS:ää** (ks. "Selainpohjainen mobiilistriimaus" -osio) — siirretty chatin jälkeen, ei unohdettu, tärkeä myöhemmin kun käyttäjäkunta laajenee puhelinkäyttäjiin
 4. **Mux vs. jatka itse -päätös** — yhä auki, arvioidaan lopullisesti kun sekä viive että chat on saatu kuntoon itse rakennetulla pohjalla
