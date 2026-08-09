@@ -529,6 +529,18 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setShow(s => s ? { ...s, status: data.status } : s)
     })
 
+    // Jos socket oli JO yhdistetty ennen kuin tämä efekti ehti rekisteröidä kuuntelijansa
+    // (esim. käyttäjä navigoi toiselta sivulta jossa sama socket-singleton oli jo auki
+    // ilmoituksia varten) — 'connect'-tapahtuma on jo ehtinyt laueta menneisyydessä eikä
+    // laukea enää uudestaan, joten connected jäisi pysyvästi falseksi ("Yhdistetään..."
+    // roikkuisi näkyvissä ikuisesti) vaikka yhteys on täysin kunnossa. Tarkistetaan siis
+    // nykyinen tila suoraan ja korjataan se sekä liitytään huoneeseen heti jos näin kävi.
+    if (socket.connected) {
+      setConnected(true)
+      const token = localStorage.getItem('skrm_token') || undefined
+      socket.emit('join_show', { showId, token })
+    }
+
     return () => {
       socket.emit('leave_show', showId)
       socket.off('connect')
@@ -705,10 +717,15 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
               </div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 10px', zIndex: 10 }}>
+                {/* backdropFilter poistettu näistä kupleista - tunnettu mobiiliselainten
+                    renderöintiongelma, jossa backdrop-filter yhdistettynä vieritettävään
+                    (overflowY:auto) säiliöön voi hävittää elementin näkyvistä täysin joillain
+                    puhelin/selainyhdistelmillä, vaikka data/DOM olisi täysin kunnossa. Kiinteä,
+                    riittävän peittävä tausta on luotettavampi kuin läpikuultava blur-efekti. */}
                 <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
                   {chat.filter(m => !m.hidden || canModerate).slice(-5).map(msg => (
                     <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
-                      <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', maxWidth: '80%' }}>
+                      <div style={{ background: 'rgba(20,20,20,0.85)', borderRadius: 10, padding: '4px 9px', maxWidth: '80%' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
                         <span style={{ fontSize: 11, color: '#fff' }}>{msg.message}</span>
                       </div>

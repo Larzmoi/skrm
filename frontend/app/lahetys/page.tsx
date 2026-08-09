@@ -327,14 +327,27 @@ export default function LahetysPage() {
     } catch {}
   }
 
-  async function startCamera(deviceId?: string) {
+  async function startCamera(deviceId?: string): Promise<boolean> {
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true, audio: true })
       streamRef.current = stream
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
       setCamError(''); setCamReady(true); return true
-    } catch { setCamError('Kameraan ei saada yhteyttä. Tarkista selaimen luvat.'); setCamReady(false); return false }
+    } catch (err: any) {
+      // Jos tarkka deviceId ei enää kelpaa (laite vaihtui/deviceId vanhentui edellisestä
+      // enumeroinnista), yritetään ilman tarkkaa laitevaatimusta ennen luovuttamista.
+      if (deviceId && err?.name === 'OverconstrainedError') return startCamera(undefined)
+      // Näytetään oikea virheen syy geneerisen "tarkista luvat" -tekstin sijaan - tämä on
+      // toistuvasti ollut vaikea diagnosoida koska sama teksti näkyi ihan eri syistä
+      // (luvat evätty / laite jo toisen sovelluksen kuten OBS:n käytössä / laitetta ei löydy).
+      const reason =
+        err?.name === 'NotAllowedError' ? 'Selain esti pääsyn — tarkista selaimen kameraluvat.'
+        : err?.name === 'NotReadableError' ? 'Kamera on jo toisen sovelluksen käytössä (esim. OBS) — sulje se ja yritä uudelleen.'
+        : err?.name === 'NotFoundError' ? 'Kameraa ei löytynyt.'
+        : `Kameraan ei saada yhteyttä (${err?.name || 'tuntematon virhe'}).`
+      setCamError(reason); setCamReady(false); return false
+    }
   }
 
   function stopCamera() {
