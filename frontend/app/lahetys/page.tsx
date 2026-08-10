@@ -64,6 +64,14 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
     room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
     room.on(RoomEvent.Disconnected, () => setWaiting(true))
     room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+    room.on(RoomEvent.Reconnected, () => {
+      // Reconnect voi palauttaa jo aiemmin tilatut trackit ilman uutta
+      // TrackSubscribed-tapahtumaa (koska tilaus on jo olemassa) — ilman
+      // tätä "waiting" jäi jumiin true:hun vaikka video jatkoi toimimista.
+      setWaiting(false)
+      const video = videoRef.current
+      if (video && video.paused) video.play().catch(() => {})
+    })
 
     room.connect(wsUrl, token).catch(() => {
       if (!destroyed) setWaiting(true)
@@ -882,7 +890,11 @@ export default function LahetysPage() {
           Jono ({products.length})
         </button>
         {showQueue && (
-          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          // bottom: 200 (ei 0) jättää tilaa alapalkin (zIndex:10, ~190px korkea) ja
+          // mobiilin chat-overlayn (zIndex:8, input ~190px pohjasta) yläpuolelle - ennen
+          // Jono ulottui koko korkeuden yli ja peitti korkeammalla z-indexillä molemmat,
+          // jolloin chat-tekstikenttä ei enää saanut klikkauksia/fokusta läpi.
+          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 200, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)', borderBottomRightRadius: 12, padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             {queuePanelContent}
           </div>
         )}
