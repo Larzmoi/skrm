@@ -8,11 +8,14 @@ import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import { orderApi } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
+import { POSTI_PICKUP_POINTS } from '@/lib/postiPickupPoints'
+import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 
 interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string } }
 interface Order {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
   paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
+  pickupPointId: string | null; trackingNumber: string | null; sendingCode: string | null; postiStatus: PostiTrackingStep | null
   shippedAt: string | null; stalledNotifiedAt: string | null; reminderNotifiedAt: string | null; disputeReason: string | null
   items: OrderItem[]; seller: { name: string; username: string }; createdAt: string
   reviews: { reviewerId: string }[]
@@ -41,6 +44,7 @@ export default function OstotPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [selectedSize, setSelectedSize] = useState<Record<string, string>>({})
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState<Record<string, string>>({})
   const [disputeOpenFor, setDisputeOpenFor] = useState<string | null>(null)
   const [disputeReasonInput, setDisputeReasonInput] = useState<Record<string, string>>({})
   const [reviewOpenFor, setReviewOpenFor] = useState<string | null>(null)
@@ -89,9 +93,10 @@ export default function OstotPage() {
     if (order.shippingPrice == null) {
       const size = selectedSize[order.id]
       if (!size) { setError('Valitse pakettikoko'); return }
+      if (size === 'postitus' && !selectedPickupPoint[order.id]) { setError('Valitse noutopiste'); return }
       setBusy(order.id); setError('')
       try {
-        await orderApi.selectShipping(order.id, size)
+        await orderApi.selectShipping(order.id, size, size === 'postitus' ? selectedPickupPoint[order.id] : undefined)
       } catch (e: any) { setError(e.message ?? 'Toimituksen valinta epäonnistui'); setBusy(null); return }
     } else {
       setBusy(order.id); setError('')
@@ -236,11 +241,17 @@ export default function OstotPage() {
                                 {shippingRemaining > 0 ? `Toimitusvalinta-aikaa ${timeLeftLabel(shippingRemaining)}` : '6h ikkuna umpeutunut'}
                               </div>
                             )}
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
                                 <option value="">Valitse pakettikoko...</option>
                                 {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
                               </select>
+                              {selectedSize[order.id] === 'postitus' && (
+                                <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                                  <option value="">Valitse noutopiste...</option>
+                                  {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                                </select>
+                              )}
                               <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                                 {busy === order.id ? '...' : 'Vahvista ja maksa'}
                               </button>
@@ -251,8 +262,22 @@ export default function OstotPage() {
                         {section.key === 'SHIPPED' && (() => {
                           const shippedAge = order.shippedAt ? now - new Date(order.shippedAt).getTime() : 0
                           const daysLeft = Math.max(0, Math.ceil((14 * DAY_MS - shippedAge) / DAY_MS))
+                          const currentStepIdx = order.postiStatus ? POSTI_TRACKING_STEPS.indexOf(order.postiStatus) : -1
                           return (
                             <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                              {order.trackingNumber && (
+                                <div style={{ marginBottom: 10 }}>
+                                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Seurantanumero: {order.trackingNumber}</div>
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    {POSTI_TRACKING_STEPS.map((step, i) => (
+                                      <div key={step} style={{ flex: 1, textAlign: 'center' }}>
+                                        <div style={{ height: 4, borderRadius: 2, background: i <= currentStepIdx ? C.accent : C.border, marginBottom: 4 }} />
+                                        <div style={{ fontSize: 10, color: i <= currentStepIdx ? C.accent : C.muted, fontWeight: i === currentStepIdx ? 700 : 400 }}>{POSTI_STEP_LABELS[step]}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                               {order.stalledNotifiedAt && (
                                 <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#B45309', fontSize: 12 }}>
                                   Pakettia ei ole vielä kuitattu vastaanotetuksi. Onko se saapunut?

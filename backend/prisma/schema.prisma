@@ -240,6 +240,10 @@ model Order {
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?
   pickupCode        String?     // nouto-toimitustavan vahvistuskoodi — ostaja näyttää/kertoo tämän myyjälle fyysisessä noudossa
+  pickupPointId     String?     // ostajan valitsema Postin noutopiste postitus-toimitustavalle (MOCK, ks. lib/postiService.ts)
+  trackingNumber    String?     // Postin lähetyksen seurantanumero (MOCK, ks. lib/postiService.ts)
+  sendingCode       String?     // Postin "Sending Code" - kirjoitetaan pakettiin ilman tulostettavaa osoitekorttia (MOCK)
+  postiStatus       String?     // Postin toimitusseurannan tila: RECEIVED/IN_TRANSIT/AT_PICKUP_POINT/PICKED_UP (MOCK)
   shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
   stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty
   reminderNotifiedAt DateTime?  // päivä 10 -muistutus lähetetty

@@ -348,11 +348,93 @@ Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti o
 - Maksu vapautuu kun: Postin API sanoo toimitettu TAI ostaja kuittaa TAI 14 päivää kulunut TAI **noutokoodi vahvistettu** (nouto-toimitustavan tilauksille, ks. "Noutotuotteet"-osio — vapauttaa heti, ei tarvitse odottaa 14 päivää koska molemmat osapuolet fyysisesti läsnä)
 - Ei luoteta pelkästään Postin statukseen — ostajan kuittaus tai aikaraja ratkaisee
 
-## Lähetysintegraatio (tulossa OY:n jälkeen)
-- SKRM ostaa lähetykset automaattisesti Postilta/Matkahuollolta yrityssopimuksella
-- Myyjä saa tulostettavan lähetystaran dashboardiin
-- SKRM ottaa katteen lähetyksistä (esim. Posti 8,50€ → ostaja maksaa 9,90€)
-- Tracking API pollaa toimitusstatusta automaattisesti
+## Lähetysintegraatio (tulossa OY:n jälkeen) — TUTKITTU 2026-08-12, Gemini-tutkimus lähdeviittein, vaatii vielä oman vahvistuksen
+
+**⚠️ Varaus:** alla oleva perustuu toisen AI:n (Gemini) tekemään hakuun lähdeviittein (api.posti.fi, developer.posti.com). En pysty itse käymään näissä linkeissä vahvistamassa (posti.fi ei ole sallittujen verkko-osoitteideni listalla), joten tämä on parempi kuin arvaus mutta ei sama kuin oma varmistus — lähdeviitteet antavat kuitenkin hyvän pohjan tarkistaa itse ennen koodaamista.
+
+**Suunta: "labelless" (Vinted-tyylinen), ei tulostettava tarra.** Postin **Sending Code API** (aiemmin "Helppo-koodi") tuottaa 6-merkkisen koodin (numerot 0-9 + kirjaimet A-F) jonka myyjä kirjoittaa suoraan pakettiin.
+
+### Tavoiteltu virtaus
+```
+Ostaja valitsee Postin noutopisteen (Pickup Point API) → maksaa → SKRM luo lähetyksen/
+EDI-tiedon (Orders API V2 / Shipments API V3) → saa trackingNumber-seurantakoodin → 
+hakee Sending Code -koodin sillä → näyttää koodin myyjälle → myyjä kirjoittaa koodin 
+pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapauttaa maksun 
+(ks. LUKITTU toimitusaikataulu-sääntö)
+```
+
+### API:t ja tarkat endpointit (lähde: api.posti.fi, developer.posti.com/api-catalogue/2025-04)
+1. **Pickup Point API** — noutopisteen haku, korvaa poistuneen Location API v1-v3:n (poistui 31.3.2026)
+   - `GET https://gateway.posti.fi/2025-04/pickuppoints/{countryCode}`
+   - `POST https://gateway.posti.fi/2025-04/pickuppoints` (haku parametreilla, esim. osoite/postinumero)
+2. **Orders API V2 / Shipments API V3** — lähetyksen/EDI-tiedon luonti, tuottaa `trackingNumber`:n. Vaihtoehtoisesti moni verkkokauppa käyttää välissä EDI-välittäjää (nShift/Unifaun/Shipit).
+3. **Sending Code API** — labelless-koodin luonti/haku
+   - Luo: `POST https://gateway.posti.fi/2025-04/labelless`
+   - Hae seurantakoodilla: `GET https://gateway.posti.fi/2025-04/labelless/{trackingNumber}`
+   - Hae lähetystiedot koodilla: `GET https://gateway.posti.fi/2025-04/labelless/shipment/{sendingCode}`
+   - Pyyntö: `{"searchCriteria": {"trackingNumber": "JJFI65432100000000224"}}` — kehitysaikana voi lisätä `"validation": {"noEdiCheck": true}` ohittaakseen EDI-tarkistuksen
+   - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
+4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
+
+### Autentikointi — OAuth 2.0 Client Credentials
+```
+POST https://gateway-auth.posti.fi/api/v1/token
+Body (x-www-form-urlencoded): grant_type=client_credentials&client_id=<ID>&client_secret=<SECRET>
+→ palauttaa access_token, käytetään: Authorization: Bearer <token>
+```
+
+### Testiympäristö — vahvistettu epäyhtenäiseksi
+- **Orders/Shipments-puolella QA/UAT olemassa:** Shipments QA `argon.ecom-api.posti.com` (vs. tuotanto `ecom-api.posti.com`), Auth QA `oauth2.barium.posti.com`
+- **Sending Code API:lla EI mitään julkista/itsepalvelullista testiympäristöä eikä sandboxia** — vaatii aina OAuth-tunnukset jotka pyydetään suoraan Postilta, ei mitään Stripe-tyylistä kokeiluavainta
+- **Ei virallisia SDK:ita** (ei Node/Python/PHP-paketteja), ei virallista GitHub-organisaatiota — vain yksittäisten kehittäjien epävirallisia vanhempien API-versioiden kirjastoja löytyy GitHubista
+
+### ⚠️ TÄRKEÄ LÖYDÖS 2026-08-12 — väärä API-tuote, vahvistettu kolmen eri AI:n konsensuksella
+Omistajan kaivama laajempi Posti-dokumentaatio paljasti että suuri osa "Orders API V3" / "Shipments API V3" -dokumentaatiosta koskee **GLUE-järjestelmää, joka on nimenomaan Supplier↔Retailer dropshipping-integraatio** (lähde toteaa suoraan: "Shipments API is meant for dropshipping Suppliers to receive orders from Retailers"). Tämä on B2B-tukkukauppamalli, **ei sovi SKRM:n C2C-malliin** (yksi myyjä, yksi ostaja, yksi tuote, yksi kertalähetys per kauppa). **Kolme eri AI:ta (Claude, Gemini, ChatGPT) päätyi itsenäisesti samaan johtopäätökseen** — vahva signaali että havainto pitää paikkansa, ei vain yhden mallin tulkinta.
+
+**Mikä on yhä luotettavasti käyttökelpoinen:** Sending Code API on rakenteeltaan geneerinen — hakee koodin olemassa olevalle `trackingNumber`:lle riippumatta miten se syntyi. Pickup Point API (noutopisteen haku) on todennäköisesti myös riippumaton dropship-mallista.
+
+**Mahdollisia vaihtoehtoisia reittejä `trackingNumber`:n luontiin (Geminin ehdottamia, EI vielä vahvistettu — kysy Postilta):**
+- **Posti SmartShip / nShift (ent. Unifaun) -integraatio** — moni suomalainen verkkokauppa-alusta luo EDI-rahtikirjat kuljetusvälittäjän kautta Postin sopimusnumerolla, kutsuu sitten Sending Code APIa erikseen
+- **Kevyt "Direct Print API"** — mahdollinen Postin oma suora rahtikirja-API pakettipalveluille ilman koko GLUE-tilausjärjestelmää
+
+**Kysymyslista Postille (`LogEDI@posti.com`) OY:n valmistuttua — käytä tätä sellaisenaan:**
+
+> "Olemme rakentamassa suomalaista C2C-markkinapaikkaa (vastaava kuin Vinted/Tori), jossa alusta toimii Postin sopimusasiakkaana ja ostaa kuljetuksen myyjän puolesta. Yksi myyjä, yksi ostaja, yksi kertalähetys per kauppa — ei tukkukauppa-/dropshipping-mallia. Myyjä ei tulosta osoitekorttia, vaan kirjoittaa pakettiin koodin (Sending Code API)."
+
+Tarkat kysymykset:
+1. **Mikä API luo yksittäisen C2C-lähetyksen** (kun Orders/Shipments V3 / GLUE on tarkoitettu B2B-dropshippingiin)?
+2. Voiko ostaja valita noutopisteen API:n kautta (Pickup Point API)?
+3. Voimmeko käyttää Sending Code API:a tässä käyttötapauksessa?
+4. Saammeko toimitusseurannan API:n kautta (Tracking API)?
+5. Voiko SKRM tehdä **yhden** Posti-sopimuksen jonka kautta **kaikki** SKRM:n myyjät lähettävät (yksi aggregoitu sopimus, ei jokaiselle myyjälle omaa)?
+6. Mitkä ovat hinnat per lähetys ja mahdolliset kuukausi-/sopimusmaksut?
+7. Onko olemassa testiympäristö jossa koko virtaus voidaan kokeilla ennen tuotantoa?
+
+**Ei enää koodausta Postin osalta ennen näiden vastauksia.** Älä rakenna mitään GLUE-oletusten varaan.
+
+### Mikä voidaan rakentaa NYT ilman Postin sopimusta/tunnuksia (päätetty 2026-08-12)
+Sama strategia joka toimi Paytrailin kanssa (mock-pay-virta valmiina ennen oikeita tunnuksia) — rakennetaan koko integraation "muoto" mock-datalla nyt, ainoa jäljellä oleva askel sopimuksen jälkeen on oikeiden API-kutsujen kytkeminen mockien tilalle.
+
+1. **Tietokantarakenne:** `Order`-malliin kentät `trackingNumber`, `sendingCode`, `pickupPointId`, toimitusstatus — pelkkä skeema, ei vaadi oikeita API-vastauksia
+2. **Koko UI-virta mock-datalla:** noutopisteen valinta checkoutissa (kovakoodattu esimerkkilista), myyjän lähetyskoodinäkymä, ostajan toimitusseuranta — kaikki rakennettavissa ilman oikeita API-vastauksia
+3. **Abstraktiokerros (`PostiService`-tyyppinen palveluluokka):** funktiot `createShipment()`, `getSendingCode()`, `getTrackingStatus()` palauttavat mock-dataa **täsmälleen dokumentoidussa JSON-muodossa** (ks. Sending Code API:n esimerkkivastaukset yllä). Kun oikeat tunnukset saadaan, vaihdetaan vain funktioiden sisältö — ei muuta sovellusta.
+4. **Pickup Point API — tarkistettava erikseen Postilta voiko sitä testata jo nyt:** koska se on todennäköisesti pelkkä sijaintihaku (ei lähetyksen luontia/EDI:tä), saattaa vaatia kevyemmän pääsyn kuin Sending Code / GLUE. Lisää tämä kysymykseksi Postin sähköpostiin (ks. kysymyslista yllä).
+
+### ✅ TEHTY 2026-08-12 — Posti-integraation runko mock-datalla
+- `Order`-malliin lisätty `trackingNumber`, `sendingCode`, `pickupPointId`, `postiStatus` (RECEIVED/IN_TRANSIT/AT_PICKUP_POINT/PICKED_UP) — kaikki erillisiä olemassa olevasta manuaalisesta `trackingCode`-kentästä ja "Nouto myyjältä" -toiminnon `pickupCode`:sta, ei sekoiteta näitä kolmea eri konseptia keskenään
+- `backend/src/lib/postiService.ts` — `createShipment()`, `getSendingCode()`, `getTrackingStatus()`, palauttavat mock-dataa täsmälleen Sending Code API:n dokumentoidussa `{"shipments": [{"trackingNumber", "sendingCode"}]}` -muodossa. Kun oikeat tunnukset saadaan, vain näiden kolmen funktion sisältö vaihtuu.
+- `POST /orders/:id/select-shipping` hyväksyy nyt valinnaisen `pickupPointId`:n postitus-toimitustavalle
+- `POST /orders/:id/create-shipment` (uusi, myyjä) — kutsuu `postiService.createShipment()`:ia, tallentaa koodit, siirtää tilauksen `SHIPPED`-tilaan samalla tavalla kuin vanha manuaalinen `/tracking`-reitti — **ei korvaa** vanhaa reittiä, molemmat toimivat rinnakkain (myyjä käyttää jompaakumpaa)
+- `GET /orders/mine` ja `/selling` laskevat `postiStatus`:n tuoreena joka haulla (`postiService.getTrackingStatus()`, aikaperusteinen mock-eteneminen `shippedAt`:sta) — ei erillistä pollausreittiä
+- Frontend: `frontend/lib/postiPickupPoints.ts` (5 kovakoodattua esimerkkipistettä eri kaupungeissa), `frontend/lib/postiTrackingSteps.ts` (jaettu askellista+suomenkieliset labelit)
+- `/ostot`: noutopisteen valinta checkout-vaiheessa postitus-tilauksille, toimitusseurantapalkki (4 askelta, nykyinen korostettuna) SHIPPED-tilauksille joilla on `trackingNumber`
+- `/dashboard/tilaukset`: "Luo lähetys (Posti)" -nappi manuaalisen seurantakoodikentän vierellä postitus-tilauksille; kun lähetys on luotu, näyttää `sendingCode`:n jonka myyjä kirjoittaa pakettiin
+- **Ei koodattu:** mitään oikeaa Posti-API-kutsua — kaikki kolme `postiService.ts`:n funktiota ovat puhtaita mock-funktioita, ei verkkoliikennettä, ei GLUE-oletuksia (ks. "TÄRKEÄ LÖYDÖS" yllä)
+
+### Tunnusten hankinta — konkreettinen seuraava askel kun OY on valmis
+- **Yhteystieto: `LogEDI@posti.com`**
+- Sähköpostiin tarvitaan: Postin asiakasnumero (jos on), **Y-tunnus**, yhteyshenkilön tiedot
+- Ei itsepalvelullista rekisteröitymistä missään vaiheessa — aina suora yhteydenotto
 
 ## Tuleva ominaisuus: Perinteinen huutokauppa (SUUNNITELTU)
 Kolmas myyntitapa live ja suoramyynnin lisäksi:
@@ -585,6 +667,10 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 - **Syy tunnistettu:** OBS:n keyframe-väli oli 8.3s, pitäisi olla 1-2s jotta segmentit pysyvät lyhyinä. **Tämä on omistajan oma OBS-asetus, ei korjattavissa palvelinpuolelta** — omistaja päivittää: Asetukset → Lähtö → Advanced-tila → Streaming-välilehti → Keyframe Interval → 2s
 - **Seuraava askel:** mittaa viive uudelleen keyframe-korjauksen jälkeen, useampi kerta peräkkäin
 - **Mux vs. jatka itse -päätös on yhä auki** — ei päätetty vielä, odottaa tätä seuraavaa mittausta ennen lopullista arviota kannattaako jatkaa itse rakennetulla MediaMTX-pohjalla vai vaihtaa managed-palveluun
+
+## Uudet löydökset 2026-08-12 (tablettikoon responsiivisuustesti)
+
+**iPad-kokoinen näyttö (768×1024) ei skaalaudu oikein julkisella `/live/[showId]`-sivulla.** Testattu Responsively App -työkalulla. Havainto: Shop-paneeli (vasen) ja Keskustelu/chat-paneeli (oikea) eivät mahdu näkymään oikein tällä leveydellä — chat-paneeli leikkautuu osittain näytön ulkopuolelle oikeasta reunasta, video-alue ei skaalaudu suhteessa jäljelle jäävään tilaan. Nykyinen layout (desktop: video 70-75%/chat 20-25%, mobiili: video 100% + overlay) ei kata tätä väliin jäävää tablettikokoa — tarvitaan oma breakpoint-käyttäytyminen n. 768-1024px leveyksille, ei vain kaksi ääripäätä (desktop/mobiili).
 
 ## Uudet löydökset 2026-08-09 (chat toimii, huutokauppa testattu ensi kertaa)
 

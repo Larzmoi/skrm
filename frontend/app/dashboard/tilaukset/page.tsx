@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 interface OrderItem { id: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string } }
 interface SellingOrder {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
-  trackingCode: string | null; createdAt: string; items: OrderItem[]
+  trackingCode: string | null; trackingNumber: string | null; sendingCode: string | null; createdAt: string; items: OrderItem[]
   buyer: { name: string; username: string; address?: string; postalCode?: string; city?: string; phone?: string }
   reviews: { reviewerId: string }[]
 }
@@ -18,10 +18,11 @@ function addressLine(b: SellingOrder['buyer']) {
   return [b.address, b.postalCode, b.city].filter(Boolean).join(', ') || 'Ei osoitetta vielä'
 }
 
-function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, busy, review, onRefund, refundBusy }: {
+function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
   trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void
   pickupValue: string; onPickupChange: (v: string) => void; onSubmitPickup: () => void; busy: boolean
+  onCreateShipment: () => void; shipmentBusy: boolean
   review?: {
     alreadyReviewed: boolean; open: boolean; rating: number; comment: string
     onOpen: () => void; onCancel: () => void; onRatingChange: (v: number) => void; onCommentChange: (v: string) => void
@@ -72,18 +73,24 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
             </button>
           </div>
         )}
-        {showTracking && order.shippingSize !== 'nouto' && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 240px', justifyContent: 'flex-end' }}>
+        {showTracking && order.shippingSize === 'postitus' && !order.trackingNumber && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 320px', justifyContent: 'flex-end' }}>
             <input
               value={trackingValue}
               onChange={e => onTrackingChange(e.target.value)}
-              placeholder="Seurantakoodi"
+              placeholder="Seurantakoodi (manuaalinen)"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
             />
             <button onClick={onSubmitTracking} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Lisää seurantakoodi'}
             </button>
+            <button onClick={onCreateShipment} disabled={shipmentBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.text, padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: shipmentBusy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {shipmentBusy ? '...' : 'Luo lähetys (Posti)'}
+            </button>
           </div>
+        )}
+        {showTracking && order.shippingSize === 'postitus' && order.trackingNumber && (
+          <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>Lähetyskoodi: {order.sendingCode}</span>
         )}
       </div>
 
@@ -136,6 +143,7 @@ export default function TilauksetPage() {
   const [reviewBusy, setReviewBusy] = useState<string | null>(null)
   const [refundBusy, setRefundBusy] = useState<string | null>(null)
   const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
+  const [shipmentBusy, setShipmentBusy] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -169,6 +177,15 @@ export default function TilauksetPage() {
       await load()
     } catch (e: any) { setError(e.message ?? 'Noudon vahvistus epäonnistui') }
     setBusy(null)
+  }
+
+  async function createShipment(orderId: string) {
+    setShipmentBusy(orderId); setError('')
+    try {
+      await orderApi.createShipment(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Lähetyksen luonti epäonnistui') }
+    setShipmentBusy(null)
   }
 
   async function doRefund(orderId: string) {
@@ -221,6 +238,8 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
+                  onCreateShipment={() => createShipment(o.id)}
+                  shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
                   onRefund={() => setRefundConfirmFor(o.id)}
                   refundBusy={refundBusy === o.id}
@@ -240,6 +259,8 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
+                  onCreateShipment={() => createShipment(o.id)}
+                  shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
                   onRefund={() => setRefundConfirmFor(o.id)}
                   refundBusy={refundBusy === o.id}

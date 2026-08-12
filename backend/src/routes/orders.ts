@@ -4,6 +4,7 @@ import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getShippingPrice } from '../lib/shipping'
 import { createPayment, refundFull, refundItem, computeCommissionCents } from '../lib/paytrail'
+import * as postiService from '../lib/postiService'
 import { notifyUser } from '../lib/notify'
 
 const router = Router()
@@ -11,6 +12,18 @@ const router = Router()
 // Nouto-tilauksen vahvistuskoodi — 6 numeroa, helppo lukea/sanoa ääneen fyysisessä noudossa
 function generatePickupCode(): string {
   return String(crypto.randomInt(100000, 1000000))
+}
+
+// Laskee postitus-tilauksen Posti-seurantatilan tuoreena (MOCK, ks. lib/postiService.ts) aina
+// kun tilauslista haetaan — ei vaadi erillistä pollausreittiä, sama periaate kuin oikea
+// integraatio joskus tekisi taustalla. Kirjoittaa kannan päivitetyn tilan vain jos se muuttui.
+async function withLiveTrackingStatus<T extends { id: string; trackingNumber: string | null; shippedAt: Date | null; postiStatus: string | null }>(order: T): Promise<T> {
+  if (!order.trackingNumber || !order.shippedAt) return order
+  const { status } = postiService.getTrackingStatus(order.trackingNumber, order.shippedAt)
+  if (status !== order.postiStatus) {
+    await prisma.order.update({ where: { id: order.id }, data: { postiStatus: status } }).catch(() => {})
+  }
+  return { ...order, postiStatus: status }
 }
 
 const orderInclude = {
@@ -27,7 +40,7 @@ router.get('/mine', authMiddleware, async (req: AuthRequest, res: Response) => {
     include: orderInclude,
     orderBy: { createdAt: 'desc' },
   })
-  res.json(orders)
+  res.json(await Promise.all(orders.map(withLiveTrackingStatus)))
 })
 
 // GET /orders/selling — myyntitilaukset
@@ -39,7 +52,8 @@ router.get('/selling', authMiddleware, async (req: AuthRequest, res: Response) =
   })
   // pickupCode ei näy myyjälle etukäteen — ostaja kertoo/näyttää sen fyysisessä noudossa,
   // myyjä syöttää sen /confirm-pickup:iin vasta silloin
-  res.json(orders.map(({ pickupCode, ...rest }) => rest))
+  const stripped = orders.map(({ pickupCode, ...rest }) => rest)
+  res.json(await Promise.all(stripped.map(withLiveTrackingStatus)))
 })
 
 // POST /orders/:id/select-shipping — ostaja valitsee toimitustavan ENNEN maksua (ei enää
@@ -53,17 +67,21 @@ router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res
     return res.status(400).json({ error: 'Yhdistetyn lähetyksen 6h ikkuna on umpeutunut' })
   }
 
-  const { pakettikokoId } = req.body
+  const { pakettikokoId, pickupPointId } = req.body
   const price = getShippingPrice(String(pakettikokoId ?? ''))
   if (price === null) return res.status(400).json({ error: 'Virheellinen pakettikoko' })
 
   const isNouto = pakettikokoId === 'nouto'
+  const isPostitus = pakettikokoId === 'postitus'
 
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: {
       shippingSize: pakettikokoId,
       shippingPrice: price,
+      // pickupPointId = ostajan valitsema Postin noutopiste (MOCK, ks. lib/postiService.ts) —
+      // eri asia kuin pickupCode, joka koskee "Nouto myyjältä" -toimitustapaa
+      pickupPointId: isPostitus ? (pickupPointId ? String(pickupPointId) : null) : null,
       ...(isNouto ? { pickupCode: generatePickupCode() } : {}),
     },
   })
@@ -161,6 +179,27 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
     data: { trackingCode, status: 'SHIPPED', shippedAt: new Date() },
   })
   await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Seurantakoodi: ${trackingCode}`, '/ostot')
+  res.json(updated)
+})
+
+// POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle (MOCK, ks.
+// CLAUDE.md "Mikä voidaan rakentaa NYT ilman Postin sopimusta/tunnuksia" + lib/postiService.ts).
+// Korvaa manuaalisen seurantakoodin syötön automaattisesti generoidulla trackingNumber+
+// sendingCode-parilla, jonka myyjä kirjoittaa pakettiin ilman tulostettavaa osoitekorttia.
+router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  if (!order || order.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (order.shippingSize !== 'postitus') return res.status(400).json({ error: 'Tilaus ei ole postitus-toimitustavalla' })
+  if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota lähetystä' })
+
+  const { shipments } = postiService.createShipment()
+  const { trackingNumber, sendingCode } = shipments[0]
+
+  const updated = await prisma.order.update({
+    where: { id: order.id },
+    data: { trackingNumber, sendingCode, postiStatus: 'RECEIVED', status: 'SHIPPED', shippedAt: new Date() },
+  })
+  await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Lähetyskoodi: ${sendingCode}`, '/ostot')
   res.json(updated)
 })
 
