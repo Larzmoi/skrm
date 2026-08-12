@@ -77,29 +77,40 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
     return res.json({ order: updated, redirectUrl: null })
   }
 
+  // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
+  // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
+  // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
   if (order.status === 'PENDING_PAYMENT') {
-    const session = await createPayment({
-      orderId: order.id,
-      stage: 'product',
-      items: order.items.map(i => ({
-        itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
-        sellerId: order.sellerId, chargeCommission: true,
-      })),
-      buyerEmail: order.buyer.email,
-    })
-    await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId } })
-    return res.json({ order, redirectUrl: session.redirectUrl })
+    try {
+      const session = await createPayment({
+        orderId: order.id,
+        stage: 'product',
+        items: order.items.map(i => ({
+          itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
+          sellerId: order.sellerId, chargeCommission: true,
+        })),
+        buyerEmail: order.buyer.email,
+      })
+      await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId } })
+      return res.json({ order, redirectUrl: session.redirectUrl })
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
+    }
   }
 
   if (order.status === 'PENDING_SHIPPING_SELECTION' && order.shippingPrice != null) {
-    const session = await createPayment({
-      orderId: order.id,
-      stage: 'shipping',
-      items: [{ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false }],
-      buyerEmail: order.buyer.email,
-    })
-    await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailShippingTxId: session.transactionId } })
-    return res.json({ order, redirectUrl: session.redirectUrl })
+    try {
+      const session = await createPayment({
+        orderId: order.id,
+        stage: 'shipping',
+        items: [{ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false }],
+        buyerEmail: order.buyer.email,
+      })
+      await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailShippingTxId: session.transactionId } })
+      return res.json({ order, redirectUrl: session.redirectUrl })
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
+    }
   }
 
   res.status(400).json({ error: 'Ei odottavaa maksua' })
@@ -135,7 +146,7 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
       }
     }
   } catch (e: any) {
-    return res.status(502).json({ error: e.message ?? 'Hyvitys epäonnistui Paytraililta' })
+    return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Paytraililta' })
   }
 
   await notifyUser(order.buyerId, 'REFUND_ISSUED', 'Sait hyvityksen', `Myyjä hyvitti tilauksen ${order.id} — hyvitys näkyy maksutavallasi muutaman päivän sisällä.`, '/ostot')
