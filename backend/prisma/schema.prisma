@@ -232,6 +232,7 @@ model Order {
   shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?
+  pickupCode        String?     // nouto-toimitustavan vahvistuskoodi — ostaja näyttää/kertoo tämän myyjälle fyysisessä noudossa
   shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
   stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty
   reminderNotifiedAt DateTime?  // päivä 10 -muistutus lähetetty

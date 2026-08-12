@@ -102,7 +102,6 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
   if (!cart || cart.items.length === 0) return res.json({ groups: [], pakettikoot: PAKETTIKOOT })
 
-  const sizeOrder = ['xxs', 's', 'm', 'l', 'xl', 'xxl']
   const bySeller = new Map<string, typeof cart.items>()
   for (const item of cart.items) {
     const list = bySeller.get(item.sellerId) ?? []
@@ -113,10 +112,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const groups = Array.from(bySeller.entries()).map(([sellerId, items]) => {
     const seller = items[0].product.seller
     const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-    const largestIdx = items.reduce((max, i) => {
-      const idx = sizeOrder.indexOf(i.product.pakettikoko ?? '')
-      return idx > max ? idx : max
-    }, -1)
+    // Postitus voittaa jos yksikin tuote sitä tarvitsee (ei voi jättää tuotetta noutamatta erikseen),
+    // nouto vain jos kaikki tuotteet ovat nouto-tyyppisiä — ei enää pakettikokoportaikkoa vertailtavana
+    const sizes = items.map(i => i.product.pakettikoko)
+    const suggestedPakettikoko = sizes.includes('postitus') ? 'postitus' : (sizes.every(s => s === 'nouto') ? 'nouto' : null)
     return {
       sellerId,
       seller: { name: seller.name, username: seller.username },
@@ -127,7 +126,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         expiresAt: i.source === 'live' ? new Date(i.addedAt.getTime() + LIVE_ITEM_WINDOW_MS) : null,
       })),
       total,
-      suggestedPakettikoko: largestIdx >= 0 ? sizeOrder[largestIdx] : null,
+      suggestedPakettikoko,
     }
   })
 

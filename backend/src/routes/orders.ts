@@ -1,4 +1,5 @@
 import { Router, Response } from 'express'
+import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getShippingPrice } from '../lib/shipping'
@@ -6,6 +7,11 @@ import { createPaymentSession } from '../lib/paytrail'
 import { notifyUser } from '../lib/notify'
 
 const router = Router()
+
+// Nouto-tilauksen vahvistuskoodi — 6 numeroa, helppo lukea/sanoa ääneen fyysisessä noudossa
+function generatePickupCode(): string {
+  return String(crypto.randomInt(100000, 1000000))
+}
 
 const orderInclude = {
   items: { include: { product: { select: { id: true, name: true, imageUrl: true, condition: true } } } },
@@ -31,7 +37,9 @@ router.get('/selling', authMiddleware, async (req: AuthRequest, res: Response) =
     include: orderInclude,
     orderBy: { createdAt: 'desc' },
   })
-  res.json(orders)
+  // pickupCode ei näy myyjälle etukäteen — ostaja kertoo/näyttää sen fyysisessä noudossa,
+  // myyjä syöttää sen /confirm-pickup:iin vasta silloin
+  res.json(orders.map(({ pickupCode, ...rest }) => rest))
 })
 
 // POST /orders/:id/select-shipping — ostaja valitsee toimitustavan
@@ -48,10 +56,16 @@ router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res
   if (price === null) return res.status(400).json({ error: 'Virheellinen pakettikoko' })
 
   const session = createPaymentSession({ amount: price, orderId: order.id, reference: `shipping-${order.id}` })
+  const isNouto = pakettikokoId === 'nouto'
 
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { shippingSize: pakettikokoId, shippingPrice: price, paytrailPaymentId: session.paymentId },
+    data: {
+      shippingSize: pakettikokoId,
+      shippingPrice: price,
+      paytrailPaymentId: session.paymentId,
+      ...(isNouto ? { pickupCode: generatePickupCode() } : {}),
+    },
   })
 
   res.json({ order: updated, redirectUrl: session.redirectUrl })
@@ -95,6 +109,26 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
     data: { trackingCode, status: 'SHIPPED', shippedAt: new Date() },
   })
   await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Seurantakoodi: ${trackingCode}`, '/ostot')
+  res.json(updated)
+})
+
+// POST /orders/:id/confirm-pickup — myyjä vahvistaa noutokoodin fyysisessä noudossa, vapauttaa maksun heti
+router.post('/:id/confirm-pickup', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  if (!order || order.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (order.shippingSize !== 'nouto') return res.status(400).json({ error: 'Tilaus ei ole nouto-toimitustavalla' })
+  if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota noutoa' })
+
+  const code = String(req.body?.code ?? '').trim()
+  if (!code) return res.status(400).json({ error: 'Noutokoodi vaaditaan' })
+  if (code !== order.pickupCode) return res.status(400).json({ error: 'Väärä noutokoodi' })
+
+  // Sama vapautuslogiikka kuin "Postin API sanoo toimitettu" -tapauksessa, mutta heti — molemmat osapuolet
+  // ovat fyysisesti läsnä ja voivat vahvistaa vaihdon saman tien, ei tarvitse odottaa 14 päivää
+  // TODO: Paytrail capture — vapauta tuotteen maksu myyjälle kun oikea integraatio on käytössä
+  const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
+  await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Noutokoodi vahvistettu — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
+  await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Nouto vahvistettu', 'Myyjä vahvisti noudon — kauppa on suoritettu.', '/ostot')
   res.json(updated)
 })
 

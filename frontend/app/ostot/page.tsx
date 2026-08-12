@@ -12,7 +12,7 @@ import { StarRatingInput } from '@/components/StarRating'
 interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string } }
 interface Order {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
-  paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null
+  paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
   shippedAt: string | null; stalledNotifiedAt: string | null; reminderNotifiedAt: string | null; disputeReason: string | null
   items: OrderItem[]; seller: { name: string; username: string }; createdAt: string
   reviews: { reviewerId: string }[]
@@ -191,7 +191,20 @@ export default function OstotPage() {
                           {section.key === 'SHIPPED' && order.trackingCode && (
                             <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.trackingCode}</span>
                           )}
+
+                          {section.key === 'PENDING_SHIPPING' && order.shippingSize === 'nouto' && order.pickupCode && (
+                            <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.pickupCodeLabel}: {order.pickupCode}</span>
+                          )}
                         </div>
+
+                        {section.key === 'PENDING_SHIPPING' && order.shippingSize === 'nouto' && order.pickupCode && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 14px' }}>
+                              <span style={{ fontSize: 20, fontWeight: 800, color: C.accent, letterSpacing: 2 }}>{order.pickupCode}</span>
+                              <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{t.purchases.pickupCodeHint}</span>
+                            </div>
+                          </div>
+                        )}
 
                         {section.key === 'PENDING_SHIPPING_SELECTION' && (
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>

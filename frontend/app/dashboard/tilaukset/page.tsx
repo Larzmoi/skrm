@@ -17,9 +17,10 @@ function addressLine(b: SellingOrder['buyer']) {
   return [b.address, b.postalCode, b.city].filter(Boolean).join(', ') || 'Ei osoitetta vielä'
 }
 
-function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, busy, review }: {
+function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, busy, review }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
-  trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void; busy: boolean
+  trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void
+  pickupValue: string; onPickupChange: (v: string) => void; onSubmitPickup: () => void; busy: boolean
   review?: {
     alreadyReviewed: boolean; open: boolean; rating: number; comment: string
     onOpen: () => void; onCancel: () => void; onRatingChange: (v: number) => void; onCommentChange: (v: string) => void
@@ -51,7 +52,20 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
         <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
-        {showTracking && (
+        {showTracking && order.shippingSize === 'nouto' && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 240px', justifyContent: 'flex-end' }}>
+            <input
+              value={pickupValue}
+              onChange={e => onPickupChange(e.target.value)}
+              placeholder="Noutokoodi"
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
+            />
+            <button onClick={onSubmitPickup} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {busy ? '...' : 'Vahvista nouto'}
+            </button>
+          </div>
+        )}
+        {showTracking && order.shippingSize !== 'nouto' && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 240px', justifyContent: 'flex-end' }}>
             <input
               value={trackingValue}
@@ -106,6 +120,7 @@ export default function TilauksetPage() {
   const [orders, setOrders] = useState<SellingOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [trackingInput, setTrackingInput] = useState<Record<string, string>>({})
+  const [pickupInput, setPickupInput] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [reviewOpenFor, setReviewOpenFor] = useState<string | null>(null)
@@ -133,6 +148,17 @@ export default function TilauksetPage() {
       await orderApi.addTracking(orderId, code)
       await load()
     } catch (e: any) { setError(e.message ?? 'Seurantakoodin lisäys epäonnistui') }
+    setBusy(null)
+  }
+
+  async function submitPickup(orderId: string) {
+    const code = pickupInput[orderId]?.trim()
+    if (!code) { setError('Syötä noutokoodi'); return }
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.confirmPickup(orderId, code)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Noudon vahvistus epäonnistui') }
     setBusy(null)
   }
 
@@ -174,6 +200,9 @@ export default function TilauksetPage() {
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
+                  pickupValue={pickupInput[o.id] ?? ''}
+                  onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
+                  onSubmitPickup={() => submitPickup(o.id)}
                   busy={busy === o.id}
                 />
               ))}</div>
@@ -188,6 +217,9 @@ export default function TilauksetPage() {
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
+                  pickupValue={pickupInput[o.id] ?? ''}
+                  onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
+                  onSubmitPickup={() => submitPickup(o.id)}
                   busy={busy === o.id}
                 />
               ))}</div>
@@ -202,6 +234,9 @@ export default function TilauksetPage() {
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
+                  pickupValue={pickupInput[o.id] ?? ''}
+                  onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
+                  onSubmitPickup={() => submitPickup(o.id)}
                   busy={busy === o.id}
                   review={{
                     alreadyReviewed: o.reviews.some(r => r.reviewerId === user?.id),

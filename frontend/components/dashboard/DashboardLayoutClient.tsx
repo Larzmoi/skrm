@@ -107,7 +107,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             {/* Provisio */}
             <div style={{ marginTop: 20, padding: '12px 14px', background: C.accentLight, borderRadius: 10, border: `1px solid ${C.accent}33` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{t.nav.commission}</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>3% <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}>max 20€</span></div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.text }}>3% <span style={{ fontSize: 11, fontWeight: 400, color: C.muted }}>max 35€</span></div>
             </div>
           </div>
         )}

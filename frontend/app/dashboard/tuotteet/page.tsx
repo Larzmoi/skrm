@@ -373,12 +373,15 @@ export default function TuotteetPage() {
             {pakettikoko === 'nouto' && (
               <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
-                  Huomio: Noutotuote
+                  Nouto myyjältä — miten se toimii
                 </div>
                 <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
-                  Noutotuotteiden kaupassa SKRM ei tarjoa maksuturvaa. Kauppa tapahtuu
-                  suoraan ostajan ja myyjän välillä. SKRM ei vastaa noutokauppojen
-                  toteutumisesta, aikataulusta tai mahdollisista erimielisyyksistä.
+                  Kun ostaja ostaa tuotteen SKRM:n kautta ja valitsee toimitustavaksi noudon,
+                  kauppa kuuluu normaalisti maksuturvan piiriin. Ostaja saa noutokoodin, jonka
+                  syötät järjestelmään kun luovutat tuotteen — maksu vapautuu sinulle heti kun
+                  koodi on vahvistettu. Tämä ei koske sopimuksia jotka sovitaan kokonaan SKRM:n
+                  ulkopuolella (esim. suoraan sovittu käteiskauppa ilman SKRM-tilausta) — niissä
+                  SKRM ei ole osapuoli eikä tarjoa maksuturvaa.
                 </p>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                   <input
@@ -388,7 +391,7 @@ export default function TuotteetPage() {
                     style={{ marginTop: 2, flexShrink: 0 }}
                   />
                   <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
-                    Ymmärrän että tämä on noutotuote eikä SKRM:n maksuturva koske tätä kauppaa
+                    Ymmärrän että ostaja saa noutokoodin ja maksu vapautuu minulle vasta kun vahvistan noudon
                   </span>
                 </label>
               </div>

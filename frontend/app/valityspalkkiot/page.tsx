@@ -42,7 +42,7 @@ export default function ValityspalkkiotPage() {
               <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.fees.skrmFee}</div>
                 <div style={{ fontSize: 32, fontWeight: 900, color: C.accent, lineHeight: 1, marginBottom: 4 }}>3%</div>
-                <div style={{ fontSize: 13, color: C.muted }}>max <strong style={{ color: C.text }}>20€</strong> / {lang === 'fi' ? 'kauppa' : 'sale'}</div>
+                <div style={{ fontSize: 13, color: C.muted }}>max <strong style={{ color: C.text }}>35€</strong> / {lang === 'fi' ? 'kauppa' : 'sale'}</div>
               </div>
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.fees.paymentFee}</div>

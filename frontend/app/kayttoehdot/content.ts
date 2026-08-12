@@ -78,7 +78,7 @@ Myyjä sitoutuu lähettämään myytyyn tuotteen 48 tunnin kuluessa kaupan synty
 Myyjä vastaa siitä, että tuotteen kuvaus, kuvat ja muut tiedot vastaavat todellisuutta. Harhaanjohtavat kuvaukset voivat johtaa tilin sulkemiseen ja korvausvelvollisuuteen.
 
 5.5 Välityspalkkio
-SKRM perii onnistuneesta kaupasta välityspalkkion, joka on 3 % myyntihinnasta, enintään 20 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Paytrail) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
+SKRM perii onnistuneesta kaupasta välityspalkkion, joka on 3 % myyntihinnasta, enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Paytrail) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
 
 5.6 Noutotuotteet
 Myyjä voi tarjota tuotteita noudettavaksi. Noutotuotteiden kaupassa SKRM ei tarjoa maksuturvaa eikä vastaa kaupan toteutumisesta. Kauppa tapahtuu suoraan ostajan ja myyjän välillä, ja he sopivat noutoajasta, -paikasta ja maksusta keskenään.
@@ -235,7 +235,7 @@ The following may not be sold on the Service:
 The Seller commits to shipping the sold product within 48 hours of the transaction and providing a tracking code to SKRM and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
 
 5.4 Commission
-SKRM charges a commission of 3% of the sale price, up to a maximum of €20 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.
+SKRM charges a commission of 3% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.
 
 5.5 Pickup items
 The Seller may offer products for local pickup. For pickup transactions, SKRM does not provide payment protection and is not responsible for the completion of the transaction. The transaction takes place directly between the Buyer and Seller, who agree on the pickup time, location, and payment between themselves.

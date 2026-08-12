@@ -651,7 +651,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
 
         <div style={{ display: !shopOpen ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
+            <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0, overflow: 'hidden' }}>
               <div ref={setMainVideoSlot} style={{ position: 'absolute', inset: 0 }} />
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1, minWidth: 0 }}>
@@ -752,7 +752,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
         {/* Video + bid */}
         <div style={{ display: 'flex', flexDirection: 'column', background: '#080808' }}>
-          <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0 }}>
+          <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0, overflow: 'hidden' }}>
             {videoContent}
             <div style={{ position: 'absolute', top: 14, left: 14, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 4 }}>LIVE</div>
             {auction.active && (
