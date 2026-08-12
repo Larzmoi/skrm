@@ -97,6 +97,23 @@ router.post('/livekit', express.raw({ type: '*/*' }), async (req: Request, res: 
       await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
       emitToShow(show.id, 'show_status', { status: 'ENDED' })
     }
+  } else if (
+    (event.event === 'participant_left' || event.event === 'participant_connection_aborted') &&
+    sellerId && event.participant?.identity === `${sellerId}-phone`
+  ) {
+    // Puhelimesta-suoraan-julkaisun vastine ingress_ended:lle (ks. CLAUDE.md
+    // "Selainpohjainen mobiilistriimaus"). Ilman tätä lähetys jäi ikuisesti LIVE-tilaan
+    // kun puhelimen selainvälilehti suljettiin/verkko katkesi, koska mikään ei koskaan
+    // merkinnyt sitä päättyneeksi - näkyi katsojille "zombie"-livenä joka ei koskaan
+    // toimi. Sama identity-tunniste kuin createPublisherToken():ssa (lib/livekit.ts).
+    const show = await prisma.show.findFirst({
+      where: { sellerId, status: 'LIVE' },
+      orderBy: { startedAt: 'desc' },
+    })
+    if (show) {
+      await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
+      emitToShow(show.id, 'show_status', { status: 'ENDED' })
+    }
   }
 
   res.status(200).send('ok')
