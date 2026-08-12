@@ -23,24 +23,27 @@ const publicShowSelect = {
 // ennen kuin se joko menee oikeasti LIVE:ksi tai myyjä ajastaa sille julkaisuajan.
 router.get('/', async (req, res) => {
   const { status } = req.query
-  let where: any
-  if (!status) {
-    where = { OR: [{ status: 'LIVE' }, { status: 'SCHEDULED', scheduledAt: { not: null } }] }
-  } else if (String(status) === 'SCHEDULED') {
-    where = { status: 'SCHEDULED', scheduledAt: { not: null } }
-  } else {
-    where = { status: String(status) as any }
+  const select: any = {
+    ...publicShowSelect,
+    seller: { select: { id: true, name: true, username: true } },
+    products: { where: { status: 'PENDING' }, orderBy: { order: 'asc' }, take: 5 },
   }
-  const shows = await prisma.show.findMany({
-    where,
-    orderBy: { scheduledAt: 'asc' },
-    select: {
-      ...publicShowSelect,
-      seller: { select: { id: true, name: true, username: true } },
-      products: { where: { status: 'PENDING' }, orderBy: { order: 'asc' }, take: 5 },
-    },
-  })
-  res.json(shows)
+  if (status) {
+    const where: any = String(status) === 'SCHEDULED'
+      ? { status: 'SCHEDULED', scheduledAt: { not: null } }
+      : { status: String(status) }
+    const shows = await prisma.show.findMany({ where, orderBy: { scheduledAt: 'asc' }, select })
+    return res.json(shows)
+  }
+  // Live ensin, sitten tulevat ajastetut ajanjärjestyksessä. Yksi orderBy: scheduledAt:'asc'
+  // olisi haudannut käynnissä olevan liven tulevien ajastettujen taakse - ad-hoc aloitettu
+  // live (esim. "Luo lähetys ja testaa yhteys") ei koskaan aseta scheduledAt:ia, ja Postgresin
+  // oletus ASC-järjestyksessä on NULLS LAST, joten se olisi pudonnut listan loppuun.
+  const [live, scheduled] = await Promise.all([
+    prisma.show.findMany({ where: { status: 'LIVE' }, orderBy: { startedAt: 'desc' }, select }),
+    prisma.show.findMany({ where: { status: 'SCHEDULED', scheduledAt: { not: null } }, orderBy: { scheduledAt: 'asc' }, select }),
+  ])
+  res.json([...live, ...scheduled])
 })
 
 // GET /shows/mine — omat lähetykset (kaikki statukset) — huom: ennen /:id-reittiä ettei "mine" osu :id-parametriin

@@ -2,7 +2,6 @@ import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { PAKETTIKOOT } from '../lib/shipping'
-import { createPaymentSession } from '../lib/paytrail'
 
 const router = Router()
 
@@ -167,24 +166,30 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
   const items = cart.items
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  // Yhdistetty lähetys: sama myyjä 6h sisällä → liitetään avoimeen tilaukseen
+  // Yhdistetty lähetys: sama myyjä 6h sisällä JA tilaus ei ole vielä maksettu → liitetään
+  // avoimeen tilaukseen. Omistajan korjaus 2026-08-12: tuote+toimitus maksetaan aina YHDESSÄ
+  // yhtenä Paytrail-maksuna, joten yhdistäminen voi tapahtua vain ENNEN maksua - maksetun
+  // tilauksen lisärivit aloittavat oman uuden tilauksensa (ks. CLAUDE.md "Paytrail").
   const existingOrder = await prisma.order.findFirst({
     where: {
-      buyerId, sellerId: String(sellerId), status: 'PENDING_SHIPPING_SELECTION',
+      buyerId, sellerId: String(sellerId), status: 'PENDING_PAYMENT',
       shippingWindowEnd: { gt: new Date() },
     },
     orderBy: { createdAt: 'desc' },
   })
 
-  const session = createPaymentSession({ amount: subtotal, orderId: existingOrder?.id ?? 'new', reference: `${buyerId}-${sellerId}-${Date.now()}` })
-
+  // EI luo Paytrail-maksua tässä — ostaja käynnistää sen erikseen (POST /orders/:id/pay)
+  // heti perään frontendistä, samana käyttäjätoimintona ("Maksa tämä myyjä" -nappi kutsuu
+  // molemmat peräkkäin).
   let order
   if (existingOrder) {
     order = await prisma.order.update({
       where: { id: existingOrder.id },
       data: {
         productTotal: existingOrder.productTotal + subtotal,
-        paytrailPaymentId: session.paymentId,
+        // Uudet tuotteet voivat vaatia ison pakettikoon - nollataan aiempi valinta jos
+        // sellainen ehdittiin jo tehdä, jotta ostaja valitsee sen uudestaan ennen maksua.
+        shippingPrice: null, shippingSize: null,
         items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
       },
       include: { items: true },
@@ -195,7 +200,6 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
         buyerId, sellerId: String(sellerId),
         status: 'PENDING_PAYMENT',
         productTotal: subtotal,
-        paytrailPaymentId: session.paymentId,
         paymentDeadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
         shippingWindowEnd: new Date(Date.now() + SHIPPING_MERGE_WINDOW_MS),
         items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
@@ -216,7 +220,7 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
   const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
   if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } }).catch(() => {})
 
-  res.status(201).json({ order, redirectUrl: session.redirectUrl })
+  res.status(201).json({ order })
 })
 
 export default router

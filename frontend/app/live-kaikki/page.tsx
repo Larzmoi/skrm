@@ -37,10 +37,12 @@ export default function LiveKaikki() {
 
   useEffect(() => {
     const status = tab === 'live' ? 'LIVE' : 'SCHEDULED'
-    fetch(BACKEND_URL + `/shows?status=${status}`)
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setShows(data) })
-      .catch(() => {})
+    // 20s pollaus - sivu ei muuten koskaan päivity kertahaun jälkeen, joten äsken alkanut
+    // live ei ilmestyisi jos välilehti oli jo auki (ks. sama korjaus etusivulla, app/page.tsx)
+    const fetchShows = () => fetch(BACKEND_URL + `/shows?status=${status}`).then(r => r.json()).then(data => { if (Array.isArray(data)) setShows(data) }).catch(() => {})
+    fetchShows()
+    const iv = setInterval(fetchShows, 20000)
+    return () => clearInterval(iv)
   }, [tab])
 
 

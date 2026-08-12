@@ -40,6 +40,7 @@ export const userApi = {
   getReviews: (username: string) => request(`/users/${encodeURIComponent(username)}/reviews`),
   getStreamInfo: () => request('/users/me/stream-info'),
   regenerateStreamKey: () => request('/users/me/stream-key/regenerate', { method: 'POST' }),
+  getPublishToken: () => request('/users/me/publish-token', { method: 'POST' }),
 }
 
 export const cartApi = {
@@ -53,12 +54,13 @@ export const orderApi = {
   mine: () => request('/orders/mine'),
   selling: () => request('/orders/selling'),
   selectShipping: (orderId: string, pakettikokoId: string) => request(`/orders/${orderId}/select-shipping`, { method: 'POST', body: JSON.stringify({ pakettikokoId }) }),
-  mockPay: (orderId: string) => request(`/orders/${orderId}/mock-pay`, { method: 'POST' }),
+  pay: (orderId: string) => request(`/orders/${orderId}/pay`, { method: 'POST' }),
   addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),
   confirmPickup: (orderId: string, code: string) => request(`/orders/${orderId}/confirm-pickup`, { method: 'POST', body: JSON.stringify({ code }) }),
   confirmDelivery: (orderId: string) => request(`/orders/${orderId}/confirm-delivery`, { method: 'POST' }),
   dispute: (orderId: string, reason: string) => request(`/orders/${orderId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
   review: (orderId: string, rating: number, comment?: string) => request(`/orders/${orderId}/review`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
+  refund: (orderId: string, itemIds?: string[]) => request(`/orders/${orderId}/refund`, { method: 'POST', body: JSON.stringify({ itemIds }) }),
 }
 
 export const showApi = {

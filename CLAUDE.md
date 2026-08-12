@@ -135,20 +135,105 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 ## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
 1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
 2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
-3. **Paytrail** — oikea maksuintegraatio (nyt mock-pay-testivirta, koko Order/Cart-skaffoldi on jo valmis ja toimii mockin päällä). **Päätetty 2026-08-10: rakennetaan NYT Paytrailin testitunnuksia vasten**, ei odoteta OY:tä — ainoa jäljellä oleva askel OY:n valmistuttua on testitunnusten vaihto oikeisiin tuotantotunnuksiin.
-   - Paytrail API: REST, HMAC-SHA256-allekirjoitetut pyynnöt (docs: github.com/paytrail/api-documentation, myös paytrail.com/kehittajille)
-   - **✅ Arkkitehtuurikysymys ratkaistu (2026-08-10):** Paytrail tukee natiivisti markkinapaikkamallia nimellä **"Shop-in-Shop"** — yksi maksupyyntö jaetaan useiden myyjien (submerchant) kesken, per-tuoterivi oma `merchant`-ID + `commission`-kenttä (välityspalkkio suoraan API-tasolla, sopii 3%/max20€-malliin), hyvitykset toimivat per-tuote per-myyjä. **Ei tarvitse rakentaa omaa "pidätetty saldo" -kirjanpitoa** — Paytrail hoitaa jaon natiivisti.
-   - **Testitunnukset (vahvistettu suoraan github.com/paytrail/api-documentation:sta 2026-08-10):**
-     - Normaali testimerchant (yksinkertaisempi, aloitus/perustoimintojen testaukseen): Merchant ID `375917`, Secret `SAIPPUAKAUPPIAS`
-     - **Shop-in-Shop testitunnukset (oikea malli SKRM:lle):** Aggregate Merchant ID `695861`, Aggregate Secret `MONISAIPPUAKAUPPIAS`, esimerkki-submerchant ID `695874`
-   - Rakennettava: maksun aloitus (backend→Paytrail-API, Shop-in-Shop-muodossa items[].merchant + items[].commission), onnistumis-/peruutus-redirect-URL:t, webhook-vastaanotto allekirjoituksen varmistuksella, `Order`-statuksen synkronointi
-   - **Selvitettävä ennen tuotantoa:** Shop-in-Shop-mallin käyttöönotto vaatii todennäköisesti erillisen sopimuksen/onboarding-prosessin Paytrailin kanssa (jokaiselle SKRM:n myyjälle oma submerchant-ID) — tämä on eri asia kuin pelkkä OY-rekisteröinti, selvitä Paytraililta tarkka prosessi kun OY on valmis
-   - **⚠️ TURVALLISUUSLÖYDÖS 2026-08-12, korjattava ennen lisätestausta:** testitilassa maksutapavalikossa oli valittavissa muitakin pankkeja (esim. Danske Bank) kuin se, joka on luotettavasti simuloitu testitilassa (OP). Valittaessa Danske, virtaus eteni yllättävän pitkälle asti — omistaja sai OIKEAN Danske Bank ID -vahvan tunnistautumispyynnön kesken "testimaksua", ei koskaan hyväksynyt sitä. Tämä on riski: testiympäristö ei rajoita/piilota pankkeja jotka eivät ole oikeasti tuettuja testitilassa. **Korjaus ennen jatkotestausta: rajoita maksutapavalikko testitilassa näyttämään VAIN OP (`PAYTRAIL_TEST_MODE=true`), tai lisää selkeä varoitus/esto muille pankeille kunnes on varmistettu Paytrailin dokumentaatiosta mitkä pankit oikeasti tukevat testitilaa turvallisesti.**
+3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. "Paytrail-maksuintegraatio" -osio alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
 8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
+
+## Paytrail-maksuintegraatio — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12
+
+Shop-in-Shop-malli, testitunnuksilla. Korvaa vanhan mock-pay-testivirran kokonaan.
+Dokumentaatio luettu suoraan github.com/paytrail/api-documentation:sta (OpenAPI-spesifikaatio
++ docs/README.md + docs/examples.md + docs/shop-in-shop.md) ennen toteutusta — HMAC-algoritmi,
+Shop-in-Shop-kenttien tarkka muoto ja testitunnukset kaikki vahvistettu sieltä, ei arvattu.
+
+### Arkkitehtuuripäätös: maksun aloitus eriytetty tilauksen luonnista, YKSI maksu per tilaus
+`Order.sellerId` on aina yksittäinen kenttä (ei taulukko) — jokainen Order on jo rakenteellisesti
+yhden myyjän. Shop-in-Shopia ei siis tarvita usean myyjän YHDEN maksun yhdistämiseen, vaan siihen
+että Paytrail jakaa maksun automaattisesti SKRM:n (komissio, 3%/max20€) ja myyjän (sub-merchant)
+kesken ilman että SKRM:n tarvitsee pitää omaa pidätetty-saldo-kirjanpitoa tai tehdä manuaalisia
+tilisiirtoja.
+- Order-luontifunktiot (`cart/checkout`, `createOrderForAuctionWin`) EIVÄT itse kutsu Paytrailia
+  — ne vain luovat tilauksen. **`POST /orders/:id/pay`** käynnistää maksun ostajan omasta
+  aloitteesta.
+- **✅ KORJATTU 2026-08-12 (omistajan testilöydös):** ensimmäinen versio maksoi tuotteen ja
+  toimituksen KAHTENA erillisenä Paytrail-maksuna (ensin tuote, sitten myöhemmin toimitus
+  erikseen kun pakettikoko valittiin). Omistaja testasi ja totesi selvästi: **"pitäisi maksaa
+  kaikki kerralla, ei erikseen"**. Korjattu arkkitehtuurimuutoksella: toimitustapa valitaan
+  AINA ennen maksua (kori-sivulla checkout-hetkellä, tai huutokaupan voitolle `/ostot`-sivulla
+  juuri ennen maksunappia), ja `POST /orders/:id/pay` veloittaa `productTotal + shippingPrice`
+  YHTENÄ Paytrail-maksuna. `OrderStatus.PENDING_SHIPPING_SELECTION` poistui käytöstä kokonaan
+  välitilana (Order siirtyy suoraan `PENDING_PAYMENT` → `PENDING_SHIPPING` maksun jälkeen).
+  6h-yhdistämisikkuna (sama myyjä, useampi ostos) toimii nyt vain VIELÄ MAKSAMATTOMIIN
+  tilauksiin — jos ostaja lisää tuotteita jo maksettuun tilaukseen, se aloittaa uuden erillisen
+  tilauksen (looginen, koska maksettua kertaostosta ei voi enää muokata jälkikäteen).
+
+### Toteutus
+- `backend/src/lib/paytrail.ts` (kirjoitettu kokonaan uusiksi): HMAC-SHA256-allekirjoitus
+  (kaikki `checkout-`-alkuiset parametrit aakkosjärjestykseen, `key:value` per rivi + body,
+  `\n`-yhdistettynä), `createPayment()` rakentaa Shop-in-Shop-muotoisen `items[]`-taulukon
+  (`merchant`, `commission: {merchant, amount}`), `verifyCallbackSignature()` webhookille,
+  `refundFull()`/`refundItem()` hyvityksille
+- `getSubmerchantId(sellerId)` palauttaa testivaiheessa aina saman `695874`:n riippumatta
+  myyjästä — **ainoa paikka joka pitää päivittää** kun oikeat per-myyjä submerchant-ID:t on
+  onboardattu Paytrailin kanssa (myöhempi, erillinen, tietoisesti rajattu pois tästä vaiheesta)
+- `computeCommissionCents()`: SKRM:n 3%/max20€ LUKITTU-sääntö, senteissä (Paytrailin API käyttää
+  pienintä valuuttayksikköä kaikkialla). Toimitusmaksulle ei komissiota (`chargeCommission:false`)
+- Stampiin (`orderId__uuid`) koodataan tilaus niin että webhook löytää oikean Orderin ilman
+  erillistä `transactionId`-hakukenttää — Paytrail palauttaa stampin sellaisenaan jokaisessa
+  callbackissa
+- **`GET /webhooks/paytrail`** (HUOM: GET, ei POST — Paytrail kutsuu redirect- ja callback-
+  URL:eja samalla tavalla query-parametrein, ei bodyllä). EI KOSKAAN luoteta ilmoitukseen ennen
+  HMAC-varmistusta. Idempotentti (Paytrail voi kutsua useita kertoja samasta tapahtumasta,
+  dokumentoitu käytös) — tarkistaa ettei tilausta ole jo viety eteenpäin ennen käsittelyä
+- `Order`-malliin `paytrailProductTxId`/`paytrailShippingTxId` — jälkimmäinen on nyt käytännössä
+  aina tyhjä uusilla tilauksilla (yksi yhdistetty maksu käyttää vain `paytrailProductTxId`:tä),
+  säilytetty schemassa taaksepäin yhteensopivuuden/mahdollisen tulevan tarpeen vuoksi
+- **`POST /orders/:id/refund`** — koko tilauksen tai per-tuote-hyvitys (`itemIds` bodyssä),
+  Shop-in-Shopin natiivi tuki palauttaa myös komissio-osuuden myyjälle samassa pyynnössä. UI:
+  "Hyvitä"-nappi `dashboard/tilaukset`-sivulla (`ConfirmDialog`, ei natiivi `confirm()`)
+- `.env`: `PAYTRAIL_TEST_MODE`/`PAYTRAIL_MERCHANT_ID`/`PAYTRAIL_SECRET`/`PAYTRAIL_SUBMERCHANT_ID`
+  + uusi `BACKEND_PUBLIC_URL` (`https://app.skrm.fi/api` tuotannossa, nginx: `/api/` → `:4000/`
+  prefiksi poistuen) — vaihto tuotantotunnuksiin OY:n valmistuttua on vain näiden neljän arvon
+  päivitys, ei koodimuutoksia. **Huom:** `FRONTEND_URL` ei ollut ennen tätä edes asetettu
+  tuotannon `.env`:ssä — lisätty nyt (`https://app.skrm.fi`), ilman sitä redirect-URL:t
+  olisivat osoittaneet `localhost:3000`:iin tuotannossa.
+
+### Testattu tuotannossa OIKEALLA Paytrailin testi-API:lla (ei vain typecheck)
+Curl-pohjainen päästä-päähän-testi testi@skrm.fi/testi2@skrm.fi-tunnuksilla, oikea tuote
+("Penny sleeve", 2,90€) + toimitusmaksu (S-paketti, 11,90€) — **huom: tämä testi tehtiin ennen
+yhden-maksun-korjausta, jolloin havaittiin kahden-maksun-ongelma. Yhden-maksun-korjauksen
+jälkeinen versio on typetarkastettu ja deployattu, mutta ei vielä uudelleen käyty läpi samalla
+curl-testillä — seuraava askel jos tarpeen.**
+- ✅ Maksun luonti: oikea Paytrail-transactionId + `pay.paytrail.com/pay/...`-osoite, vastasi
+  HTTP 200:lla oikeasti selaimessa avattuna
+- ✅ Webhookin allekirjoitus: oikein signeerattu synteettinen callback hyväksyttiin ja päivitti
+  Orderin statuksen oikein; väärennetty allekirjoitus hylättiin 401:llä
+- ✅ Idempotenssi: sama webhook kahdesti ei tuplakäsitellyt/-ilmoittanut
+- ✅ Refundin pyyntömuoto vahvistettu oikeaa Paytrail-APIa vasten (Paytrail palautti odotetun
+  `"Transaction not paid"`-virheen koska testissä ei koskaan käyty oikeasti maksamassa Paytrailin
+  hostatulla sivulla asti — itse pyynnön rakenne/allekirjoitus on silti vahvistettu oikeaksi)
+- ✅ **Sivulöydös korjattu testauksessa:** Cloudflare korvaa 502/503/504-vastausten rungon aina
+  omalla geneerisellä virhesivullaan riippumatta origin-palvelimen palauttamasta JSON-sisällöstä
+  — `/pay`- ja `/refund`-reittien Paytrail-virheet käyttivät alun perin 502:sta, vaihdettu 400:aan
+  joka kulkee Cloudflaren läpi muuttumattomana
+
+### Ei vielä testattu (rehellinen rajaus)
+- **Oikean maksun loppuunvieminen Paytrailin hostatulla sivulla** (klikkaus läpi testipankin) —
+  vaatii interaktiivisen selaimen, ei automatisoitavissa curl:lla turvallisesti. Kaikki tähän asti
+  todennettu (maksun luonti, webhook, statussynkronointi) toimii oikeasti Paytrailin API:a vasten,
+  mutta täysi "ostaja klikkaa läpi testipankin" -polku vaatii omistajan manuaalisen testin oikeassa
+  selaimessa `/kori`- tai `/ostot`-sivulta. **Huom Danske:** Paytrailin oma dokumentaatio sanoo
+  Danske-testipankin vaativan OIKEITA Danske-pankkitunnuksia sandbox-testauksessakin — käytä
+  Nordeaa tai OP:ta testaukseen (ei vaadi mitään tunnuksia, täysin turvallinen).
+- Myyjäkohtainen submerchant-onboarding-prosessi tuotantoon — tietoisesti rajattu pois tästä
+  vaiheesta käyttäjän ohjeen mukaisesti, eri myöhempi vaihe
+- Uusi kiinteä 9,90€ postihinta (ks. "Postihinnat" -osio) ei vielä toteutettu koodissa
+  (`backend/src/lib/shipping.ts` sisältää yhä vanhan kokoportaikon) — ei vaikuta Paytrail-
+  integraation toimintaan koska hinta luetaan aina `getShippingPrice()`:n kautta, ei kovakoodattu
+  maksulogiikkaan, mutta erillinen tehtävä joka vielä odottaa toteutusta
 
 ## Tunnettuja bugeja / kehityskohteita
 - ✅ **KORJATTU 2026-08-08/09 — Live-video ei näytä latautuvan / chat ei toimi luotettavasti kaikilla laitteilla.** Alkuperäinen epäily (HLS-URL:in rakennusvirhe) osoittautui vääräksi — juurisyy oli useampi kerros, ks. "Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset" alempana täydelliselle selvitykselle (hls.js:n puuttuva uudelleenyritys, nginxin 60s oletus-proxy_read_timeout tappamassa pitkäkestoisia socket.io-yhteyksiä, ja mobiilioperaattorin NAT joka pudotti vain palvelin→asiakas-suunnan liikenteen).
@@ -598,7 +683,16 @@ Koska suuri osa käyttäjistä on mobiililla, tämä on lyötävä lukkoon molem
 
 Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitellään erikseen (nykyinen kolmen paneelin rinnakkaisrakenne — jono/nykyinen tuote/chat — sopii paremmin isommalle näytölle eikä sitä tarvitse pakottaa samaan full-screen-overlay-malliin kuin mobiilia).
 
-## Selainpohjainen mobiilistriimaus (WebRTC) — TULEVAISUUDEN HARKINTA, ei kiireellinen, mutta hyvin tutkittu 2026-08-08
+## Selainpohjainen mobiilistriimaus (WebRTC) — ✅ TEHTY 2026-08-12, testattu ja korjattu 2026-08-12
+
+**Huom (2026-08-12):** tämä osio kuvasi aiemmin tulevaisuuden suunnitelmaa — ominaisuus on nyt oikeasti rakennettu ja tuotannossa. Toteutus: `backend/src/lib/livekit.ts`:n `createPublisherToken()` (identity `{userId}-phone`, eri kuin OBS:n Ingress-osallistujan) + `POST /users/me/publish-token`, `/lahetys`:n "Ilman OBS:aa"/"OBS:lla" -valinta joka julkaisee jo auki olevan kameran suoraan LiveKitiin `livekit-client`:llä (ei Ingressiä/RTMP:tä/WHIP:iä välissä). Sama huone kuin OBS käyttäisi, katsojan puolella ei muutoksia. Löydetyt jatkotestibugit korjattu:
+1. Puuttuva `participant_left`-webhook-käsittely jätti lähetyksen ikuisesti LIVE-tilaan kun välilehti suljettiin (`webhooks.ts` — sama `ENDED`-merkintä kuin OBS:n `ingress_ended`:lla)
+2. Julkaisutavan nimeäminen selkeytetty: "Puhelimella" → "Ilman OBS:aa" (universaalimpi, ei sido tiettyyn laitteeseen)
+3. Mobiilin video-overlay-chat pakotti aina scrollin pohjaan (näytti vain viim. 5 viestiä ilman historiaa) — lisätty stick-to-bottom-vain-jos-jo-pohjassa-logiikka (`/live/[showId]` ja `/lahetys`), näkyvä historia kasvatettu 40 viestiin
+4. **KRIITTINEN — live-huutokaupan "✓ Myyty" ei tehnyt tuotteelle mitään.** `socket.ts`:n `stop_auction`-käsittelijä (se mitä "✓ Myyty" -nappi kutsuu — todellisuudessa yleisin tapa päättää live-huutokauppa) ei koskaan merkinnyt tuotetta myydyksi, ei luonut Orderia, ei ilmoittanut voittajalle. Sama puute myös automaattisessa ajastimen loppumisessa. Sama Order-luonti-aukko joka jo korjattiin `auctions.ts`:lle/`closeAuctions.ts`:lle 2026-08-07, mutta ei koskaan portattu `socket.ts`:n erilliseen live-huutojärjestelmään. Korjattu: jaettu `finalizeLiveAuctionSale()`-apufunktio kutsuu `createOrderForAuctionWin()`:ia molemmissa päättymispoluissa + `ORDER_WON`-ilmoitus oikealla `/ostot`-linkillä
+5. Myydyt tuotteet erotettu jonossa omaan "Myydyt"-osioonsa `/lahetys`:ssä, ei enää sekaisin himmennettyinä aktiivisen jonon kanssa
+
+Alla oleva teksti on jätetty historiakontekstiksi, ei enää ajantasainen suunnitelma:
 
 **Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
 

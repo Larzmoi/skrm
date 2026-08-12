@@ -52,6 +52,14 @@ function VideoPlayer({ showId }: { showId: string }) {
     room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
     room.on(RoomEvent.Disconnected, () => setWaiting(true))
     room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+    room.on(RoomEvent.Reconnected, () => {
+      // Reconnect voi palauttaa jo aiemmin tilatut trackit ilman uutta
+      // TrackSubscribed-tapahtumaa (koska tilaus on jo olemassa) — ilman
+      // tätä "waiting" jäi jumiin true:hun vaikka video jatkoi toimimista.
+      setWaiting(false)
+      const video = videoRef.current
+      if (video && video.paused) video.play().catch(() => {})
+    })
 
     async function connect() {
       try {
@@ -120,9 +128,14 @@ interface BidPanelProps {
   onSlideStart: (clientX: number) => void
   onSlideMove: (clientX: number) => void
   onSlideEnd: () => void
+  // Desktop käyttää suoraa nappia vetämisen sijaan, ks. CLAUDE.md "Uudet löydökset
+  // 2026-08-10" kohta 4 — hiirellä vetäminen koettiin työlääksi, kosketuksella (mobiili)
+  // vastaava vedon mekaniikka koettiin hyväksi eikä sitä muuteta.
+  isMobile: boolean
+  onPlaceBid: () => void
 }
 
-function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd }: BidPanelProps) {
+function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd, isMobile, onPlaceBid }: BidPanelProps) {
   return (
     <div style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '12px 14px 14px' }}>
       {bidError && <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{bidError}</div>}
@@ -162,30 +175,43 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
         </div>
       )}
 
-      <div
-        ref={slideTrackRef}
-        style={{ position: 'relative', height: 52, background: bidSuccess ? C.accent : '#0D2818', borderRadius: 26, overflow: 'hidden', userSelect: 'none', border: `1px solid ${auction.active ? C.accent + '55' : '#333'}`, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.5 }}
-        onMouseDown={e => auction.active && onSlideStart(e.clientX)}
-        onMouseMove={e => auction.active && sliding && onSlideMove(e.clientX)}
-        onMouseUp={onSlideEnd}
-        onMouseLeave={onSlideEnd}
-        onTouchStart={e => auction.active && onSlideStart(e.touches[0].clientX)}
-        onTouchMove={e => { if (auction.active) { e.preventDefault(); onSlideMove(e.touches[0].clientX) } }}
-        onTouchEnd={onSlideEnd}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${C.accent}44 0%, ${C.accent}22 100%)`, width: `${maxSlideX > 0 ? (slideX / maxSlideX) * 100 : 0}%`, transition: sliding ? 'none' : 'width 0.3s', borderRadius: 26 }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: bidSuccess ? '#fff' : C.accentBright }}>
-            {bidSuccess ? t.live.bidPlaced
-              : auction.active ? `${t.live.bid} ${bidAmount}€`
-              : ended ? (auction.leaderName ? t.live.sold : t.live.auctionEndedNoWinner)
-              : t.live.waitAuction}
-          </span>
+      {isMobile ? (
+        <div
+          ref={slideTrackRef}
+          style={{ position: 'relative', height: 52, background: bidSuccess ? C.accent : '#0D2818', borderRadius: 26, overflow: 'hidden', userSelect: 'none', border: `1px solid ${auction.active ? C.accent + '55' : '#333'}`, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.5 }}
+          onMouseDown={e => auction.active && onSlideStart(e.clientX)}
+          onMouseMove={e => auction.active && sliding && onSlideMove(e.clientX)}
+          onMouseUp={onSlideEnd}
+          onMouseLeave={onSlideEnd}
+          onTouchStart={e => auction.active && onSlideStart(e.touches[0].clientX)}
+          onTouchMove={e => { if (auction.active) { e.preventDefault(); onSlideMove(e.touches[0].clientX) } }}
+          onTouchEnd={onSlideEnd}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${C.accent}44 0%, ${C.accent}22 100%)`, width: `${maxSlideX > 0 ? (slideX / maxSlideX) * 100 : 0}%`, transition: sliding ? 'none' : 'width 0.3s', borderRadius: 26 }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: bidSuccess ? '#fff' : C.accentBright }}>
+              {bidSuccess ? t.live.bidPlaced
+                : auction.active ? `${t.live.bid} ${bidAmount}€`
+                : ended ? (auction.leaderName ? t.live.sold : t.live.auctionEndedNoWinner)
+                : t.live.waitAuction}
+            </span>
+          </div>
+          <div style={{ position: 'absolute', top: 3, left: 4 + slideX, width: 46, height: 46, borderRadius: 23, background: auction.active ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: sliding ? 'none' : 'left 0.3s', boxShadow: `0 2px 12px ${C.accent}88` }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
+          </div>
         </div>
-        <div style={{ position: 'absolute', top: 3, left: 4 + slideX, width: 46, height: 46, borderRadius: 23, background: auction.active ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: sliding ? 'none' : 'left 0.3s', boxShadow: `0 2px 12px ${C.accent}88` }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
-        </div>
-      </div>
+      ) : (
+        <button
+          onClick={onPlaceBid}
+          disabled={!auction.active}
+          style={{ width: '100%', height: 48, borderRadius: 10, border: 'none', background: bidSuccess ? C.accent : auction.active ? C.accent : '#2A2A2A', color: '#fff', fontSize: 14, fontWeight: 800, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.6, transition: 'background 0.2s' }}
+        >
+          {bidSuccess ? t.live.bidPlaced
+            : auction.active ? `${t.live.bid} ${bidAmount}€`
+            : ended ? (auction.leaderName ? t.live.sold : t.live.auctionEndedNoWinner)
+            : t.live.waitAuction}
+        </button>
+      )}
 
       {!connected && <div style={{ marginTop: 8, fontSize: 11, color: '#EF4444', textAlign: 'center' }}>{t.live.connecting}</div>}
     </div>
@@ -398,6 +424,16 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const slideTrackRef = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
   const canModerate = isSeller || isModerator
+
+  // Mobiilin video-overlay-chat: vieritä pohjaan uuden viestin tullessa VAIN jos käyttäjä
+  // oli jo pohjassa - jos hän oli vierittänyt ylös lukeakseen vanhempia viestejä, uusi viesti
+  // ei enää repäise näkymää takaisin alas hänen altaan.
+  const mobileChatRef = useRef<HTMLDivElement>(null)
+  const mobileChatStickToBottom = useRef(true)
+  useEffect(() => {
+    const el = mobileChatRef.current
+    if (el && mobileChatStickToBottom.current) el.scrollTop = el.scrollHeight
+  }, [chat])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -678,8 +714,15 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                     (overflowY:auto) säiliöön voi hävittää elementin näkyvistä täysin joillain
                     puhelin/selainyhdistelmillä, vaikka data/DOM olisi täysin kunnossa. Kiinteä,
                     riittävän peittävä tausta on luotettavampi kuin läpikuultava blur-efekti. */}
-                <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
-                  {chat.filter(m => !m.hidden || canModerate).slice(-5).map(msg => (
+                <div
+                  ref={mobileChatRef}
+                  onScroll={e => {
+                    const el = e.currentTarget
+                    mobileChatStickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+                  }}
+                  style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}
+                >
+                  {chat.filter(m => !m.hidden || canModerate).slice(-40).map(msg => (
                     <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
                       <div style={{ background: 'rgba(20,20,20,0.85)', borderRadius: 10, padding: '4px 9px', maxWidth: '80%' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>
@@ -710,6 +753,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
               connected={connected} maxSlideX={maxSlideX} slideX={slideX}
               onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
+              isMobile={true} onPlaceBid={placeBid}
             />
         </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
@@ -782,6 +826,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
             connected={connected} maxSlideX={maxSlideX} slideX={slideX}
             onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
+            isMobile={false} onPlaceBid={placeBid}
           />
         </div>
 

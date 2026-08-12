@@ -3,6 +3,7 @@ import express from 'express'
 import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
+import { verifyCallbackSignature, parseStamp } from '../lib/paytrail'
 
 const router = Router()
 
@@ -97,7 +98,65 @@ router.post('/livekit', express.raw({ type: '*/*' }), async (req: Request, res: 
       await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
       emitToShow(show.id, 'show_status', { status: 'ENDED' })
     }
+  } else if (
+    (event.event === 'participant_left' || event.event === 'participant_connection_aborted') &&
+    sellerId && event.participant?.identity === `${sellerId}-phone`
+  ) {
+    // Puhelimesta-suoraan-julkaisun vastine ingress_ended:lle (ks. CLAUDE.md
+    // "Selainpohjainen mobiilistriimaus"). Ilman tätä lähetys jäi ikuisesti LIVE-tilaan
+    // kun puhelimen selainvälilehti suljettiin/verkko katkesi, koska mikään ei koskaan
+    // merkinnyt sitä päättyneeksi - näkyi katsojille "zombie"-livenä joka ei koskaan
+    // toimi. Sama identity-tunniste kuin createPublisherToken():ssa (lib/livekit.ts).
+    const show = await prisma.show.findFirst({
+      where: { sellerId, status: 'LIVE' },
+      orderBy: { startedAt: 'desc' },
+    })
+    if (show) {
+      await prisma.show.update({ where: { id: show.id }, data: { status: 'ENDED', endedAt: new Date() } })
+      emitToShow(show.id, 'show_status', { status: 'ENDED' })
+    }
   }
+
+  res.status(200).send('ok')
+})
+
+// GET /webhooks/paytrail — Paytrailin server-to-server callback (HUOM: GET, ei POST —
+// Paytrail kutsuu redirect- ja callback-URL:eja samalla tavalla, query-parametrein, ks.
+// docs "Redirect and callback URL parameters"). Sama osoite annettu sekä success- että
+// cancel-callbackUrl:na createPaymentissa, checkout-status kertoo kumpi tapahtui.
+//
+// EI KOSKAAN luoteta ilmoitukseen ennen HMAC-allekirjoituksen varmistusta - kuka tahansa
+// voisi muuten kutsua tätä URL:ia suoraan ja väittää maksun onnistuneen ilman että
+// mitään oikeasti maksettiin.
+router.get('/paytrail', async (req: Request, res: Response) => {
+  const query: Record<string, string> = {}
+  for (const [key, value] of Object.entries(req.query)) {
+    if (typeof value === 'string') query[key] = value
+  }
+
+  if (!verifyCallbackSignature(query)) {
+    console.error('[paytrail webhook] virheellinen allekirjoitus, hylätty', query)
+    return res.status(401).send('invalid signature')
+  }
+
+  const stamp = query['checkout-stamp']
+  const status = query['checkout-status']
+  const parsed = stamp ? parseStamp(stamp) : null
+  if (!parsed) return res.status(200).send('ok') // tuntematon stamp - ei voida käsitellä, mutta kuitataan ettei Paytrail yritä uudelleen loputtomiin
+
+  const order = await prisma.order.findUnique({ where: { id: parsed.orderId } })
+  if (!order) return res.status(200).send('ok')
+
+  // Idempotenssi: Paytrail voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
+  // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/ilmoitetaan.
+  // Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut webhook riittää.
+  if (status === 'ok' && order.status === 'PENDING_PAYMENT') {
+    const total = order.productTotal + (order.shippingPrice ?? 0)
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING', paymentDeadline: null } })
+    await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset')
+  }
+  // status 'fail'/'pending'/'delayed', tai jo käsitelty tila: ei toimenpiteitä - ostaja
+  // voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-cron siivoaa myöhemmin.
 
   res.status(200).send('ok')
 })

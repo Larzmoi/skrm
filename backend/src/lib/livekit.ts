@@ -66,3 +66,14 @@ export async function createViewerToken(roomName: string, identity: string, name
   at.addGrant({ roomJoin: true, room: roomName, canSubscribe: true, canPublish: false, canPublishData: false })
   return at.toJwt()
 }
+
+// Suora selainjulkaisu ilman OBS:aa/Ingressiä — myyjän puhelin julkaisee kameransa
+// suoraan LiveKitiin WebRTC:llä livekit-client-kirjaston kautta (sama kirjasto joka on
+// jo käytössä katsojan puolella). Eri identity kuin Ingressin OBS-osallistuja
+// ("seller-{userId}" huoneen participantIdentity on plain userId) jottei synny
+// identiteettitörmäystä jos joku käyttää OBS:aa ja puhelinta samaan aikaan.
+export async function createPublisherToken(roomName: string, userId: string, name: string): Promise<string> {
+  const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, { identity: `${userId}-phone`, name, ttl: '6h' })
+  at.addGrant({ roomJoin: true, room: roomName, canSubscribe: true, canPublish: true, canPublishData: false })
+  return at.toJwt()
+}

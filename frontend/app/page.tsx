@@ -60,10 +60,13 @@ export default function Home() {
   }, [user])
 
   useEffect(() => {
-    fetch(BACKEND_URL + '/shows')
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data) && data.length > 0) setShows(data) })
-      .catch(() => {})
+    // Ei socket-pohjaista live-päivitystä listaussivuille - pelkkä kertahaku mounttauksessa
+    // jätti sivun jumiin siihen tilaan mikä se oli sivun avatessa, eli äsken alkanut live ei
+    // koskaan ilmestynyt jos välilehti oli jo auki ennen striimin alkua. 20s pollaus riittää
+    // tähän tarkoitukseen ilman uutta reaaliaikaista infraa.
+    const fetchShows = () => fetch(BACKEND_URL + '/shows').then(r => r.json()).then(data => { if (Array.isArray(data)) setShows(data) }).catch(() => {})
+    fetchShows()
+    const showsIv = setInterval(fetchShows, 20000)
 
     import('@/lib/api').then(({ api }) => {
       api.getProducts({ limit: '12' })
@@ -74,6 +77,8 @@ export default function Home() {
     auctionApi.list({ limit: '4', sort: 'ending_soon' })
       .then((data: any[]) => { if (Array.isArray(data) && data.length > 0) setAuctions(data) })
       .catch(() => {})
+
+    return () => clearInterval(showsIv)
   }, [])
 
   const mapShow = (s: any) => ({

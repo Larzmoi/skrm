@@ -48,10 +48,24 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
 
+  // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ks. alempi kommentti. Näyttää tarkalleen
+  // milloin "Odotetaan OBS-yhteyttä" -teksti oikeasti ilmestyy/katoaa renderissä,
+  // erotuksena RoomEvent-lokeista jotka näyttävät vain mitä LiveKit-kirjasto tekee.
+  useEffect(() => {
+    console.log(`[HlsPreview t+${Math.round(performance.now())}ms] waiting-tila muuttui:`, waiting)
+  }, [waiting])
+
   useEffect(() => {
     if (!wsUrl || !token) return
     let destroyed = false
     const room = new Room()
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — poista kun "Odotetaan OBS-yhteyttä"
+    // -jäänne on vahvistettu korjatuksi/eri juurisyy löydetty. Tarkoitus: nähdä
+    // tarkka RoomEvent-järjestys kun "Aloita julkinen lähetys" painetaan, koska
+    // goPublic() ei koske previewWsUrl/previewToken/Room-oliota millään tavalla
+    // (vain Show.status REST-kutsu) - jos video silti katkeaa siinä hetkessä,
+    // syyn pitää löytyä LiveKitin omasta reconnect-tapahtumaketjusta.
+    const log = (...args: any[]) => console.log(`[HlsPreview t+${Math.round(performance.now())}ms]`, ...args)
 
     function attachIfMedia(track: any) {
       if ((track.kind === Track.Kind.Video || track.kind === Track.Kind.Audio) && videoRef.current) {
@@ -60,16 +74,31 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
       }
     }
 
-    room.on(RoomEvent.TrackSubscribed, (track) => attachIfMedia(track))
-    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
-    room.on(RoomEvent.Disconnected, () => setWaiting(true))
-    room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+    room.on(RoomEvent.ConnectionStateChanged, (state) => log('ConnectionStateChanged', state))
+    room.on(RoomEvent.TrackSubscribed, (track) => { log('TrackSubscribed', track.kind); attachIfMedia(track) })
+    room.on(RoomEvent.TrackUnsubscribed, (track) => { log('TrackUnsubscribed', track.kind); track.detach() })
+    room.on(RoomEvent.Disconnected, (reason) => { log('Disconnected', reason); setWaiting(true) })
+    room.on(RoomEvent.Reconnecting, () => { log('Reconnecting'); setWaiting(true) })
+    room.on(RoomEvent.Reconnected, () => {
+      // Reconnect voi palauttaa jo aiemmin tilatut trackit ilman uutta
+      // TrackSubscribed-tapahtumaa (koska tilaus on jo olemassa) — ilman
+      // tätä "waiting" jäi jumiin true:hun vaikka video jatkoi toimimista.
+      log('Reconnected')
+      setWaiting(false)
+      const video = videoRef.current
+      if (video && video.paused) video.play().catch(() => {})
+    })
 
-    room.connect(wsUrl, token).catch(() => {
+    log('room.connect() alkaa', wsUrl)
+    room.connect(wsUrl, token).then(() => {
+      log('room.connect() onnistui')
+    }).catch((err) => {
+      log('room.connect() epäonnistui', err)
       if (!destroyed) setWaiting(true)
     })
 
     return () => {
+      log('useEffect cleanup / room.disconnect()')
       destroyed = true
       room.disconnect()
     }
@@ -128,6 +157,24 @@ export default function LahetysPage() {
   const [selectedDevice, setSelectedDevice] = useState('')
   const [copied, setCopied] = useState('')
 
+  // Puhelimesta suoraan striimaus ilman OBS:aa (ks. CLAUDE.md "Selainpohjainen
+  // mobiilistriimaus") — julkaisee streamRef.current-median suoraan LiveKitiin
+  // WebRTC:llä, sama huone kuin OBS:n Ingress käyttäisi. Katsojan/myyjän esikatselun
+  // puolella (VideoPlayer/HlsPreview) ei ole eroa kummalla tavalla trackit syntyivät.
+  const [publishMode, setPublishMode] = useState<'obs' | 'phone'>('phone')
+  const [phonePublishing, setPhonePublishing] = useState(false)
+  const [phonePublishError, setPhonePublishError] = useState('')
+  const publishRoomRef = useRef<Room | null>(null)
+  const publishModeTouched = useRef(false)
+
+  // useIsMobile() palauttaa true ennen ensimmäistä mittausta (ks. lib/useIsMobile.ts),
+  // joten oletus lukitaan tähän vasta kun oikea arvo on tiedossa - muuten desktop
+  // näyttäisi hetken "puhelin"-tilaa oletuksena. Ei aja enää jos käyttäjä on jo
+  // itse valinnut tilan käsin.
+  useEffect(() => {
+    if (!publishModeTouched.current) setPublishMode(isMobile ? 'phone' : 'obs')
+  }, [isMobile])
+
   // Yläpalkin tilastot
   const [viewers, setViewers] = useState(0)
   const [liveSince, setLiveSince] = useState<number | null>(null)
@@ -148,6 +195,15 @@ export default function LahetysPage() {
   const [chatInput, setChatInput] = useState('')
   const [stubMsg, setStubMsg] = useState('')
   const feedRef = useRef<HTMLDivElement>(null)
+
+  // Mobiilin video-overlay-chat: vieritä pohjaan uuden viestin tullessa VAIN jos käyttäjä
+  // oli jo pohjassa - sama korjaus kuin katsojan /live/[showId]:ssä.
+  const mobileFeedRef = useRef<HTMLDivElement>(null)
+  const mobileFeedStickToBottom = useRef(true)
+  useEffect(() => {
+    const el = mobileFeedRef.current
+    if (el && mobileFeedStickToBottom.current) el.scrollTop = el.scrollHeight
+  }, [feed])
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -215,7 +271,7 @@ export default function LahetysPage() {
       }).catch(() => {})
     })
     loadDevices()
-    return () => { stopCamera() }
+    return () => { stopCamera(); publishRoomRef.current?.disconnect() }
   }, [])
 
   useEffect(() => {
@@ -263,8 +319,13 @@ export default function LahetysPage() {
     const socket = connectSocket()
 
     const token = localStorage.getItem('skrm_token') || undefined
-    socket.on('connect', () => { setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
-    socket.on('disconnect', () => setConnected(false))
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — sama tarkoitus kuin HlsPreviewin lokit,
+    // mutta Socket.io-puolella ("LIVE — yhdistetään..." -teksti käyttää tätä
+    // connected-tilaa, EI HlsPreviewin waiting-tilaa — kaksi eri mekanismia jotka
+    // voivat molemmat jäädä jumiin näyttäen samalta, ks. CLAUDE.md).
+    const slog = (...args: any[]) => console.log(`[Lahetys/socket t+${Math.round(performance.now())}ms]`, ...args)
+    socket.on('connect', () => { slog('connect'); setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
+    socket.on('disconnect', (reason) => { slog('disconnect', reason); setConnected(false) })
 
     socket.on('auction_started', (data: any) => {
       setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
@@ -305,7 +366,7 @@ export default function LahetysPage() {
       setTimeout(() => setMutedWordsSaved(false), 2000)
     })
 
-    if (socket.connected) { setConnected(true); socket.emit('join_show', { showId: show.id, token }) }
+    if (socket.connected) { slog('already connected (fallback)'); setConnected(true); socket.emit('join_show', { showId: show.id, token }) }
 
     return () => {
       socket.emit('leave_show', show.id)
@@ -357,6 +418,41 @@ export default function LahetysPage() {
     setCamReady(false)
   }
 
+  // Puhelimesta suoraan striimaus ilman OBS:aa — julkaisee jo auki olevan kameran
+  // (streamRef.current, "Testaa kamera") suoraan LiveKit-huoneeseen WebRTC:llä.
+  // Katsojan puolella (VideoPlayer) ei ole mitään eroa tuliko track OBS:n Ingressin
+  // vai tämän kautta - molemmat vain julkaisevat trackeja samaan "seller-{userId}" huoneeseen.
+  async function startPhonePublish() {
+    setPhonePublishError('')
+    if (!streamRef.current) {
+      const ok = await startCamera(selectedDevice || undefined)
+      if (!ok || !streamRef.current) { setPhonePublishError('Kameraa ei saatu käyttöön'); return }
+    }
+    try {
+      const { userApi } = await import('@/lib/api')
+      const { wsUrl, token } = await userApi.getPublishToken()
+      const room = new Room()
+      room.on(RoomEvent.Disconnected, () => setPhonePublishing(false))
+      await room.connect(wsUrl, token)
+      const stream = streamRef.current!
+      const videoTrack = stream.getVideoTracks()[0]
+      const audioTrack = stream.getAudioTracks()[0]
+      if (videoTrack) await room.localParticipant.publishTrack(videoTrack, { source: Track.Source.Camera })
+      if (audioTrack) await room.localParticipant.publishTrack(audioTrack, { source: Track.Source.Microphone })
+      publishRoomRef.current = room
+      setPhonePublishing(true)
+    } catch (err: any) {
+      setPhonePublishError(err?.message ?? 'Lähetyksen aloitus epäonnistui')
+      setPhonePublishing(false)
+    }
+  }
+
+  function stopPhonePublish() {
+    publishRoomRef.current?.disconnect()
+    publishRoomRef.current = null
+    setPhonePublishing(false)
+  }
+
   // Luo lähetyksen (status SCHEDULED) ja avaa yksityisen esikatselukonsolin — EI vielä julkinen.
   // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
   async function createShow() {
@@ -380,13 +476,21 @@ export default function LahetysPage() {
   // Ainoa toiminto joka tekee lähetyksestä julkisesti näkyvän — erillinen, tietoinen painallus
   async function goPublic() {
     if (!show) return
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ankkuripiste HlsPreviewin ja socketin
+    // lokeille: goPublic() ei koske previewWsUrl/previewToken/Room-oliota eikä
+    // socket-yhteyttä millään tavalla (vain Show.status REST-kutsu) - jos video tai
+    // "yhdistetään..."-teksti silti reagoi juuri tässä hetkessä, se pitäisi näkyä
+    // ajallisesti lähellä tätä logia muissa [HlsPreview]/[Lahetys/socket] -riveissä.
+    console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] alkaa`)
     setGoingPublic(true)
     try {
       const { showApi } = await import('@/lib/api')
       await showApi.setStatus(show.id, 'LIVE')
+      console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] REST-kutsu onnistui, status LIVE`)
       setShowStatus('LIVE')
       setLiveSince(Date.now())
     } catch (e: any) {
+      console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] epäonnistui`, e)
       setStartError(e.message ?? 'Julkaisu epäonnistui')
     }
     setGoingPublic(false)
@@ -409,6 +513,7 @@ export default function LahetysPage() {
     }
     disconnectSocket()
     stopCamera()
+    stopPhonePublish()
     setIsLive(false); setShow(null); setShowStatus(null); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? '')
     setCurrentProductId(null); setSoldItems([]); setSoldAmounts({}); setFeed([]); setLiveSince(null); setViewers(0); setShowObsInfo(false); setShowModTools(false); setShowQueue(false)
     setAuction({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
@@ -590,12 +695,16 @@ export default function LahetysPage() {
     </>
   )
 
+  const activeQueueProducts = products.filter(p => !soldItems.includes(p.id))
+  const soldQueueProducts = products.filter(p => soldItems.includes(p.id))
+
   const queuePanelContent = (
     <>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({products.length})</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({activeQueueProducts.length})</div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {products.map((p, i) => {
-          const sold = soldItems.includes(p.id); const active = p.id === currentProductId
+        {activeQueueProducts.map((p) => {
+          const i = products.indexOf(p)
+          const active = p.id === currentProductId
           return (
             <div
               key={p.id}
@@ -604,15 +713,27 @@ export default function LahetysPage() {
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleDrop(i)}
               onClick={() => !isSold && setCurrentProductId(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', opacity: sold ? 0.4 : 1, cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
             >
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
               {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
               <span style={{ fontSize: 12, color: active ? C.accentBright : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              {sold && <span style={{ fontSize: 10, color: C.accentBright, fontWeight: 700, flexShrink: 0 }}>✓</span>}
             </div>
           )
         })}
+
+        {soldQueueProducts.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>Myydyt ({soldQueueProducts.length})</div>
+            {soldQueueProducts.map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.5, flexShrink: 0 }}>
+                {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
+                <span style={{ fontSize: 12, color: '#eee', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                <span style={{ fontSize: 10, color: C.accentBright, fontWeight: 700, flexShrink: 0 }}>✓</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div style={{ flexShrink: 0 }}>
@@ -720,11 +841,24 @@ export default function LahetysPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
-              {/* Vasen: OBS-asetukset + kamera-esikatselu */}
+              {/* Vasen: julkaisutavan valinta + kamera-esikatselu */}
               <div>
-                <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                  {obsCardContent}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <button
+                    onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
+                    style={{ flex: 1, background: publishMode === 'phone' ? C.accent : C.surface, border: `1px solid ${publishMode === 'phone' ? C.accent : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  >Ilman OBS:aa</button>
+                  <button
+                    onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
+                    style={{ flex: 1, background: publishMode === 'obs' ? C.accent : C.surface, border: `1px solid ${publishMode === 'obs' ? C.accent : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  >OBS:lla</button>
                 </div>
+
+                {publishMode === 'obs' && (
+                  <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                    {obsCardContent}
+                  </div>
+                )}
 
                 <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', marginBottom: 12 }}>
                   <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -734,15 +868,37 @@ export default function LahetysPage() {
                       <div style={{ fontSize: 14 }}>Kamera ei ole päällä</div>
                     </div>
                   )}
-                  {camReady && <div style={{ position: 'absolute', top: 10, left: 10, background: C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>ESIKATSELU</div>}
+                  {camReady && (
+                    <div style={{ position: 'absolute', top: 10, left: 10, background: phonePublishing ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>
+                      {phonePublishing ? 'LÄHETYS KÄYNNISSÄ' : 'ESIKATSELU'}
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                  {!camReady
-                    ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
-                    : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
-                  }
-                </div>
-                <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>
+
+                {publishMode === 'phone' ? (
+                  <>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>}
+                      {camReady && !phonePublishing && (
+                        <>
+                          <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
+                          <button onClick={startPhonePublish} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
+                        </>
+                      )}
+                      {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan tästä laitteesta ilman OBS:aa.'}</div>
+                    {phonePublishError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{phonePublishError}</div>}
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                    {!camReady
+                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
+                      : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
+                    }
+                  </div>
+                )}
+                {publishMode === 'obs' && <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>}
                 {camError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{camError}</div>}
               </div>
 
@@ -882,7 +1038,11 @@ export default function LahetysPage() {
           Jono ({products.length})
         </button>
         {showQueue && (
-          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          // bottom: 200 (ei 0) jättää tilaa alapalkin (zIndex:10, ~190px korkea) ja
+          // mobiilin chat-overlayn (zIndex:8, input ~190px pohjasta) yläpuolelle - ennen
+          // Jono ulottui koko korkeuden yli ja peitti korkeammalla z-indexillä molemmat,
+          // jolloin chat-tekstikenttä ei enää saanut klikkauksia/fokusta läpi.
+          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 200, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)', borderBottomRightRadius: 12, padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             {queuePanelContent}
           </div>
         )}
@@ -918,8 +1078,15 @@ export default function LahetysPage() {
       {/* Mobiili: chat overlay videon alareunan yläpuolella, kompaktina */}
       {isMobile && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 8, padding: '0 10px 190px', pointerEvents: 'none' }}>
-          <div style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
-            {feed.slice(-5).map(item => {
+          <div
+            ref={mobileFeedRef}
+            onScroll={e => {
+              const el = e.currentTarget
+              mobileFeedStickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+            }}
+            style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}
+          >
+            {feed.slice(-40).map(item => {
               if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{item.text}</div>
               if (item.kind === 'purchase') return (
                 <div key={item.id} style={{ background: 'rgba(46,204,113,0.4)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start' }}>

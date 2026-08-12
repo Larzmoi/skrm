@@ -7,7 +7,7 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useCart } from '@/lib/cart-context'
-import { cartApi } from '@/lib/api'
+import { cartApi, orderApi } from '@/lib/api'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -53,12 +53,21 @@ export default function KoriPage() {
     return pakettikoot.find(p => p.id === id)?.hinta ?? 0
   }
 
-  async function payGroup(sellerId: string) {
+  async function payGroup(sellerId: string, pakettikokoId: string) {
     setPaying(sellerId)
     try {
-      const data = await cartApi.checkout(sellerId)
+      // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna - toimitustapa
+      // pitää siis olla valittuna ENNEN maksun aloitusta (ks. CLAUDE.md "Paytrail").
+      const { order } = await cartApi.checkout(sellerId)
+      await orderApi.selectShipping(order.id, pakettikokoId)
+      const { redirectUrl } = await orderApi.pay(order.id)
+      if (redirectUrl) {
+        // Ulkoinen Paytrail-osoite - koko sivun navigointi, ei Next.js-routeria
+        window.location.href = redirectUrl
+        return
+      }
       await refresh()
-      router.push(data.redirectUrl ?? '/ostot')
+      router.push('/ostot')
     } catch (e: any) {
       setNotice(e.message ?? t.kori.payFailed)
       setTimeout(() => setNotice(''), 5000)
@@ -146,7 +155,7 @@ export default function KoriPage() {
                       {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice).toLocaleString('fi-FI')}€</div>
                     </div>
-                    <button onClick={() => payGroup(group.sellerId)} disabled={paying === group.sellerId} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: paying === group.sellerId ? 'default' : 'pointer', opacity: paying === group.sellerId ? 0.7 : 1 }}>
+                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: paying === group.sellerId ? 'default' : 'pointer', opacity: paying === group.sellerId ? 0.7 : 1 }}>
                       {paying === group.sellerId ? t.kori.processing : t.kori.pay}
                     </button>
                   </div>
