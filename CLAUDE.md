@@ -597,6 +597,11 @@ Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitell
 - Julkaisu on sidottu selainvälilehden elinkaareen — jos välilehti suljetaan/taustautuu liikaa, striimi katkeaa (toisin kuin OBS joka on erillinen prosessi). Ei varoitusta tästä ennen kuin `isLive` on jo `true` (sama puute kuin "Testaa kamera":lla on aina ollut).
 - Ei vielä testattu oikealla puhelimella tuotannossa — vain typecheck + build puhtaat, deployattu Hetzneriin. **Odottaa omistajan testiä.**
 
+### Ensimmäinen oikea testi 2026-08-12 — kaksi bugia löytyi ja korjattu
+Puhelimen oma kuva näkyi (julkaisu itsessään toimi), mutta kaksi ongelmaa:
+1. **Lähetys ei näkynyt oikein tietokoneella** — syy löytyi: aiempi zombie-Show (ks. kohta 2) oli vielä LIVE-tilassa ja tukki näkymän, ei uuden testin oma bugi. Vaatii uuden testin vahvistukseksi nyt kun zombie on siivottu.
+2. **✅ KORJATTU — lähetykset jäivät ikuisesti "LIVE"-tilaan kun niistä poistuttiin ("zombie"-livet).** Syy: OBS:n `ingress_ended`-webhook merkitsee lähetyksen `ENDED`:ksi kun OBS katkaisee yhteyden, mutta puhelimen suora WebRTC-julkaisu ei käytä Ingressiä ollenkaan — mikään ei koskaan laukaissut vastaavaa siivousta kun selainvälilehti suljettiin tai verkko katkesi. `backend/src/routes/webhooks.ts`: lisätty `participant_left`/`participant_connection_aborted`-käsittely samalla `{sellerId}-phone`-identity-tunnisteella kuin `createPublisherToken()` käyttää — sama `ENDED`-merkintä kuin `ingress_ended`:lla. Yksi olemassa ollut zombie (id `cmsq23yfv0023ae186py0eylc`, "asdasd") siivottu suoraan tuotannon tietokannasta. Deployattu — **vaatii uuden testin vahvistukseksi että lähetys päättyy oikein kun välilehti suljetaan/navigoidaan pois.**
+
 **Alkuperäinen "TULEVAISUUDEN HARKINTA" -konteksti (2026-08-08, yhä relevanttia taustatietoa):**
 
 **Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
