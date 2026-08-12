@@ -36,9 +36,9 @@ export default function IlmoituksetPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
-      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>{t.notificationsPage.title}</h1>

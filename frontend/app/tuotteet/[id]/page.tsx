@@ -95,9 +95,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
 
         {/* Breadcrumb */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, fontSize: 13, color: C.muted, flexWrap: 'wrap' }}>

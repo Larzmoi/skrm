@@ -86,9 +86,9 @@ export default function KoriPage() {
   const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0)
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 24 }}>{t.kori.title}</h1>
 
         {notice && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{notice}</div>}
