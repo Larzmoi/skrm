@@ -61,7 +61,7 @@ export default function TilityksetPage() {
       )}
 
       <div style={{ marginTop: 16, padding: '12px 16px', background: C.surface, borderRadius: 8, fontSize: 12, color: C.muted }}>
-        Välityspalkkio on 3% + maksunkäsittelykulut (n. 1,5% + 0,25€), enintään 35€ per kauppa.
+        Välityspalkkio on 3%, enintään 35€ per kauppa + maksunkäsittelykulut (n. 1,5% + 0,25€).
       </div>
     </div>
   )

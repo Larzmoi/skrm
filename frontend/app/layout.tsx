@@ -4,7 +4,7 @@ import ClientLayout from '@/components/layout/ClientLayout'
 
 export const metadata: Metadata = {
   title: 'SKRM — Live-huutokauppa',
-  description: 'Suomen paras live-huutokauppa. Provisio vain 3%, max 10€.',
+  description: 'Suomen paras live-huutokauppa. Provisio vain 3%, max 35€.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
