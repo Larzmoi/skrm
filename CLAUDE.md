@@ -127,19 +127,91 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 ## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
 1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
 2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
-3. **Paytrail** — oikea maksuintegraatio (nyt mock-pay-testivirta, koko Order/Cart-skaffoldi on jo valmis ja toimii mockin päällä). **Päätetty 2026-08-10: rakennetaan NYT Paytrailin testitunnuksia vasten**, ei odoteta OY:tä — ainoa jäljellä oleva askel OY:n valmistuttua on testitunnusten vaihto oikeisiin tuotantotunnuksiin.
-   - Paytrail API: REST, HMAC-SHA256-allekirjoitetut pyynnöt (docs: github.com/paytrail/api-documentation, myös paytrail.com/kehittajille)
-   - **✅ Arkkitehtuurikysymys ratkaistu (2026-08-10):** Paytrail tukee natiivisti markkinapaikkamallia nimellä **"Shop-in-Shop"** — yksi maksupyyntö jaetaan useiden myyjien (submerchant) kesken, per-tuoterivi oma `merchant`-ID + `commission`-kenttä (välityspalkkio suoraan API-tasolla, sopii 3%/max20€-malliin), hyvitykset toimivat per-tuote per-myyjä. **Ei tarvitse rakentaa omaa "pidätetty saldo" -kirjanpitoa** — Paytrail hoitaa jaon natiivisti.
-   - **Testitunnukset (vahvistettu suoraan github.com/paytrail/api-documentation:sta 2026-08-10):**
-     - Normaali testimerchant (yksinkertaisempi, aloitus/perustoimintojen testaukseen): Merchant ID `375917`, Secret `SAIPPUAKAUPPIAS`
-     - **Shop-in-Shop testitunnukset (oikea malli SKRM:lle):** Aggregate Merchant ID `695861`, Aggregate Secret `MONISAIPPUAKAUPPIAS`, esimerkki-submerchant ID `695874`
-   - Rakennettava: maksun aloitus (backend→Paytrail-API, Shop-in-Shop-muodossa items[].merchant + items[].commission), onnistumis-/peruutus-redirect-URL:t, webhook-vastaanotto allekirjoituksen varmistuksella, `Order`-statuksen synkronointi
-   - **Selvitettävä ennen tuotantoa:** Shop-in-Shop-mallin käyttöönotto vaatii todennäköisesti erillisen sopimuksen/onboarding-prosessin Paytrailin kanssa (jokaiselle SKRM:n myyjälle oma submerchant-ID) — tämä on eri asia kuin pelkkä OY-rekisteröinti, selvitä Paytraililta tarkka prosessi kun OY on valmis
+3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
 8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
+
+## Paytrail-maksuintegraatio — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12
+
+Shop-in-Shop-malli, testitunnuksilla. Korvaa vanhan mock-pay-testivirran kokonaan.
+Dokumentaatio luettu suoraan github.com/paytrail/api-documentation:sta (OpenAPI-spesifikaatio
++ docs/README.md + docs/examples.md + docs/shop-in-shop.md) ennen toteutusta — HMAC-algoritmi,
+Shop-in-Shop-kenttien tarkka muoto ja testitunnukset kaikki vahvistettu sieltä, ei arvattu.
+
+### Arkkitehtuuripäätös: maksun aloitus eriytetty tilauksen luonnista
+`Order.sellerId` on aina yksittäinen kenttä (ei taulukko) — jokainen Order on jo rakenteellisesti
+yhden myyjän. Shop-in-Shopia ei siis tarvita usean myyjän YHDEN maksun yhdistämiseen, vaan siihen
+että Paytrail jakaa maksun automaattisesti SKRM:n (komissio, 3%/max20€) ja myyjän (sub-merchant)
+kesken ilman että SKRM:n tarvitsee pitää omaa pidätetty-saldo-kirjanpitoa tai tehdä manuaalisia
+tilisiirtoja.
+- Order-luontifunktiot (`cart/checkout`, `createOrderForAuctionWin`) EIVÄT enää itse kutsu
+  Paytrailia — ne vain luovat tilauksen. Uusi **`POST /orders/:id/pay`** käynnistää maksun
+  ostajan omasta aloitteesta sille vaiheelle (tuote tai toimitus) missä tilaus juuri on.
+- Tämä yhdistää sekä "maksa heti" (kori-sivun "Maksa tämä myyjä" → checkout+pay peräkkäin samana
+  klikkauksena) että "maksa myöhemmin" (huutokaupan passiivinen voitto → ostaja maksaa myöhemmin
+  `/ostot`-sivulta) -polut samaan yhteen reittiin sen sijaan että jokainen tarvitsisi oman.
+  Huutokaupan voitto on passiivinen tapahtuma (voittaja ei välttämättä ole edes sivustolla sillä
+  hetkellä) — maksuistunnon luonti vasta kun ostaja oikeasti aikoo maksaa on ainoa järkevä hetki.
+
+### Toteutus
+- `backend/src/lib/paytrail.ts` (kirjoitettu kokonaan uusiksi): HMAC-SHA256-allekirjoitus
+  (kaikki `checkout-`-alkuiset parametrit aakkosjärjestykseen, `key:value` per rivi + body,
+  `\n`-yhdistettynä), `createPayment()` rakentaa Shop-in-Shop-muotoisen `items[]`-taulukon
+  (`merchant`, `commission: {merchant, amount}`), `verifyCallbackSignature()` webhookille,
+  `refundFull()`/`refundItem()` hyvityksille
+- `getSubmerchantId(sellerId)` palauttaa testivaiheessa aina saman `695874`:n riippumatta
+  myyjästä — **ainoa paikka joka pitää päivittää** kun oikeat per-myyjä submerchant-ID:t on
+  onboardattu Paytrailin kanssa (myöhempi, erillinen, tietoisesti rajattu pois tästä vaiheesta)
+- `computeCommissionCents()`: SKRM:n 3%/max20€ LUKITTU-sääntö, senteissä (Paytrailin API käyttää
+  pienintä valuuttayksikköä kaikkialla). Toimitusmaksulle ei komissiota (`chargeCommission:false`)
+- Stampiin (`orderId__stage__uuid`) koodataan tilaus+maksuvaihe niin että webhook löytää oikean
+  Orderin ilman erillistä `transactionId`-hakukenttää — Paytrail palauttaa stampin sellaisenaan
+  jokaisessa callbackissa
+- **`GET /webhooks/paytrail`** (HUOM: GET, ei POST — Paytrail kutsuu redirect- ja callback-
+  URL:eja samalla tavalla query-parametrein, ei bodyllä). EI KOSKAAN luoteta ilmoitukseen ennen
+  HMAC-varmistusta. Idempotentti (Paytrail voi kutsua useita kertoja samasta tapahtumasta,
+  dokumentoitu käytös) — tarkistaa ettei tilausta ole jo viety eteenpäin ennen käsittelyä
+- `Order`-malliin `paytrailProductTxId`/`paytrailShippingTxId` — erillinen transactionId per
+  maksuvaihe (`paytrailPaymentId` yksin ei riitä koska toinen maksu ylikirjoittaa sen, ja
+  hyvitys tarvitsee tietää tarkalleen kumman vaiheen transaktiota kohdennetaan)
+- **`POST /orders/:id/refund`** — koko tilauksen tai per-tuote-hyvitys (`itemIds` bodyssä),
+  Shop-in-Shopin natiivi tuki palauttaa myös komissio-osuuden myyjälle samassa pyynnössä. UI:
+  "Hyvitä"-nappi `dashboard/tilaukset`-sivulla (`ConfirmDialog`, ei natiivi `confirm()`)
+- `.env`: `PAYTRAIL_TEST_MODE`/`PAYTRAIL_MERCHANT_ID`/`PAYTRAIL_SECRET`/`PAYTRAIL_SUBMERCHANT_ID`
+  + uusi `BACKEND_PUBLIC_URL` (`https://app.skrm.fi/api` tuotannossa, nginx: `/api/` → `:4000/`
+  prefiksi poistuen) — vaihto tuotantotunnuksiin OY:n valmistuttua on vain näiden neljän arvon
+  päivitys, ei koodimuutoksia. **Huom:** `FRONTEND_URL` ei ollut ennen tätä edes asetettu
+  tuotannon `.env`:ssä — lisätty nyt (`https://app.skrm.fi`), ilman sitä redirect-URL:t
+  olisivat osoittaneet `localhost:3000`:iin tuotannossa.
+
+### Testattu tuotannossa OIKEALLA Paytrailin testi-API:lla (ei vain typecheck)
+Curl-pohjainen päästä-päähän-testi testi@skrm.fi/testi2@skrm.fi-tunnuksilla, oikea tuote
+("Penny sleeve", 2,90€) + toimitusmaksu (S-paketti, 11,90€):
+- ✅ Maksun luonti: kaksi ERILLISTÄ oikeaa Paytrail-transactionId:tä + `pay.paytrail.com/pay/...`
+  -osoitetta (tuote + toimitus), molemmat vastasivat HTTP 200:lla oikeasti selaimessa avattuna
+- ✅ Webhookin allekirjoitus: oikein signeerattu synteettinen callback hyväksyttiin ja päivitti
+  Orderin statuksen oikein (`PENDING_PAYMENT`→`PENDING_SHIPPING_SELECTION`→`PENDING_SHIPPING`);
+  väärennetty allekirjoitus hylättiin 401:llä
+- ✅ Idempotenssi: sama webhook kahdesti ei tuplakäsitellyt/-ilmoittanut
+- ✅ Refundin pyyntömuoto vahvistettu oikeaa Paytrail-APIa vasten (Paytrail palautti odotetun
+  `"Transaction not paid"`-virheen koska testissä ei koskaan käyty oikeasti maksamassa Paytrailin
+  hostatulla sivulla asti — itse pyynnön rakenne/allekirjoitus on silti vahvistettu oikeaksi)
+- ✅ **Sivulöydös korjattu testauksessa:** Cloudflare korvaa 502/503/504-vastausten rungon aina
+  omalla geneerisellä virhesivullaan riippumatta origin-palvelimen palauttamasta JSON-sisällöstä
+  — `/pay`- ja `/refund`-reittien Paytrail-virheet käyttivät alun perin 502:sta, vaihdettu 400:aan
+  joka kulkee Cloudflaren läpi muuttumattomana
+
+### Ei vielä testattu (rehellinen rajaus)
+- **Oikean maksun loppuunvieminen Paytrailin hostatulla sivulla** (klikkaus läpi testipankin) —
+  vaatii interaktiivisen selaimen, ei automatisoitavissa curl:lla turvallisesti. Kaikki tähän asti
+  todennettu (maksun luonti, webhook, statussynkronointi) toimii oikeasti Paytrailin API:a vasten,
+  mutta täysi "ostaja klikkaa läpi testipankin" -polku vaatii omistajan manuaalisen testin oikeassa
+  selaimessa `/kori`- tai `/ostot`-sivulta.
+- Myyjäkohtainen submerchant-onboarding-prosessi tuotantoon — tietoisesti rajattu pois tästä
+  vaiheesta käyttäjän ohjeen mukaisesti, eri myöhempi vaihe
 
 ## Tunnettuja bugeja / kehityskohteita
 - ✅ **KORJATTU 2026-08-08/09 — Live-video ei näytä latautuvan / chat ei toimi luotettavasti kaikilla laitteilla.** Alkuperäinen epäily (HLS-URL:in rakennusvirhe) osoittautui vääräksi — juurisyy oli useampi kerros, ks. "Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset" alempana täydelliselle selvitykselle (hls.js:n puuttuva uudelleenyritys, nginxin 60s oletus-proxy_read_timeout tappamassa pitkäkestoisia socket.io-yhteyksiä, ja mobiilioperaattorin NAT joka pudotti vain palvelin→asiakas-suunnan liikenteen).
