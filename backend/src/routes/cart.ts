@@ -2,7 +2,6 @@ import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { PAKETTIKOOT } from '../lib/shipping'
-import { createPaymentSession } from '../lib/paytrail'
 
 const router = Router()
 
@@ -177,15 +176,16 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
     orderBy: { createdAt: 'desc' },
   })
 
-  const session = createPaymentSession({ amount: subtotal, orderId: existingOrder?.id ?? 'new', reference: `${buyerId}-${sellerId}-${Date.now()}` })
-
+  // EI luo Paytrail-maksua tässä — ostaja käynnistää sen erikseen (POST /orders/:id/pay)
+  // heti perään frontendistä, samana käyttäjätoimintona ("Maksa tämä myyjä" -nappi kutsuu
+  // molemmat peräkkäin). Yhdistetyn tilauksen lisärivien maksu jää tunnetuksi rajoitukseksi
+  // - ks. CLAUDE.md, ei tässä vaiheessa korjattu.
   let order
   if (existingOrder) {
     order = await prisma.order.update({
       where: { id: existingOrder.id },
       data: {
         productTotal: existingOrder.productTotal + subtotal,
-        paytrailPaymentId: session.paymentId,
         items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
       },
       include: { items: true },
@@ -196,7 +196,6 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
         buyerId, sellerId: String(sellerId),
         status: 'PENDING_PAYMENT',
         productTotal: subtotal,
-        paytrailPaymentId: session.paymentId,
         paymentDeadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
         shippingWindowEnd: new Date(Date.now() + SHIPPING_MERGE_WINDOW_MS),
         items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
@@ -217,7 +216,7 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
   const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
   if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } }).catch(() => {})
 
-  res.status(201).json({ order, redirectUrl: session.redirectUrl })
+  res.status(201).json({ order })
 })
 
 export default router

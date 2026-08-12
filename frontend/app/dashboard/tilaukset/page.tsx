@@ -4,6 +4,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { orderApi } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface OrderItem { id: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string } }
 interface SellingOrder {
@@ -17,7 +18,7 @@ function addressLine(b: SellingOrder['buyer']) {
   return [b.address, b.postalCode, b.city].filter(Boolean).join(', ') || 'Ei osoitetta vielä'
 }
 
-function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, busy, review }: {
+function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, busy, review, onRefund, refundBusy }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
   trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void; busy: boolean
   review?: {
@@ -25,6 +26,7 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
     onOpen: () => void; onCancel: () => void; onRatingChange: (v: number) => void; onCommentChange: (v: string) => void
     onSubmit: () => void; busy: boolean
   }
+  onRefund: () => void; refundBusy: boolean
 }) {
   return (
     <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 12 }}>
@@ -50,7 +52,12 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-        <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
+          <button onClick={onRefund} disabled={refundBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', opacity: refundBusy ? 0.6 : 1 }}>
+            {refundBusy ? '...' : 'Hyvitä'}
+          </button>
+        </div>
         {showTracking && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 240px', justifyContent: 'flex-end' }}>
             <input
@@ -112,6 +119,8 @@ export default function TilauksetPage() {
   const [reviewRating, setReviewRating] = useState<Record<string, number>>({})
   const [reviewComment, setReviewComment] = useState<Record<string, string>>({})
   const [reviewBusy, setReviewBusy] = useState<string | null>(null)
+  const [refundBusy, setRefundBusy] = useState<string | null>(null)
+  const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -134,6 +143,16 @@ export default function TilauksetPage() {
       await load()
     } catch (e: any) { setError(e.message ?? 'Seurantakoodin lisäys epäonnistui') }
     setBusy(null)
+  }
+
+  async function doRefund(orderId: string) {
+    setRefundConfirmFor(null)
+    setRefundBusy(orderId); setError('')
+    try {
+      await orderApi.refund(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? 'Hyvitys epäonnistui') }
+    setRefundBusy(null)
   }
 
   async function submitReview(orderId: string) {
@@ -175,6 +194,8 @@ export default function TilauksetPage() {
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
                   busy={busy === o.id}
+                  onRefund={() => setRefundConfirmFor(o.id)}
+                  refundBusy={refundBusy === o.id}
                 />
               ))}</div>
           }
@@ -189,6 +210,8 @@ export default function TilauksetPage() {
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
                   busy={busy === o.id}
+                  onRefund={() => setRefundConfirmFor(o.id)}
+                  refundBusy={refundBusy === o.id}
                 />
               ))}</div>
           }
@@ -203,6 +226,8 @@ export default function TilauksetPage() {
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
                   busy={busy === o.id}
+                  onRefund={() => setRefundConfirmFor(o.id)}
+                  refundBusy={refundBusy === o.id}
                   review={{
                     alreadyReviewed: o.reviews.some(r => r.reviewerId === user?.id),
                     open: reviewOpenFor === o.id,
@@ -219,6 +244,15 @@ export default function TilauksetPage() {
               ))}</div>
           }
         </>
+      )}
+
+      {refundConfirmFor && (
+        <ConfirmDialog
+          message="Hyvitetäänkö tämä tilaus kokonaan ostajalle? Rahat palautuvat suoraan hänen maksutavalleen."
+          danger
+          onConfirm={() => doRefund(refundConfirmFor)}
+          onCancel={() => setRefundConfirmFor(null)}
+        />
       )}
     </div>
   )

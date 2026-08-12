@@ -59,6 +59,23 @@ export default function OstotPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Paytrail ohjaa selaimen tänne maksun jälkeen ?payment=success/cancel&orderId=... -
+  // TÄMÄ redirect ei itsessään ole luotettava tiedonlähde (ei allekirjoitusta tarkisteta
+  // täällä), vain webhookilla (backend/routes/webhooks.ts) päivitetty tilaus on totuus.
+  // Paytrailin oma webhook-kutsu voi saapua hieman redirectin jälkeen, joten haetaan
+  // tilaukset uudestaan hetken päästä varmistukseksi.
+  const [paymentNotice, setPaymentNotice] = useState<'success' | 'cancel' | null>(null)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const payment = params.get('payment')
+    if (payment === 'success' || payment === 'cancel') {
+      setPaymentNotice(payment)
+      window.history.replaceState({}, '', '/ostot')
+      const retry = setTimeout(() => load(), 2000)
+      return () => clearTimeout(retry)
+    }
+  }, [load])
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
@@ -67,7 +84,8 @@ export default function OstotPage() {
   async function payNow(orderId: string) {
     setBusy(orderId); setError('')
     try {
-      await orderApi.mockPay(orderId)
+      const { redirectUrl } = await orderApi.pay(orderId)
+      if (redirectUrl) { window.location.href = redirectUrl; return }
       await load()
     } catch (e: any) { setError(e.message ?? 'Maksu epäonnistui') }
     setBusy(null)
@@ -79,7 +97,8 @@ export default function OstotPage() {
     setBusy(orderId); setError('')
     try {
       await orderApi.selectShipping(orderId, size)
-      await orderApi.mockPay(orderId)
+      const { redirectUrl } = await orderApi.pay(orderId)
+      if (redirectUrl) { window.location.href = redirectUrl; return }
       await load()
     } catch (e: any) { setError(e.message ?? 'Toimituksen vahvistus epäonnistui') }
     setBusy(null)
@@ -138,6 +157,8 @@ export default function OstotPage() {
         <p style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{t.purchases.subtitle}</p>
 
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{error}</div>}
+        {paymentNotice === 'success' && <div style={{ background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: C.accentBright, fontSize: 13 }}>Maksu vastaanotettu — tilaus päivittyy hetken kuluttua.</div>}
+        {paymentNotice === 'cancel' && <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#F59E0B', fontSize: 13 }}>Maksu peruutettiin — voit yrittää uudelleen.</div>}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>

@@ -7,7 +7,7 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useCart } from '@/lib/cart-context'
-import { cartApi } from '@/lib/api'
+import { cartApi, orderApi } from '@/lib/api'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -56,9 +56,15 @@ export default function KoriPage() {
   async function payGroup(sellerId: string) {
     setPaying(sellerId)
     try {
-      const data = await cartApi.checkout(sellerId)
+      const { order } = await cartApi.checkout(sellerId)
+      const { redirectUrl } = await orderApi.pay(order.id)
+      if (redirectUrl) {
+        // Ulkoinen Paytrail-osoite - koko sivun navigointi, ei Next.js-routeria
+        window.location.href = redirectUrl
+        return
+      }
       await refresh()
-      router.push(data.redirectUrl ?? '/ostot')
+      router.push('/ostot')
     } catch (e: any) {
       setNotice(e.message ?? t.kori.payFailed)
       setTimeout(() => setNotice(''), 5000)

@@ -3,6 +3,7 @@ import express from 'express'
 import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
+import { verifyCallbackSignature, parseStamp } from '../lib/paytrail'
 
 const router = Router()
 
@@ -115,6 +116,48 @@ router.post('/livekit', express.raw({ type: '*/*' }), async (req: Request, res: 
       emitToShow(show.id, 'show_status', { status: 'ENDED' })
     }
   }
+
+  res.status(200).send('ok')
+})
+
+// GET /webhooks/paytrail — Paytrailin server-to-server callback (HUOM: GET, ei POST —
+// Paytrail kutsuu redirect- ja callback-URL:eja samalla tavalla, query-parametrein, ks.
+// docs "Redirect and callback URL parameters"). Sama osoite annettu sekä success- että
+// cancel-callbackUrl:na createPaymentissa, checkout-status kertoo kumpi tapahtui.
+//
+// EI KOSKAAN luoteta ilmoitukseen ennen HMAC-allekirjoituksen varmistusta - kuka tahansa
+// voisi muuten kutsua tätä URL:ia suoraan ja väittää maksun onnistuneen ilman että
+// mitään oikeasti maksettiin.
+router.get('/paytrail', async (req: Request, res: Response) => {
+  const query: Record<string, string> = {}
+  for (const [key, value] of Object.entries(req.query)) {
+    if (typeof value === 'string') query[key] = value
+  }
+
+  if (!verifyCallbackSignature(query)) {
+    console.error('[paytrail webhook] virheellinen allekirjoitus, hylätty', query)
+    return res.status(401).send('invalid signature')
+  }
+
+  const stamp = query['checkout-stamp']
+  const status = query['checkout-status']
+  const parsed = stamp ? parseStamp(stamp) : null
+  if (!parsed) return res.status(200).send('ok') // tuntematon stamp - ei voida käsitellä, mutta kuitataan ettei Paytrail yritä uudelleen loputtomiin
+
+  const order = await prisma.order.findUnique({ where: { id: parsed.orderId } })
+  if (!order) return res.status(200).send('ok')
+
+  // Idempotenssi: Paytrail voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
+  // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/ilmoitetaan.
+  if (status === 'ok' && parsed.stage === 'product' && order.status === 'PENDING_PAYMENT') {
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING_SELECTION', paymentDeadline: null } })
+    await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${order.productTotal.toLocaleString('fi-FI')}€ on maksettu, ostaja valitsee vielä toimitustavan.`, '/dashboard/tilaukset')
+  } else if (status === 'ok' && parsed.stage === 'shipping' && order.status === 'PENDING_SHIPPING_SELECTION') {
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING' } })
+    await notifyUser(order.sellerId, 'ORDER_PAID', 'Toimitus maksettu — valmis lähetettäväksi', 'Tilaus on nyt kokonaan maksettu ja valmiina lähetettäväksi.', '/dashboard/tilaukset')
+  }
+  // status 'fail'/'pending'/'delayed', tai jo käsitelty tila: ei toimenpiteitä - ostaja
+  // voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-cron siivoaa myöhemmin.
 
   res.status(200).send('ok')
 })

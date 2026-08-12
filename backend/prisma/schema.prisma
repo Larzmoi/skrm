@@ -54,6 +54,7 @@ enum NotificationType {
   AUCTION_SOLD
   REVIEW_RECEIVED
   LISTING_REMOVED
+  REFUND_ISSUED
 }
 
 enum ReportStatus {
@@ -228,7 +229,9 @@ model Order {
   productTotal      Float
   shippingPrice     Float?
   shippingSize      String?
-  paytrailPaymentId String?
+  paytrailPaymentId String?     // viimeisimmän luodun maksun transactionId (yleiskäyttöön/lokitukseen)
+  paytrailProductTxId String?   // tuotemaksun oma transactionId - erillinen shippingistä, tarvitaan kohdennettuun hyvitykseen
+  paytrailShippingTxId String?  // toimitusmaksun oma transactionId
   shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?
