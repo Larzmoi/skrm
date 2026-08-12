@@ -100,10 +100,10 @@ function VideoPlayer({ showId }: { showId: string }) {
   )
 }
 
-function WaitingForStream({ dark, t }: { dark?: boolean; t: any }) {
+function WaitingForStream({ dark, t, ended }: { dark?: boolean; t: any; ended?: boolean }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? 'rgba(255,255,255,0.5)' : '#666', fontSize: 13 }}>
-      {t.live.waitingForStream}
+      {ended ? t.live.streamEnded : t.live.waitingForStream}
     </div>
   )
 }
@@ -653,7 +653,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
   const videoContent = show?.status === 'LIVE'
     ? <VideoPlayer showId={showId} />
-    : <WaitingForStream dark t={t} />
+    : <WaitingForStream dark t={t} ended={show?.status === 'ENDED'} />
 
   if (isMobile) {
     return (

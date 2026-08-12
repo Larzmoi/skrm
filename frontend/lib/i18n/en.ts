@@ -29,6 +29,7 @@ const en = {
     youWon: 'You won!', auctionEndedNoWinner: 'Auction ended — no bids',
     leaveShow: '✕ Leave', connecting: 'Connecting...',
     waitingForStream: 'Waiting for the stream to start...', noProducts: 'No products queued',
+    streamEnded: 'Stream ended',
     showsCount: 'shows',
   },
   auction: {

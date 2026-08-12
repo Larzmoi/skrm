@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
+import { emitToShow } from '../lib/notify'
 
 const router = Router()
 
@@ -30,7 +31,7 @@ router.get('/', async (req, res) => {
   }
   if (status) {
     const where: any = String(status) === 'SCHEDULED'
-      ? { status: 'SCHEDULED', scheduledAt: { not: null } }
+      ? { status: 'SCHEDULED', scheduledAt: { gt: new Date() } }
       : { status: String(status) }
     const shows = await prisma.show.findMany({ where, orderBy: { scheduledAt: 'asc' }, select })
     return res.json(shows)
@@ -39,9 +40,11 @@ router.get('/', async (req, res) => {
   // olisi haudannut käynnissä olevan liven tulevien ajastettujen taakse - ad-hoc aloitettu
   // live (esim. "Luo lähetys ja testaa yhteys") ei koskaan aseta scheduledAt:ia, ja Postgresin
   // oletus ASC-järjestyksessä on NULLS LAST, joten se olisi pudonnut listan loppuun.
+  // scheduledAt: { gt: now } jättää pois myös menneisyyteen jääneet ajastukset joita myyjä
+  // ei koskaan aloittanut/päättänyt - eivät ole enää "tulevia", eivät kuulu tähän listaan.
   const [live, scheduled] = await Promise.all([
     prisma.show.findMany({ where: { status: 'LIVE' }, orderBy: { startedAt: 'desc' }, select }),
-    prisma.show.findMany({ where: { status: 'SCHEDULED', scheduledAt: { not: null } }, orderBy: { scheduledAt: 'asc' }, select }),
+    prisma.show.findMany({ where: { status: 'SCHEDULED', scheduledAt: { gt: new Date() } }, orderBy: { scheduledAt: 'asc' }, select }),
   ])
   res.json([...live, ...scheduled])
 })
@@ -140,6 +143,10 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res: Respon
       endedAt: status === 'ENDED' ? new Date() : undefined,
     },
   })
+  // Ilman tätä katsojien selaimet eivät koskaan saa tietää että myyjä lopetti manuaalisesti
+  // "Lopeta"-napista - vain automaattinen webhook-pohjainen lopetus (ks. webhooks.ts) emittasi
+  // tämän ennen, joten manuaalisesti lopetettu lähetys jäi katsojan ruudulle roikkumaan.
+  if (status === 'LIVE' || status === 'ENDED') emitToShow(updated.id, 'show_status', { status })
   res.json(updated)
 })
 

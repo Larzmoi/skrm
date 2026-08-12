@@ -75,7 +75,7 @@ router.get('/:username', async (req, res) => {
   const onVacation = !!(user.vacationUntil && user.vacationUntil > now)
 
   const upcomingShows = await prisma.show.findMany({
-    where: { sellerId: user.id, status: 'SCHEDULED' },
+    where: { sellerId: user.id, status: 'SCHEDULED', scheduledAt: { gt: now } },
     orderBy: { scheduledAt: 'asc' },
     select: { id: true, title: true, thumbnailUrl: true, scheduledAt: true, category: true },
   })

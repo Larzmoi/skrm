@@ -82,7 +82,7 @@ export default function DashboardPage() {
   }
 
 
-  const futureShows = shows.filter(s => s.status === 'SCHEDULED')
+  const futureShows = shows.filter(s => s.status === 'SCHEDULED' && s.scheduledAt && new Date(s.scheduledAt).getTime() > Date.now())
 
   const inp: React.CSSProperties = { width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }
   const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4 }
