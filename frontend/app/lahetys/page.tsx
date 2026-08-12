@@ -48,10 +48,24 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
 
+  // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ks. alempi kommentti. Näyttää tarkalleen
+  // milloin "Odotetaan OBS-yhteyttä" -teksti oikeasti ilmestyy/katoaa renderissä,
+  // erotuksena RoomEvent-lokeista jotka näyttävät vain mitä LiveKit-kirjasto tekee.
+  useEffect(() => {
+    console.log(`[HlsPreview t+${Math.round(performance.now())}ms] waiting-tila muuttui:`, waiting)
+  }, [waiting])
+
   useEffect(() => {
     if (!wsUrl || !token) return
     let destroyed = false
     const room = new Room()
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — poista kun "Odotetaan OBS-yhteyttä"
+    // -jäänne on vahvistettu korjatuksi/eri juurisyy löydetty. Tarkoitus: nähdä
+    // tarkka RoomEvent-järjestys kun "Aloita julkinen lähetys" painetaan, koska
+    // goPublic() ei koske previewWsUrl/previewToken/Room-oliota millään tavalla
+    // (vain Show.status REST-kutsu) - jos video silti katkeaa siinä hetkessä,
+    // syyn pitää löytyä LiveKitin omasta reconnect-tapahtumaketjusta.
+    const log = (...args: any[]) => console.log(`[HlsPreview t+${Math.round(performance.now())}ms]`, ...args)
 
     function attachIfMedia(track: any) {
       if ((track.kind === Track.Kind.Video || track.kind === Track.Kind.Audio) && videoRef.current) {
@@ -60,24 +74,31 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
       }
     }
 
-    room.on(RoomEvent.TrackSubscribed, (track) => attachIfMedia(track))
-    room.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach() })
-    room.on(RoomEvent.Disconnected, () => setWaiting(true))
-    room.on(RoomEvent.Reconnecting, () => setWaiting(true))
+    room.on(RoomEvent.ConnectionStateChanged, (state) => log('ConnectionStateChanged', state))
+    room.on(RoomEvent.TrackSubscribed, (track) => { log('TrackSubscribed', track.kind); attachIfMedia(track) })
+    room.on(RoomEvent.TrackUnsubscribed, (track) => { log('TrackUnsubscribed', track.kind); track.detach() })
+    room.on(RoomEvent.Disconnected, (reason) => { log('Disconnected', reason); setWaiting(true) })
+    room.on(RoomEvent.Reconnecting, () => { log('Reconnecting'); setWaiting(true) })
     room.on(RoomEvent.Reconnected, () => {
       // Reconnect voi palauttaa jo aiemmin tilatut trackit ilman uutta
       // TrackSubscribed-tapahtumaa (koska tilaus on jo olemassa) — ilman
       // tätä "waiting" jäi jumiin true:hun vaikka video jatkoi toimimista.
+      log('Reconnected')
       setWaiting(false)
       const video = videoRef.current
       if (video && video.paused) video.play().catch(() => {})
     })
 
-    room.connect(wsUrl, token).catch(() => {
+    log('room.connect() alkaa', wsUrl)
+    room.connect(wsUrl, token).then(() => {
+      log('room.connect() onnistui')
+    }).catch((err) => {
+      log('room.connect() epäonnistui', err)
       if (!destroyed) setWaiting(true)
     })
 
     return () => {
+      log('useEffect cleanup / room.disconnect()')
       destroyed = true
       room.disconnect()
     }
@@ -271,8 +292,13 @@ export default function LahetysPage() {
     const socket = connectSocket()
 
     const token = localStorage.getItem('skrm_token') || undefined
-    socket.on('connect', () => { setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
-    socket.on('disconnect', () => setConnected(false))
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — sama tarkoitus kuin HlsPreviewin lokit,
+    // mutta Socket.io-puolella ("LIVE — yhdistetään..." -teksti käyttää tätä
+    // connected-tilaa, EI HlsPreviewin waiting-tilaa — kaksi eri mekanismia jotka
+    // voivat molemmat jäädä jumiin näyttäen samalta, ks. CLAUDE.md).
+    const slog = (...args: any[]) => console.log(`[Lahetys/socket t+${Math.round(performance.now())}ms]`, ...args)
+    socket.on('connect', () => { slog('connect'); setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
+    socket.on('disconnect', (reason) => { slog('disconnect', reason); setConnected(false) })
 
     socket.on('auction_started', (data: any) => {
       setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
@@ -313,7 +339,7 @@ export default function LahetysPage() {
       setTimeout(() => setMutedWordsSaved(false), 2000)
     })
 
-    if (socket.connected) { setConnected(true); socket.emit('join_show', { showId: show.id, token }) }
+    if (socket.connected) { slog('already connected (fallback)'); setConnected(true); socket.emit('join_show', { showId: show.id, token }) }
 
     return () => {
       socket.emit('leave_show', show.id)
@@ -388,13 +414,21 @@ export default function LahetysPage() {
   // Ainoa toiminto joka tekee lähetyksestä julkisesti näkyvän — erillinen, tietoinen painallus
   async function goPublic() {
     if (!show) return
+    // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ankkuripiste HlsPreviewin ja socketin
+    // lokeille: goPublic() ei koske previewWsUrl/previewToken/Room-oliota eikä
+    // socket-yhteyttä millään tavalla (vain Show.status REST-kutsu) - jos video tai
+    // "yhdistetään..."-teksti silti reagoi juuri tässä hetkessä, se pitäisi näkyä
+    // ajallisesti lähellä tätä logia muissa [HlsPreview]/[Lahetys/socket] -riveissä.
+    console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] alkaa`)
     setGoingPublic(true)
     try {
       const { showApi } = await import('@/lib/api')
       await showApi.setStatus(show.id, 'LIVE')
+      console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] REST-kutsu onnistui, status LIVE`)
       setShowStatus('LIVE')
       setLiveSince(Date.now())
     } catch (e: any) {
+      console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] epäonnistui`, e)
       setStartError(e.message ?? 'Julkaisu epäonnistui')
     }
     setGoingPublic(false)
