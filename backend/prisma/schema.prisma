@@ -232,6 +232,10 @@ model Order {
   paytrailPaymentId String?     // viimeisimmän luodun maksun transactionId (yleiskäyttöön/lokitukseen)
   paytrailProductTxId String?   // tuotemaksun oma transactionId - erillinen shippingistä, tarvitaan kohdennettuun hyvitykseen
   paytrailShippingTxId String?  // toimitusmaksun oma transactionId
+  paytrailAttemptId String?     // onnistuneen maksuyrityksen attemptId - tarvitaan rivikohtaisen
+                                 // stampin ("{itemId}__{attemptId}") rekonstruointiin hyvityksessä,
+                                 // koska sama itemId ei kelpaa stampiksi kahdesti (Paytrailin oma
+                                 // toistosuoja, ks. lib/paytrail.ts createPayment())
   shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?

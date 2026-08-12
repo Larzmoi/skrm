@@ -119,6 +119,7 @@ export interface CreatePaymentParams {
 export interface PaymentSession {
   transactionId: string
   redirectUrl: string
+  attemptId: string
 }
 
 // Stampiin koodataan orderId niin että webhook/redirect-käsittelijä löytää oikean tilauksen
@@ -126,8 +127,8 @@ export interface PaymentSession {
 // checkout-stamp:n sellaisenaan takaisin jokaisessa callbackissa. Yksi tilaus = yksi maksu
 // (tuote+toimitus aina yhdessä, ks. CLAUDE.md "Paytrail" - omistajan korjaus 2026-08-12),
 // joten stampissa ei enää tarvita erillistä maksuvaihetta.
-function buildStamp(orderId: string): string {
-  return `${orderId}__${crypto.randomUUID()}`
+function buildStamp(orderId: string, attemptId: string): string {
+  return `${orderId}__${attemptId}`
 }
 
 export function parseStamp(stamp: string): { orderId: string } | null {
@@ -140,7 +141,15 @@ export function parseStamp(stamp: string): { orderId: string } | null {
 // (myyjän sub-merchant, testivaiheessa aina sama) ja tarvittaessa commission-kentän
 // (SKRM:n 3%/max20€ osuus) - Paytrail hoitaa jaon automaattisesti maksun yhteydessä.
 export async function createPayment(params: CreatePaymentParams): Promise<PaymentSession> {
-  const stamp = buildStamp(params.orderId)
+  // Paytrail hylkää pyynnön jos jokin stamp on jo nähty aiemmin SAMALLA merchantilla (oma
+  // toistohyökkäyssuoja) - havaittu tuotantotestissä: uudelleenyritys (esim. ostaja peruutti
+  // ensimmäisen maksun ja yritti uudestaan) käytti samaa OrderItem.id:tä stampina joka
+  // toisella kerralla törmäsi "stamp already exists for merchant" -virheeseen. Jokainen
+  // createPayment()-kutsu (= jokainen yritys) saa siis oman satunnaisen attemptId:n joka
+  // liitetään sekä tilauksen että jokaisen rivin stamppiin, mutta productCode pysyy
+  // muuttumattomana (se on tuotteen oma tunniste, ei toistosuoja).
+  const attemptId = crypto.randomUUID()
+  const stamp = buildStamp(params.orderId, attemptId)
   const amountCents = params.items.reduce((sum, i) => sum + eurosToCents(i.unitPriceEuros) * i.quantity, 0)
 
   const body = {
@@ -156,7 +165,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<Paymen
       productCode: item.itemId,
       description: item.name,
       merchant: getSubmerchantId(item.sellerId),
-      stamp: item.itemId,
+      stamp: `${item.itemId}__${attemptId}`,
       reference: item.itemId,
       ...(item.chargeCommission
         ? { commission: { merchant: PAYTRAIL_COMMISSION_MERCHANT_ID, amount: computeCommissionCents(item.unitPriceEuros * item.quantity) } }
@@ -174,7 +183,7 @@ export async function createPayment(params: CreatePaymentParams): Promise<Paymen
   }
 
   const data = await paytrailRequest('POST', '/payments', body)
-  return { transactionId: data.transactionId, redirectUrl: data.href }
+  return { transactionId: data.transactionId, redirectUrl: data.href, attemptId }
 }
 
 // Vahvistaa redirect/webhook-kutsun allekirjoituksen - EI KOSKAAN luoteta maksuilmoitukseen
@@ -209,23 +218,27 @@ export async function refundFull(transactionId: string, amountEuros: number): Pr
   return { status: data.status }
 }
 
-// Yksittäisen tuoterivin hyvitys - vaatii alkuperäisen rivin stampin (= itemId, ks.
-// createPayment). Palauttaa myös komission osuuden myyjän sub-merchantille takaisin
-// SKRM:n komissiotililtä, jos rivi maksettiin komission kanssa.
+// Yksittäisen tuoterivin hyvitys - vaatii alkuperäisen rivin stampin, joka on
+// "{itemId}__{attemptId}" (ks. createPayment - attemptId pitää olla SAMAN onnistuneen
+// maksuyrityksen arvo, tallennettu Order.paytrailAttemptId:iin). Palauttaa myös komission
+// osuuden myyjän sub-merchantille takaisin SKRM:n komissiotililtä, jos rivi maksettiin
+// komission kanssa.
 export async function refundItem(
   transactionId: string,
   itemId: string,
+  attemptId: string,
   amountEuros: number,
   sellerId: string,
   commissionEuros: number,
 ): Promise<{ status: string }> {
+  const itemStamp = `${itemId}__${attemptId}`
   const data = await paytrailRequest('POST', `/payments/${transactionId}/refund`, {
     refundStamp: crypto.randomUUID(),
     refundReference: transactionId,
     items: [
       {
         amount: eurosToCents(amountEuros),
-        stamp: itemId,
+        stamp: itemStamp,
         refundStamp: crypto.randomUUID(),
         refundReference: itemId,
         ...(commissionEuros > 0

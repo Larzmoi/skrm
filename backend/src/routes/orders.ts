@@ -86,7 +86,7 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
       items.push({ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false })
     }
     const session = await createPayment({ orderId: order.id, items, buyerEmail: order.buyer.email })
-    await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId } })
+    await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId, paytrailAttemptId: session.attemptId } })
     return res.json({ order, redirectUrl: session.redirectUrl })
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
@@ -113,13 +113,15 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
 
   try {
     if (itemIds.length === 0) {
-      await refundFull(order.paytrailProductTxId, order.productTotal)
+      // Koko maksu (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail")
+      await refundFull(order.paytrailProductTxId, order.productTotal + (order.shippingPrice ?? 0))
     } else {
+      if (!order.paytrailAttemptId) return res.status(400).json({ error: 'Rivikohtaista hyvitystä ei voi tehdä tälle tilaukselle (vanha maksu ilman tallennettua yritys-ID:tä)' })
       const items = order.items.filter(i => itemIds.includes(i.id))
       if (items.length === 0) return res.status(400).json({ error: 'Tuntemattomat tuoterivit' })
       for (const item of items) {
         const commissionEuros = computeCommissionCents(item.price * item.quantity) / 100
-        await refundItem(order.paytrailProductTxId, item.id, item.price * item.quantity, order.sellerId, commissionEuros)
+        await refundItem(order.paytrailProductTxId, item.id, order.paytrailAttemptId, item.price * item.quantity, order.sellerId, commissionEuros)
       }
     }
   } catch (e: any) {
