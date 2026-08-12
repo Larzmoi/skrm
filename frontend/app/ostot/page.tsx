@@ -81,26 +81,26 @@ export default function OstotPage() {
     return () => clearInterval(t)
   }, [])
 
-  async function payNow(orderId: string) {
-    setBusy(orderId); setError('')
+  // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna (ks. CLAUDE.md
+  // "Paytrail" — omistajan korjaus 2026-08-12). Jos pakettikokoa ei ole vielä valittu
+  // (esim. huutokaupan voitto, jolle ei ollut aiempaa kori-vaihetta), valitaan se tässä
+  // ennen maksun aloitusta - muuten tilaus oli jo valittu (esim. korista tullessa).
+  async function payOrder(order: Order) {
+    if (order.shippingPrice == null) {
+      const size = selectedSize[order.id]
+      if (!size) { setError('Valitse pakettikoko'); return }
+      setBusy(order.id); setError('')
+      try {
+        await orderApi.selectShipping(order.id, size)
+      } catch (e: any) { setError(e.message ?? 'Toimituksen valinta epäonnistui'); setBusy(null); return }
+    } else {
+      setBusy(order.id); setError('')
+    }
     try {
-      const { redirectUrl } = await orderApi.pay(orderId)
+      const { redirectUrl } = await orderApi.pay(order.id)
       if (redirectUrl) { window.location.href = redirectUrl; return }
       await load()
     } catch (e: any) { setError(e.message ?? 'Maksu epäonnistui') }
-    setBusy(null)
-  }
-
-  async function confirmShipping(orderId: string) {
-    const size = selectedSize[orderId]
-    if (!size) { setError('Valitse pakettikoko'); return }
-    setBusy(orderId); setError('')
-    try {
-      await orderApi.selectShipping(orderId, size)
-      const { redirectUrl } = await orderApi.pay(orderId)
-      if (redirectUrl) { window.location.href = redirectUrl; return }
-      await load()
-    } catch (e: any) { setError(e.message ?? 'Toimituksen vahvistus epäonnistui') }
     setBusy(null)
   }
 
@@ -141,7 +141,6 @@ export default function OstotPage() {
 
   const sections = [
     { key: 'PENDING_PAYMENT', title: 'Odottaa maksua', orders: orders.filter(o => o.status === 'PENDING_PAYMENT') },
-    { key: 'PENDING_SHIPPING_SELECTION', title: 'Valitse toimitus', orders: orders.filter(o => o.status === 'PENDING_SHIPPING_SELECTION') },
     { key: 'PENDING_SHIPPING', title: 'Odottaa lähetystä', orders: orders.filter(o => o.status === 'PENDING_SHIPPING') },
     { key: 'SHIPPED', title: 'Lähetetty', orders: orders.filter(o => o.status === 'SHIPPED') },
     { key: 'DISPUTED', title: 'Reklamoitu', orders: orders.filter(o => o.status === 'DISPUTED') },
@@ -196,14 +195,17 @@ export default function OstotPage() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-                          <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{orderTotal(order).toLocaleString('fi-FI')}€</span>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
+                            {order.shippingPrice != null ? orderTotal(order).toLocaleString('fi-FI') : order.productTotal.toLocaleString('fi-FI')}€
+                            {order.shippingPrice == null && section.key === 'PENDING_PAYMENT' && <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}> + toimitus</span>}
+                          </span>
 
-                          {section.key === 'PENDING_PAYMENT' && paymentRemaining !== null && (
+                          {section.key === 'PENDING_PAYMENT' && paymentRemaining !== null && order.shippingPrice != null && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <span style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
                                 {paymentRemaining > 0 ? `${timeLeftLabel(paymentRemaining)} jäljellä` : 'Aika loppui'}
                               </span>
-                              <button onClick={() => payNow(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
                                 {busy === order.id ? 'Käsitellään...' : 'Maksa nyt'}
                               </button>
                             </div>
@@ -214,7 +216,7 @@ export default function OstotPage() {
                           )}
                         </div>
 
-                        {section.key === 'PENDING_SHIPPING_SELECTION' && (
+                        {section.key === 'PENDING_PAYMENT' && order.shippingPrice == null && (
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
                             {shippingRemaining !== null && (
                               <div style={{ fontSize: 12, fontWeight: 700, color: shippingRemaining < 60 * 60 * 1000 ? '#EF4444' : C.muted, marginBottom: 8 }}>
@@ -226,7 +228,7 @@ export default function OstotPage() {
                                 <option value="">Valitse pakettikoko...</option>
                                 {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
                               </select>
-                              <button onClick={() => confirmShipping(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                                 {busy === order.id ? '...' : 'Vahvista ja maksa'}
                               </button>
                             </div>

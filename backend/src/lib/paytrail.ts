@@ -112,7 +112,6 @@ export interface PaytrailLineItem {
 
 export interface CreatePaymentParams {
   orderId: string
-  stage: 'product' | 'shipping'
   items: PaytrailLineItem[]
   buyerEmail: string
 }
@@ -122,26 +121,26 @@ export interface PaymentSession {
   redirectUrl: string
 }
 
-// Stampiin koodataan orderId+stage niin että webhook/redirect-käsittelijä löytää oikean
-// tilauksen JA maksuvaiheen ilman erillistä tietokantahakua tai lisäkenttää - Paytrail
-// palauttaa checkout-stamp:n sellaisenaan takaisin jokaisessa callbackissa.
-function buildStamp(orderId: string, stage: string): string {
-  return `${orderId}__${stage}__${crypto.randomUUID()}`
+// Stampiin koodataan orderId niin että webhook/redirect-käsittelijä löytää oikean tilauksen
+// ilman erillistä tietokantahakua transactionId:n perusteella - Paytrail palauttaa
+// checkout-stamp:n sellaisenaan takaisin jokaisessa callbackissa. Yksi tilaus = yksi maksu
+// (tuote+toimitus aina yhdessä, ks. CLAUDE.md "Paytrail" - omistajan korjaus 2026-08-12),
+// joten stampissa ei enää tarvita erillistä maksuvaihetta.
+function buildStamp(orderId: string): string {
+  return `${orderId}__${crypto.randomUUID()}`
 }
 
-export function parseStamp(stamp: string): { orderId: string; stage: 'product' | 'shipping' } | null {
+export function parseStamp(stamp: string): { orderId: string } | null {
   const parts = stamp.split('__')
   if (parts.length < 2) return null
-  const [orderId, stage] = parts
-  if (stage !== 'product' && stage !== 'shipping') return null
-  return { orderId, stage }
+  return { orderId: parts[0] }
 }
 
 // Luo Shop-in-Shop-muotoisen maksupyynnön. Jokainen tuoterivi saa oman merchant-kentän
 // (myyjän sub-merchant, testivaiheessa aina sama) ja tarvittaessa commission-kentän
 // (SKRM:n 3%/max20€ osuus) - Paytrail hoitaa jaon automaattisesti maksun yhteydessä.
 export async function createPayment(params: CreatePaymentParams): Promise<PaymentSession> {
-  const stamp = buildStamp(params.orderId, params.stage)
+  const stamp = buildStamp(params.orderId)
   const amountCents = params.items.reduce((sum, i) => sum + eurosToCents(i.unitPriceEuros) * i.quantity, 0)
 
   const body = {

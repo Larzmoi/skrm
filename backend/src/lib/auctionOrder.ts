@@ -13,8 +13,11 @@ const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000 // 6h yhdistämisikkuna — 
 // oikeasti aikoo maksaa (esim. /ostot-sivulta) on ainoa järkevä hetki.
 export async function createOrderForAuctionWin(buyerId: string, sellerId: string, productId: string, price: number, paymentWindowMs: number) {
   const now = new Date()
+  // Yhdistäminen vain vielä maksamattomaan tilaukseen - tuote+toimitus maksetaan aina
+  // yhdessä (ks. CLAUDE.md "Paytrail"), joten maksetun tilauksen lisärivit aloittavat
+  // oman uuden tilauksensa.
   const existingOrder = await prisma.order.findFirst({
-    where: { buyerId, sellerId, status: 'PENDING_SHIPPING_SELECTION', shippingWindowEnd: { gt: now } },
+    where: { buyerId, sellerId, status: 'PENDING_PAYMENT', shippingWindowEnd: { gt: now } },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -23,6 +26,7 @@ export async function createOrderForAuctionWin(buyerId: string, sellerId: string
       where: { id: existingOrder.id },
       data: {
         productTotal: existingOrder.productTotal + price,
+        shippingPrice: null, shippingSize: null,
         items: { create: [{ productId, price, quantity: 1 }] },
       },
     })

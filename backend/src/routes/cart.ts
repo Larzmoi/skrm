@@ -167,10 +167,13 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
   const items = cart.items
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  // Yhdistetty lähetys: sama myyjä 6h sisällä → liitetään avoimeen tilaukseen
+  // Yhdistetty lähetys: sama myyjä 6h sisällä JA tilaus ei ole vielä maksettu → liitetään
+  // avoimeen tilaukseen. Omistajan korjaus 2026-08-12: tuote+toimitus maksetaan aina YHDESSÄ
+  // yhtenä Paytrail-maksuna, joten yhdistäminen voi tapahtua vain ENNEN maksua - maksetun
+  // tilauksen lisärivit aloittavat oman uuden tilauksensa (ks. CLAUDE.md "Paytrail").
   const existingOrder = await prisma.order.findFirst({
     where: {
-      buyerId, sellerId: String(sellerId), status: 'PENDING_SHIPPING_SELECTION',
+      buyerId, sellerId: String(sellerId), status: 'PENDING_PAYMENT',
       shippingWindowEnd: { gt: new Date() },
     },
     orderBy: { createdAt: 'desc' },
@@ -178,14 +181,16 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
 
   // EI luo Paytrail-maksua tässä — ostaja käynnistää sen erikseen (POST /orders/:id/pay)
   // heti perään frontendistä, samana käyttäjätoimintona ("Maksa tämä myyjä" -nappi kutsuu
-  // molemmat peräkkäin). Yhdistetyn tilauksen lisärivien maksu jää tunnetuksi rajoitukseksi
-  // - ks. CLAUDE.md, ei tässä vaiheessa korjattu.
+  // molemmat peräkkäin).
   let order
   if (existingOrder) {
     order = await prisma.order.update({
       where: { id: existingOrder.id },
       data: {
         productTotal: existingOrder.productTotal + subtotal,
+        // Uudet tuotteet voivat vaatia ison pakettikoon - nollataan aiempi valinta jos
+        // sellainen ehdittiin jo tehdä, jotta ostaja valitsee sen uudestaan ennen maksua.
+        shippingPrice: null, shippingSize: null,
         items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
       },
       include: { items: true },

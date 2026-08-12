@@ -101,8 +101,16 @@ skrm/
 | 333€ | 13,54€ |
 | 500€+ | 20,00€ (max) |
 
-## Postihinnat (ostaja maksaa)
-XXS 9,90€ · S 11,90€ · M 13,90€ · L 18,90€ · XL 24,90€ · XXL 46,90€
+## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-12, LUKITTU
+**Yksi kiinteä hinta kaikille paketeille: 9,90€.** Korvaa aiemman kokoportaikon (XXS-XXL, 9,90€-46,90€) kokonaan — poistettu käytöstä.
+
+**Perustelu:** omistaja selvitti, että yritykselle (OY) Postin todellinen kustannus on n. 4-5€ per paketti (painoperusteinen hinnoittelu Postilta) — 9,90€ kiinteä hinta säilyttää terveen katteen kaikilla pakettikoilla, ei tarvitse monimutkaista porrastusta.
+
+**Toimitusvaihtoehdot yksinkertaistettu:** vain kaksi vaihtoehtoa, ei muita:
+1. **Postitus** — kiinteä 9,90€
+2. **Nouto** — jos ostos menee SKRM:n checkoutin kautta, kuuluu maksuturvan piiriin noutokoodilla vahvistettuna (ks. tarkennettu "Noutotuotteet"-sääntö alempana). Täysin platformin ulkopuoliset sopimukset (ei koskaan Order-riviä) eivät kuulu meille, ennallaan.
+
+**Tekninen huomio VS Coden Claudelle:** tarkista kaikki paikat joissa vanha kokoportaikko (XXS/S/M/L/XL/XXL-hintalogiikka) on koodissa käytössä — tuotteen luontilomake (pakettikoon valinta saattaa muuttua tarpeettomaksi jos hinta ei enää riipu koosta, mutta pakettikoko voi silti olla tarpeen tiedoksi Postin lähetystarraa varten myöhemmin), tilauksen hinnanlaskenta, "Yhdistetty lähetys" -logiikka (LUKITTU: "sama myyjä + 6h ikkuna = yksi tilaus, yksi postikulut suurimman pakettikoon mukaan" — tarkista onko tämä sääntö nyt tarpeeton koska kaikki paketit maksavat saman verran, vai pitääkö "suurimman pakettikoon mukaan" silti säilyä jostain muusta syystä kuten fyysisestä pakkaamisesta), ja Välityspalkkiot-sivun/muiden julkisten sivujen tekstit jotka näyttävät vanhaa hintaportaikkoa.
 
 ## Tärkeät koodaussäännöt
 - **Käännökset:** Käytä AINA `t.xxx` — ei kovakoodattua suomea/englantia
@@ -127,7 +135,7 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 ## Tekemättä (prioriteettijärjestyksessä — päivitetty 2026-08-07, ks. myös "SEURAAVAKSI TEHTÄVÄT" alempana ominaisuuksien osalta)
 1. **Ennakkotarjoukset, chat-moderointi, giveaway** — seuraavat isot ominaisuudet nyt kun storefront on valmis, ks. "SEURAAVAKSI TEHTÄVÄT"
 2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
-3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
+3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. "Paytrail-maksuintegraatio" -osio alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
 5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
@@ -141,20 +149,26 @@ Dokumentaatio luettu suoraan github.com/paytrail/api-documentation:sta (OpenAPI-
 + docs/README.md + docs/examples.md + docs/shop-in-shop.md) ennen toteutusta — HMAC-algoritmi,
 Shop-in-Shop-kenttien tarkka muoto ja testitunnukset kaikki vahvistettu sieltä, ei arvattu.
 
-### Arkkitehtuuripäätös: maksun aloitus eriytetty tilauksen luonnista
+### Arkkitehtuuripäätös: maksun aloitus eriytetty tilauksen luonnista, YKSI maksu per tilaus
 `Order.sellerId` on aina yksittäinen kenttä (ei taulukko) — jokainen Order on jo rakenteellisesti
 yhden myyjän. Shop-in-Shopia ei siis tarvita usean myyjän YHDEN maksun yhdistämiseen, vaan siihen
 että Paytrail jakaa maksun automaattisesti SKRM:n (komissio, 3%/max20€) ja myyjän (sub-merchant)
 kesken ilman että SKRM:n tarvitsee pitää omaa pidätetty-saldo-kirjanpitoa tai tehdä manuaalisia
 tilisiirtoja.
-- Order-luontifunktiot (`cart/checkout`, `createOrderForAuctionWin`) EIVÄT enää itse kutsu
-  Paytrailia — ne vain luovat tilauksen. Uusi **`POST /orders/:id/pay`** käynnistää maksun
-  ostajan omasta aloitteesta sille vaiheelle (tuote tai toimitus) missä tilaus juuri on.
-- Tämä yhdistää sekä "maksa heti" (kori-sivun "Maksa tämä myyjä" → checkout+pay peräkkäin samana
-  klikkauksena) että "maksa myöhemmin" (huutokaupan passiivinen voitto → ostaja maksaa myöhemmin
-  `/ostot`-sivulta) -polut samaan yhteen reittiin sen sijaan että jokainen tarvitsisi oman.
-  Huutokaupan voitto on passiivinen tapahtuma (voittaja ei välttämättä ole edes sivustolla sillä
-  hetkellä) — maksuistunnon luonti vasta kun ostaja oikeasti aikoo maksaa on ainoa järkevä hetki.
+- Order-luontifunktiot (`cart/checkout`, `createOrderForAuctionWin`) EIVÄT itse kutsu Paytrailia
+  — ne vain luovat tilauksen. **`POST /orders/:id/pay`** käynnistää maksun ostajan omasta
+  aloitteesta.
+- **✅ KORJATTU 2026-08-12 (omistajan testilöydös):** ensimmäinen versio maksoi tuotteen ja
+  toimituksen KAHTENA erillisenä Paytrail-maksuna (ensin tuote, sitten myöhemmin toimitus
+  erikseen kun pakettikoko valittiin). Omistaja testasi ja totesi selvästi: **"pitäisi maksaa
+  kaikki kerralla, ei erikseen"**. Korjattu arkkitehtuurimuutoksella: toimitustapa valitaan
+  AINA ennen maksua (kori-sivulla checkout-hetkellä, tai huutokaupan voitolle `/ostot`-sivulla
+  juuri ennen maksunappia), ja `POST /orders/:id/pay` veloittaa `productTotal + shippingPrice`
+  YHTENÄ Paytrail-maksuna. `OrderStatus.PENDING_SHIPPING_SELECTION` poistui käytöstä kokonaan
+  välitilana (Order siirtyy suoraan `PENDING_PAYMENT` → `PENDING_SHIPPING` maksun jälkeen).
+  6h-yhdistämisikkuna (sama myyjä, useampi ostos) toimii nyt vain VIELÄ MAKSAMATTOMIIN
+  tilauksiin — jos ostaja lisää tuotteita jo maksettuun tilaukseen, se aloittaa uuden erillisen
+  tilauksen (looginen, koska maksettua kertaostosta ei voi enää muokata jälkikäteen).
 
 ### Toteutus
 - `backend/src/lib/paytrail.ts` (kirjoitettu kokonaan uusiksi): HMAC-SHA256-allekirjoitus
@@ -167,16 +181,16 @@ tilisiirtoja.
   onboardattu Paytrailin kanssa (myöhempi, erillinen, tietoisesti rajattu pois tästä vaiheesta)
 - `computeCommissionCents()`: SKRM:n 3%/max20€ LUKITTU-sääntö, senteissä (Paytrailin API käyttää
   pienintä valuuttayksikköä kaikkialla). Toimitusmaksulle ei komissiota (`chargeCommission:false`)
-- Stampiin (`orderId__stage__uuid`) koodataan tilaus+maksuvaihe niin että webhook löytää oikean
-  Orderin ilman erillistä `transactionId`-hakukenttää — Paytrail palauttaa stampin sellaisenaan
-  jokaisessa callbackissa
+- Stampiin (`orderId__uuid`) koodataan tilaus niin että webhook löytää oikean Orderin ilman
+  erillistä `transactionId`-hakukenttää — Paytrail palauttaa stampin sellaisenaan jokaisessa
+  callbackissa
 - **`GET /webhooks/paytrail`** (HUOM: GET, ei POST — Paytrail kutsuu redirect- ja callback-
   URL:eja samalla tavalla query-parametrein, ei bodyllä). EI KOSKAAN luoteta ilmoitukseen ennen
   HMAC-varmistusta. Idempotentti (Paytrail voi kutsua useita kertoja samasta tapahtumasta,
   dokumentoitu käytös) — tarkistaa ettei tilausta ole jo viety eteenpäin ennen käsittelyä
-- `Order`-malliin `paytrailProductTxId`/`paytrailShippingTxId` — erillinen transactionId per
-  maksuvaihe (`paytrailPaymentId` yksin ei riitä koska toinen maksu ylikirjoittaa sen, ja
-  hyvitys tarvitsee tietää tarkalleen kumman vaiheen transaktiota kohdennetaan)
+- `Order`-malliin `paytrailProductTxId`/`paytrailShippingTxId` — jälkimmäinen on nyt käytännössä
+  aina tyhjä uusilla tilauksilla (yksi yhdistetty maksu käyttää vain `paytrailProductTxId`:tä),
+  säilytetty schemassa taaksepäin yhteensopivuuden/mahdollisen tulevan tarpeen vuoksi
 - **`POST /orders/:id/refund`** — koko tilauksen tai per-tuote-hyvitys (`itemIds` bodyssä),
   Shop-in-Shopin natiivi tuki palauttaa myös komissio-osuuden myyjälle samassa pyynnössä. UI:
   "Hyvitä"-nappi `dashboard/tilaukset`-sivulla (`ConfirmDialog`, ei natiivi `confirm()`)
@@ -189,12 +203,14 @@ tilisiirtoja.
 
 ### Testattu tuotannossa OIKEALLA Paytrailin testi-API:lla (ei vain typecheck)
 Curl-pohjainen päästä-päähän-testi testi@skrm.fi/testi2@skrm.fi-tunnuksilla, oikea tuote
-("Penny sleeve", 2,90€) + toimitusmaksu (S-paketti, 11,90€):
-- ✅ Maksun luonti: kaksi ERILLISTÄ oikeaa Paytrail-transactionId:tä + `pay.paytrail.com/pay/...`
-  -osoitetta (tuote + toimitus), molemmat vastasivat HTTP 200:lla oikeasti selaimessa avattuna
+("Penny sleeve", 2,90€) + toimitusmaksu (S-paketti, 11,90€) — **huom: tämä testi tehtiin ennen
+yhden-maksun-korjausta, jolloin havaittiin kahden-maksun-ongelma. Yhden-maksun-korjauksen
+jälkeinen versio on typetarkastettu ja deployattu, mutta ei vielä uudelleen käyty läpi samalla
+curl-testillä — seuraava askel jos tarpeen.**
+- ✅ Maksun luonti: oikea Paytrail-transactionId + `pay.paytrail.com/pay/...`-osoite, vastasi
+  HTTP 200:lla oikeasti selaimessa avattuna
 - ✅ Webhookin allekirjoitus: oikein signeerattu synteettinen callback hyväksyttiin ja päivitti
-  Orderin statuksen oikein (`PENDING_PAYMENT`→`PENDING_SHIPPING_SELECTION`→`PENDING_SHIPPING`);
-  väärennetty allekirjoitus hylättiin 401:llä
+  Orderin statuksen oikein; väärennetty allekirjoitus hylättiin 401:llä
 - ✅ Idempotenssi: sama webhook kahdesti ei tuplakäsitellyt/-ilmoittanut
 - ✅ Refundin pyyntömuoto vahvistettu oikeaa Paytrail-APIa vasten (Paytrail palautti odotetun
   `"Transaction not paid"`-virheen koska testissä ei koskaan käyty oikeasti maksamassa Paytrailin
@@ -209,9 +225,15 @@ Curl-pohjainen päästä-päähän-testi testi@skrm.fi/testi2@skrm.fi-tunnuksill
   vaatii interaktiivisen selaimen, ei automatisoitavissa curl:lla turvallisesti. Kaikki tähän asti
   todennettu (maksun luonti, webhook, statussynkronointi) toimii oikeasti Paytrailin API:a vasten,
   mutta täysi "ostaja klikkaa läpi testipankin" -polku vaatii omistajan manuaalisen testin oikeassa
-  selaimessa `/kori`- tai `/ostot`-sivulta.
+  selaimessa `/kori`- tai `/ostot`-sivulta. **Huom Danske:** Paytrailin oma dokumentaatio sanoo
+  Danske-testipankin vaativan OIKEITA Danske-pankkitunnuksia sandbox-testauksessakin — käytä
+  Nordeaa tai OP:ta testaukseen (ei vaadi mitään tunnuksia, täysin turvallinen).
 - Myyjäkohtainen submerchant-onboarding-prosessi tuotantoon — tietoisesti rajattu pois tästä
   vaiheesta käyttäjän ohjeen mukaisesti, eri myöhempi vaihe
+- Uusi kiinteä 9,90€ postihinta (ks. "Postihinnat" -osio) ei vielä toteutettu koodissa
+  (`backend/src/lib/shipping.ts` sisältää yhä vanhan kokoportaikon) — ei vaikuta Paytrail-
+  integraation toimintaan koska hinta luetaan aina `getShippingPrice()`:n kautta, ei kovakoodattu
+  maksulogiikkaan, mutta erillinen tehtävä joka vielä odottaa toteutusta
 
 ## Tunnettuja bugeja / kehityskohteita
 - ✅ **KORJATTU 2026-08-08/09 — Live-video ei näytä latautuvan / chat ei toimi luotettavasti kaikilla laitteilla.** Alkuperäinen epäily (HLS-URL:in rakennusvirhe) osoittautui vääräksi — juurisyy oli useampi kerros, ks. "Live-konsolin mobiilikorjaukset ja infrastruktuurikorjaukset" alempana täydelliselle selvitykselle (hls.js:n puuttuva uudelleenyritys, nginxin 60s oletus-proxy_read_timeout tappamassa pitkäkestoisia socket.io-yhteyksiä, ja mobiilioperaattorin NAT joka pudotti vain palvelin→asiakas-suunnan liikenteen).
@@ -273,12 +295,18 @@ Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti o
 13. Koti & sisustus
 14. Muut
 
-## Noutotuotteet (LUKITTU)
-- Nouto myyjältä = ostajan ja myyjän välinen asia — SKRM ei ole mukana
-- Ei maksuturvaa, ei SKRM:n vastuuta nouto-kaupoissa
-- Myyjän tuotteen lisäyslomakkeessa "Nouto myyjältä" valinta näyttää pakollisen varoituksen
-- Varoitusteksti: "Noutotuotteiden kaupassa SKRM ei tarjoa maksuturvaa. Kauppa tapahtuu suoraan ostajan ja myyjän välillä."
-- Myyjä rastittaa "Ymmärrän" ennen kuin voi julkaista tuotteen
+## Noutotuotteet (LUKITTU — TARKENNETTU 2026-08-12)
+**Kaksi eri tilannetta, aiemmin sekoittuivat samaksi säännöksi — nyt erotettu:**
+
+1. **Ostos joka menee SKRM:n kautta (oikea tilaus, maksu Paytrailin kautta) ja jonka toimitustavaksi on valittu "Nouto"** — **tämä KUULUU maksuturvan piiriin**, aivan kuten postitetut tilaukset. Koska Postin seurantakoodia ei tässä tapauksessa ole (ei postiteta), toimituksen vahvistus tapahtuu **noutokoodilla**:
+   - Ostaja saa tilaukseensa yksilöllisen noutokoodin ostoksen yhteydessä
+   - Fyysisessä noudossa ostaja antaa koodin myyjälle
+   - Myyjä syöttää koodin järjestelmään → **tämä toimii samana laukaisimena kuin "Postin API sanoo toimitettu"** toimitusaikataulu-säännössä (ks. alla), eli vapauttaa maksun myyjälle heti (ei tarvitse odottaa 14 päivää, koska molemmat osapuolet ovat fyysisesti läsnä ja voivat vahvistaa vaihdon saman tien)
+   - Toteutus: uusi kenttä `Order.pickupCode` (generoitu tilauksen synnyssä nouto-toimitustavalle), endpoint jolla myyjä syöttää/vahvistaa koodin
+
+2. **Kaupankäynti kokonaan SKRM:n ulkopuolella** (esim. ostaja viestii myyjälle "tulen hakemaan ja maksan paikan päällä", ei mene koskaan SKRM:n checkoutin läpi, ei Order-riviä, ei Paytrail-maksua) — **tämä EI kuulu meille**, ei maksuturvaa, ei SKRM:n vastuuta, sama kuin ennenkin. Tämä ei ole muuttunut.
+
+**Vanha varoitusteksti tuotelistauslomakkeessa tarkistettava:** "Noutotuotteiden kaupassa SKRM ei tarjoa maksuturvaa" -teksti oli liian laaja — piti täsmentää koskemaan vain tilannetta 2 (täysin platformin ulkopuolinen sopimus), ei tilannetta 1 (nouto valittuna virallisena toimitustapana SKRM-tilaukselle, joka on suojattu normaalisti).
 
 ## Viimeisin päivitys (VS Code session)
 
@@ -308,7 +336,7 @@ Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti o
 - **Päivä 14** — ostaja ei reagoinut → maksu vapautuu automaattisesti myyjälle
 - **Päivä 14 + ostaja ilmoittaa ongelman** → tilanne SKRM:n käsittelyyn, maksu jäädytykseen
 - Ostajalla 3 päivää reklamoida kuittauksen tai automaattivapauttamisen jälkeen
-- Maksu vapautuu kun: Postin API sanoo toimitettu TAI ostaja kuittaa TAI 14 päivää kulunut
+- Maksu vapautuu kun: Postin API sanoo toimitettu TAI ostaja kuittaa TAI 14 päivää kulunut TAI **noutokoodi vahvistettu** (nouto-toimitustavan tilauksille, ks. "Noutotuotteet"-osio — vapauttaa heti, ei tarvitse odottaa 14 päivää koska molemmat osapuolet fyysisesti läsnä)
 - Ei luoteta pelkästään Postin statukseen — ostajan kuittaus tai aikaraja ratkaisee
 
 ## Lähetysintegraatio (tulossa OY:n jälkeen)
@@ -608,15 +636,6 @@ Kun huutokauppakohde (tuotepaneeli) avataan, se estää chat-tekstikentän valit
 **4. Desktopin tarjouksenteko-UI vaatii uudelleensuunnittelun — mobiili on ok, desktop ei.**
 Omistajan sanoin: nykyinen desktop-tarjousmekanismi vaatii "pitkän viivan vetämisen" tarjouksen tekemiseksi, koettu liian työlääksi/ärsyttäväksi. **Mobiilissa vastaava toiminto koetaan hyväksi** (yksinkertaisempi, luultavasti numeropohjainen +/- -säädin). **Päätös: yksinkertaista desktop-tarjousmekanismi samantyyliseksi kuin mobiilissa jo on** — ei vaadi vetämistä/raahausta, vaan suoraviivainen syöttö/pikanapit. Tarkista VS Coden Claudelle tarkalleen mikä komponentti tämä on (todennäköisesti eri kuin mobiilin numerosyöttö, koska omistaja erottelee ne selvästi "mobiili ok, desktop ei").
 
-## Puhelinstriimauksen toinen testikierros 2026-08-12 — neljä löydöstä, kaikki korjattu ja deployattu
-
-1. **Julkaisutavan nimeäminen** — "Puhelimella" → "Ilman OBS:aa", universaalimpi (ei sido tiettyyn laitteeseen).
-2. **✅ KORJATTU — mobiilin video-overlay-chat pakotti aina scrollin pohjaan.** Näytettiin vain viimeiset 5 viestiä ilman historiaa, joten uusi viesti tuntui "repäisevän" näkymän. Lisätty stick-to-bottom-vain-jos-jo-pohjassa-logiikka (`/live/[showId]` ja `/lahetys`), näkyvä historia kasvatettu 40 viestiin.
-3. **✅ KORJATTU, KRIITTINEN — live-huutokaupan "✓ Myyty" ei tehnyt tuotteelle mitään.** `socket.ts`:n `stop_auction`-käsittelijä (se mitä "✓ Myyty" -nappi kutsuu — todellisuudessa yleisin tapa päättää live-huutokauppa) ei koskaan merkinnyt tuotetta myydyksi, ei luonut Orderia, ei ilmoittanut voittajalle. Sama puute myös automaattisessa ajastimen loppumisessa (merkitsi SOLD:ksi mutta ei luonut Orderia). Tämä oli sama Order-luonti-aukko joka jo korjattiin `auctions.ts`:lle/`closeAuctions.ts`:lle 2026-08-07 (ks. "10. TEHTY" alempana), mutta ei koskaan portattu `socket.ts`:n erilliseen live-huutojärjestelmään. Korjattu: jaettu `finalizeLiveAuctionSale()`-apufunktio kutsuu `createOrderForAuctionWin()`:ia (2h maksuaika, ostaja aktiivisesti läsnä livessä) molemmissa päättymispoluissa + `ORDER_WON`-ilmoitus oikealla `/ostot`-linkillä.
-4. **✅ KORJATTU — myydyt tuotteet sekaisin aktiivisen jonon kanssa.** `/lahetys`:n Jono-paneeli erottelee nyt myydyt tuotteet omaan "Myydyt"-osioonsa aktiivisen jonon alle, ei enää himmennettyinä sekaisin raahattavassa listassa.
-
-**Sivuhuomio:** Hetzner-palvelin (koko fyysinen node 31850) kaatui Hetznerin omaan infravikaan puolivälissä tämän deployn tekoa (vahvistettu Hetznerin omasta vikailmoituksesta, ei liity mitenkään meidän toimintaan) — deploy viivästyi ~20min palvelimen palautumista odottaessa, ei koodiin liittyvä ongelma.
-
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-09)
 
 1. **LiveKit-migraatio** (ks. "PÄÄTÖS 2026-08-09: Vaihto MediaMTX → LiveKit" yllä) — ehdoton ykkönen, korvaa MediaMTX-työn kokonaan, tavoite alle 500ms viive
@@ -657,7 +676,14 @@ Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitell
 
 ## Selainpohjainen mobiilistriimaus (WebRTC) — ✅ TEHTY 2026-08-12, testattu ja korjattu 2026-08-12
 
-**Huom (2026-08-12):** tämä osio kuvasi aiemmin tulevaisuuden suunnitelmaa — ominaisuus on nyt oikeasti rakennettu ja tuotannossa. Toteutus: `backend/src/lib/livekit.ts`:n `createPublisherToken()` (identity `{userId}-phone`, eri kuin OBS:n Ingress-osallistujan) + `POST /users/me/publish-token`, `/lahetys`:n "Ilman OBS:aa"/"OBS:lla" -valinta joka julkaisee jo auki olevan kameran suoraan LiveKitiin `livekit-client`:llä (ei Ingressiä/RTMP:tä/WHIP:iä välissä). Sama huone kuin OBS käyttäisi, katsojan puolella ei muutoksia. Kaksi jatkotestikierroksen bugia löydetty ja korjattu: (1) puuttuva `participant_left`-webhook-käsittely jätti lähetyksen ikuisesti LIVE-tilaan kun välilehti suljettiin (ks. "webhooks.ts" - sama `ENDED`-merkintä kuin OBS:n `ingress_ended`:lla), (2) ks. "Puhelinstriimauksen toinen testikierros 2026-08-12" -osio yllä neljälle lisälöydökselle. Alla oleva teksti on jätetty historiakontekstiksi, ei enää ajantasainen suunnitelma:
+**Huom (2026-08-12):** tämä osio kuvasi aiemmin tulevaisuuden suunnitelmaa — ominaisuus on nyt oikeasti rakennettu ja tuotannossa. Toteutus: `backend/src/lib/livekit.ts`:n `createPublisherToken()` (identity `{userId}-phone`, eri kuin OBS:n Ingress-osallistujan) + `POST /users/me/publish-token`, `/lahetys`:n "Ilman OBS:aa"/"OBS:lla" -valinta joka julkaisee jo auki olevan kameran suoraan LiveKitiin `livekit-client`:llä (ei Ingressiä/RTMP:tä/WHIP:iä välissä). Sama huone kuin OBS käyttäisi, katsojan puolella ei muutoksia. Löydetyt jatkotestibugit korjattu:
+1. Puuttuva `participant_left`-webhook-käsittely jätti lähetyksen ikuisesti LIVE-tilaan kun välilehti suljettiin (`webhooks.ts` — sama `ENDED`-merkintä kuin OBS:n `ingress_ended`:lla)
+2. Julkaisutavan nimeäminen selkeytetty: "Puhelimella" → "Ilman OBS:aa" (universaalimpi, ei sido tiettyyn laitteeseen)
+3. Mobiilin video-overlay-chat pakotti aina scrollin pohjaan (näytti vain viim. 5 viestiä ilman historiaa) — lisätty stick-to-bottom-vain-jos-jo-pohjassa-logiikka (`/live/[showId]` ja `/lahetys`), näkyvä historia kasvatettu 40 viestiin
+4. **KRIITTINEN — live-huutokaupan "✓ Myyty" ei tehnyt tuotteelle mitään.** `socket.ts`:n `stop_auction`-käsittelijä (se mitä "✓ Myyty" -nappi kutsuu — todellisuudessa yleisin tapa päättää live-huutokauppa) ei koskaan merkinnyt tuotetta myydyksi, ei luonut Orderia, ei ilmoittanut voittajalle. Sama puute myös automaattisessa ajastimen loppumisessa. Sama Order-luonti-aukko joka jo korjattiin `auctions.ts`:lle/`closeAuctions.ts`:lle 2026-08-07, mutta ei koskaan portattu `socket.ts`:n erilliseen live-huutojärjestelmään. Korjattu: jaettu `finalizeLiveAuctionSale()`-apufunktio kutsuu `createOrderForAuctionWin()`:ia molemmissa päättymispoluissa + `ORDER_WON`-ilmoitus oikealla `/ostot`-linkillä
+5. Myydyt tuotteet erotettu jonossa omaan "Myydyt"-osioonsa `/lahetys`:ssä, ei enää sekaisin himmennettyinä aktiivisen jonon kanssa
+
+Alla oleva teksti on jätetty historiakontekstiksi, ei enää ajantasainen suunnitelma:
 
 **Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
 
@@ -931,6 +957,14 @@ Pohjautuu Whatnot-vertailuun. Neljä ominaisuutta päätetty, muodostavat yhdess
 - Chat-välilehdet: **Kysymykset / Ostajat / Moderaattorit / Mutetut** — kysymykset korostetaan omana kategorianaan
 - **"Muted Words"** — myyjä määrittää kiellettyjä sanoja, viestit joissa niitä esiintyy piilotetaan normaalilta yleisöltä mutta moderaattorit näkevät ne yhä
 
+**Kiinnitetty kommentti (uusi idea, havaittu kilpailijan streamilla 2026-08-10) — ei vielä päätetty toteutukseen:**
+Myyjä voi kiinnittää yhden chat-viestin/kommentin pysyvästi näkyviin chatin yläreunaan (esim. linkki Cardmarket-hintavertailuun, tai muu tärkeä tieto jonka halutaan pysyvän esillä koko liven ajan). **Huom, tämä on eri asia kuin "Kiinnitä"-pikatoiminto stream-konsolissa** (joka kiinnittää nykyisen *tuotteen* näkyviin, ks. "Live-ominaisuudet Whatnot-tasolle" -osio) — tässä kiinnitetään *chat-viesti*, ei tuote. Pidä nämä kaksi selvästi erillään nimeämisessä ja toteutuksessa ettei synny sekaannusta.
+
+### Kilpailijahavainto (Popify.fi, kuvakaappaus 2026-08-10) — vahvistaa/täydentää jo suunniteltuja ominaisuuksia
+- **Kiinnitetty kommentti nähty käytännössä:** myyjän ("wasacards", sinisellä varmennusmerkillä) viesti pysyy kiinnitettynä chatin alaosassa, visuaalisesti erotettu (vaalea tausta) tavallisista viesteistä, aina näkyvissä syöttökentän yläpuolella. Vahvistaa yllä olevan "Kiinnitetty kommentti" -idean toteutuskelpoisuuden.
+- **Ennakkotarjous-napin tekstimalli hyvä referenssi:** "Ennakko-huuto · alkaen [hinta]€" — selkeä, kertoo sekä toiminnon että lähtöhinnan yhdellä silmäyksellä. Tuotelistan otsikossa lisäksi selittävä teksti "Ennakkohuuda kaupassa · Huuda livenä kortilla" joka opastaa käyttäjää kahdesta eri tavasta osallistua. Hyödynnä tätä kun toteutetaan "Ennakkotarjoukset"-ominaisuus (ks. "Live-ominaisuudet Whatnot-tasolle" -osion kohta 1).
+- **Toimituskulut näkyvät suoraan tuotelistassa per tuote** (esim. "Toimitus 7,96€") — läpinäkyvä, ostaja näkee kokonaishinnan jo selatessaan ilman että pitää avata tuote erikseen. Harkittava lisäys omaan tuotelistaukseen.
+
 **Chat-komennot (harkittava kevyempänä tulevaisuuden lisäyksenä, ei kriittinen v1:ssä):**
 - `/announce viesti` — nostaa viestin näkyvästi esiin
 - `/hide viesti` — näkyy vain myyjälle ja moderaattoreille (hyödyllinen kulissien takaiseen koordinointiin kesken liven)
@@ -986,6 +1020,24 @@ Kulku:
 - Testattu curlilla end-to-end: lomamoodi päälle/pois vaikuttaa `onVacation`-kenttään oikein julkisessa profiilissa; `upcomingShows`/`activeAuctions` palauttavat oikeaa dataa. Sivut renderöityvät (`/u/[username]`, `/dashboard/profiili`, `/live/[showId]`) virheittä.
 
 **Tekemättä / rajattu pois tarkoituksella:** "lomamoodi pidentää lähetysaikaa 7 päivään" -sääntöä ei ollut aiemmin valvottu koodissa mitenkään (ei 48h-lähetysdeadlinea backendissä ollenkaan, vain UI-tekstiä) — tämä on erillinen, jo olemassa oleva aukko joka ei liity tähän muutokseen, ei korjattu nyt.
+
+### Kilpailijahavainto (Popify.fi, kuvakaappaukset 2026-08-12) — profiilisivu ja maksuvirtaus, vertailukohdaksi/parannettavaksi
+Omistaja piti profiilisivun selkeydestä ja MobilePay-maksuvirtauksesta, tavoite "tähän ja vähän parempaan".
+
+**Profiilisivun rakenne (vertaa `/u/[username]`-toteutukseen):**
+- Nimi + @käyttäjätunnus + seuraajamäärä + "seurattavaa"-määrä + live-tilailmaisin ("On live-tilassa, katso liveä") heti kun myyjä striimaa
+- Neljä nappia: Seuraa / Viesti / Jaa / Info
+- Bio "Lue lisää" -laajennuksella (ei täyttä tekstiä heti auki)
+- Kolme välilehteä: **Kauppa / Livet / Arvostelut**
+- "Tulevat livet" -osio: kortit joissa päivä/kellonaika-badge kuvan päällä + kirjanmerkki/tallenna-ikoni oikeassa yläkulmassa — **tämä on hyvä lisä ennakkotarjous-osioon** (kohta 909 yllä) joka jo näyttää tulevat livet, mutta ei vielä bookmark/muistuta-toimintoa
+
+**Maksuvirtaus — huom, tarkoituksellinen ero SKRM:n mallissa, ei kopioida sellaisenaan:**
+- Popify pyytää maksutavan (Kortti/MobilePay) tallennettavaksi **ennen** kuin voi huutaa, selkeällä huomautuksella "Sinua ei veloiteta ennen kuin voitat huutokaupan tai painat Osta"
+- **SKRM:n LUKITTU malli on tarkoituksella erilainen:** "Ei pakollista kortintallennusta" — ostaja valitsee maksutavan vasta voitettuaan, 2h maksuaika. Tätä eroa ei pidä hämärtää — Popifyn malli madaltaa kynnystä huutaa (kortti jo tallessa) mutta SKRM on tietoisesti valinnut matalamman kynnyksen osallistua ilman ennakkositoumusta.
+- **MobilePay vahvistettu hyväksi maksutavaksi** — jo LUKITTU-listalla SKRM:n maksutapoihin, ei muutosta, mutta hyvä nähdä kilpailijan validoivan saman valinnan
+- **MobilePay-UX-huomio Paytrail-integraatioon:** MobilePay toimii tyypillisesti push-ilmoituksella suoraan ostajan MobilePay-sovellukseen hyväksyttäväksi, ei kortinsyöttölomakkeen kautta — varmista Paytrail-integraatiota rakentaessa että tämä virtaus toteutuu oikein (ks. "3. Paytrail" -kohta Tekemättä-listassa)
+- **Yhdistetty toimitus vahvistettu oikeaksi lähestymistavaksi:** Popify näyttää yhdistävän toimituskulut kun ostetaan useampi tuote samalta myyjältä — täsmää suoraan SKRM:n jo olemassa olevaan LUKITTU-sääntöön ("sama myyjä + 6h aikaikkuna = yksi tilaus, yksi postikulut"). Ei muutostarvetta, vahvistaa vain että sääntö on oikea/odotettu alan käytäntö.
+- Erillinen "Maksutavat"-asetussivu (`popify.fi/buyer/payment-methods`) tallennettujen korttien/MobilePay-yhteyden hallintaan — SKRM:n mallissa tämä ei ole yhtä kriittinen koska kortti ei ole pakollinen etukäteen, mutta harkittavissa mukavuuslisäyksenä myöhemmin niille jotka haluavat tallentaa maksutavan nopeuttaakseen toistuvia ostoja
 
 Koodaussääntö "Käännökset: Käytä AINA t.xxx — ei kovakoodattua suomea/englantia" ei toteutunut useassa paikassa. **✅ KORJATTU** — kaikki alla listatut tekstit siirretty `t.xxx`-järjestelmään (fi+en), admin-paneelin este on siis poistunut.
 

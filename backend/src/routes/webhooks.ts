@@ -149,12 +149,11 @@ router.get('/paytrail', async (req: Request, res: Response) => {
 
   // Idempotenssi: Paytrail voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
   // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/ilmoitetaan.
-  if (status === 'ok' && parsed.stage === 'product' && order.status === 'PENDING_PAYMENT') {
-    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING_SELECTION', paymentDeadline: null } })
-    await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${order.productTotal.toLocaleString('fi-FI')}€ on maksettu, ostaja valitsee vielä toimitustavan.`, '/dashboard/tilaukset')
-  } else if (status === 'ok' && parsed.stage === 'shipping' && order.status === 'PENDING_SHIPPING_SELECTION') {
-    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING' } })
-    await notifyUser(order.sellerId, 'ORDER_PAID', 'Toimitus maksettu — valmis lähetettäväksi', 'Tilaus on nyt kokonaan maksettu ja valmiina lähetettäväksi.', '/dashboard/tilaukset')
+  // Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut webhook riittää.
+  if (status === 'ok' && order.status === 'PENDING_PAYMENT') {
+    const total = order.productTotal + (order.shippingPrice ?? 0)
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING', paymentDeadline: null } })
+    await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset')
   }
   // status 'fail'/'pending'/'delayed', tai jo käsitelty tila: ei toimenpiteitä - ostaja
   // voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-cron siivoaa myöhemmin.

@@ -34,11 +34,13 @@ router.get('/selling', authMiddleware, async (req: AuthRequest, res: Response) =
   res.json(orders)
 })
 
-// POST /orders/:id/select-shipping — ostaja valitsee toimitustavan
+// POST /orders/:id/select-shipping — ostaja valitsee toimitustavan ENNEN maksua (ei enää
+// oma erillinen maksuvaiheensa, ks. CLAUDE.md "Paytrail" — omistajan korjaus 2026-08-12:
+// tuote ja toimitus maksetaan aina yhdessä, ei kahdessa erillisessä Paytrail-maksussa).
 router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  if (order.status !== 'PENDING_SHIPPING_SELECTION') return res.status(400).json({ error: 'Tilaus ei odota toimitusvalintaa' })
+  if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Tilaus on jo maksettu tai ei odota maksua' })
   if (!order.shippingWindowEnd || order.shippingWindowEnd < new Date()) {
     return res.status(400).json({ error: 'Yhdistetyn lähetyksen 6h ikkuna on umpeutunut' })
   }
@@ -47,8 +49,6 @@ router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res
   const price = getShippingPrice(String(pakettikokoId ?? ''))
   if (price === null) return res.status(400).json({ error: 'Virheellinen pakettikoko' })
 
-  // Maksu käynnistetään erikseen (POST /orders/:id/pay) — sama periaate kuin
-  // tuotemaksussa, ei luoda Paytrail-istuntoa ennen kuin ostaja oikeasti maksaa.
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: { shippingSize: pakettikokoId, shippingPrice: price },
@@ -57,8 +57,8 @@ router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res
   res.json({ order: updated })
 })
 
-// POST /orders/:id/pay — käynnistää Paytrail-maksun tilauksen NYKYISELLE maksamattomalle
-// vaiheelle (tuote tai toimitus) ja palauttaa osoitteen johon ostaja ohjataan maksamaan.
+// POST /orders/:id/pay — käynnistää YHDEN Paytrail-maksun koko tilaukselle (tuote +
+// toimitus yhdessä — vaatii että toimitustapa on jo valittu, ks. select-shipping yllä).
 // Korvaa vanhan mock-pay-testivirran (ks. CLAUDE.md "Paytrail").
 router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({
@@ -69,51 +69,28 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
     },
   })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-
-  // Nouto (pakettikoko "nouto", hinta 0€) ei vaadi maksua — siirry suoraan eteenpäin.
-  if (order.status === 'PENDING_SHIPPING_SELECTION' && order.shippingPrice === 0) {
-    const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING' } })
-    await notifyUser(order.sellerId, 'ORDER_PAID', 'Tilaus valmis lähetettäväksi', 'Ostaja valitsi noudon — ei erillistä toimitusmaksua.', '/dashboard/tilaukset')
-    return res.json({ order: updated, redirectUrl: null })
-  }
+  if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Ei odottavaa maksua' })
+  if (order.shippingPrice == null) return res.status(400).json({ error: 'Valitse ensin toimitustapa' })
 
   // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
   // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
   // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
-  if (order.status === 'PENDING_PAYMENT') {
-    try {
-      const session = await createPayment({
-        orderId: order.id,
-        stage: 'product',
-        items: order.items.map(i => ({
-          itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
-          sellerId: order.sellerId, chargeCommission: true,
-        })),
-        buyerEmail: order.buyer.email,
-      })
-      await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId } })
-      return res.json({ order, redirectUrl: session.redirectUrl })
-    } catch (e: any) {
-      return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
+  try {
+    const items = order.items.map(i => ({
+      itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
+      sellerId: order.sellerId, chargeCommission: true,
+    }))
+    // Toimitus omana rivinään samassa maksussa - ei komissiota postista, SKRM ottaa
+    // osuutensa vain myyntihinnasta (LUKITTU-sääntö).
+    if (order.shippingPrice > 0) {
+      items.push({ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false })
     }
+    const session = await createPayment({ orderId: order.id, items, buyerEmail: order.buyer.email })
+    await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId } })
+    return res.json({ order, redirectUrl: session.redirectUrl })
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
   }
-
-  if (order.status === 'PENDING_SHIPPING_SELECTION' && order.shippingPrice != null) {
-    try {
-      const session = await createPayment({
-        orderId: order.id,
-        stage: 'shipping',
-        items: [{ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false }],
-        buyerEmail: order.buyer.email,
-      })
-      await prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailShippingTxId: session.transactionId } })
-      return res.json({ order, redirectUrl: session.redirectUrl })
-    } catch (e: any) {
-      return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
-    }
-  }
-
-  res.status(400).json({ error: 'Ei odottavaa maksua' })
 })
 
 // POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote
@@ -128,7 +105,7 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
   })
   if (!order || order.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (!order.paytrailProductTxId) return res.status(400).json({ error: 'Tilaukselle ei ole maksettua tuotemaksua hyvitettäväksi' })
-  if (!['PENDING_SHIPPING_SELECTION', 'PENDING_SHIPPING', 'SHIPPED', 'DELIVERED', 'DISPUTED'].includes(order.status)) {
+  if (!['PENDING_SHIPPING', 'SHIPPED', 'DELIVERED', 'DISPUTED'].includes(order.status)) {
     return res.status(400).json({ error: 'Tilaus ei ole maksetussa tilassa' })
   }
 

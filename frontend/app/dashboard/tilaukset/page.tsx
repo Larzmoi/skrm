@@ -168,7 +168,6 @@ export default function TilauksetPage() {
   }
 
   const ready = orders.filter(o => o.status === 'PENDING_SHIPPING')
-  const waitingShipping = orders.filter(o => o.status === 'PENDING_SHIPPING_SELECTION')
   const delivered = orders.filter(o => o.status === 'DELIVERED')
 
   return (
@@ -190,22 +189,6 @@ export default function TilauksetPage() {
             : <div style={{ marginBottom: 24 }}>{ready.map(o => (
                 <OrderCard
                   key={o.id} order={o} showTracking C={C}
-                  trackingValue={trackingInput[o.id] ?? ''}
-                  onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
-                  onSubmitTracking={() => submitTracking(o.id)}
-                  busy={busy === o.id}
-                  onRefund={() => setRefundConfirmFor(o.id)}
-                  refundBusy={refundBusy === o.id}
-                />
-              ))}</div>
-          }
-
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Odottaa toimitusvalintaa <span style={{ color: C.muted, fontWeight: 400 }}>({waitingShipping.length})</span></h2>
-          {waitingShipping.length === 0
-            ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0' }}>Ei tilauksia</div>
-            : <div>{waitingShipping.map(o => (
-                <OrderCard
-                  key={o.id} order={o} showTracking={false} C={C}
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
