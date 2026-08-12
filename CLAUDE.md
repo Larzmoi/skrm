@@ -583,7 +583,9 @@ Koska suuri osa käyttäjistä on mobiililla, tämä on lyötävä lukkoon molem
 
 Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitellään erikseen (nykyinen kolmen paneelin rinnakkaisrakenne — jono/nykyinen tuote/chat — sopii paremmin isommalle näytölle eikä sitä tarvitse pakottaa samaan full-screen-overlay-malliin kuin mobiilia).
 
-## Selainpohjainen mobiilistriimaus (WebRTC) — TULEVAISUUDEN HARKINTA, ei kiireellinen, mutta hyvin tutkittu 2026-08-08
+## Selainpohjainen mobiilistriimaus (WebRTC) — ✅ TEHTY 2026-08-12, testattu ja korjattu 2026-08-12
+
+**Huom (2026-08-12):** tämä osio kuvasi aiemmin tulevaisuuden suunnitelmaa — ominaisuus on nyt oikeasti rakennettu ja tuotannossa. Toteutus: `backend/src/lib/livekit.ts`:n `createPublisherToken()` (identity `{userId}-phone`, eri kuin OBS:n Ingress-osallistujan) + `POST /users/me/publish-token`, `/lahetys`:n "Ilman OBS:aa"/"OBS:lla" -valinta joka julkaisee jo auki olevan kameran suoraan LiveKitiin `livekit-client`:llä (ei Ingressiä/RTMP:tä/WHIP:iä välissä). Sama huone kuin OBS käyttäisi, katsojan puolella ei muutoksia. Kaksi jatkotestikierroksen bugia löydetty ja korjattu: (1) puuttuva `participant_left`-webhook-käsittely jätti lähetyksen ikuisesti LIVE-tilaan kun välilehti suljettiin (ks. "webhooks.ts" - sama `ENDED`-merkintä kuin OBS:n `ingress_ended`:lla), (2) ks. "Puhelinstriimauksen toinen testikierros 2026-08-12" -osio yllä neljälle lisälöydökselle. Alla oleva teksti on jätetty historiakontekstiksi, ei enää ajantasainen suunnitelma:
 
 **Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
 
