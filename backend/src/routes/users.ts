@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
+import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, createPublisherToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 
 const router = Router()
 
@@ -24,6 +24,17 @@ router.post('/me/stream-key/regenerate', authMiddleware, async (req: AuthRequest
   const roomName = roomNameForSeller(req.userId!)
   const previewToken = await createViewerToken(roomName, `preview-${req.userId}`, 'Esikatselu')
   res.json({ rtmpUrl: RTMP_URL, streamKey, wsUrl: LIVEKIT_WS_URL_PUBLIC, previewToken, roomName })
+})
+
+// POST /users/me/publish-token — julkaisuoikeudellinen token puhelimen suoraan
+// selainstriimaukseen ilman OBS:aa/Ingressiä (ks. CLAUDE.md "Selainpohjainen
+// mobiilistriimaus"). Sama huone kuin OBS:n Ingress käyttäisi ("seller-{userId}") —
+// katsojat eivät tiedä/välitä kumpi tapa julkaisi, VideoPlayer tilaa vain trackit.
+router.post('/me/publish-token', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const roomName = roomNameForSeller(req.userId!)
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { username: true } })
+  const token = await createPublisherToken(roomName, req.userId!, user?.username ?? 'Myyjä')
+  res.json({ wsUrl: LIVEKIT_WS_URL_PUBLIC, token, roomName })
 })
 
 function getOptionalUserId(req: Request): string | null {

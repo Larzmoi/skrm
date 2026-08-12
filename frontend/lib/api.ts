@@ -40,6 +40,7 @@ export const userApi = {
   getReviews: (username: string) => request(`/users/${encodeURIComponent(username)}/reviews`),
   getStreamInfo: () => request('/users/me/stream-info'),
   regenerateStreamKey: () => request('/users/me/stream-key/regenerate', { method: 'POST' }),
+  getPublishToken: () => request('/users/me/publish-token', { method: 'POST' }),
 }
 
 export const cartApi = {

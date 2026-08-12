@@ -157,6 +157,24 @@ export default function LahetysPage() {
   const [selectedDevice, setSelectedDevice] = useState('')
   const [copied, setCopied] = useState('')
 
+  // Puhelimesta suoraan striimaus ilman OBS:aa (ks. CLAUDE.md "Selainpohjainen
+  // mobiilistriimaus") — julkaisee streamRef.current-median suoraan LiveKitiin
+  // WebRTC:llä, sama huone kuin OBS:n Ingress käyttäisi. Katsojan/myyjän esikatselun
+  // puolella (VideoPlayer/HlsPreview) ei ole eroa kummalla tavalla trackit syntyivät.
+  const [publishMode, setPublishMode] = useState<'obs' | 'phone'>('phone')
+  const [phonePublishing, setPhonePublishing] = useState(false)
+  const [phonePublishError, setPhonePublishError] = useState('')
+  const publishRoomRef = useRef<Room | null>(null)
+  const publishModeTouched = useRef(false)
+
+  // useIsMobile() palauttaa true ennen ensimmäistä mittausta (ks. lib/useIsMobile.ts),
+  // joten oletus lukitaan tähän vasta kun oikea arvo on tiedossa - muuten desktop
+  // näyttäisi hetken "puhelin"-tilaa oletuksena. Ei aja enää jos käyttäjä on jo
+  // itse valinnut tilan käsin.
+  useEffect(() => {
+    if (!publishModeTouched.current) setPublishMode(isMobile ? 'phone' : 'obs')
+  }, [isMobile])
+
   // Yläpalkin tilastot
   const [viewers, setViewers] = useState(0)
   const [liveSince, setLiveSince] = useState<number | null>(null)
@@ -244,7 +262,7 @@ export default function LahetysPage() {
       }).catch(() => {})
     })
     loadDevices()
-    return () => { stopCamera() }
+    return () => { stopCamera(); publishRoomRef.current?.disconnect() }
   }, [])
 
   useEffect(() => {
@@ -391,6 +409,41 @@ export default function LahetysPage() {
     setCamReady(false)
   }
 
+  // Puhelimesta suoraan striimaus ilman OBS:aa — julkaisee jo auki olevan kameran
+  // (streamRef.current, "Testaa kamera") suoraan LiveKit-huoneeseen WebRTC:llä.
+  // Katsojan puolella (VideoPlayer) ei ole mitään eroa tuliko track OBS:n Ingressin
+  // vai tämän kautta - molemmat vain julkaisevat trackeja samaan "seller-{userId}" huoneeseen.
+  async function startPhonePublish() {
+    setPhonePublishError('')
+    if (!streamRef.current) {
+      const ok = await startCamera(selectedDevice || undefined)
+      if (!ok || !streamRef.current) { setPhonePublishError('Kameraa ei saatu käyttöön'); return }
+    }
+    try {
+      const { userApi } = await import('@/lib/api')
+      const { wsUrl, token } = await userApi.getPublishToken()
+      const room = new Room()
+      room.on(RoomEvent.Disconnected, () => setPhonePublishing(false))
+      await room.connect(wsUrl, token)
+      const stream = streamRef.current!
+      const videoTrack = stream.getVideoTracks()[0]
+      const audioTrack = stream.getAudioTracks()[0]
+      if (videoTrack) await room.localParticipant.publishTrack(videoTrack, { source: Track.Source.Camera })
+      if (audioTrack) await room.localParticipant.publishTrack(audioTrack, { source: Track.Source.Microphone })
+      publishRoomRef.current = room
+      setPhonePublishing(true)
+    } catch (err: any) {
+      setPhonePublishError(err?.message ?? 'Lähetyksen aloitus epäonnistui')
+      setPhonePublishing(false)
+    }
+  }
+
+  function stopPhonePublish() {
+    publishRoomRef.current?.disconnect()
+    publishRoomRef.current = null
+    setPhonePublishing(false)
+  }
+
   // Luo lähetyksen (status SCHEDULED) ja avaa yksityisen esikatselukonsolin — EI vielä julkinen.
   // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
   async function createShow() {
@@ -451,6 +504,7 @@ export default function LahetysPage() {
     }
     disconnectSocket()
     stopCamera()
+    stopPhonePublish()
     setIsLive(false); setShow(null); setShowStatus(null); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? '')
     setCurrentProductId(null); setSoldItems([]); setSoldAmounts({}); setFeed([]); setLiveSince(null); setViewers(0); setShowObsInfo(false); setShowModTools(false); setShowQueue(false)
     setAuction({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
@@ -762,11 +816,24 @@ export default function LahetysPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
-              {/* Vasen: OBS-asetukset + kamera-esikatselu */}
+              {/* Vasen: julkaisutavan valinta + kamera-esikatselu */}
               <div>
-                <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                  {obsCardContent}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <button
+                    onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
+                    style={{ flex: 1, background: publishMode === 'phone' ? C.accent : C.surface, border: `1px solid ${publishMode === 'phone' ? C.accent : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  >Puhelimella</button>
+                  <button
+                    onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
+                    style={{ flex: 1, background: publishMode === 'obs' ? C.accent : C.surface, border: `1px solid ${publishMode === 'obs' ? C.accent : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  >OBS:lla</button>
                 </div>
+
+                {publishMode === 'obs' && (
+                  <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                    {obsCardContent}
+                  </div>
+                )}
 
                 <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', marginBottom: 12 }}>
                   <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -776,15 +843,37 @@ export default function LahetysPage() {
                       <div style={{ fontSize: 14 }}>Kamera ei ole päällä</div>
                     </div>
                   )}
-                  {camReady && <div style={{ position: 'absolute', top: 10, left: 10, background: C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>ESIKATSELU</div>}
+                  {camReady && (
+                    <div style={{ position: 'absolute', top: 10, left: 10, background: phonePublishing ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>
+                      {phonePublishing ? 'LÄHETYS KÄYNNISSÄ' : 'ESIKATSELU'}
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                  {!camReady
-                    ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
-                    : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
-                  }
-                </div>
-                <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>
+
+                {publishMode === 'phone' ? (
+                  <>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>}
+                      {camReady && !phonePublishing && (
+                        <>
+                          <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
+                          <button onClick={startPhonePublish} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
+                        </>
+                      )}
+                      {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan puhelimesta ilman OBS:aa.'}</div>
+                    {phonePublishError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{phonePublishError}</div>}
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                    {!camReady
+                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
+                      : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
+                    }
+                  </div>
+                )}
+                {publishMode === 'obs' && <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>}
                 {camError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{camError}</div>}
               </div>
 
