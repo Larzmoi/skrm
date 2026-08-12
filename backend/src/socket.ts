@@ -360,8 +360,8 @@ export function setupSocket(io: Server) {
         state.leaderId = user.id
         state.leaderName = user.username
 
-        // Lisää aikaa (+15s jos alle 30s jäljellä)
-        if (state.timer < 30) state.timer = Math.min(state.timer + 15, 60)
+        // Antisnipe: +10s vain jos 10s tai vähemmän jäljellä
+        if (state.timer <= 10) state.timer += 10
 
         io.to(`show:${showId}`).emit('new_bid', {
           productId,
