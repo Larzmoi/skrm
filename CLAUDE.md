@@ -581,7 +581,23 @@ Koska suuri osa käyttäjistä on mobiililla, tämä on lyötävä lukkoon molem
 
 Tämä koskee nimenomaan mobiilia. **Desktop on eri optimointikohde**, käsitellään erikseen (nykyinen kolmen paneelin rinnakkaisrakenne — jono/nykyinen tuote/chat — sopii paremmin isommalle näytölle eikä sitä tarvitse pakottaa samaan full-screen-overlay-malliin kuin mobiilia).
 
-## Selainpohjainen mobiilistriimaus (WebRTC) — TULEVAISUUDEN HARKINTA, ei kiireellinen, mutta hyvin tutkittu 2026-08-08
+## Selainpohjainen mobiilistriimaus (WebRTC) — ✅ PERUSVERSIO TEHTY 2026-08-12
+
+**Miksi tämä tuli nyt eikä vasta myöhemmin (ks. alkuperäinen "TULEVAISUUDEN HARKINTA" -konteksti alla):** omistaja testasi `/lahetys`-sivua puhelimella ja yritti striimata suoraan puhelimen kameralla ilman OBS:aa — luuli sen jo toimivan, koska "Testaa kamera" -nappi näytti kuvan. Kävi ilmi ettei se koskaan ollutkaan muuta kuin paikallinen `getUserMedia`-esikatselu (kehysavuksi ennen OBS:n asetuksia) — mitään ei koskaan julkaistu mihinkään. Aiempi useamman viestin mittainen "miksi Odottaa OBS-yhteyttä ei häviä" -vianetsintä (RTMP-handshake-lokit, RoomEvent-diagnostiikka) osoittautui vääräksi ongelmaksi kokonaan — teksti oli täysin oikein koska OBS:aa ei ollut käytössä ollenkaan.
+
+**Toteutettu:**
+- `backend/src/lib/livekit.ts`: `createPublisherToken(roomName, userId, name)` — julkaisuoikeudellinen (`canPublish:true`) LiveKit-token, identity `{userId}-phone` (eri kuin OBS:n Ingress-osallistujan plain `userId`, ettei törmäystä jos molemmat käytössä yhtä aikaa)
+- `POST /users/me/publish-token` — palauttaa `{wsUrl, token, roomName}`
+- `/lahetys`: esikatselunäytölle "Puhelimella" / "OBS:lla" -valinta (oletus Puhelimella mobiilissa, OBS desktopilla, muistaa jos käyttäjä vaihtaa käsin). Puhelin-tilassa "Testaa kamera" → "Aloita kameralähetys" julkaisee jo auki olevan `getUserMedia`-streamin suoraan `livekit-client`-kirjastolla LiveKit-huoneeseen — **ei Ingressiä, ei RTMP:tä, ei WHIP:iä välissä**, koska selaimen oma LiveKit-clientti pystyy julkaisemaan suoraan WebRTC:llä
+- Sama huone (`seller-{userId}`) kuin OBS:n Ingress käyttäisi — katsojan `VideoPlayer` ei tiedä/välitä kumpi tapa julkaisi, ei muutoksia katsojan puoleen
+- Julkaisu jatkuu keskeytyksettä "Luo lähetys ja testaa yhteys" → "Aloita julkinen lähetys" -siirtymien yli, koska stream/Room pidetään Reactin refeissä jotka eivät nollaudu ehdollisten näkymien vaihtuessa
+
+**Tekninen velka / tunnetut rajoitukset (ei korjattu vielä, tarkoituksella rajattu pois nyt):**
+- Kun puhelin sekä julkaisee (oma Room) että näyttää itselleen esikatselun täydessä lähetyskonsolissa (`HlsPreview`, toinen erillinen Room), syntyy kaksi rinnakkaista WebRTC-yhteyttä samasta laitteesta — turhaa akku/dataa mutta ei riko mitään. Voisi optimoida myöhemmin käyttämällä paikallista `videoRef`-esikatselua `HlsPreview`:n sijaan kun `publishMode==='phone'`.
+- Julkaisu on sidottu selainvälilehden elinkaareen — jos välilehti suljetaan/taustautuu liikaa, striimi katkeaa (toisin kuin OBS joka on erillinen prosessi). Ei varoitusta tästä ennen kuin `isLive` on jo `true` (sama puute kuin "Testaa kamera":lla on aina ollut).
+- Ei vielä testattu oikealla puhelimella tuotannossa — vain typecheck + build puhtaat, deployattu Hetzneriin. **Odottaa omistajan testiä.**
+
+**Alkuperäinen "TULEVAISUUDEN HARKINTA" -konteksti (2026-08-08, yhä relevanttia taustatietoa):**
 
 **Päätös OBS:sta:** OBS/RTMP-pohjainen striimaus **jää käyttöön työpöydälle** — se toimii ja on jo rakennettu. Tämä osio koskee vain **mobiililaitteita**, joilla halutaan "paina nappia ja olet livenä" ilman mitään erillistä asennusta (ei edes appia, koska appi vaatisi silti App Store/Play Store -asennuksen — tavoite "ilman muita asennuksia" osoittaa suoraan **selainpohjaiseen WebRTC-ratkaisuun**, ei natiiviin sovellukseen).
 
@@ -600,7 +616,8 @@ Huutokauppa käynnissä: 🔴 LIVE, katsojat, korkein huuto + huutajalista, "Seu
 ```
 Tämä on hyvin lähellä jo speksattua "Stream-konsolin uudelleenrakennus" -rakennetta (jono/nykyinen tuote/chat), mutta mobiilioptimoituna yhdeksi virtaviivaiseksi näkymäksi kolmen erillisen paneelin sijaan — vahvistaa aiemman "mobiili tarvitsee oman layoutin" -havainnon.
 
-### Tekninen huomio, ennallaan
+### Tekninen huomio — VANHENTUNUT, ks. "✅ PERUSVERSIO TEHTY 2026-08-12" yllä
+*(Alla oleva kuvasi tilannetta nginx-rtmp-aikakaudella — MediaMTX/LiveKit-migraation myötä tämä on jo ratkaistu, LiveKit tukee WebRTC-julkaisua natiivisti. Jätetty historiatiedoksi.)*
 nginx-rtmp (nykyinen) ei osaa vastaanottaa WebRTC:tä — tarvitsee joko rinnakkaisen työkalun (esim. **MediaMTX**, tukee sekä RTMP:tä että WebRTC:tä samassa binäärissä, voisi mahdollisesti korvata koko nykyisen pinon) tai managed-palvelun (esim. LiveKit). Tämä on edelleen iso infratyö, ei pieni lisäys — odottaa kunnes visuaalinen jäädytys ja nykyisten toimintojen viimeistely on ohi.
 
 Havaittu 2026-08-07 OBS-testauksessa: `streamKey` generoidaan nyt **per Show** (`POST /shows`, `crypto.randomBytes`) — eli jokainen uusi lähetys pakottaa myyjän kaivamaan uuden avaimen ja syöttämään sen OBS:iin uudestaan. Tämä on turhaa kitkaa — myyjä ei jaksa säätää OBS-asetuksia joka kerta.
