@@ -425,6 +425,16 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const chatRef = useRef<HTMLDivElement>(null)
   const canModerate = isSeller || isModerator
 
+  // Mobiilin video-overlay-chat: vieritä pohjaan uuden viestin tullessa VAIN jos käyttäjä
+  // oli jo pohjassa - jos hän oli vierittänyt ylös lukeakseen vanhempia viestejä, uusi viesti
+  // ei enää repäise näkymää takaisin alas hänen altaan.
+  const mobileChatRef = useRef<HTMLDivElement>(null)
+  const mobileChatStickToBottom = useRef(true)
+  useEffect(() => {
+    const el = mobileChatRef.current
+    if (el && mobileChatStickToBottom.current) el.scrollTop = el.scrollHeight
+  }, [chat])
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
@@ -704,8 +714,15 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                     (overflowY:auto) säiliöön voi hävittää elementin näkyvistä täysin joillain
                     puhelin/selainyhdistelmillä, vaikka data/DOM olisi täysin kunnossa. Kiinteä,
                     riittävän peittävä tausta on luotettavampi kuin läpikuultava blur-efekti. */}
-                <div style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}>
-                  {chat.filter(m => !m.hidden || canModerate).slice(-5).map(msg => (
+                <div
+                  ref={mobileChatRef}
+                  onScroll={e => {
+                    const el = e.currentTarget
+                    mobileChatStickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+                  }}
+                  style={{ maxHeight: 150, overflowY: 'auto', marginBottom: 8 }}
+                >
+                  {chat.filter(m => !m.hidden || canModerate).slice(-40).map(msg => (
                     <div key={msg.id} style={{ display: 'flex', gap: 7, marginBottom: 4 }}>
                       <div style={{ background: 'rgba(20,20,20,0.85)', borderRadius: 10, padding: '4px 9px', maxWidth: '80%' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: msg.isBid ? C.accentBright : C.accent }}>{msg.username} </span>

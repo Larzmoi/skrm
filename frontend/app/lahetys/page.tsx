@@ -196,6 +196,15 @@ export default function LahetysPage() {
   const [stubMsg, setStubMsg] = useState('')
   const feedRef = useRef<HTMLDivElement>(null)
 
+  // Mobiilin video-overlay-chat: vieritä pohjaan uuden viestin tullessa VAIN jos käyttäjä
+  // oli jo pohjassa - sama korjaus kuin katsojan /live/[showId]:ssä.
+  const mobileFeedRef = useRef<HTMLDivElement>(null)
+  const mobileFeedStickToBottom = useRef(true)
+  useEffect(() => {
+    const el = mobileFeedRef.current
+    if (el && mobileFeedStickToBottom.current) el.scrollTop = el.scrollHeight
+  }, [feed])
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const thumbnailRef = useRef<HTMLInputElement>(null)
@@ -686,12 +695,16 @@ export default function LahetysPage() {
     </>
   )
 
+  const activeQueueProducts = products.filter(p => !soldItems.includes(p.id))
+  const soldQueueProducts = products.filter(p => soldItems.includes(p.id))
+
   const queuePanelContent = (
     <>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({products.length})</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({activeQueueProducts.length})</div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {products.map((p, i) => {
-          const sold = soldItems.includes(p.id); const active = p.id === currentProductId
+        {activeQueueProducts.map((p) => {
+          const i = products.indexOf(p)
+          const active = p.id === currentProductId
           return (
             <div
               key={p.id}
@@ -700,15 +713,27 @@ export default function LahetysPage() {
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleDrop(i)}
               onClick={() => !isSold && setCurrentProductId(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', opacity: sold ? 0.4 : 1, cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
             >
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
               {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
               <span style={{ fontSize: 12, color: active ? C.accentBright : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              {sold && <span style={{ fontSize: 10, color: C.accentBright, fontWeight: 700, flexShrink: 0 }}>✓</span>}
             </div>
           )
         })}
+
+        {soldQueueProducts.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>Myydyt ({soldQueueProducts.length})</div>
+            {soldQueueProducts.map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.5, flexShrink: 0 }}>
+                {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
+                <span style={{ fontSize: 12, color: '#eee', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                <span style={{ fontSize: 10, color: C.accentBright, fontWeight: 700, flexShrink: 0 }}>✓</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div style={{ flexShrink: 0 }}>
@@ -822,7 +847,7 @@ export default function LahetysPage() {
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
                     style={{ flex: 1, background: publishMode === 'phone' ? C.accent : C.surface, border: `1px solid ${publishMode === 'phone' ? C.accent : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                  >Puhelimella</button>
+                  >Ilman OBS:aa</button>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
                     style={{ flex: 1, background: publishMode === 'obs' ? C.accent : C.surface, border: `1px solid ${publishMode === 'obs' ? C.accent : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
@@ -862,7 +887,7 @@ export default function LahetysPage() {
                       )}
                       {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
                     </div>
-                    <div style={{ fontSize: 11, color: C.muted }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan puhelimesta ilman OBS:aa.'}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan tästä laitteesta ilman OBS:aa.'}</div>
                     {phonePublishError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{phonePublishError}</div>}
                   </>
                 ) : (
@@ -1053,8 +1078,15 @@ export default function LahetysPage() {
       {/* Mobiili: chat overlay videon alareunan yläpuolella, kompaktina */}
       {isMobile && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 8, padding: '0 10px 190px', pointerEvents: 'none' }}>
-          <div style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}>
-            {feed.slice(-5).map(item => {
+          <div
+            ref={mobileFeedRef}
+            onScroll={e => {
+              const el = e.currentTarget
+              mobileFeedStickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+            }}
+            style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'auto' }}
+          >
+            {feed.slice(-40).map(item => {
               if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{item.text}</div>
               if (item.kind === 'purchase') return (
                 <div key={item.id} style={{ background: 'rgba(46,204,113,0.4)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start' }}>

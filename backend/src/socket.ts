@@ -2,6 +2,25 @@ import { Server, Socket } from 'socket.io'
 import { prisma } from './db/prisma'
 import jwt from 'jsonwebtoken'
 import { notifyUser } from './lib/notify'
+import { createOrderForAuctionWin } from './lib/auctionOrder'
+
+// Ostaja aktiivisesti läsnä livessä huutaessaan — normaali 2h maksuaika, ei perinteisen
+// huutokaupan passiivisen voiton 24h (ks. CLAUDE.md maksuaika-poikkeus).
+const LIVE_AUCTION_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000
+
+// Merkitsee live-huutokaupan tuotteen myydyksi, luo Order-rivin voittajalle ja ilmoittaa -
+// sama createOrderForAuctionWin-logiikka jota closeAuctions.ts ja auctions.ts:n buy-now jo
+// käyttävät, mutta tämän tiedoston oma live-huutojärjestelmä ei koskaan kutsunut sitä.
+// Löytyi 2026-08-12: myyty live-tuote ei koskaan luonut ostajalle mitään maksettavaa,
+// "✓ Myyty" -painallus (stop_auction) ei tehnyt tuotteelle mitään ollenkaan.
+async function finalizeLiveAuctionSale(sellerId: string, productId: string, price: number, winnerId: string) {
+  const product = await prisma.product.update({
+    where: { id: productId },
+    data: { status: 'SOLD', finalPrice: price },
+  })
+  await createOrderForAuctionWin(winnerId, sellerId, productId, price, LIVE_AUCTION_PAYMENT_WINDOW_MS)
+  await notifyUser(winnerId, 'ORDER_WON', 'Voitit huudon!', `Voitit tuotteen "${product.name}" hintaan ${price}€. Sinulla on 2h aikaa maksaa.`, '/ostot')
+}
 
 interface BidPayload {
   showId: string
@@ -282,14 +301,8 @@ export function setupSocket(io: Server) {
               winnerId: state.leaderId,
               winnerName: state.leaderName,
             })
-            // Päivitä tuotteen tila
             if (state.leaderId) {
-              prisma.product.update({
-                where: { id: productId },
-                data: { status: 'SOLD', finalPrice: state.currentBid },
-              }).then(product => {
-                notifyUser(state.leaderId!, 'ORDER_WON', 'Voitit huudon!', `Voitit tuotteen "${product.name}" hintaan ${state.currentBid}€`, `/tuotteet/${productId}`).catch(console.error)
-              }).catch(console.error)
+              finalizeLiveAuctionSale(show.sellerId, productId, state.currentBid, state.leaderId).catch(console.error)
             }
           }
         }, 1000)
@@ -381,6 +394,14 @@ export function setupSocket(io: Server) {
           winnerId: state?.leaderId,
           winnerName: state?.leaderName,
         })
+
+        // "✓ Myyty" -painallus - sama Order-luonti kuin ajastimen loppumisella, ks.
+        // finalizeLiveAuctionSale. Ilman tätä myyty tuote ei koskaan luonut mitään
+        // ostajalle maksettavaa, koska tämä on todellisuudessa yleisin tapa päättää
+        // live-huutokauppa (myyjä päättää itse, ei odota ajastinta loppuun).
+        if (state?.leaderId && state.productId) {
+          finalizeLiveAuctionSale(show.sellerId, state.productId, state.currentBid, state.leaderId).catch(console.error)
+        }
       } catch {}
     })
 
