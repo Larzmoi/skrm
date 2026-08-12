@@ -89,8 +89,10 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
             </button>
           </div>
         )}
-        {showTracking && order.shippingSize === 'postitus' && order.trackingNumber && (
-          <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>Lähetyskoodi: {order.sendingCode}</span>
+        {order.shippingSize === 'postitus' && (order.sendingCode || order.trackingCode) && (
+          <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+            {order.sendingCode ? `Lähetyskoodi: ${order.sendingCode}` : `Seurantakoodi: ${order.trackingCode}`}
+          </span>
         )}
       </div>
 
@@ -211,6 +213,7 @@ export default function TilauksetPage() {
   }
 
   const ready = orders.filter(o => o.status === 'PENDING_SHIPPING')
+  const shipped = orders.filter(o => o.status === 'SHIPPED')
   const delivered = orders.filter(o => o.status === 'DELIVERED')
 
   return (
@@ -232,6 +235,27 @@ export default function TilauksetPage() {
             : <div style={{ marginBottom: 24 }}>{ready.map(o => (
                 <OrderCard
                   key={o.id} order={o} showTracking C={C}
+                  trackingValue={trackingInput[o.id] ?? ''}
+                  onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
+                  onSubmitTracking={() => submitTracking(o.id)}
+                  pickupValue={pickupInput[o.id] ?? ''}
+                  onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
+                  onSubmitPickup={() => submitPickup(o.id)}
+                  onCreateShipment={() => createShipment(o.id)}
+                  shipmentBusy={shipmentBusy === o.id}
+                  busy={busy === o.id}
+                  onRefund={() => setRefundConfirmFor(o.id)}
+                  refundBusy={refundBusy === o.id}
+                />
+              ))}</div>
+          }
+
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Lähetetty <span style={{ color: C.muted, fontWeight: 400 }}>({shipped.length})</span></h2>
+          {shipped.length === 0
+            ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0', marginBottom: 24 }}>Ei matkalla olevia tilauksia</div>
+            : <div style={{ marginBottom: 24 }}>{shipped.map(o => (
+                <OrderCard
+                  key={o.id} order={o} showTracking={false} C={C}
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
