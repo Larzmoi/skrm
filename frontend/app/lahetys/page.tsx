@@ -148,6 +148,7 @@ export default function LahetysPage() {
   const [currentProductId, setCurrentProductId] = useState<string | null>(null)
   const [auction, setAuction] = useState<AuctionState>({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
   const [auctionDuration, setAuctionDuration] = useState(120)
+  const [durationOverride, setDurationOverride] = useState<number | null>(null)
   const [soldItems, setSoldItems] = useState<string[]>([])
   const [soldAmounts, setSoldAmounts] = useState<Record<string, number>>({})
   const [showSettings, setShowSettings] = useState(false)
@@ -521,12 +522,14 @@ export default function LahetysPage() {
 
   const currentIndex = products.findIndex(p => p.id === currentProductId)
   const currentProduct = currentIndex >= 0 ? products[currentIndex] : products[0]
+  const effectiveDuration = durationOverride ?? currentProduct?.auctionDuration ?? auctionDuration
+
+  useEffect(() => { setDurationOverride(null) }, [currentProductId])
 
   function startAuction() {
     if (!currentProduct || !show) return
     const token = localStorage.getItem('skrm_token')
-    const dur = currentProduct.auctionDuration ?? auctionDuration
-    connectSocket().emit('start_auction', { showId: show.id, productId: currentProduct.id, startPrice: currentProduct.startPrice, duration: dur, token })
+    connectSocket().emit('start_auction', { showId: show.id, productId: currentProduct.id, startPrice: currentProduct.startPrice, duration: effectiveDuration, token })
   }
 
   function endAuction() {
@@ -1058,7 +1061,25 @@ export default function LahetysPage() {
             <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? C.accentBright : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : currentProduct.startPrice}€</div>
           </div>
 
-          {!auction.active && !isSold && <button onClick={startAuction} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>Aloita huutokauppa</button>}
+          {!auction.active && !isSold && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Kesto:</span>
+                {[30, 60, 120].map(s => (
+                  <button key={s} onClick={() => setDurationOverride(s)} style={{ background: effectiveDuration === s ? C.accent : 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: effectiveDuration === s ? 700 : 400, cursor: 'pointer' }}>
+                    {s >= 60 ? `${s / 60}min` : `${s}s`}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  value={effectiveDuration}
+                  onChange={e => setDurationOverride(Number(e.target.value) || 1)}
+                  style={{ width: 64, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 11, outline: 'none' }}
+                />
+              </div>
+              <button onClick={startAuction} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>Aloita huutokauppa ({fmt(effectiveDuration)})</button>
+            </>
+          )}
           {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>Seuraava tuote →</button>}
           {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: C.accentBright, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Kaikki tuotteet käyty läpi!</div>}
 
