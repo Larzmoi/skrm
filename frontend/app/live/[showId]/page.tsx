@@ -395,6 +395,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [connected, setConnected] = useState(false)
   const [viewers, setViewers] = useState(0)
   const [isMobile, setIsMobile] = useState(true)
+  // Tablettikoko (n. 768-1024px, esim. iPad molemmissa suunnissa) - desktopin kiinteät
+  // 280px/300px sivupaneelit eivät mahdu tälle väliin jäävälle leveydelle (ks. CLAUDE.md
+  // "Uudet löydökset 2026-08-12 (tablettikoon responsiivisuustesti)"). Ei oma täysi layout
+  // kuten mobiililla (joka on liian kapea/keskitetty tabletille) vaan desktop-rakenne
+  // kavennetuin/piilotetuin paneelein.
+  const [isTablet, setIsTablet] = useState(false)
   const [showReport, setShowReport] = useState(false)
 
   // Chat & moderointi -laajennus
@@ -436,7 +442,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   }, [chat])
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
+    const check = () => {
+      const w = window.innerWidth
+      setIsMobile(w < 768)
+      setIsTablet(w >= 768 && w <= 1024)
+    }
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -787,18 +797,26 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '280px 1fr 300px', minHeight: 0 }}>
-        {/* Shop-paneeli (desktop: kiinteä sivupaneeli, ei koskaan piilossa) */}
-        <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
-          <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
-        </div>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isTablet ? '1fr 220px' : '280px 1fr 300px', minHeight: 0 }}>
+        {/* Shop-paneeli: desktopilla kiinteä sivupaneeli, tabletilla piilossa oletuksena ja
+            avautuu overlay-paneelina videon päälle (ks. CLAUDE.md "Uudet löydökset 2026-08-12
+            (tablettikoon responsiivisuustesti)") - 280px+300px kiinteät sivupaneelit eivät
+            mahtuneet 768-1024px leveyksille, chat leikkautui näytön ulkopuolelle. */}
+        {!isTablet && (
+          <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
+          </div>
+        )}
 
         {/* Video + bid */}
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#080808' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#080808', position: 'relative' }}>
           <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0, overflow: 'hidden' }}>
             {videoContent}
             <div style={{ position: 'absolute', top: 14, left: 14, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 4 }}>LIVE</div>
+            {isTablet && (
+              <button onClick={() => setShopOpen(true)} style={{ position: 'absolute', top: 14, left: 74, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 20, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', zIndex: 5 }}>Shop</button>
+            )}
             {auction.active && (
               <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
                 <div style={{ fontSize: 22, fontWeight: 900, color: timerColor }}>{auction.timer}s</div>
@@ -820,6 +838,17 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               )}
             </div>
           </div>
+          {isTablet && shopOpen && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(10,10,10,0.97)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
+                <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} />
+              </div>
+            </div>
+          )}
           <BidPanel
             C={C} t={t} bidError={bidError} currentProduct={currentProduct} currentLot={currentLot}
             auction={auction} isLeading={isLeading} ended={auctionEnded} timerColor={timerColor} bidAmount={bidAmount}
