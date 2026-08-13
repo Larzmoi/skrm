@@ -657,7 +657,7 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 - **Seuraava askel:** mittaa viive uudelleen keyframe-korjauksen jälkeen, useampi kerta peräkkäin
 - **Mux vs. jatka itse -päätös on yhä auki** — ei päätetty vielä, odottaa tätä seuraavaa mittausta ennen lopullista arviota kannattaako jatkaa itse rakennetulla MediaMTX-pohjalla vai vaihtaa managed-palveluun
 
-## Uudet löydökset 2026-08-13, osa 2 (huutokaupan käytännön testaus — EI VIELÄ TOIMEKSIANTOA korjaukseen, vain kirjattu)
+## Uudet löydökset 2026-08-13, osa 2 — ✅ TEHTY (ks. yhteenveto alempana "KAIKKI 13 KOHTAA")
 
 **8. Jonon "seuraava tuote" -valinta jumittuu kun myydään listan viimeinen tuote.** Toistettu: myytiin jonon viimeisenä ollut tuote ensimmäisenä (siis jono tyhjeni). Sen jälkeen vasemman Jono-paneelin kautta ei saatu valittua seuraavaa tuotetta normaalisti — piti ensin lisätä yksi uusi tuote jonoon, painaa "Seuraava", ja vasta sen jälkeen tuotevalinta toimi taas vapaasti. Reunatapaus: jonon tyhjentyminen jättää valinta-UI:n rikkinäiseen tilaan.
 
@@ -673,9 +673,42 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 - **Myyjän puolelta puuttuu yhä vastaava näkymä** (ei vahvistettu olevan olemassa) — tarkista onko myyjän tuotelistauksessa vastaava "Odottaa maksua" -tila voitetulle tuotteelle, lisää jos puuttuu.
 - **Testaamatta: mitä tapahtuu kun maksuaika kuluu loppuun ilman maksua?** Pitäisi laukaista LUKITTU-logiikka (maksamaton tilaus → **heti** 30pv banni, ei enää 3 kerran raja, ks. "Banni"-sääntö), tuote palautuu myytävien listalle. Ei vahvistettu toimivaksi käytännössä, kannattaa testata erikseen — erityisesti että banni todella laukeaa jo ensimmäisestä kerrasta uuden säännön mukaisesti.
 
-## Uudet löydökset 2026-08-13 (mobiili live-testaus, myyjän ja ostajan puolelta)
+## Uudet löydökset 2026-08-13 (mobiili live-testaus, myyjän ja ostajan puolelta) — ✅ KAIKKI 13 KOHTAA + SÄÄNTÖMUUTOS TEHTY (2026-08-13)
 
-Viisi bugia löytyi mobiilitestauksesta täysnäkymärakenteen jälkeen. **Kiireellisin ensin, konkreettisin — livehuuto, koska sitä käyttää todennäköisesti suurin osa käyttäjistä.**
+Kaikki alla listatut 13 kohtaa + bannisäännön tiukennus korjattu, backend+frontend typecheck puhtaana. Tiivistetyt ratkaisut:
+- **11 (kriittinen):** `/lahetys`-sivun tilantarkistus ajettiin vain ensimmäisellä mountilla — Next.js:n router-cache saattoi palauttaa vanhentuneen tilan takaisin-navigoinnissa. Lisätty `checkForActiveShow()` joka ajetaan uudelleen `pageshow`/`visibilitychange`-tapahtumissa, varmistaa aina palvelimelta.
+- **12 (kriittinen/turva):** perinteinen huutokauppareitti tarkisti jo `sellerId === userId`-eston, mutta live-huudon `socket.ts`-käsittelijästä puuttui sama tarkistus. Lisätty.
+- **1:** z-index-korjaus, chat-overlay nostettu tuotelaatikon yläpuolelle
+- **2:** juurisyy oli `mutedWords` muistivarainen Map, häviää joka deployssä — siirretty `Show.mutedWords`-kenttään tietokantaan
+- **3:** lisätty "Seuraavaksi: [nimi]" -rivi katsojan näkymään
+- **4:** klikattava suurennusmodaali lisätty (kuva, kunto, kuvaus, hinta)
+- **5:** huutosumma-stepper tehty joustavammaksi ahtailla näytöillä (ei visuaalisesti vahvistettu alkuperäistä leikkautumista)
+- **6:** "Myyty" selitetty ja säilytetty — se on normaali tapa päättää lot ennen ajastimen loppumista, ei päällekkäinen muiden nappien kanssa
+- **7:** duplikaatti "Lopeta" poistettu pikatoimintoriviltä
+- **8:** juurisyy: `isSold`-tarkistus viittasi väärään (nykyiseen) tuotteeseen jonon rivien sijaan — poistettu tarpeettomana tarkistuksena
+- **9:** `onChange` pakotti minimiarvon joka näppäimenpainalluksella — poistettu, `placeBid()` validoi jo lähetyshetkellä
+- **10:** ei keinotekoista viivettä — kolme peräkkäistä DB-kutsua rinnakkaistettu, huudon kirjoitus siirretty pois kriittiseltä polulta
+- **13:** backend oli jo oikein (2h), näkyvyysbugi: `/ostot` näytti vain 6h-lähetysvalinta-ajastimen, ei 2h-maksuaikaa — molemmat näytetään nyt selvästi. Myyjän puolen "Odottaa maksua" -näkymä lisätty (vahvistetusti puuttui).
+- **Sääntömuutos:** `VIOLATIONS_BEFORE_BAN` 3→1, muu bannin uusiutumislogiikka oli jo oikein
+
+**Odottaa: lupa committaa, pushata ja deployata tämä paketti tuotantoon.**
+
+## Uudet löydökset 2026-08-13, osa 3
+
+**Hyvä uutinen — LiveKit-viive jopa parempi kuin raportoitu:** vahvistettu että viive on välillä **0-1 sekuntia**, ei vain aiemmin mitattu 2-3s. LiveKit-päätös oli vielä parempi kuin osattiin odottaa.
+
+**Kaksi uutta bugia:**
+
+**14. Kielenvaihto ei näy mobiililla.** Navbarin kielenvalitsin (FI/EN, ks. koodaussääntö "käännökset t.xxx-järjestelmällä") ei näy/toimi mobiililaitteella — tarkista onko se piilotettu vahingossa jossain responsiivisuusmuutoksessa, vai puuttuuko se kokonaan mobiili-navbarista.
+
+**15. Footer näkyy epäjohdonmukaisesti eri sivuilla ja laitteilla — tarkka tilannekuva:**
+- **Mobiili:** Etusivulla footer näkyy oikein. **Selaa-sivulla footer ei näy ollenkaan.** Huutokaupat-sivulla footer näkyy mutta ei pysy sivun alareunassa (renderöityy jossain väärässä kohtaa). Live-sivulla sama ongelma kuin Huutokaupat-sivulla.
+- **Desktop/selain:** Etusivulla ok. **Selaa-sivulla footer ei näy ollenkaan** (sama kuin mobiilissa). Muualla ok.
+- **Yhteenveto korjattavaksi:** Selaa-sivulta footer puuttuu kokonaan sekä mobiilissa että desktopilla — tämä on todennäköisesti sama juurisyy molemmilla laitteilla, korjaa kerralla. Huutokaupat/Live-sivujen "väärässä kohtaa" -ongelma voi olla eri syy (esim. sivun sisällön korkeus ei laske footeria oikein pohjalle) — tarkista erikseen.
+
+### ✅ TEHTY 2026-08-13 — kohdat 14 ja 15 korjattu
+- **14:** vahvistettu — kielenvalitsin oli koodattu VAIN Navbarin desktop-haaraan, puuttui mobiili-haarasta kokonaan (ei piilotettu CSS:llä). Lisätty kompakti FI/EN-nappi mobiilin yläriviin.
+- **15:** vahvistettu — `selaa/page.tsx` ei importannut/renderöinyt `<Footer />`:ää lainkaan, sama syy mobiilissa ja desktopilla kuten epäilty. Lisätty. Huutokaupat/Live-kaikki-sivuilla footer OLI jo koodissa mutta ulompi wrapper puuttui `display:flex, flexDirection:column` + sisältödiviltä `flex:1` -rakenteen (sama sticky-footer-korjaus kuin aiemmin tuotteet/kori/ilmoitukset-sivuille) — ilman sitä footer roikkuu sisällön perässä sen sijaan että pysyisi näytön alareunassa lyhyellä sisällöllä. **Huom:** etusivu ei itse asiassa käytä tätä flex-rakennetta — se "toimii" vain koska sen sisältö on aina tarpeeksi pitkä täyttämään näytön. Käytetty siis tukevampaa ratkaisua kuin etusivun oma, ei kirjaimellista kopiota siitä.
 
 **1. Nykyisen tuotteen tietolaatikko ("Reiska"-tyylinen kortti: kuva+nimi+hinta+kesto) renderöityy chat-tekstikentän PÄÄLLE, estää kirjoittamisen — vahvistettu kuvasta 2026-08-13.**
 Korjaa aiemman virheellisen diagnoosin (ks. yllä oleva historia) — todellinen syy on **z-index/kerrosjärjestysongelma**: tuotetietolaatikko on korkeammalla kerroksella kuin chat-inputin `position:absolute`-overlay, joten se peittää tekstikentän kokonaan tai osittain käyttäjän sormen/kohdistimen tavoittamattomiin. **Tämä täsmää aiemmin raportoituun ja "korjattuun" bugiin** ("Huutokauppakohteen avaus blokkaa chatin valinnan", ks. "Uudet löydökset 2026-08-10" -osion kohta 3) — joko se korjaus ei toiminut kunnolla, tai tämä on sama ongelma toisessa kohtaa UI:ta (nyt vahvistettu myyjän omalla `/lahetys`-konsolilla, ei vain katsojan puolella). **Korjaus: tarkista kaikki paikat missä nämä kaksi overlayta (tuotetietolaatikko + chat-input) voivat olla päällekkäin, aseta chat-inputille korkeampi z-index tai siirrä tuotetietolaatikko niin ettei se voi koskaan mennä tekstikentän päälle.** **Rajaus vahvistettu 2026-08-13: koskee VAIN myyjän omaa `/lahetys`-konsolia, ei ostajan/katsojan puolta** — katsojan puolella chat toimi testissä normaalisti, ainoa katsojapuolen ongelma on erillinen kohta 3 (tuotetiedot eivät näy ollenkaan katsojalle). Älä siis etsi tätä z-index-bugia katsojan sivulta, keskity vain myyjän konsoliin.
@@ -691,16 +724,6 @@ Korjaa aiemman virheellisen diagnoosin (ks. yllä oleva historia) — todellinen
 **6. "Myyty"-napin tarkoitus epäselvä omistajalle.** Ei tiedetä mitä se tekee/pitäisi tehdä. **Pyydä VS Coden Claudea selittämään alkuperäinen tarkoitus** (esim. onko se tarkoitettu merkitsemään nykyinen tuote myydyksi manuaalisesti huutokauppa-ajastimen ulkopuolella) — jos se osoittautuu tarpeettomaksi/päällekkäiseksi muiden toimintojen kanssa, poistetaan. Ei poisteta vielä ilman selitystä.
 
 **7. "Lopeta"-nappi kahteen kertaan, sekoittaa — poista alempi.** Yläpalkissa on jo oma "Lopeta"-nappi (lopettaa koko lähetyksen). Pikatoimintorivillä alempana on toinen "Lopeta"-nappi jonka omistaja luuli lopettavan vain nykyisen huutokaupan/tuotteen, ei koko streamiä — sekaannusta aiheuttava kaksinkertaisuus. **Päätös: poista alempi "Lopeta"-nappi kokonaan, jätä vain yläpalkin nappi.** Jos tarvitaan erillinen "lopeta vain nykyinen huutokauppa" -toiminto, se pitää nimetä selvästi eri tavalla (esim. "Peruuta huutokauppa") eikä käyttää samaa "Lopeta"-sanaa kuin koko streamin lopetuksessa.
-
-### ✅ TEHTY 2026-08-13 — kaikki 13 löydöstä + banni-sääntömuutos korjattu
-Kaikki tämän ja "osa 2" -osion 13 kohtaa käyty läpi numerojärjestyksessä (11 ja 12 ensin kriittisinä), plus banni-sääntömuutos. Yhteenveto poikkeamista/löydöksistä joita ei ollut vielä kirjattu:
-- **12 (turva):** vika oli vain `socket.ts`:n live-huutojärjestelmässä — perinteisen huutokaupan `auctions.ts`-reitit (bid/autobid/buy-now) tarkistivat jo `sellerId === userId`:n oikein. Korjattu vain puuttuva kohta.
-- **2 (Muted Words):** suodatuslogiikka itsessään oli jo oikein sekä backendissä että frontendissä — todellinen syy oli että `mutedWords` oli vain in-memory `Map`, joka tyhjenee jokaisella backend-uudelleenkäynnistyksellä (deploy). Lisätty `Show.mutedWords`-kenttä tietokantaan, ladataan/tallennetaan sieltä.
-- **13 (maksuajastin):** kaikki backendin `paymentDeadline`-laskennat olivat jo oikein 2h (vahvistettu suoraan tuotanto-DB:stä) — todellinen bugi oli `/ostot`-sivun UI: ennen toimitustavan valintaa näkyi VAIN 6h toimitusvalinta-ikkuna, 2h maksuaika juoksi näkymättömissä taustalla. Molemmat näytetään nyt aina. Lisätty myös puuttunut "Odottaa maksua" -näkymä myyjän Tilaukset-sivulle.
-- **8 (jonovalinta):** juurisyy oli `!isSold`-tarkistus queue-panelin onClick:issa, joka viittasi VÄÄRÄÄN muuttujaan (nykyisen valitun tuotteen sold-tilaan, ei klikatun rivin) — poistettu tarpeettomana koska `activeQueueProducts` suodattaa jo myydyt pois.
-- **6 (Myyty-nappi):** selitetty, EI poistettu — `stop_auction`/`endAuction()` päättää nykyisen tuotteen huudon heti ja luo Orderin korkeimmalle huutajalle, yleisin tapa lopettaa live-lotti (ei odoteta ajastinta).
-- **10 (huutoviive):** `place_bid`:n kolme peräkkäistä DB-kutsua (product/user/bid.create) muutettu: product+user rinnakkain, bid.create pois kriittiseltä polulta (fire-and-forget).
-- **Uusi:** `/live/[showId]`:lle lisätty "Seuraavaksi"-tuotenäyttö sekä klikattava suurennettava tuotemodaali (kohdat 3 ja 4).
 
 ## Uudet löydökset 2026-08-12 (tablettikoon responsiivisuustesti)
 
@@ -765,20 +788,19 @@ Kun huutokauppakohde (tuotepaneeli) avataan, se estää chat-tekstikentän valit
 **4. Desktopin tarjouksenteko-UI vaatii uudelleensuunnittelun — mobiili on ok, desktop ei.**
 Omistajan sanoin: nykyinen desktop-tarjousmekanismi vaatii "pitkän viivan vetämisen" tarjouksen tekemiseksi, koettu liian työlääksi/ärsyttäväksi. **Mobiilissa vastaava toiminto koetaan hyväksi** (yksinkertaisempi, luultavasti numeropohjainen +/- -säädin). **Päätös: yksinkertaista desktop-tarjousmekanismi samantyyliseksi kuin mobiilissa jo on** — ei vaadi vetämistä/raahausta, vaan suoraviivainen syöttö/pikanapit. Tarkista VS Coden Claudelle tarkalleen mikä komponentti tämä on (todennäköisesti eri kuin mobiilin numerosyöttö, koska omistaja erottelee ne selvästi "mobiili ok, desktop ei").
 
-## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-09)
+## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-13)
 
-1. **LiveKit-migraatio** (ks. "PÄÄTÖS 2026-08-09: Vaihto MediaMTX → LiveKit" yllä) — ehdoton ykkönen, korvaa MediaMTX-työn kokonaan, tavoite alle 500ms viive
-2. **Chat/Socket-arkkitehtuurin korjaus** (ks. "Chat/Socket-arkkitehtuurin uudelleenarviointi" -osio) — **päätetty seuraavaksi ennen WHIP/selainstriimausta**, koska nykyiset 2-3 testikäyttäjää käyttävät OBS:ää pöytäkoneella, joten selainstriimaus ei toisi heille lisäarvoa juuri nyt, mutta chat koskettaa kaikkia katsojia mukaan lukien mobiilikäyttäjät
-3. **WHIP/selainstriimaus ilman OBS:ää** (ks. "Selainpohjainen mobiilistriimaus" -osio) — siirretty chatin jälkeen, ei unohdettu, tärkeä myöhemmin kun käyttäjäkunta laajenee puhelinkäyttäjiin
-4. **Mux vs. jatka itse -päätös** — yhä auki, arvioidaan lopullisesti kun sekä viive että chat on saatu kuntoon itse rakennetulla pohjalla
-5. **Visuaalisen jäädytyksen loppuunsaattaminen** (ks. "Uudet löydökset 2026-08-08" -osio: esikatselu-sivun layout, tumma/vaalea-sekoittuminen, väriyhtenäistys, nappien visuaalinen viimeistely) — odottaa omistajan silmämääräistä hyväksyntää
-6. **Kategoriafokus: Keräilykortit ainoana** — ks. osio alla, suurelta osin tehty, tarkista jäännöskohdat
-7. ✅ **Admin-paneeli + ilmiantomekanismi** — TEHTY
-8. ✅ **Julkinen myyjäprofiili / Storefront** — TEHTY
-9. **Loput "Live-ominaisuudet Whatnot-tasolle" -osion kohdista** (ennakkotarjoukset, chat-moderointi, giveaway) — Katsojan Shop-paneeli päätetty mutta **ei aloiteta vielä**, ks. "Uudet löydökset" -osio
-10. **Tarjoa hintaa -toiminto** — päätetty ja valmis toteutettavaksi, ei vielä sijoitettu tarkkaan kohtaan
+1. ✅ **LiveKit-migraatio** — TEHTY, vahvistettu 2-3s viive tuotannossa, ylitti tavoitteen
+2. ✅ **Kriittiset live/chat-bugit (13 kpl + bannisääntö)** — TEHTY 2026-08-13, deployattu
+3. **Mux vs. jatka itse -päätös** — käytännössä ratkennut itsestään: LiveKit toimii nyt 2-3s viiveellä eikä ole toistanut aiempaa "korjattu 3-5 kertaa, edelleen rikki" -kuviota. Ei akuuttia syytä vaihtaa managed-palveluun juuri nyt — pidetään avoimena jos luotettavuusongelmia ilmenee isommassa mittakaavassa, mutta ei enää kiireellinen päätös.
+4. **Visuaalisen jäädytyksen lopullinen silmämääräinen hyväksyntä** — tekninen työ tehty useissa kierroksissa, odottaa vain omistajan katsomista kokonaisuutena läpi ja vahvistusta
+5. **OY-rekisteröinti** — ei tekninen tehtävä, mutta avaa lukot sekä Paytrailin tuotantotunnuksiin (testivaihe jo valmis) että Posti-integraatioon (LogEDI@posti.com-yhteydenotto, kysymyslista jo valmiina) — todennäköisesti suurin yksittäinen pullonkaula juuri nyt
+6. **WHIP/selainstriimaus ilman OBS:ää** — ei vielä aloitettu, tärkeä kun käyttäjäkunta laajenee puhelinkäyttäjiin
+7. **Loput "Live-ominaisuudet Whatnot-tasolle" -kohdista** — ennakkotarjoukset (storefront on jo valmis sen edellytykseksi), chat-moderoinnin loput (co-host, chat-komennot), giveaway, Katsojan Shop-paneeli
+8. **Tarjoa hintaa -toiminto** — päätetty, ei vielä aikataulutettu
+9. **Kategoriafokus: Keräilykortit ainoana** — suurelta osin tehty, tarkista jäännöskohdat jos ei jo tehty
 
-**SV-käännös jää odottamaan** — ei tehdä vielä, matalampi prioriteetti kuin yllä olevat.
+**SV-käännös jää yhä odottamaan** — matalin prioriteetti.
 
 ## Striimin viive — LUKITTU vaatimus, kahdessa vaiheessa (päivitetty 2026-08-08)
 

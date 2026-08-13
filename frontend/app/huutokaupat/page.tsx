@@ -83,10 +83,10 @@ export default function HuutokaupatPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
 
-      <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto' }}>
+      <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto', flex: 1, width: '100%' }}>
         {!isMobile && (
           <>
             <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={false} />

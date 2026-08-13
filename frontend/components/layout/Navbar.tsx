@@ -34,6 +34,23 @@ export default function Navbar() {
         <div style={{ padding: '0 10px', height: 48, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: C.text, letterSpacing: '-1px', flex: 1 }}>SKRM</Link>
           <ThemeToggle />
+
+          {/* Kielenvalinta - puuttui aiemmin kokonaan mobiili-navbarista (ks. CLAUDE.md
+              "Uudet löydökset 2026-08-13, osa 3" kohta 14), oli koodattu vain desktop-haaraan */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowLangMenu(s => !s)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 7px', fontSize: 11, color: C.textSub, cursor: 'pointer' }}>
+              {currentLang?.code.toUpperCase()}
+            </button>
+            {showLangMenu && (
+              <div style={{ position: 'absolute', right: 0, top: 32, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', zIndex: 200 }}>
+                {languages.map(l => (
+                  <button key={l.code} onClick={() => { setLang(l.code); setShowLangMenu(false) }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, background: lang === l.code ? C.accentLight : 'transparent', color: lang === l.code ? C.accent : C.textSub, fontWeight: lang === l.code ? 700 : 400 }}>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {user ? (
             <>
               <Link href="/ilmoitukset" style={{ position: 'relative', color: C.textSub, padding: '3px', display: 'flex', alignItems: 'center' }}>

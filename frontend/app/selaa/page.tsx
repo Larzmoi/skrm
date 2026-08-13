@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
+import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { useLang } from '@/lib/lang-context'
@@ -149,10 +150,10 @@ function SelaaContent() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
 
-      <div style={{ display: 'flex', gap: 8, padding: '14px 24px 0', maxWidth: 1440, margin: '0 auto', boxSizing: 'border-box' as const }}>
+      <div style={{ display: 'flex', gap: 8, padding: '14px 24px 0', maxWidth: 1440, margin: '0 auto', boxSizing: 'border-box' as const, flex: 1, width: '100%' }}>
         {saleTabs.map(tab => (
           <button key={tab.id} onClick={() => setSaleTab(tab.id)} style={{ padding: '6px 14px', borderRadius: 20, border: `1px solid ${saleTab === tab.id ? C.accent : C.border}`, background: saleTab === tab.id ? C.accentLight : C.cardBg, color: saleTab === tab.id ? C.accent : C.textSub, fontSize: 13, fontWeight: saleTab === tab.id ? 700 : 400, cursor: 'pointer' }}>
             {tab.label}
@@ -364,6 +365,7 @@ function SelaaContent() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   )
 }
