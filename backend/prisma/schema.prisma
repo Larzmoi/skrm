@@ -125,6 +125,10 @@ model Show {
   startedAt     DateTime?
   endedAt       DateTime?
   viewerCount   Int        @default(0)
+  mutedWords    String[]   @default([]) // kielletyt sanat chat-suodattimelle - persistoitu koska
+                                          // socket.ts:n in-memory Map tyhjenee jokaisella backend-
+                                          // uudelleenkäynnistyksellä (deploy), ks. CLAUDE.md
+                                          // "Uudet löydökset 2026-08-13" kohta 2
   createdAt     DateTime   @default(now())
 
   products Product[]

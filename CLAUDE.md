@@ -86,7 +86,7 @@ skrm/
 - **Maksuaika:** voitettu huuto tai ostos → 2h aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
   - **Poikkeus:** perinteisen (ajastetun) huutokaupan **passiivinen voitto** (huutokauppa päättyy itsestään, esim. yöllä) → **24h** maksuaikaa, koska voittaja ei ole aktiivisesti läsnä silloin. "Osta heti" (buy-now) ja live-huuto pysyvät 2h:ssa, koska ostaja on aktiivisesti paikalla klikatessaan. Päätetty 2026-08-07.
 - **Rekisteröityminen:** käyttäjän on hyväksyttävä käyttöehdot, tietosuoja ja kaupankäyntipolitiikka erillisillä checkboxeilla ennen kuin voi luoda tilin. Checkboxit pakollisia — ei oletuksena rastitettu.
-- **Banni:** 3 maksamatonta tilausta → automaattinen 30 päivän banni. Jokainen seuraava rike → uusi 30 päivän banni. Ei poikkeuksia.
+- **Banni — TIUKENNETTU 2026-08-13:** JO ENSIMMÄINEN maksamaton tilaus → automaattinen 30 päivän banni heti. Jokainen seuraava rike → uusi 30 päivän banni. Ei poikkeuksia, ei kolmen kerran varoitusrajaa enää. ("Oppivat olemaan" — omistajan perustelu, tarkoituksella tiukka.)
 - Maksuturva: maksu pidätetään kunnes myyjä toimittaa seurantakoodin
 - Myyjällä **48h** aikaa lähettää (lomamoodi: 7 päivää)
 - SKRM **ei ole osapuoli** kaupassa — marketplace-malli
@@ -420,17 +420,6 @@ Sama strategia joka toimi Paytrailin kanssa (mock-pay-virta valmiina ennen oikei
 3. **Abstraktiokerros (`PostiService`-tyyppinen palveluluokka):** funktiot `createShipment()`, `getSendingCode()`, `getTrackingStatus()` palauttavat mock-dataa **täsmälleen dokumentoidussa JSON-muodossa** (ks. Sending Code API:n esimerkkivastaukset yllä). Kun oikeat tunnukset saadaan, vaihdetaan vain funktioiden sisältö — ei muuta sovellusta.
 4. **Pickup Point API — tarkistettava erikseen Postilta voiko sitä testata jo nyt:** koska se on todennäköisesti pelkkä sijaintihaku (ei lähetyksen luontia/EDI:tä), saattaa vaatia kevyemmän pääsyn kuin Sending Code / GLUE. Lisää tämä kysymykseksi Postin sähköpostiin (ks. kysymyslista yllä).
 
-### ✅ TEHTY 2026-08-12 — Posti-integraation runko mock-datalla
-- `Order`-malliin lisätty `trackingNumber`, `sendingCode`, `pickupPointId`, `postiStatus` (RECEIVED/IN_TRANSIT/AT_PICKUP_POINT/PICKED_UP) — kaikki erillisiä olemassa olevasta manuaalisesta `trackingCode`-kentästä ja "Nouto myyjältä" -toiminnon `pickupCode`:sta, ei sekoiteta näitä kolmea eri konseptia keskenään
-- `backend/src/lib/postiService.ts` — `createShipment()`, `getSendingCode()`, `getTrackingStatus()`, palauttavat mock-dataa täsmälleen Sending Code API:n dokumentoidussa `{"shipments": [{"trackingNumber", "sendingCode"}]}` -muodossa. Kun oikeat tunnukset saadaan, vain näiden kolmen funktion sisältö vaihtuu.
-- `POST /orders/:id/select-shipping` hyväksyy nyt valinnaisen `pickupPointId`:n postitus-toimitustavalle
-- `POST /orders/:id/create-shipment` (uusi, myyjä) — kutsuu `postiService.createShipment()`:ia, tallentaa koodit, siirtää tilauksen `SHIPPED`-tilaan samalla tavalla kuin vanha manuaalinen `/tracking`-reitti — **ei korvaa** vanhaa reittiä, molemmat toimivat rinnakkain (myyjä käyttää jompaakumpaa)
-- `GET /orders/mine` ja `/selling` laskevat `postiStatus`:n tuoreena joka haulla (`postiService.getTrackingStatus()`, aikaperusteinen mock-eteneminen `shippedAt`:sta) — ei erillistä pollausreittiä
-- Frontend: `frontend/lib/postiPickupPoints.ts` (5 kovakoodattua esimerkkipistettä eri kaupungeissa), `frontend/lib/postiTrackingSteps.ts` (jaettu askellista+suomenkieliset labelit)
-- `/ostot`: noutopisteen valinta checkout-vaiheessa postitus-tilauksille, toimitusseurantapalkki (4 askelta, nykyinen korostettuna) SHIPPED-tilauksille joilla on `trackingNumber`
-- `/dashboard/tilaukset`: "Luo lähetys (Posti)" -nappi manuaalisen seurantakoodikentän vierellä postitus-tilauksille; kun lähetys on luotu, näyttää `sendingCode`:n jonka myyjä kirjoittaa pakettiin
-- **Ei koodattu:** mitään oikeaa Posti-API-kutsua — kaikki kolme `postiService.ts`:n funktiota ovat puhtaita mock-funktioita, ei verkkoliikennettä, ei GLUE-oletuksia (ks. "TÄRKEÄ LÖYDÖS" yllä)
-
 ### Tunnusten hankinta — konkreettinen seuraava askel kun OY on valmis
 - **Yhteystieto: `LogEDI@posti.com`**
 - Sähköpostiin tarvitaan: Postin asiakasnumero (jos on), **Y-tunnus**, yhteyshenkilön tiedot
@@ -667,6 +656,51 @@ Omistaja vahvistaa: MediaMTX-työn aikana/jälkeen video meni aiemmasta "toimii 
 - **Syy tunnistettu:** OBS:n keyframe-väli oli 8.3s, pitäisi olla 1-2s jotta segmentit pysyvät lyhyinä. **Tämä on omistajan oma OBS-asetus, ei korjattavissa palvelinpuolelta** — omistaja päivittää: Asetukset → Lähtö → Advanced-tila → Streaming-välilehti → Keyframe Interval → 2s
 - **Seuraava askel:** mittaa viive uudelleen keyframe-korjauksen jälkeen, useampi kerta peräkkäin
 - **Mux vs. jatka itse -päätös on yhä auki** — ei päätetty vielä, odottaa tätä seuraavaa mittausta ennen lopullista arviota kannattaako jatkaa itse rakennetulla MediaMTX-pohjalla vai vaihtaa managed-palveluun
+
+## Uudet löydökset 2026-08-13, osa 2 (huutokaupan käytännön testaus — EI VIELÄ TOIMEKSIANTOA korjaukseen, vain kirjattu)
+
+**8. Jonon "seuraava tuote" -valinta jumittuu kun myydään listan viimeinen tuote.** Toistettu: myytiin jonon viimeisenä ollut tuote ensimmäisenä (siis jono tyhjeni). Sen jälkeen vasemman Jono-paneelin kautta ei saatu valittua seuraavaa tuotetta normaalisti — piti ensin lisätä yksi uusi tuote jonoon, painaa "Seuraava", ja vasta sen jälkeen tuotevalinta toimi taas vapaasti. Reunatapaus: jonon tyhjentyminen jättää valinta-UI:n rikkinäiseen tilaan.
+
+**9. Custom-huutosumman syöttökenttä hankala käyttää.** Testattu toisella tunnuksella: ehdotettua huutosummaa ei saanut helposti pyyhittyä/korvattua — piti klikata kentän alkuun, lisätä numero, poistaa merkkejä kiertotietä pitkin, jotta summa ei hetkeksikään näyttänyt olevan alle minimihuudon (mikä esti syötön). Koettu "todella ärsyttäväksi". Todennäköisesti kentän validointi estää välitilan (esim. tyhjä/liian pieni arvo kesken kirjoittamisen) sen sijaan että sallisi vapaan kirjoittamisen ja validoisi vasta lähetyshetkellä.
+
+**10. Huutoilmoituksen viive liian pitkä.** Kun huudetaan (esim. 3€), "Huusit"-ilmoitus/vahvistus ilmestyy n. sekunnin viiveellä huudon jälkeen — tuntuu hitaalta. Ehdotus: lyhennä esim. puoleen nykyisestä.
+
+**11. KRIITTINEN: selaimen "edellinen sivu" -navigointi (monella tapaa mahdollista, esim. takaisin-nappi/-ele) katkaisee pääsyn käynnissä olevaan streamiin.** Jos käyttäjä (todennäköisesti myyjä, kesken lähetyksen hallinnan) päätyy vahingossa edelliselle sivulle, ei pääse enää jatkamaan/palaamaan käynnissä olevaan streamiin normaalisti. Tämä on vakava luotettavuusongelma — streami voi jäädä "orvoksi" (OBS lähettää yhä, mutta hallintanäkymä ei enää seuraa/hallitse sitä oikein). Vaatii tutkimista: todennäköisesti komponentin tila (React state, socket/huoneen liittyminen) ei palaudu oikein kun sivulle navigoidaan takaisin — pitäisi hakea nykyinen lähetyksen tila uudelleen palatessa, ei luottaa pelkkään paikalliseen tilaan.
+
+**12. Myyjä pystyi huutamaan omassa huutokaupassaan samalla tunnuksella jolla striimasi — ei pitäisi olla mahdollista.** Perustavanlaatuinen sääntörikkomus: myyjän ei tule koskaan pystyä osallistumaan huutoon omaan tuotteeseensa (esti hinnan keinotekoisen nostamisen / itsehuutamisen). **Korjaus: backendin huutoreitin pitää tarkistaa ja hylätä huuto jos `bidderId === product.sellerId` (tai vastaava), ei riitä pelkkä frontendin piilotus koska sen voi ohittaa.**
+
+**13. Korjaus 2026-08-13: "Odottaa maksua" -tila ON olemassa ostajan puolella, mutta ajastin näyttää väärän ajan.** Omistaja tarkisti: ostajan näkymässä on jo "Odottaa maksua" -tila ajastimella — tämä osa on siis kunnossa, ei puuttunut kokonaan niin kuin aiemmin luultiin. **Mutta ajastin näyttää 6 tuntia, kun LUKITTU-sääntö on 2h maksuaika.** Todennäköinen syy: sekaannus kahden eri 6h/2h-säännön välillä koodissa — "2h maksuaika voitetusta huudosta" (tämä) vs. "6h aikaikkuna Yhdistetty lähetys -säännössä" (eri asia, koskee useamman tuotteen yhdistämistä samaan tilaukseen samalta myyjältä). **Korjaus: varmista että maksuajastin käyttää 2h:aa, ei 6h:aa — tarkista ettei koodissa ole vahingossa käytetty väärää vakiota näiden kahden säännön välillä.**
+- **Myyjän puolelta puuttuu yhä vastaava näkymä** (ei vahvistettu olevan olemassa) — tarkista onko myyjän tuotelistauksessa vastaava "Odottaa maksua" -tila voitetulle tuotteelle, lisää jos puuttuu.
+- **Testaamatta: mitä tapahtuu kun maksuaika kuluu loppuun ilman maksua?** Pitäisi laukaista LUKITTU-logiikka (maksamaton tilaus → **heti** 30pv banni, ei enää 3 kerran raja, ks. "Banni"-sääntö), tuote palautuu myytävien listalle. Ei vahvistettu toimivaksi käytännössä, kannattaa testata erikseen — erityisesti että banni todella laukeaa jo ensimmäisestä kerrasta uuden säännön mukaisesti.
+
+## Uudet löydökset 2026-08-13 (mobiili live-testaus, myyjän ja ostajan puolelta)
+
+Viisi bugia löytyi mobiilitestauksesta täysnäkymärakenteen jälkeen. **Kiireellisin ensin, konkreettisin — livehuuto, koska sitä käyttää todennäköisesti suurin osa käyttäjistä.**
+
+**1. Nykyisen tuotteen tietolaatikko ("Reiska"-tyylinen kortti: kuva+nimi+hinta+kesto) renderöityy chat-tekstikentän PÄÄLLE, estää kirjoittamisen — vahvistettu kuvasta 2026-08-13.**
+Korjaa aiemman virheellisen diagnoosin (ks. yllä oleva historia) — todellinen syy on **z-index/kerrosjärjestysongelma**: tuotetietolaatikko on korkeammalla kerroksella kuin chat-inputin `position:absolute`-overlay, joten se peittää tekstikentän kokonaan tai osittain käyttäjän sormen/kohdistimen tavoittamattomiin. **Tämä täsmää aiemmin raportoituun ja "korjattuun" bugiin** ("Huutokauppakohteen avaus blokkaa chatin valinnan", ks. "Uudet löydökset 2026-08-10" -osion kohta 3) — joko se korjaus ei toiminut kunnolla, tai tämä on sama ongelma toisessa kohtaa UI:ta (nyt vahvistettu myyjän omalla `/lahetys`-konsolilla, ei vain katsojan puolella). **Korjaus: tarkista kaikki paikat missä nämä kaksi overlayta (tuotetietolaatikko + chat-input) voivat olla päällekkäin, aseta chat-inputille korkeampi z-index tai siirrä tuotetietolaatikko niin ettei se voi koskaan mennä tekstikentän päälle.** **Rajaus vahvistettu 2026-08-13: koskee VAIN myyjän omaa `/lahetys`-konsolia, ei ostajan/katsojan puolta** — katsojan puolella chat toimi testissä normaalisti, ainoa katsojapuolen ongelma on erillinen kohta 3 (tuotetiedot eivät näy ollenkaan katsojalle). Älä siis etsi tätä z-index-bugia katsojan sivulta, keskity vain myyjän konsoliin.
+
+**2. Muted Words -suodatin ei toimi — tarkennettu 2026-08-13, korvaa aiemman epätarkan version.** Kyse ei ole "Tee moderaattoriksi" -toiminnosta (se on jo oikein poistettu käytöstä, ks. 2026-08-10 kohta 1) — kyse on **kiellettyjen sanojen suodattimesta** (ks. "Chat & moderointi" -osion "Muted Words" -kohta). Testattu: myyjä lisäsi kielletyksi sanaksi "moi", mutta chat ei suodattanut/piilottanut sitä sisältäviä viestejä tavalliselta yleisöltä. **Korjaus: varmista että Muted Words -lista oikeasti tarkistetaan jokaista saapuvaa chat-viestiä vastaan, ja täsmäävät viestit piilotetaan normaalilta yleisöltä (moderaattorit näkevät ne yhä, ks. alkuperäinen speksi).**
+
+**3. Ostajan puolella kiinnitetty/seuraava tuote ei näy.** Katsojan näkymässä ei näy tietoa siitä mikä tuote on kiinnitettynä tai mikä on jonossa seuraavana — tämä tieto on olemassa myyjän puolella mutta ei välity katsojalle.
+
+**4. Tuotetta ei voi klikata isommaksi/kuvauksen näkemiseksi.** Katsoja ei pääse avaamaan nykyistä tuotetta suurempaan näkymään nähdäkseen kuvauksen tai muut tiedot — puuttuva interaktio.
+
+**5. Sisältö ylivuotaa näytön ulkopuolelle, vaikka scroll on oikein estetty — tarkennettu 2026-08-13.** Vahvistettu: sivun EI pidä pystyä scrollaamaan mihinkään suuntaan (ylös/alas/vasen/oikea) mobiilissa/tabletilla — tämä on edelleen oikea, LUKITTU vaatimus. **Chat-viestilista on eri asia ja saa scrollata sisäisesti normaalisti.** Kuvakaappauksessa näkyy kuitenkin että esim. "+"-nappi (määrän lisäys) jää osittain näytön reunan ulkopuolelle — eli scroll-esto toimii teknisesti oikein, mutta **sisältö ei mahdu kokonaan näkyvään alueeseen**, jolloin osa siitä on käytännössä tavoittamattomissa. **Korjaus: varmista että KAIKKI interaktiiviset elementit (napit, syöttökentät) mahtuvat kokonaan näkyvän viewportin sisään millä tahansa mobiili-/tablettikoolla — pienennä/järjestä uudelleen elementtejä tarvittaessa, älä vain estä scrollausta sisällön ylivuotaessa.**
+
+**6. "Myyty"-napin tarkoitus epäselvä omistajalle.** Ei tiedetä mitä se tekee/pitäisi tehdä. **Pyydä VS Coden Claudea selittämään alkuperäinen tarkoitus** (esim. onko se tarkoitettu merkitsemään nykyinen tuote myydyksi manuaalisesti huutokauppa-ajastimen ulkopuolella) — jos se osoittautuu tarpeettomaksi/päällekkäiseksi muiden toimintojen kanssa, poistetaan. Ei poisteta vielä ilman selitystä.
+
+**7. "Lopeta"-nappi kahteen kertaan, sekoittaa — poista alempi.** Yläpalkissa on jo oma "Lopeta"-nappi (lopettaa koko lähetyksen). Pikatoimintorivillä alempana on toinen "Lopeta"-nappi jonka omistaja luuli lopettavan vain nykyisen huutokaupan/tuotteen, ei koko streamiä — sekaannusta aiheuttava kaksinkertaisuus. **Päätös: poista alempi "Lopeta"-nappi kokonaan, jätä vain yläpalkin nappi.** Jos tarvitaan erillinen "lopeta vain nykyinen huutokauppa" -toiminto, se pitää nimetä selvästi eri tavalla (esim. "Peruuta huutokauppa") eikä käyttää samaa "Lopeta"-sanaa kuin koko streamin lopetuksessa.
+
+### ✅ TEHTY 2026-08-13 — kaikki 13 löydöstä + banni-sääntömuutos korjattu
+Kaikki tämän ja "osa 2" -osion 13 kohtaa käyty läpi numerojärjestyksessä (11 ja 12 ensin kriittisinä), plus banni-sääntömuutos. Yhteenveto poikkeamista/löydöksistä joita ei ollut vielä kirjattu:
+- **12 (turva):** vika oli vain `socket.ts`:n live-huutojärjestelmässä — perinteisen huutokaupan `auctions.ts`-reitit (bid/autobid/buy-now) tarkistivat jo `sellerId === userId`:n oikein. Korjattu vain puuttuva kohta.
+- **2 (Muted Words):** suodatuslogiikka itsessään oli jo oikein sekä backendissä että frontendissä — todellinen syy oli että `mutedWords` oli vain in-memory `Map`, joka tyhjenee jokaisella backend-uudelleenkäynnistyksellä (deploy). Lisätty `Show.mutedWords`-kenttä tietokantaan, ladataan/tallennetaan sieltä.
+- **13 (maksuajastin):** kaikki backendin `paymentDeadline`-laskennat olivat jo oikein 2h (vahvistettu suoraan tuotanto-DB:stä) — todellinen bugi oli `/ostot`-sivun UI: ennen toimitustavan valintaa näkyi VAIN 6h toimitusvalinta-ikkuna, 2h maksuaika juoksi näkymättömissä taustalla. Molemmat näytetään nyt aina. Lisätty myös puuttunut "Odottaa maksua" -näkymä myyjän Tilaukset-sivulle.
+- **8 (jonovalinta):** juurisyy oli `!isSold`-tarkistus queue-panelin onClick:issa, joka viittasi VÄÄRÄÄN muuttujaan (nykyisen valitun tuotteen sold-tilaan, ei klikatun rivin) — poistettu tarpeettomana koska `activeQueueProducts` suodattaa jo myydyt pois.
+- **6 (Myyty-nappi):** selitetty, EI poistettu — `stop_auction`/`endAuction()` päättää nykyisen tuotteen huudon heti ja luo Orderin korkeimmalle huutajalle, yleisin tapa lopettaa live-lotti (ei odoteta ajastinta).
+- **10 (huutoviive):** `place_bid`:n kolme peräkkäistä DB-kutsua (product/user/bid.create) muutettu: product+user rinnakkain, bid.create pois kriittiseltä polulta (fire-and-forget).
+- **Uusi:** `/live/[showId]`:lle lisätty "Seuraavaksi"-tuotenäyttö sekä klikattava suurennettava tuotemodaali (kohdat 3 ja 4).
 
 ## Uudet löydökset 2026-08-12 (tablettikoon responsiivisuustesti)
 

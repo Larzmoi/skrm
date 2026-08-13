@@ -12,10 +12,54 @@ interface SellingOrder {
   trackingCode: string | null; trackingNumber: string | null; sendingCode: string | null; createdAt: string; items: OrderItem[]
   buyer: { name: string; username: string; address?: string; postalCode?: string; city?: string; phone?: string }
   reviews: { reviewerId: string }[]
+  paymentDeadline: string | null
 }
 
 function addressLine(b: SellingOrder['buyer']) {
   return [b.address, b.postalCode, b.city].filter(Boolean).join(', ') || 'Ei osoitetta vielä'
+}
+
+function timeLeftLabel(ms: number) {
+  if (ms <= 0) return '0:00'
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Myyjän puolelta puuttui aiemmin kokonaan näkymä voitettuun/ostettuun tuotteeseen joka
+// odottaa ostajan maksua (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 13) - myyjä ei
+// nähnyt edes että kauppa on tulossa ennen kuin ostaja oli jo maksanut. Kevyt, vain-luku-
+// tyylinen kortti riittää, koska myyjä ei voi tehdä mitään paitsi odottaa.
+function PendingPaymentCard({ order, C, now }: { order: SellingOrder; C: Record<string, string>; now: number }) {
+  const remaining = order.paymentDeadline ? new Date(order.paymentDeadline).getTime() - now : null
+  return (
+    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 12, opacity: 0.85 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
+          <div style={{ fontSize: 12, color: C.muted }}>@{order.buyer.username}</div>
+        </div>
+        <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+        {order.items.map(item => (
+          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span style={{ color: C.text }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
+            <span style={{ color: C.muted }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: remaining !== null && remaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
+          {remaining !== null ? (remaining > 0 ? `Ostajan maksuaikaa ${timeLeftLabel(remaining)}` : 'Maksuaika umpeutunut') : 'Odottaa maksua'}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
@@ -146,6 +190,7 @@ export default function TilauksetPage() {
   const [refundBusy, setRefundBusy] = useState<string | null>(null)
   const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
   const [shipmentBusy, setShipmentBusy] = useState<string | null>(null)
+  const [now, setNow] = useState(Date.now())
 
   const load = useCallback(async () => {
     try {
@@ -158,6 +203,11 @@ export default function TilauksetPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   async function submitTracking(orderId: string) {
     const code = trackingInput[orderId]?.trim()
@@ -212,6 +262,7 @@ export default function TilauksetPage() {
     setReviewBusy(null)
   }
 
+  const pendingPayment = orders.filter(o => o.status === 'PENDING_PAYMENT')
   const ready = orders.filter(o => o.status === 'PENDING_SHIPPING')
   const shipped = orders.filter(o => o.status === 'SHIPPED')
   const delivered = orders.filter(o => o.status === 'DELIVERED')
@@ -229,6 +280,13 @@ export default function TilauksetPage() {
         <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
       ) : (
         <>
+          {pendingPayment.length > 0 && (
+            <>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Odottaa maksua <span style={{ color: C.muted, fontWeight: 400 }}>({pendingPayment.length})</span></h2>
+              <div style={{ marginBottom: 24 }}>{pendingPayment.map(o => <PendingPaymentCard key={o.id} order={o} C={C} now={now} />)}</div>
+            </>
+          )}
+
           <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Uudet tilaukset <span style={{ color: C.muted, fontWeight: 400 }}>({ready.length})</span></h2>
           {ready.length === 0
             ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0', marginBottom: 24 }}>Ei lähetettäviä tilauksia</div>

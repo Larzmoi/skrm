@@ -236,6 +236,15 @@ export default function OstotPage() {
 
                         {section.key === 'PENDING_PAYMENT' && order.shippingPrice == null && (
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                            {/* Todellinen 2h maksuaika juoksee taustalla vaikka toimitustapaa ei ole
+                                vielä valittu - ilman tätä ostaja näki vain 6h toimitusvalinta-
+                                ikkunan eikä koskaan oikeaa maksudeadlinea ennen kuin valitsi
+                                toimitustavan (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 13). */}
+                            {paymentRemaining !== null && (
+                              <div style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.text, marginBottom: 4 }}>
+                                Maksuaikaa {paymentRemaining > 0 ? timeLeftLabel(paymentRemaining) : '0:00 — aika loppui'}
+                              </div>
+                            )}
                             {shippingRemaining !== null && (
                               <div style={{ fontSize: 12, fontWeight: 700, color: shippingRemaining < 60 * 60 * 1000 ? '#EF4444' : C.muted, marginBottom: 8 }}>
                                 {shippingRemaining > 0 ? `Toimitusvalinta-aikaa ${timeLeftLabel(shippingRemaining)}` : '6h ikkuna umpeutunut'}

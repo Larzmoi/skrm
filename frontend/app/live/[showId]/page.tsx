@@ -22,7 +22,7 @@ interface AuctionState {
   active: boolean
 }
 
-interface ShowProduct { id: string; name: string; condition?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
+interface ShowProduct { id: string; name: string; condition?: string; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
 interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { id: string; username: string }; products: ShowProduct[] }
 
 // LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX -> LiveKit").
@@ -100,6 +100,30 @@ function VideoPlayer({ showId }: { showId: string }) {
   )
 }
 
+// Katsoja ei aiemmin pystynyt avaamaan nykyistä tuotetta suurempaan näkymään nähdäkseen
+// kuvauksen (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 4) - tuotetietolaatikko oli
+// vain teksti, ei interaktiota. Yksinkertainen lightbox-tyylinen modaali korjaa tämän.
+function ProductDetailModal({ product, onClose }: { product: ShowProduct; onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, maxWidth: 420, width: '100%', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        {product.imageUrl && (
+          <img src={product.imageUrl.split('|||')[0]} alt={product.name} style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderTopLeftRadius: 14, borderTopRightRadius: 14 }} />
+        )}
+        <div style={{ padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{product.name}</div>
+            <button onClick={onClose} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 28, height: 28, color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>✕</button>
+          </div>
+          {product.condition && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 10 }}>{product.condition}</div>}
+          {product.description && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</p>}
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 12 }}>{product.startPrice}€</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function WaitingForStream({ dark, t, ended }: { dark?: boolean; t: any; ended?: boolean }) {
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: dark ? 'rgba(255,255,255,0.5)' : '#666', fontSize: 13 }}>
@@ -133,21 +157,25 @@ interface BidPanelProps {
   // vastaava vedon mekaniikka koettiin hyväksi eikä sitä muuteta.
   isMobile: boolean
   onPlaceBid: () => void
+  nextProductName?: string
+  onProductClick?: () => void
 }
 
-function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd, isMobile, onPlaceBid }: BidPanelProps) {
+function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd, isMobile, onPlaceBid, nextProductName, onProductClick }: BidPanelProps) {
   return (
     <div style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '12px 14px 14px' }}>
       {bidError && <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{bidError}</div>}
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, cursor: onProductClick ? 'pointer' : 'default' }} onClick={onProductClick}>
         <div style={{ width: 44, height: 44, borderRadius: 7, overflow: 'hidden', flexShrink: 0, background: '#1A1A1A' }}>
           {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>{t.live.lotNumber} #{currentLot}</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
-          <div style={{ fontSize: 11, color: '#666' }}>{currentProduct.condition}</div>
+          <div style={{ fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {currentProduct.condition}{nextProductName && <span> · Seuraavaksi: {nextProductName}</span>}
+          </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>{t.live.currentBid}</div>
@@ -167,10 +195,14 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
       )}
 
       {!ended && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, minWidth: 0 }}>
           <button onClick={() => setBidAmount(b => Math.max(auction.currentBid + 1, b - 1))} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
-          <input type="number" value={bidAmount} onChange={e => setBidAmount(Math.max(auction.currentBid + 1, Number(e.target.value)))} style={{ flex: 1, background: '#1A1A1A', border: `1px solid ${C.accent}44`, borderRadius: 7, padding: '10px 14px', color: '#fff', fontSize: 17, fontWeight: 700, textAlign: 'center', boxSizing: 'border-box' as const }} />
-          <span style={{ color: '#555', fontSize: 13 }}>€</span>
+          {/* Ei validoida/rajoiteta jokaisella näppäimenpainalluksella (ks. CLAUDE.md "Uudet
+              löydökset 2026-08-13" kohta 9) - aiempi Math.max(...)-pakotus onChange:issa esti
+              kentän tyhjentämisen/uudelleenkirjoittamisen kesken kirjoittamisen, koska arvo
+              hypähti heti takaisin minimiin. Minimi tarkistetaan vasta placeBid()-lähetyksessä. */}
+          <input type="number" value={bidAmount} onChange={e => setBidAmount(Number(e.target.value) || 0)} style={{ flex: '1 1 0%', minWidth: 0, background: '#1A1A1A', border: `1px solid ${C.accent}44`, borderRadius: 7, padding: '10px 8px', color: '#fff', fontSize: 17, fontWeight: 700, textAlign: 'center', boxSizing: 'border-box' as const }} />
+          <span style={{ color: '#555', fontSize: 13, flexShrink: 0 }}>€</span>
           <button onClick={() => setBidAmount(b => b + 1)} style={{ width: 40, height: 40, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: C.accentBright, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
         </div>
       )}
@@ -413,6 +445,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
   // Shop-paneeli (mobiili: täysruudun overlay + video pienenee PiP:ksi)
   const [shopOpen, setShopOpen] = useState(false)
+  const [productModalOpen, setProductModalOpen] = useState(false)
   // Video-elementin "kotipesät" mobiilin pääkuvalle ja Shopin PiP-ikkunalle. Video
   // portaloidaan (React Portal) sille kumpi on aktiivinen, EI koskaan renderöidä kahdessa
   // erillisessä ehdollisessa JSX-haarassa kuten aiemmin - se pakotti Reactin unmounttaamaan
@@ -644,6 +677,10 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const products = show?.products ?? []
   const currentProduct = products.find(p => p.id === auction.productId) ?? products[0] ?? { id: '', name: t.live.noProducts, condition: '', startPrice: 0, imageUrl: undefined, status: 'PENDING' }
   const currentLot = products.findIndex(p => p.id === currentProduct.id) + 1
+  // Seuraava jonossa oleva tuote - sama tieto joka myyjällä on jo, mutta ei aiemmin välittynyt
+  // katsojalle (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 3). products sisältää kaikki
+  // tuotteet tilasta riippumatta (ei vain PENDING), joten myydyt ohitetaan tässä.
+  const nextProduct = products.slice(currentLot).find(p => p.status === 'PENDING' && p.id !== currentProduct.id)
   const timerColor = auction.timer > 30 ? C.accent : auction.timer > 10 ? '#F59E0B' : '#EF4444'
   const maxSlideX = (slideTrackRef.current?.offsetWidth ?? 300) - 46 - 8
   const isLeading = auction.leaderName === user?.username
@@ -763,11 +800,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
               connected={connected} maxSlideX={maxSlideX} slideX={slideX}
               onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
-              isMobile={true} onPlaceBid={placeBid}
+              isMobile={true} onPlaceBid={placeBid} nextProductName={nextProduct?.name} onProductClick={() => setProductModalOpen(true)}
             />
         </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
+        {productModalOpen && <ProductDetailModal product={currentProduct} onClose={() => setProductModalOpen(false)} />}
       </div>
     )
   }
@@ -822,10 +860,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <div style={{ fontSize: 22, fontWeight: 900, color: timerColor }}>{auction.timer}s</div>
               </div>
             )}
-            <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+            <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, cursor: 'pointer' }} onClick={() => setProductModalOpen(true)}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>{t.live.lotNumber} #{currentLot}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{currentProduct.name}</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{currentProduct.condition}</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                {currentProduct.condition}{nextProduct && <span> · Seuraavaksi: {nextProduct.name}</span>}
+              </div>
             </div>
             <div style={{ position: 'absolute', bottom: 16, right: 16, textAlign: 'right' }}>
               <div style={{ fontSize: 26, fontWeight: 900, color: isLeading ? C.accentBright : '#fff' }}>{auction.currentBid}€</div>
@@ -855,7 +895,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             setBidAmount={setBidAmount} slideTrackRef={slideTrackRef} bidSuccess={bidSuccess} sliding={sliding}
             connected={connected} maxSlideX={maxSlideX} slideX={slideX}
             onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
-            isMobile={false} onPlaceBid={placeBid}
+            isMobile={false} onPlaceBid={placeBid} nextProductName={nextProduct?.name} onProductClick={() => setProductModalOpen(true)}
           />
         </div>
 
@@ -869,6 +909,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       </div>
       {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
+      {productModalOpen && <ProductDetailModal product={currentProduct} onClose={() => setProductModalOpen(false)} />}
     </div>
   )
 }

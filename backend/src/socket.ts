@@ -61,8 +61,20 @@ function isSellerOrMod(showId: string, sellerId: string | undefined, userId: str
   return moderators.get(showId)?.has(userId) ?? false
 }
 
-function containsMutedWord(showId: string, message: string) {
-  const words = mutedWords.get(showId)
+// mutedWords-Map on vain nopea in-memory-välimuisti - lähde totuudelle on Show.mutedWords
+// tietokannassa, koska Map tyhjenee jokaisella backend-uudelleenkäynnistyksellä (deploy),
+// jolloin myyjän asettama suodatin katosi hiljaisesti ilman tätä (ks. CLAUDE.md "Uudet
+// löydökset 2026-08-13" kohta 2 - suodatin toimi loogisesti oikein, mutta ei säilynyt).
+async function getMutedWords(showId: string): Promise<string[]> {
+  const cached = mutedWords.get(showId)
+  if (cached) return cached
+  const show = await prisma.show.findUnique({ where: { id: showId }, select: { mutedWords: true } })
+  const words = show?.mutedWords ?? []
+  mutedWords.set(showId, words)
+  return words
+}
+
+function containsMutedWord(words: string[], message: string) {
   if (!words || words.length === 0) return false
   const lower = message.toLowerCase()
   return words.some(w => w && lower.includes(w))
@@ -170,12 +182,13 @@ export function setupSocket(io: Server) {
         })
         if (!user || !message.trim()) return
         const trimmed = message.trim().slice(0, 200)
+        const words = await getMutedWords(showId)
         io.to(`show:${showId}`).emit('chat_message', {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           userId: user.id,
           username: user.username,
           message: trimmed,
-          hidden: containsMutedWord(showId, trimmed),
+          hidden: containsMutedWord(words, trimmed),
           timestamp: Date.now(),
         })
       } catch {}
@@ -251,6 +264,7 @@ export function setupSocket(io: Server) {
         if (!show || show.sellerId !== decoded.userId) return
         const cleaned = (words ?? []).map(w => String(w).trim().toLowerCase()).filter(Boolean).slice(0, 100)
         mutedWords.set(showId, cleaned)
+        await prisma.show.update({ where: { id: showId }, data: { mutedWords: cleaned } })
         socket.emit('muted_words_saved', { words: cleaned })
       } catch {}
     })
@@ -339,23 +353,24 @@ export function setupSocket(io: Server) {
           return
         }
 
-        const user = await prisma.user.findUnique({
-          where: { id: decoded.userId },
-          select: { id: true, username: true },
-        })
-        if (!user) return
+        // Myyjä ei voi huutaa omaan tuotteeseensa (keinotekoisen hinnannoston esto) - tarkistettava
+        // täällä backendissä, frontendin piilotus ei riitä koska sen voi ohittaa suoraan socketilla.
+        // product+user haetaan rinnakkain (ei peräkkäin) - ks. CLAUDE.md "Uudet löydökset
+        // 2026-08-13" kohta 10, huutoilmoituksen viive tuntui hitaalta.
+        const [product, user] = await Promise.all([
+          prisma.product.findUnique({ where: { id: productId }, select: { sellerId: true } }),
+          prisma.user.findUnique({ where: { id: decoded.userId }, select: { id: true, username: true } }),
+        ])
+        if (!product || !user) return
+        if (product.sellerId === decoded.userId) {
+          socket.emit('bid_error', { message: 'Et voi huutaa omaan tuotteeseesi' })
+          return
+        }
 
-        // Tallenna huuto
-        await prisma.bid.create({
-          data: {
-            productId,
-            showId,
-            userId: user.id,
-            amount,
-          },
-        })
-
-        // Päivitä tila
+        // Päivitä tila ja ilmoita huutajille HETI - ei odoteta Bid-rivin DB-kirjoitusta ensin.
+        // In-memory state on jo livelle totuus (sama periaate kuin muuallakin tässä
+        // tiedostossa), DB on pysyvä kirjanpito eikä sen tarvitse valmistua ennen kuin
+        // huutaja näkee vahvistuksen - tämä oli suurin yksittäinen viiveen lähde.
         state.currentBid = amount
         state.leaderId = user.id
         state.leaderName = user.username
@@ -372,6 +387,9 @@ export function setupSocket(io: Server) {
         })
 
         socket.emit('bid_accepted', { amount, productId })
+
+        prisma.bid.create({ data: { productId, showId, userId: user.id, amount } })
+          .catch(e => console.error('Huudon tallennus epäonnistui:', e))
       } catch (e) {
         socket.emit('bid_error', { message: 'Huuto epäonnistui' })
       }

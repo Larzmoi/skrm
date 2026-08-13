@@ -238,8 +238,41 @@ export default function LahetysPage() {
     })
   }
 
+  // Jatka olemassa olevaa lähetystä jos myyjällä on jo yksi kesken (esim. luotu toisella
+  // laitteella/välilehdellä) — muuten sivun avaaminen esim. puhelimella loisi VIELÄ YHDEN
+  // erillisen Show:n omalla chat-huoneellaan, eikä keskustelu/tila synkronoituisi ollenkaan
+  // tietokoneen kanssa jolla lähetys oikeasti on käynnissä. Eriytetty omaksi funktioksi
+  // (ks. CLAUDE.md "KRIITTINEN: selaimen 'edellinen sivu' -navigointi katkaisee pääsyn
+  // käynnissä olevaan streamiin") — kutsutaan paitsi ensimmäisellä mountilla myös aina kun
+  // sivu tulee uudelleen näkyviin (esim. selaimen takaisin-navigointi), koska Next.js:n
+  // client-side router-cache voi palauttaa vanhan, jo "ei-livenä" olevan React-tilan
+  // suorittamatta mount-efektiä uudestaan — paikallinen tila ei siis ole luotettava, tila
+  // pitää aina varmistaa palvelimelta kun käyttäjä palaa sivulle.
+  async function checkForActiveShow() {
+    try {
+      const { showApi } = await import('@/lib/api')
+      const shows: any[] = await showApi.mine()
+      const active = shows
+        // SCHEDULED-lähetys on yksityinen esikatselu/testivaihe joka ei realistisesti kestä
+        // päiviä — vanha unohdettu testiluonnos (esim. selain suljettu ilman "Lopeta
+        // lähetys" -painallusta) ei saa jäädä "aktiiviseksi" ikuisesti ja yllättäen resumeta
+        // vahingossa myöhemmin, jolloin myyjä päätyisi hämmentävästi vanhaan lähetykseen
+        // tajuamatta miksi. LIVE-lähetykselle ei ole vastaavaa rajaa, koska julkinen lähetys
+        // pitää aina pystyä jatkamaan riippumatta siitä miten kauan se on ollut käynnissä.
+        .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+      if (active) {
+        setShow({ id: active.id, title: active.title })
+        setShowStatus(active.status)
+        setIsLive(true)
+        if (active.status === 'LIVE' && active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
+        if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+      }
+    } catch {}
+  }
+
   useEffect(() => {
-    import('@/lib/api').then(({ api, userApi, showApi }) => {
+    import('@/lib/api').then(({ api, userApi }) => {
       api.getMyProducts().then((p: Product[]) => {
         setProducts(p.filter(x => x.status === 'PENDING'))
       }).catch(() => {})
@@ -248,32 +281,26 @@ export default function LahetysPage() {
       userApi.getStreamInfo().then((info: { rtmpUrl: string; streamKey: string; wsUrl: string; previewToken: string }) => {
         setStreamUrl(info.rtmpUrl); setStreamKey(info.streamKey); setPreviewWsUrl(info.wsUrl); setPreviewToken(info.previewToken)
       }).catch(() => {})
-      // Jatka olemassa olevaa lähetystä jos myyjällä on jo yksi kesken (esim. luotu toisella
-      // laitteella/välilehdellä) — muuten sivun avaaminen esim. puhelimella loisi VIELÄ YHDEN
-      // erillisen Show:n omalla chat-huoneellaan, eikä keskustelu/tila synkronoituisi ollenkaan
-      // tietokoneen kanssa jolla lähetys oikeasti on käynnissä.
-      showApi.mine().then((shows: any[]) => {
-        const active = shows
-          // SCHEDULED-lähetys on yksityinen esikatselu/testivaihe joka ei realistisesti kestä
-          // päiviä — vanha unohdettu testiluonnos (esim. selain suljettu ilman "Lopeta
-          // lähetys" -painallusta) ei saa jäädä "aktiiviseksi" ikuisesti ja yllättäen resumeta
-          // vahingossa myöhemmin, jolloin myyjä päätyisi hämmentävästi vanhaan lähetykseen
-          // tajuamatta miksi. LIVE-lähetykselle ei ole vastaavaa rajaa, koska julkinen lähetys
-          // pitää aina pystyä jatkamaan riippumatta siitä miten kauan se on ollut käynnissä.
-          .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000))
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-        if (active) {
-          setShow({ id: active.id, title: active.title })
-          setShowStatus(active.status)
-          setIsLive(true)
-          if (active.status === 'LIVE' && active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
-          if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
-        }
-      }).catch(() => {})
+      checkForActiveShow()
     })
     loadDevices()
     return () => { stopCamera(); publishRoomRef.current?.disconnect() }
   }, [])
+
+  // Varmistus takaisin-navigoinnille: jos sivu tulee näkyviin eikä paikallinen tila usko
+  // lähetyksen olevan käynnissä, kysytään palvelimelta uudestaan — ei luoteta pelkkään
+  // paikalliseen Reactin tilaan joka on voinut jäädä jälkeen todellisuudesta.
+  useEffect(() => {
+    function recheck() {
+      if (!isLive && document.visibilityState === 'visible') checkForActiveShow()
+    }
+    window.addEventListener('pageshow', recheck)
+    document.addEventListener('visibilitychange', recheck)
+    return () => {
+      window.removeEventListener('pageshow', recheck)
+      document.removeEventListener('visibilitychange', recheck)
+    }
+  }, [isLive])
 
   useEffect(() => {
     if (user?.city) setCity(c => c || user.city!)
@@ -658,7 +685,6 @@ export default function LahetysPage() {
   const quickBtnGhost: React.CSSProperties = { ...quickBtnBase, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }
   const quickBtnGhostDisabled: React.CSSProperties = { ...quickBtnGhost, opacity: 0.35, cursor: 'not-allowed', boxShadow: 'none' }
   const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: C.accentBright, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${C.accentBright}66` }
-  const quickBtnDanger: React.CSSProperties = { ...quickBtnBase, background: 'rgba(239,68,68,0.14)', border: '1px solid rgba(239,68,68,0.45)', color: '#FCA5A5' }
 
   const quickActionsRow = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -667,7 +693,6 @@ export default function LahetysPage() {
       <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtnPrimary : quickBtnGhostDisabled}>✓ Myyty</button>
       <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtnPrimary : quickBtnGhostDisabled}>Seuraava →</button>
       <button onClick={() => stub('Giveaway')} style={quickBtnGhost}>Giveaway</button>
-      <button onClick={endShow} style={quickBtnDanger}>✕ Lopeta</button>
     </div>
   )
 
@@ -715,7 +740,7 @@ export default function LahetysPage() {
               onDragStart={() => setDragIndex(i)}
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleDrop(i)}
-              onClick={() => !isSold && setCurrentProductId(p.id)}
+              onClick={() => setCurrentProductId(p.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
             >
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
@@ -1042,7 +1067,7 @@ export default function LahetysPage() {
         </button>
         {showQueue && (
           // bottom: 200 (ei 0) jättää tilaa alapalkin (zIndex:10, ~190px korkea) ja
-          // mobiilin chat-overlayn (zIndex:8, input ~190px pohjasta) yläpuolelle - ennen
+          // mobiilin chat-overlayn (zIndex:12, input ~190px pohjasta) yläpuolelle - ennen
           // Jono ulottui koko korkeuden yli ja peitti korkeammalla z-indexillä molemmat,
           // jolloin chat-tekstikenttä ei enää saanut klikkauksia/fokusta läpi.
           <div style={{ position: 'absolute', top: 0, left: 0, bottom: 200, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)', borderBottomRightRadius: 12, padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -1096,9 +1121,11 @@ export default function LahetysPage() {
         </div>
       )}
 
-      {/* Mobiili: chat overlay videon alareunan yläpuolella, kompaktina */}
+      {/* Mobiili: chat overlay videon alareunan yläpuolella, kompaktina. zIndex korkeampi kuin
+          alapalkin (10) - muuten alapalkin tuotetietolaatikko peitti chat-inputin kun sen oma
+          korkeus (kesto-valinta+aloitusnappi+pikatoiminnot) ylitti tähän varatun 190px-tilan. */}
       {isMobile && (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 8, padding: '0 10px 190px', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 12, padding: '0 10px 190px', pointerEvents: 'none' }}>
           <div
             ref={mobileFeedRef}
             onScroll={e => {

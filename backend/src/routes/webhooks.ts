@@ -7,11 +7,14 @@ import { verifyCallbackSignature, parseStamp } from '../lib/paytrail'
 
 const router = Router()
 
-const VIOLATIONS_BEFORE_BAN = 3
+// TIUKENNETTU 2026-08-13 (LUKITTU, ks. CLAUDE.md "Banni"): jo ENSIMMÄINEN maksamaton
+// tilaus → automaattinen 30 päivän banni heti, ei enää 3 kerran varoitusrajaa. Jokainen
+// seuraava rike (kun aiempi banni on jo umpeutunut) → uusi 30 päivän banni.
+const VIOLATIONS_BEFORE_BAN = 1
 const BAN_DAYS = 30
 
 // Peruuttaa erääntyneet (maksamattomat) tilaukset, vapauttaa tuotteet,
-// kirjaa PaymentViolationin ja bannaa käyttäjän 30 päiväksi 3. rikkomuksesta.
+// kirjaa PaymentViolationin ja bannaa käyttäjän 30 päiväksi heti ensimmäisestä rikkomuksesta.
 export async function checkExpiredPayments() {
   const expired = await prisma.order.findMany({
     where: { status: 'PENDING_PAYMENT', paymentDeadline: { lt: new Date() } },
@@ -46,11 +49,11 @@ export async function checkExpiredPayments() {
         const ban = await prisma.ban.create({
           data: {
             userId: order.buyerId,
-            reason: 'Toistuvat maksamattomat tilaukset',
+            reason: 'Maksamaton tilaus',
             endsAt: new Date(Date.now() + BAN_DAYS * 24 * 60 * 60 * 1000),
           },
         })
-        await notifyUser(order.buyerId, 'BAN_ISSUED', 'Tilisi on estetty', `Tilisi on estetty ${BAN_DAYS} päiväksi toistuvien maksamattomien tilausten vuoksi.`, '/dashboard/profiili')
+        await notifyUser(order.buyerId, 'BAN_ISSUED', 'Tilisi on estetty', `Tilisi on estetty ${BAN_DAYS} päiväksi maksamattoman tilauksen vuoksi.`, '/dashboard/profiili')
         // TODO: Resend — ilmoita käyttäjälle bannista sähköpostilla kun skrm.fi-domain on aktivoitu
         console.log(`[ban] Käyttäjä ${order.buyerId} bannattu ${ban.endsAt.toISOString()} asti (${violationCount} maksamatonta tilausta)`)
       }
