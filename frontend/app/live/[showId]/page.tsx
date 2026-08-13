@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, use } from 'react'
+import { useState, useEffect, useRef, useCallback, use } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -489,7 +489,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, [chat])
 
-  useEffect(() => {
+  const loadShow = useCallback(() => {
     fetch(BACKEND_URL + `/shows/${showId}`)
       .then(r => r.json())
       .then((data: ShowData) => {
@@ -500,6 +500,8 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       })
       .catch(() => {})
   }, [showId])
+
+  useEffect(() => { loadShow() }, [loadShow])
 
   useEffect(() => {
     const socket = connectSocket()
@@ -581,6 +583,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setShow(s => s ? { ...s, status: data.status } : s)
     })
 
+    // Shop-paneelin tuotteet eivät päivittyneet katsojalle kun myyjä lisäsi/liitti tuotteita
+    // kesken lähetyksen (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 4" kohta 18) - haetaan
+    // tuore lista palvelimelta aina kun myyjän puoli ilmoittaa muutoksesta.
+    socket.on('products_updated', () => { loadShow() })
+
     // Jos socket oli JO yhdistetty ennen kuin tämä efekti ehti rekisteröidä kuuntelijansa
     // (esim. käyttäjä navigoi toiselta sivulta jossa sama socket-singleton oli jo auki
     // ilmoituksia varten) — 'connect'-tapahtuma on jo ehtinyt laueta menneisyydessä eikä
@@ -612,6 +619,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       socket.off('bid_error')
       socket.off('auction_state')
       socket.off('show_status')
+      socket.off('products_updated')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showId])

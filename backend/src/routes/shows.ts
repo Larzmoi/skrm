@@ -150,6 +150,26 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res: Respon
   res.json(updated)
 })
 
+// POST /shows/:id/claim-products — KRIITTINEN KORJAUS (ks. CLAUDE.md "Uudet löydökset
+// 2026-08-13, osa 4" kohta 18): myyjän tuotejono (/lahetys-konsolin "products"-tila) haetaan
+// GET /products/mine:sta, EI koskaan showId:n mukaan - eli tuotteita EI koskaan liitetty
+// tietokannassa oikeaan Show-riviin. Tämän vuoksi GET /shows/:id:n products-relaatio (jota
+// katsojan Shop-paneeli käyttää) oli aina tyhjä/vajaa muille kuin striimaavalle laitteelle,
+// jonka oma paikallinen React-tila näytti jonon riippumatta tietokannan totuudesta. Kutsutaan
+// aina kun myyjän konsoli avautuu - liittää kaikki myyjän odottavat (PENDING) tuotteet tähän
+// showhun, jotta katsojat näkevät saman jonon palvelimelta haettuna.
+router.post('/:id/claim-products', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })
+  if (!show || show.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+
+  await prisma.product.updateMany({
+    where: { sellerId: req.userId!, status: 'PENDING' },
+    data: { showId: show.id },
+  })
+  emitToShow(show.id, 'products_updated', {})
+  res.json({ ok: true })
+})
+
 // DELETE /shows/:id — peruuta ajastettu lähetys (vain ennen kuin se on mennyt LIVE:ksi)
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })

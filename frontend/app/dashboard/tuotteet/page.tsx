@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
@@ -37,10 +38,12 @@ function isDeleteLocked(p: Pick<Product, 'saleType' | 'currentBid' | 'reservePri
   return p.saleType === 'auction' && p.currentBid != null && (!p.reservePrice || p.currentBid >= p.reservePrice)
 }
 
-export default function TuotteetPage() {
+function TuotteetContent() {
   const { C } = useTheme()
   const { lang, t } = useLang()
   const isMobile = useIsMobile()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -108,6 +111,19 @@ export default function TuotteetPage() {
     setAuctionDuration(p.auctionDuration ? String(p.auctionDuration) : '')
     setError(''); setShowForm(true)
   }
+
+  // Syväliitos /lahetys-konsolin jonopaneelista ("Muokkaa tuotetta" tuotteen suurennus-
+  // modaalissa, ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 4" kohta 16) - avaa
+  // muokkauslomakkeen automaattisesti kun tullaan ?edit=<id>-parametrilla, siivoaa
+  // parametrin pois URL:ista ettei se avaudu uudestaan esim. sivun päivityksessä.
+  useEffect(() => {
+    const editParam = searchParams.get('edit')
+    if (!editParam || products.length === 0) return
+    const product = products.find(p => p.id === editParam)
+    if (product) openEdit(product)
+    router.replace('/dashboard/tuotteet')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, searchParams])
 
   async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -503,4 +519,8 @@ export default function TuotteetPage() {
       )}
     </div>
   )
+}
+
+export default function TuotteetPage() {
+  return <Suspense><TuotteetContent /></Suspense>
 }

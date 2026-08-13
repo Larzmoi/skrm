@@ -25,6 +25,32 @@ type FeedItem =
 // Pieni, huomaamaton paluunappi — AINOA tie takaisin dashboardiin tällä sivulla,
 // koska koko sivuston normaali navbar/sidebar on tarkoituksella piilotettu (ks. CLAUDE.md
 // "Stream-konsolin uudelleenrakennus — TARKENNETTU KOLMANNEN KERRAN JÄLKEEN").
+// Jonon tuoterivit eivät olleet klikattavissa isomman näkymän/muokkauksen avaamiseksi (ks.
+// CLAUDE.md "Uudet löydökset 2026-08-13, osa 4" kohta 16) - samantyylinen kuin katsojan
+// puolen suurennusmodaali, plus linkki muokkaukseen koska tämä on myyjän oma konsoli.
+function QueueProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
+      <div style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, maxWidth: 420, width: '100%', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        {product.imageUrl && (
+          <img src={product.imageUrl.split('|||')[0]} alt={product.name} style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderTopLeftRadius: 14, borderTopRightRadius: 14 }} />
+        )}
+        <div style={{ padding: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{product.name}</div>
+            <button onClick={onClose} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 28, height: 28, color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>✕</button>
+          </div>
+          {product.description && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{product.description}</p>}
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 14 }}>{product.startPrice}€</div>
+          <a href={`/dashboard/tuotteet?edit=${product.id}`} style={{ display: 'block', textAlign: 'center', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+            Muokkaa tuotetta →
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function BackButton({ overlay }: { overlay?: boolean }) {
   const { C } = useTheme()
   return (
@@ -116,6 +142,16 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
   )
 }
 
+// Lähetys-konsoli on aina tumma riippumatta käyttäjän sivustonlaajuisesta teema-
+// asetuksesta (ks. CLAUDE.md "Stream-konsolin uudelleenrakennus": "Sivuston oma tumma
+// teema... ei muutu"). Teeman C.accent/C.accentBright vaihtelevat kuitenkin käyttäjän valitseman
+// vaalea/tumma-teeman mukaan (vaalea teema = tummempi vihreä), mikä näytti "liian
+// tummalta" konsolissa joka on aina musta taustaltaan (ks. "Uudet löydökset 2026-08-13,
+// osa 4" kohta 17). Kiinteät arvot varmistavat saman kirkkaan vihreän aina.
+const GREEN = '#4ADE80'
+const GREEN_DIM = '#2ECC71'
+const GREEN_BG = '#0D2818'
+
 export default function LahetysPage() {
   const { C } = useTheme()
   const { lang, t } = useLang()
@@ -142,6 +178,7 @@ export default function LahetysPage() {
   const [showModTools, setShowModTools] = useState(false)
   const [showQueue, setShowQueue] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; danger?: boolean; onConfirm: () => void } | null>(null)
+  const [productDetailId, setProductDetailId] = useState<string | null>(null)
   const [mutedWordsInput, setMutedWordsInput] = useState('')
   const [mutedWordsSaved, setMutedWordsSaved] = useState(false)
 
@@ -355,6 +392,16 @@ export default function LahetysPage() {
     socket.on('connect', () => { slog('connect'); setConnected(true); socket.emit('join_show', { showId: show.id, token }) })
     socket.on('disconnect', (reason) => { slog('disconnect', reason); setConnected(false) })
 
+    // Palauttaa käynnissä olevan huudon tilan kun konsoli liittyy huoneeseen uudestaan (esim.
+    // paluu /dashboard-sivun "←"-napin kautta) - ilman tätä myyjän konsoli näytti aina
+    // huutokaupan olevan käynnissä server-puolella. Sama tapahtuma jota katsojan
+    // /live/[showId]-sivu jo käyttää samaan tarkoitukseen.
+    socket.on('auction_state', (data: any) => {
+      if (!data.productId) return
+      setAuction({ productId: data.productId, currentBid: data.currentBid, leaderName: data.leaderName, timer: data.timer, active: data.active })
+      setCurrentProductId(data.productId)
+    })
+
     socket.on('auction_started', (data: any) => {
       setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
       const p = products.find(x => x.id === data.productId)
@@ -399,10 +446,21 @@ export default function LahetysPage() {
     return () => {
       socket.emit('leave_show', show.id)
       socket.off('connect'); socket.off('disconnect')
+      socket.off('auction_state')
       socket.off('auction_started'); socket.off('new_bid'); socket.off('timer_tick'); socket.off('auction_ended')
       socket.off('viewer_count'); socket.off('chat_message'); socket.off('chat_message_deleted'); socket.off('muted_words_saved')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show])
+
+  // KRIITTINEN KORJAUS (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 4" kohta 18): tuotejono
+  // haettiin aina vain myyjän omasta GET /products/mine:sta, jota ei koskaan liitetty Show-
+  // riviin tietokannassa - katsojan Shop-paneeli (GET /shows/:id:n products-relaatio) näytti
+  // siksi tyhjää/vajaata muille kuin striimaavalle laitteelle. Liitetään kaikki myyjän
+  // odottavat tuotteet tähän showhun heti kun show tunnetaan.
+  useEffect(() => {
+    if (!show) return
+    import('@/lib/api').then(({ showApi }) => showApi.claimProducts(show.id).catch(() => {}))
   }, [show])
 
   async function loadDevices() {
@@ -641,7 +699,7 @@ export default function LahetysPage() {
     setQaSaving(true); setQaError('')
     try {
       const { api } = await import('@/lib/api')
-      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, imageUrl: qaImage ?? undefined })
+      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, imageUrl: qaImage ?? undefined, showId: show?.id })
       setProducts(p => [...p, created])
       setQaName(''); setQaPrice(''); setQaImage(null); setShowQuickAdd(false)
     } catch (e: any) {
@@ -668,7 +726,7 @@ export default function LahetysPage() {
   }
 
   const fmt = (s: number) => s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : `${s}s`
-  const timerColor = auction.timer > 60 ? C.accent : auction.timer > 20 ? '#F59E0B' : '#EF4444'
+  const timerColor = auction.timer > 60 ? GREEN_DIM : auction.timer > 20 ? '#F59E0B' : '#EF4444'
   const isLast = currentIndex >= products.length - 1
   const isSold = currentProduct && soldItems.includes(currentProduct.id)
   // Huutokauppa käyty läpi nykyiselle tuotteelle — joko myyty tai päättyi ilman tarjouksia.
@@ -684,7 +742,7 @@ export default function LahetysPage() {
   const quickBtnBase: React.CSSProperties = { flex: '1 1 auto', minWidth: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '9px 8px', borderRadius: 9, fontSize: 11, fontWeight: 800, letterSpacing: 0.2, cursor: 'pointer', backdropFilter: 'blur(8px)' }
   const quickBtnGhost: React.CSSProperties = { ...quickBtnBase, background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.16)', color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)' }
   const quickBtnGhostDisabled: React.CSSProperties = { ...quickBtnGhost, opacity: 0.35, cursor: 'not-allowed', boxShadow: 'none' }
-  const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: C.accentBright, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${C.accentBright}66` }
+  const quickBtnPrimary: React.CSSProperties = { ...quickBtnBase, background: GREEN, border: 'none', color: '#06210F', boxShadow: `0 3px 12px ${GREEN}66` }
 
   const quickActionsRow = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -709,7 +767,7 @@ export default function LahetysPage() {
           <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: C.accent }}>FAQ:sta</a>.</div>
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: GREEN_DIM }}>FAQ:sta</a>.</div>
       <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
     </>
   )
@@ -719,7 +777,7 @@ export default function LahetysPage() {
       <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 6 }}>Kielletyt sanat</div>
       <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Viestit joissa esiintyy jokin näistä sanoista piilotetaan katsojilta — sinä ja moderaattorit näette ne yhä. Yksi sana per rivi.</div>
       <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={'esim.\nhuijaus\nkielletty sana'} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', color: C.text, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
-      <button onClick={saveMutedWords} style={{ marginTop: 8, background: C.accent, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? 'Tallennettu' : 'Tallenna'}</button>
+      <button onClick={saveMutedWords} style={{ marginTop: 8, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? 'Tallennettu' : 'Tallenna'}</button>
     </>
   )
 
@@ -741,11 +799,12 @@ export default function LahetysPage() {
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleDrop(i)}
               onClick={() => setCurrentProductId(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? C.accent : 'transparent'}`, flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? GREEN_DIM : 'transparent'}`, flexShrink: 0 }}
             >
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
               {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
-              <span style={{ fontSize: 12, color: active ? C.accentBright : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <span style={{ fontSize: 12, color: active ? GREEN : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <button onClick={e => { e.stopPropagation(); setProductDetailId(p.id) }} title="Näytä isompana / muokkaa" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer', padding: 2, flexShrink: 0 }}>⤢</button>
             </div>
           )
         })}
@@ -757,7 +816,7 @@ export default function LahetysPage() {
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.5, flexShrink: 0 }}>
                 {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
                 <span style={{ fontSize: 12, color: '#eee', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                <span style={{ fontSize: 10, color: C.accentBright, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                <span style={{ fontSize: 10, color: GREEN, fontWeight: 700, flexShrink: 0 }}>✓</span>
               </div>
             ))}
           </>
@@ -776,7 +835,7 @@ export default function LahetysPage() {
             {qaError && <div style={{ fontSize: 11, color: '#FCA5A5', marginBottom: 6 }}>{qaError}</div>}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => { setShowQuickAdd(false); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
-              <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
+              <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
             </div>
           </div>
         ) : (
@@ -793,17 +852,17 @@ export default function LahetysPage() {
         {feed.map(item => {
           if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 11, color: C.muted, textAlign: 'center', padding: '4px 0' }}>{item.text}</div>
           if (item.kind === 'bid') return (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 9px', background: C.accentLight, borderRadius: 7, fontSize: 12 }}>
-              <span style={{ color: C.accent, fontWeight: 700 }}>{item.username}</span>
-              <span style={{ color: C.accent, fontWeight: 800 }}>{item.amount}€</span>
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 9px', background: GREEN_BG, borderRadius: 7, fontSize: 12 }}>
+              <span style={{ color: GREEN_DIM, fontWeight: 700 }}>{item.username}</span>
+              <span style={{ color: GREEN_DIM, fontWeight: 800 }}>{item.amount}€</span>
             </div>
           )
           if (item.kind === 'purchase') return (
-            <div key={item.id} style={{ padding: '7px 9px', background: C.accentLight, border: `1px solid ${C.accentBright}55`, borderRadius: 7, fontSize: 12 }}>
-              <span style={{ color: C.accentBright, fontWeight: 700 }}>{item.username}</span>
+            <div key={item.id} style={{ padding: '7px 9px', background: GREEN_BG, border: `1px solid ${GREEN}55`, borderRadius: 7, fontSize: 12 }}>
+              <span style={{ color: GREEN, fontWeight: 700 }}>{item.username}</span>
               <span style={{ color: C.text }}> osti </span>
               <span style={{ color: C.text, fontWeight: 700 }}>{item.productName}</span>
-              <span style={{ color: C.accentBright, fontWeight: 800 }}> {item.amount}€</span>
+              <span style={{ color: GREEN, fontWeight: 800 }}> {item.amount}€</span>
             </div>
           )
           return (
@@ -820,7 +879,7 @@ export default function LahetysPage() {
       </div>
       <div style={{ padding: '8px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 6, flexShrink: 0 }}>
         <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 18, padding: '7px 12px', color: C.text, fontSize: 12, outline: 'none', minWidth: 0 }} />
-        <button onClick={sendChat} style={{ background: C.accent, border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13 }}>➤</button>
+        <button onClick={sendChat} style={{ background: GREEN_DIM, border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13 }}>➤</button>
       </div>
     </>
   )
@@ -853,7 +912,7 @@ export default function LahetysPage() {
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Oletuskesto per tuote</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                 {[60, 120, 180, 300, 600].map(s => (
-                  <button key={s} onClick={() => setAuctionDuration(s)} style={{ background: auctionDuration === s ? C.accent : C.surface2, border: `1px solid ${auctionDuration === s ? C.accent : C.border}`, color: auctionDuration === s ? '#fff' : C.muted, padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: auctionDuration === s ? 700 : 400 }}>
+                  <button key={s} onClick={() => setAuctionDuration(s)} style={{ background: auctionDuration === s ? GREEN_DIM : C.surface2, border: `1px solid ${auctionDuration === s ? GREEN_DIM : C.border}`, color: auctionDuration === s ? '#fff' : C.muted, padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: auctionDuration === s ? 700 : 400 }}>
                     {s >= 60 ? `${s / 60} min` : `${s}s`}
                   </button>
                 ))}
@@ -865,7 +924,7 @@ export default function LahetysPage() {
           {products.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita — lisää tuotteita ensin</div>
-              <a href="/dashboard/tuotteet" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
+              <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
@@ -874,11 +933,11 @@ export default function LahetysPage() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
-                    style={{ flex: 1, background: publishMode === 'phone' ? C.accent : C.surface, border: `1px solid ${publishMode === 'phone' ? C.accent : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ flex: 1, background: publishMode === 'phone' ? GREEN_DIM : C.surface, border: `1px solid ${publishMode === 'phone' ? GREEN_DIM : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                   >Ilman OBS:aa</button>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
-                    style={{ flex: 1, background: publishMode === 'obs' ? C.accent : C.surface, border: `1px solid ${publishMode === 'obs' ? C.accent : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ flex: 1, background: publishMode === 'obs' ? GREEN_DIM : C.surface, border: `1px solid ${publishMode === 'obs' ? GREEN_DIM : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                   >OBS:lla</button>
                 </div>
 
@@ -897,7 +956,7 @@ export default function LahetysPage() {
                     </div>
                   )}
                   {camReady && (
-                    <div style={{ position: 'absolute', top: 10, left: 10, background: phonePublishing ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>
+                    <div style={{ position: 'absolute', top: 10, left: 10, background: phonePublishing ? '#EF4444' : GREEN_DIM, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>
                       {phonePublishing ? 'LÄHETYS KÄYNNISSÄ' : 'ESIKATSELU'}
                     </div>
                   )}
@@ -910,7 +969,7 @@ export default function LahetysPage() {
                       {camReady && !phonePublishing && (
                         <>
                           <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
-                          <button onClick={startPhonePublish} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
+                          <button onClick={startPhonePublish} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
                         </>
                       )}
                       {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
@@ -971,7 +1030,7 @@ export default function LahetysPage() {
                     onClick={() => thumbnailRef.current?.click()}
                     style={{
                       width: '100%', aspectRatio: '21/9', borderRadius: 10,
-                      border: `2px dashed ${thumbnail ? C.accent : C.border}`, background: C.surface2,
+                      border: `2px dashed ${thumbnail ? GREEN_DIM : C.border}`, background: C.surface2,
                       cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', position: 'relative',
                     }}
@@ -996,7 +1055,7 @@ export default function LahetysPage() {
 
                 {startError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{startError}</div>}
 
-                <button onClick={createShow} disabled={starting} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
+                <button onClick={createShow} disabled={starting} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
                   {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}
                 </button>
                 <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
@@ -1028,8 +1087,8 @@ export default function LahetysPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.accentBright }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: C.accentBright }}>ESIKATSELU</span>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: GREEN }}>ESIKATSELU</span>
             </div>
           )}
           {topStats.map(s => (
@@ -1042,7 +1101,7 @@ export default function LahetysPage() {
           <button onClick={() => setShowModTools(s => !s)} style={pillBtn}>Moderointi</button>
           <button onClick={() => setShowObsInfo(s => !s)} style={pillBtn}>OBS</button>
           {showStatus === 'SCHEDULED' && (
-            <button onClick={goPublic} disabled={goingPublic} style={{ ...pillBtn, background: C.accent, opacity: goingPublic ? 0.7 : 1 }}>
+            <button onClick={goPublic} disabled={goingPublic} style={{ ...pillBtn, background: GREEN_DIM, opacity: goingPublic ? 0.7 : 1 }}>
               {goingPublic ? 'Julkaistaan...' : 'Aloita julkinen lähetys'}
             </button>
           )}
@@ -1078,12 +1137,12 @@ export default function LahetysPage() {
         {/* Alapalkki-overlay: nykyinen tuote + pikatoiminnot, videon ALAREUNAN päällä */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(0deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.1) 100%)', padding: isMobile ? '30px 10px 10px' : '40px 16px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: `2px solid ${C.accent}` }} />}
+            {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: `2px solid ${GREEN_DIM}` }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{auction.active ? 'Nykyinen huuto' : 'Lähtöhinta'}{auction.leaderName ? ` · ${auction.leaderName} johtaa` : ''}</div>
             </div>
-            <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? C.accentBright : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : currentProduct.startPrice}€</div>
+            <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? GREEN : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : currentProduct.startPrice}€</div>
           </div>
 
           {!auction.active && !isSold && (
@@ -1091,7 +1150,7 @@ export default function LahetysPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Kesto:</span>
                 {[30, 60, 120].map(s => (
-                  <button key={s} onClick={() => setDurationOverride(s)} style={{ background: effectiveDuration === s ? C.accent : 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: effectiveDuration === s ? 700 : 400, cursor: 'pointer' }}>
+                  <button key={s} onClick={() => setDurationOverride(s)} style={{ background: effectiveDuration === s ? GREEN_DIM : 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: effectiveDuration === s ? 700 : 400, cursor: 'pointer' }}>
                     {s >= 60 ? `${s / 60}min` : `${s}s`}
                   </button>
                 ))}
@@ -1102,11 +1161,11 @@ export default function LahetysPage() {
                   style={{ width: 64, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 11, outline: 'none' }}
                 />
               </div>
-              <button onClick={startAuction} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>Aloita huutokauppa ({fmt(effectiveDuration)})</button>
+              <button onClick={startAuction} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>Aloita huutokauppa ({fmt(effectiveDuration)})</button>
             </>
           )}
           {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>Seuraava tuote →</button>}
-          {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: C.accentBright, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Kaikki tuotteet käyty läpi!</div>}
+          {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: GREEN, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Kaikki tuotteet käyty läpi!</div>}
 
           {quickActionsRow}
           {stubMsg && <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{stubMsg}</div>}
@@ -1144,7 +1203,7 @@ export default function LahetysPage() {
               const text = item.kind === 'bid' ? `Huusi ${item.amount}€` : item.message
               return (
                 <div key={item.id} style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', maxWidth: '85%' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: item.kind === 'bid' ? C.accentBright : C.accent }}>{item.username} </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: item.kind === 'bid' ? GREEN : GREEN_DIM }}>{item.username} </span>
                   <span style={{ fontSize: 11, color: '#fff' }}>{text}</span>
                 </div>
               )
@@ -1152,11 +1211,15 @@ export default function LahetysPage() {
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 6, pointerEvents: 'auto' }}>
             <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '7px 12px', color: '#fff', fontSize: 12, outline: 'none', minWidth: 0 }} />
-            <button onClick={sendChat} style={{ background: C.accent, border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 12 }}>➤</button>
+            <button onClick={sendChat} style={{ background: GREEN_DIM, border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 12 }}>➤</button>
           </div>
         </div>
       )}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
+      {productDetailId && (() => {
+        const p = products.find(x => x.id === productDetailId)
+        return p ? <QueueProductModal product={p} onClose={() => setProductDetailId(null)} /> : null
+      })()}
     </div>
   )
 }

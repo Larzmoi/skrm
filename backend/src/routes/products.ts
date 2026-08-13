@@ -1,6 +1,7 @@
 import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
+import { emitToShow } from '../lib/notify'
 
 const router = Router()
 
@@ -75,6 +76,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       sellerId: req.userId!, showId: showId ?? null,
     },
   })
+  // Katsojan Shop-paneeli seuraa GET /shows/:id:n products-relaatiota (ei myyjän omaa
+  // paikallista tilaa) - ilman tätä myyjän live-konsolista lisätty tuote ei näkynyt
+  // muille kuin striimaavalle laitteelle ennen sivun uudelleenlatausta.
+  if (product.showId) emitToShow(product.showId, 'products_updated', {})
   res.status(201).json(product)
 })
 

@@ -70,6 +70,7 @@ export const showApi = {
   getStreamInfo: (id: string) => request(`/shows/${id}/stream-info`),
   setStatus: (id: string, status: 'LIVE' | 'ENDED', thumbnailUrl?: string) => request(`/shows/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, thumbnailUrl }) }),
   remove: (id: string) => request(`/shows/${id}`, { method: 'DELETE' }),
+  claimProducts: (id: string) => request(`/shows/${id}/claim-products`, { method: 'POST' }),
 }
 
 export const auctionApi = {
