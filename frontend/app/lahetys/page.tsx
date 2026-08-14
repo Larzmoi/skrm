@@ -73,6 +73,12 @@ function BackButton({ overlay }: { overlay?: boolean }) {
 function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
+  // Näkyvät laatutilastot (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 23) —
+  // ennen tätä ei ollut mitään tapaa nähdä käyttöliittymästä millä resoluutiolla/bitratella
+  // striimi oikeasti kulkee, pelkkä silmämääräinen arvio ei riittänyt laadun tarkistamiseen.
+  const [stats, setStats] = useState<{ w: number; h: number; fps: number; kbps: number } | null>(null)
+  const statsTrackRef = useRef<any>(null)
+  const lastStatsRef = useRef<{ bytes: number; ts: number } | null>(null)
 
   // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ks. alempi kommentti. Näyttää tarkalleen
   // milloin "Odotetaan OBS-yhteyttä" -teksti oikeasti ilmestyy/katoaa renderissä,
@@ -96,13 +102,47 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
     function attachIfMedia(track: any) {
       if ((track.kind === Track.Kind.Video || track.kind === Track.Kind.Audio) && videoRef.current) {
         track.attach(videoRef.current)
-        if (track.kind === Track.Kind.Video) setWaiting(false)
+        if (track.kind === Track.Kind.Video) {
+          setWaiting(false)
+          statsTrackRef.current = track
+          lastStatsRef.current = null
+        }
       }
     }
 
+    // Pollaa oikeat WebRTC-tilastot (resoluutio/fps/bitrate) sen sijaan että arvattaisiin —
+    // sama data riippumatta tuliko kuva OBS:n RTMP-Ingressin vai puhelimen suoran WebRTC-
+    // julkaisun kautta, koska molemmat vain julkaisevat trackin samaan huoneeseen.
+    const statsInterval = setInterval(async () => {
+      const track = statsTrackRef.current
+      if (!track) { setStats(null); return }
+      try {
+        const report: RTCStatsReport | undefined = await track.getRTCStatsReport()
+        if (!report) return
+        report.forEach((entry: any) => {
+          if (entry.type !== 'inbound-rtp' || entry.kind !== 'video') return
+          const now = performance.now()
+          const prev = lastStatsRef.current
+          let kbps = 0
+          if (prev && entry.bytesReceived != null) {
+            const dtSec = (now - prev.ts) / 1000
+            if (dtSec > 0) kbps = Math.round(((entry.bytesReceived - prev.bytes) * 8) / dtSec / 1000)
+          }
+          if (entry.bytesReceived != null) lastStatsRef.current = { bytes: entry.bytesReceived, ts: now }
+          if (entry.frameWidth && entry.frameHeight) {
+            setStats({ w: entry.frameWidth, h: entry.frameHeight, fps: Math.round(entry.framesPerSecond || 0), kbps: kbps > 0 ? kbps : 0 })
+          }
+        })
+      } catch {}
+    }, 2000)
+
     room.on(RoomEvent.ConnectionStateChanged, (state) => log('ConnectionStateChanged', state))
     room.on(RoomEvent.TrackSubscribed, (track) => { log('TrackSubscribed', track.kind); attachIfMedia(track) })
-    room.on(RoomEvent.TrackUnsubscribed, (track) => { log('TrackUnsubscribed', track.kind); track.detach() })
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      log('TrackUnsubscribed', track.kind)
+      track.detach()
+      if (track.kind === Track.Kind.Video) { statsTrackRef.current = null; lastStatsRef.current = null; setStats(null) }
+    })
     room.on(RoomEvent.Disconnected, (reason) => { log('Disconnected', reason); setWaiting(true) })
     room.on(RoomEvent.Reconnecting, () => { log('Reconnecting'); setWaiting(true) })
     room.on(RoomEvent.Reconnected, () => {
@@ -126,6 +166,7 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
     return () => {
       log('useEffect cleanup / room.disconnect()')
       destroyed = true
+      clearInterval(statsInterval)
       room.disconnect()
     }
   }, [wsUrl, token])
@@ -136,6 +177,20 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
       {waiting && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16 }}>
           Odotetaan OBS-yhteyttä...
+        </div>
+      )}
+      {stats && (
+        <div style={{
+          position: 'absolute', bottom: 10, left: 10, zIndex: 8,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', borderRadius: 6,
+          padding: '4px 8px', fontSize: 11, fontFamily: 'monospace', color: stats.h >= 720 ? '#4ADE80' : '#FBBF24',
+          display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none',
+        }}>
+          <span>{stats.w}×{stats.h}</span>
+          <span style={{ opacity: 0.6 }}>·</span>
+          <span>{stats.fps}fps</span>
+          <span style={{ opacity: 0.6 }}>·</span>
+          <span>{stats.kbps > 0 ? `${stats.kbps} kbps` : '…'}</span>
         </div>
       )}
     </div>
@@ -477,7 +532,15 @@ export default function LahetysPage() {
   async function startCamera(deviceId?: string): Promise<boolean> {
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true, audio: true })
+      // Ilman ideal-resoluutiovaatimusta selain valitsee usein paljon kameran maksimia
+      // pienemmän oletusresoluution (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5"
+      // kohta 23 — havaittu heikko laatu puhelimella). "ideal" ei kaadu jos kamera ei
+      // yllä 1080p:hen, selain valitsee lähimmän tuetun sen sijaan.
+      const videoConstraints: MediaTrackConstraints = {
+        width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 },
+        ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: true })
       streamRef.current = stream
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
       setCamError(''); setCamReady(true); return true

@@ -1,6 +1,17 @@
 import { IngressClient, RoomServiceClient, AccessToken, WebhookReceiver } from 'livekit-server-sdk'
-import { IngressInput } from '@livekit/protocol'
+import { IngressInput, IngressVideoOptions, IngressVideoEncodingPreset } from '@livekit/protocol'
 import { prisma } from '../db/prisma'
+
+// Ilman eksplisiittistä video-asetusta LiveKit Ingress transkoodaa oletuksena presetillä
+// H264_720P_30FPS_3_LAYERS (1280x720, 1900kbps kattona) — RIIPPUMATTA lähteen (OBS/puhelimen
+// RTMP-sovelluksen) oikeasta resoluutiosta, koska RTMP-tulo aina puretaan ja koodataan
+// uudelleen. Tämä oli suurin yksittäinen syy raportoituun heikkoon laatuun (ks. CLAUDE.md
+// "Uudet löydökset 2026-08-13, osa 5" kohta 23) — katto oli 720p vaikka lähde olisi lähettänyt
+// 1080p:tä. 3 kerrosta (simulcast) säilyy, joten heikko mobiiliverkko silti pudottaa laatua
+// automaattisesti alaspäin tarpeen mukaan — vain YLÄraja nousee.
+const SELLER_INGRESS_VIDEO = new IngressVideoOptions({
+  encodingOptions: { case: 'preset', value: IngressVideoEncodingPreset.H264_1080P_30FPS_3_LAYERS },
+})
 
 // LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX -> LiveKit").
 // LIVEKIT_URL on sisäinen (palvelin-SDK, ei julkinen), LIVEKIT_WS_URL on se mitä selain käyttää.
@@ -35,6 +46,7 @@ async function createSellerIngress(userId: string) {
     roomName: roomNameForSeller(userId),
     participantIdentity: userId,
     participantName: 'Myyjä',
+    video: SELLER_INGRESS_VIDEO,
   })
   await prisma.user.update({
     where: { id: userId },
@@ -43,10 +55,15 @@ async function createSellerIngress(userId: string) {
   return ingress.streamKey!
 }
 
-// Hakee myyjän pysyvän stream keyn, luo Ingressin lazily jos puuttuu.
+// Hakee myyjän pysyvän stream keyn, luo Ingressin lazily jos puuttuu. Myyjille joiden Ingress
+// on luotu ENNEN 1080p-korjausta (ks. yllä), päivitetään video-asetus paikoilleen tässä ilman
+// että streamKey/OBS-konfiguraatio muuttuu — ei vaadi myyjältä mitään toimenpiteitä.
 export async function getOrCreateStreamKey(userId: string): Promise<string> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { streamKey: true, livekitIngressId: true } })
-  if (user?.streamKey && user.livekitIngressId) return user.streamKey
+  if (user?.streamKey && user.livekitIngressId) {
+    try { await ingressClient.updateIngress(user.livekitIngressId, { name: `seller-${userId}`, video: SELLER_INGRESS_VIDEO }) } catch {}
+    return user.streamKey
+  }
   return createSellerIngress(userId)
 }
 
