@@ -44,14 +44,18 @@ router.delete('/products/:id', async (req, res) => {
   const { reason } = req.body
   if (!reason || !String(reason).trim()) return res.status(400).json({ error: 'Poiston syy vaaditaan' })
 
-  const product = await prisma.product.findUnique({ where: { id }, include: { orderItems: true } })
+  const product = await prisma.product.findUnique({ where: { id }, include: { orderItems: { include: { order: true } } } })
   if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
-  if (product.orderItems.length > 0) return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' })
+  // Sama korjaus kuin POST /products/:id DELETE:ssä (ks. sen kommentti) — peruutetun
+  // tilauksen OrderItem ei saa estää poistoa, koska mitään rahaa ei koskaan liikkunut.
+  const realOrderItems = product.orderItems.filter(oi => oi.order.status !== 'CANCELLED')
+  if (realOrderItems.length > 0) return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' })
 
   await prisma.autoBid.deleteMany({ where: { productId: id } })
   await prisma.bid.deleteMany({ where: { productId: id } })
   await prisma.cartItem.deleteMany({ where: { productId: id } })
   await prisma.message.updateMany({ where: { productId: id }, data: { productId: null } })
+  await prisma.orderItem.deleteMany({ where: { productId: id, order: { status: 'CANCELLED' } } })
   await prisma.product.delete({ where: { id } })
 
   await notifyUser(

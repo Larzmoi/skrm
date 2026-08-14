@@ -120,9 +120,17 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
 // DELETE /products/:id
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.params.id)
-  const product = await prisma.product.findUnique({ where: { id }, include: { orderItems: true } })
+  const product = await prisma.product.findUnique({ where: { id }, include: { orderItems: { include: { order: true } } } })
   if (!product || product.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  if (product.orderItems.length > 0) return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' })
+  // KORJAUS 2026-08-14 (omistajan löytämä epäjohdonmukaisuus): maksamattoman tilauksen
+  // eräännyttyä (ks. webhooks.ts checkExpiredPayments) tuote palautuu PENDING-tilaan ja
+  // näkyy taas Aktiiviset-listassa/on muokattavissa - mutta itse (peruutettu) Order-rivi
+  // ja siihen liittyvä OrderItem eivät poistu, vain merkitään CANCELLED. Tuote näytti siis
+  // täysin aktiiviselta muttei silti voinut poistaa, koska tarkistus laski MYÖS peruutetun
+  // tilauksen "osaksi tilausta". Peruutetun tilauksen rivi ei edusta oikeaa rahaliikennettä
+  // (maksu ei koskaan mennyt läpi) - vain ei-peruutetut tilaukset estävät poiston.
+  const realOrderItems = product.orderItems.filter(oi => oi.order.status !== 'CANCELLED')
+  if (realOrderItems.length > 0) return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' })
 
   // Perinteinen huutokauppa: ei voi poistaa jos varaushinta on jo ylittynyt (tai jos ei varaushintaa
   // ollenkaan ja huuto on jo tullut) — huuto on silloin LUKITTU-säännön mukaisesti sitova.
@@ -134,6 +142,9 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res: Response) =>
   await prisma.bid.deleteMany({ where: { productId: id } })
   await prisma.cartItem.deleteMany({ where: { productId: id } })
   await prisma.message.updateMany({ where: { productId: id }, data: { productId: null } })
+  // Peruutetun tilauksen OrderItem-rivit (ks. yllä) pitää siivota ennen poistoa, muuten
+  // Product.delete() kaatuisi FK-rajoitteeseen (OrderItem.productId ei ole nullable).
+  await prisma.orderItem.deleteMany({ where: { productId: id, order: { status: 'CANCELLED' } } })
   await prisma.product.delete({ where: { id } })
   res.json({ ok: true })
 })
