@@ -10,14 +10,6 @@ import { useLang } from '@/lib/lang-context'
 import { PAKETTIKOOT } from '@/lib/pakettikoot'
 import { useIsMobile } from '@/lib/useIsMobile'
 
-const KUNTOLUOKAT = [
-  { id: 'uusi', nimi: 'Uusi' },
-  { id: 'erinomainen', nimi: 'Erinomainen' },
-  { id: 'hyva', nimi: 'Hyvä' },
-  { id: 'tyydyttava', nimi: 'Tyydyttävä' },
-  { id: 'kaytetty', nimi: 'Käytetty' },
-]
-
 type SaleType = 'live' | 'buy_now' | 'both' | 'auction'
 
 interface Product {
@@ -41,6 +33,14 @@ function isDeleteLocked(p: Pick<Product, 'saleType' | 'currentBid' | 'reservePri
 function TuotteetContent() {
   const { C } = useTheme()
   const { lang, t } = useLang()
+  const tp = t.dashboardProducts
+  const KUNTOLUOKAT = [
+    { id: 'uusi', nimi: tp.conditionNew },
+    { id: 'erinomainen', nimi: tp.conditionExcellent },
+    { id: 'hyva', nimi: tp.conditionGood },
+    { id: 'tyydyttava', nimi: tp.conditionFair },
+    { id: 'kaytetty', nimi: tp.conditionUsed },
+  ]
   const isMobile = useIsMobile()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -84,7 +84,7 @@ function TuotteetContent() {
       setLoading(true)
       const data = await api.getMyProducts()
       setProducts(data)
-    } catch { setError('Tuotteiden lataus epäonnistui') }
+    } catch { setError(tp.loadFailed) }
     finally { setLoading(false) }
   }
 
@@ -127,7 +127,7 @@ function TuotteetContent() {
 
   async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    if (images.length + files.length > 6) { setError('Max 6 kuvaa'); return }
+    if (images.length + files.length > 6) { setError(tp.maxImages); return }
     for (const f of files) {
       const r = new FileReader()
       await new Promise<void>(res => {
@@ -146,9 +146,9 @@ function TuotteetContent() {
   }
 
   async function save() {
-    if (!name.trim()) { setError('Syötä tuotteen nimi'); return }
-    if (!startPrice || Number(startPrice) <= 0) { setError('Syötä hinta'); return }
-    if (pakettikoko === 'nouto' && !noutoPolicyAccepted) { setError('Hyväksy noutotuotteen ehdot ennen julkaisua'); return }
+    if (!name.trim()) { setError(tp.enterName); return }
+    if (!startPrice || Number(startPrice) <= 0) { setError(tp.enterPrice); return }
+    if (pakettikoko === 'nouto' && !noutoPolicyAccepted) { setError(tp.acceptPickupTerms); return }
     setError(''); setSaving(true)
 
     const data = {
@@ -199,28 +199,28 @@ function TuotteetContent() {
   const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 4 }
 
   const saleTypeOptions = [
-    { id: 'live' as SaleType, label: 'Live-huutokauppa', desc: 'Myydään lähetyksessä' },
-    { id: 'buy_now' as SaleType, label: 'Suoramyynti', desc: 'Kiinteä hinta, ostaa koska vain' },
-    { id: 'auction' as SaleType, label: 'Huutokauppa', desc: 'Ajastettu huutokauppa, itse valittava kesto' },
-    { id: 'both' as SaleType, label: 'Molemmat', desc: 'Suoramyynti + live-huutokauppa' },
+    { id: 'live' as SaleType, label: tp.saleTypeLive, desc: tp.saleTypeLiveDesc },
+    { id: 'buy_now' as SaleType, label: tp.saleTypeBuyNow, desc: tp.saleTypeBuyNowDesc },
+    { id: 'auction' as SaleType, label: tp.saleTypeAuction, desc: tp.saleTypeAuctionDesc },
+    { id: 'both' as SaleType, label: tp.saleTypeBoth, desc: tp.saleTypeBothDesc },
   ]
 
   const saleLabel: Record<string, { label: string; color: string; bg: string }> = {
-    live: { label: 'Live', color: C.accent, bg: C.accentLight },
-    buy_now: { label: 'Suoramyynti', color: '#007AFF', bg: '#E8F0FF' },
-    auction: { label: 'Huutokauppa', color: '#8B5CF6', bg: '#F3E8FF' },
-    both: { label: 'Live + Suora', color: '#F59E0B', bg: '#FFF8E8' },
+    live: { label: tp.badgeLive, color: C.accent, bg: C.accentLight },
+    buy_now: { label: tp.badgeBuyNow, color: '#007AFF', bg: '#E8F0FF' },
+    auction: { label: tp.badgeAuction, color: '#8B5CF6', bg: '#F3E8FF' },
+    both: { label: tp.badgeBoth, color: '#F59E0B', bg: '#FFF8E8' },
   }
 
   return (
     <div style={{ color: C.text }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Tuotteet</h1>
-          <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} aktiivista tuotetta</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{tp.title}</h1>
+          <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} {tp.activeSuffix}</p>
         </div>
         <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          + Lisää tuote
+          {tp.addProduct}
         </button>
       </div>
 
@@ -229,11 +229,11 @@ function TuotteetContent() {
       {/* Lomake */}
       {showForm && (
         <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '20px', marginBottom: 24 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? 'Muokkaa tuotetta' : 'Uusi tuote'}</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? tp.editTitle : tp.newTitle}</h3>
 
           {/* Myyntitapa */}
           <div style={{ marginBottom: 18 }}>
-            <label style={lbl}>Myyntitapa *</label>
+            <label style={lbl}>{tp.saleTypeLabel}</label>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {saleTypeOptions.map(opt => (
                 <button key={opt.id} type="button" onClick={() => setSaleType(opt.id)} style={{ flex: 1, minWidth: 150, padding: '12px 14px', borderRadius: 8, border: `2px solid ${saleType === opt.id ? C.accent : C.border}`, background: saleType === opt.id ? C.accentLight : C.surface, cursor: 'pointer', textAlign: 'left' }}>
@@ -247,7 +247,7 @@ function TuotteetContent() {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '150px 1fr', gap: 16, marginBottom: 14 }}>
             {/* Kuva */}
             <div>
-              <label style={lbl}>Kuva</label>
+              <label style={lbl}>{tp.imageLabel}</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                   {images.map((img, i) => (
@@ -263,53 +263,53 @@ function TuotteetContent() {
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: C.dim, textAlign: 'center' }}>Max 6 kuvaa · 2MB/kpl</div>
+                <div style={{ fontSize: 10, color: C.dim, textAlign: 'center' }}>{tp.maxImagesHint}</div>
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImage} style={{ display: 'none' }} />
             </div>
 
             {/* Perustiedot */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div><label style={lbl}>Tuotteen nimi *</label><input value={name} onChange={e => setName(e.target.value)} placeholder="esim. Charizard Holo PSA 9" style={inp} /></div>
+              <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} style={inp} /></div>
               {editCategoryLocked && (
                 <div style={{ fontSize: 11, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 6, padding: '6px 10px' }}>
-                  Kategoriaa ei voi enää muuttaa — huutokauppa on jo käynnissä ja on saanut huutoja.
+                  {tp.categoryLockedNotice}
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <label style={lbl}>Kategoria</label>
+                  <label style={lbl}>{tp.categoryLabel}</label>
                   <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp} disabled={editCategoryLocked}>
-                    <option value="">Valitse...</option>
-                    {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi.fi}</option>)}
+                    <option value="">{tp.selectPlaceholder}</option>
+                    {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi[lang as 'fi' | 'en'] ?? k.nimi.fi}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Alakategoria</label>
+                  <label style={lbl}>{tp.subcategoryLabel}</label>
                   <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={editCategoryLocked || !currentKat || currentKat.alakategoriat.length === 0}>
-                    <option value="">Valitse...</option>
+                    <option value="">{tp.selectPlaceholder}</option>
                     {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
                   </select>
                 </div>
               </div>
               {currentAla?.tyypit?.length > 0 && (
                 <div>
-                  <label style={lbl}>Tyyppi</label>
+                  <label style={lbl}>{tp.typeLabel}</label>
                   <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp} disabled={editCategoryLocked}>
-                    <option value="">Valitse...</option>
+                    <option value="">{tp.selectPlaceholder}</option>
                     {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
                   </select>
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
-                  <label style={lbl}>Kunto</label>
+                  <label style={lbl}>{tp.conditionLabel}</label>
                   <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
-                    <option value="">Valitse...</option>
+                    <option value="">{tp.selectPlaceholder}</option>
                     {KUNTOLUOKAT.map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
                   </select>
                 </div>
-                <div><label style={lbl}>Määrä</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
+                <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
               </div>
               <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
             </div>
@@ -317,36 +317,36 @@ function TuotteetContent() {
 
           {/* Hinnoittelu */}
           <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Hinnoittelu</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.pricingTitle}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
               <div>
-                <label style={lbl}>{saleType === 'buy_now' ? 'Myyntihinta (€) *' : 'Lähtöhinta (€) *'}</label>
+                <label style={lbl}>{saleType === 'buy_now' ? tp.salePriceLabel : tp.startPriceLabel}</label>
                 <input type="number" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0" style={inp} />
-                <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? 'Kiinteä myyntihinta' : 'Huutokaupan aloitushinta'}</div>
+                <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? tp.fixedPriceHint : tp.startingPriceHint}</div>
               </div>
               {(saleType === 'both' || saleType === 'auction') && (
                 <div>
-                  <label style={lbl}>Osta heti -hinta (€)</label>
-                  <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder="Ohita huutokauppa" style={inp} />
+                  <label style={lbl}>{tp.buyNowPriceLabel}</label>
+                  <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder={tp.buyNowPricePlaceholder} style={inp} />
                 </div>
               )}
               {saleType !== 'buy_now' && (
                 <div>
-                  <label style={lbl}>Varaushinta (€)</label>
-                  <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder="Piilotettu minimi" style={inp} />
-                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Ostajalle ei näytetä</div>
+                  <label style={lbl}>{tp.reservePriceLabel}</label>
+                  <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder={tp.reservePricePlaceholder} style={inp} />
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.reservePriceHint}</div>
                 </div>
               )}
               {saleType !== 'buy_now' && (
                 <div>
-                  <label style={lbl}>Minimikorotus (€)</label>
+                  <label style={lbl}>{tp.bidIncrementLabel}</label>
                   <input type="number" step="0.01" min="0.01" value={bidIncrement} onChange={e => setBidIncrement(e.target.value)} placeholder="1.00" style={inp} />
-                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>Oletus 1€ — halvemmille tuotteille esim. 0,10€</div>
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.bidIncrementHint}</div>
                 </div>
               )}
               {(saleType === 'live' || saleType === 'both') && (
                 <div>
-                  <label style={lbl}>Huutokaupan kesto (live-lähetyksessä)</label>
+                  <label style={lbl}>{tp.liveDurationLabel}</label>
                   <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                     {[60, 120, 300].map(s => (
                       <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
@@ -354,18 +354,18 @@ function TuotteetContent() {
                       </button>
                     ))}
                   </div>
-                  <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder="sekunteina" style={inp} />
+                  <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder={tp.liveDurationPlaceholder} style={inp} />
                 </div>
               )}
               {saleType === 'auction' && (
                 <div>
-                  <label style={lbl}>Huutokaupan kesto</label>
+                  <label style={lbl}>{tp.auctionDurationLabel}</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={auctionDurationDays} onChange={e => setAuctionDurationDays(Number(e.target.value))} style={inp}>
-                      {Array.from({ length: 31 }, (_, d) => d).map(d => <option key={d} value={d}>{d} pv</option>)}
+                      {Array.from({ length: 31 }, (_, d) => d).map(d => <option key={d} value={d}>{d} {tp.days}</option>)}
                     </select>
                     <select value={auctionDurationHours} onChange={e => setAuctionDurationHours(Number(e.target.value))} style={inp}>
-                      {Array.from({ length: 24 }, (_, h) => h).map(h => <option key={h} value={h}>{h} h</option>)}
+                      {Array.from({ length: 24 }, (_, h) => h).map(h => <option key={h} value={h}>{h} {tp.hours}</option>)}
                     </select>
                   </div>
                 </div>
@@ -375,29 +375,26 @@ function TuotteetContent() {
 
           {/* Toimitus */}
           <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Toimitus</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{tp.deliveryTitle}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {PAKETTIKOOT.map(p => (
+                // p.nimi sisältää jo hinnan (esim. "Postitus 9,9€", ks. lib/pakettikoot.ts —
+                // päivitetty kiinteän 9,90€ postihinnan myötä) - erillinen p.hinta-rivi tässä
+                // näytti saman hinnan kahteen kertaan peräkkäin samassa napissa.
                 <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 600 }}>{p.nimi}</div>
-                  {p.hinta > 0 && <div style={{ fontSize: 11, opacity: 0.85 }}>{p.hinta.toFixed(2)}€</div>}
                 </button>
               ))}
             </div>
-            {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Ostaja maksaa <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
+            {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{tp.buyerPays} <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
 
             {pakettikoko === 'nouto' && (
               <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
-                  Nouto myyjältä — miten se toimii
+                  {tp.pickupTitle}
                 </div>
                 <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
-                  Kun ostaja ostaa tuotteen SKRM:n kautta ja valitsee toimitustavaksi noudon,
-                  kauppa kuuluu normaalisti maksuturvan piiriin. Ostaja saa noutokoodin, jonka
-                  syötät järjestelmään kun luovutat tuotteen — maksu vapautuu sinulle heti kun
-                  koodi on vahvistettu. Tämä ei koske sopimuksia jotka sovitaan kokonaan SKRM:n
-                  ulkopuolella (esim. suoraan sovittu käteiskauppa ilman SKRM-tilausta) — niissä
-                  SKRM ei ole osapuoli eikä tarjoa maksuturvaa.
+                  {tp.pickupBody}
                 </p>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                   <input
@@ -407,7 +404,7 @@ function TuotteetContent() {
                     style={{ marginTop: 2, flexShrink: 0 }}
                   />
                   <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
-                    Ymmärrän että ostaja saa noutokoodin ja maksu vapautuu minulle vasta kun vahvistan noudon
+                    {tp.pickupCheckbox}
                   </span>
                 </label>
               </div>
@@ -415,16 +412,16 @@ function TuotteetContent() {
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Kuvaus</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="esim. Base Set 1st Edition, NM kunto" rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+            <label style={lbl}>{tp.descriptionLabel}</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={save} disabled={saving} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Tallennetaan...' : editId ? 'Tallenna muutokset' : 'Lisää tuote'}
+              {saving ? tp.saving : editId ? tp.saveChanges : tp.addProductBtn}
             </button>
             <button onClick={() => { setShowForm(false); reset() }} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 7, fontSize: 14, cursor: 'pointer' }}>
-              Peruuta
+              {tp.cancel}
             </button>
           </div>
         </div>
@@ -432,10 +429,10 @@ function TuotteetContent() {
 
       {/* Tuotelista */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>{tp.loading}</div>
       ) : pending.length > 0 ? (
         <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Aktiiviset ({pending.length})</h2>
+          <h2 style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.activeSectionTitle} ({pending.length})</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pending.map((p, i) => {
               const kat = KATEGORIAT.find(k => k.id === p.category)
@@ -457,7 +454,7 @@ function TuotteetContent() {
               )
               const index = <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
               const deleteLocked = isDeleteLocked(p)
-              const deleteTitle = deleteLocked ? 'Ei voi poistaa — varaushinta on ylittynyt, huuto on sitova' : undefined
+              const deleteTitle = deleteLocked ? tp.deleteLockedTitle : undefined
               const deleteBtn = (mobile: boolean) => (
                 <button
                   onClick={() => !deleteLocked && deleteProduct(p.id)}
@@ -475,11 +472,11 @@ function TuotteetContent() {
                     <Link href={`/tuotteet/${p.id}`} style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
                   </div>
                   {priceLine}
-                  {deleteLocked && <div style={{ fontSize: 11, color: '#B45309' }}>Varaushinta ylittynyt — ei voi poistaa</div>}
+                  {deleteLocked && <div style={{ fontSize: 11, color: '#B45309' }}>{tp.reserveExceededNotice}</div>}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     {badge}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>Muokkaa</button>
+                      <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>{tp.edit}</button>
                       {deleteBtn(true)}
                     </div>
                   </div>
@@ -491,10 +488,10 @@ function TuotteetContent() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
                     {priceLine}
-                    {deleteLocked && <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>Varaushinta ylittynyt — ei voi poistaa</div>}
+                    {deleteLocked && <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>{tp.reserveExceededNotice}</div>}
                   </div>
                   {badge}
-                  <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>Muokkaa</button>
+                  <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>{tp.edit}</button>
                   {deleteBtn(false)}
                 </div>
               )
@@ -502,18 +499,18 @@ function TuotteetContent() {
           </div>
           <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} live-jonossa</span>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} suoramyynnissä</span>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} huutokaupassa</span>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} {tp.inLiveQueue}</span>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} {tp.inDirectSale}</span>
+              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} {tp.inAuction}</span>
             </div>
-            <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>Mene liveen</Link>
+            <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{tp.goLive}</Link>
           </div>
         </div>
       ) : !showForm && (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita vielä</div>
+          <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{tp.noProductsYet}</div>
           <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-            + Lisää ensimmäinen tuote
+            {tp.addFirstProduct}
           </button>
         </div>
       )}

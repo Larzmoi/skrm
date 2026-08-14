@@ -4,15 +4,6 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 
-const PAKETTIKOOT = [
-  { koko: 'Pikkupaketti (XXS)', size: 'Small Packet (XXS)', mitat: '3×25×35 cm', hinta: '9,90€' },
-  { koko: 'S-paketti', size: 'S Package', mitat: '11×32×42 cm', hinta: '11,90€' },
-  { koko: 'M-paketti', size: 'M Package', mitat: '19×36×60 cm', hinta: '13,90€' },
-  { koko: 'L-paketti', size: 'L Package', mitat: '37×36×60 cm', hinta: '18,90€' },
-  { koko: 'XL-paketti', size: 'XL Package', mitat: '100×60×40 cm', hinta: '24,90€' },
-  { koko: 'XXL-paketti', size: 'XXL Package', mitat: 'max 200 cm', hinta: '46,90€' },
-]
-
 const ROWS = [
   { price: '10€', skrm: '0,65€' },
   { price: '50€', skrm: '2,75€' },
@@ -85,19 +76,19 @@ export default function ValityspalkkiotPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: C.muted }}>{t.fees.packageSize}</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: C.muted }}>{t.fees.dimensions}</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: C.muted }}>{t.fees.deliveryMethod}</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: C.muted }}>{t.fees.price}</th>
                 </tr>
               </thead>
               <tbody>
-                {PAKETTIKOOT.map((p, i) => (
-                  <tr key={p.koko} style={{ borderBottom: i < PAKETTIKOOT.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                    <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{lang === 'fi' ? p.koko : p.size}</td>
-                    <td style={{ padding: '12px 16px', color: C.muted }}>{p.mitat}</td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>{p.hinta}</td>
-                  </tr>
-                ))}
+                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPostal}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>9,90€</td>
+                </tr>
+                <tr>
+                  <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPickup}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>{t.fees.shippingFree}</td>
+                </tr>
               </tbody>
             </table>
           </div>
