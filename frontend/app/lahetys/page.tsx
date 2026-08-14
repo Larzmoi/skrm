@@ -326,6 +326,27 @@ export default function LahetysPage() {
   const streamRef = useRef<MediaStream | null>(null)
   const thumbnailRef = useRef<HTMLInputElement>(null)
 
+  // KORJAUS 2026-08-14: mobiilin chat-overlay varasi aiemmin KIINTEÄN 190px-tilan alapalkille
+  // (tuotetietolaatikko + kesto/aloitusnappi + pikatoimintorivi), jotta chat-input pysyisi
+  // näkyvissä sen yläpuolella. Alapalkin todellinen korkeus vaihtelee kuitenkin paljon tilan
+  // mukaan (esim. ennen huutokaupan alkua kesto-nappi+"Aloita"-nappi+5 pikatoimintonappia,
+  // jotka voivat kääriytyä useammalle riville kapealla näytöllä, ylittävät 190px helposti) —
+  // kun todellinen korkeus ylitti oletuksen, alapalkin YLÄOSA (tuotekuva/nimi/hinta) tunkeutui
+  // chat-inputin varattuun tilaan, jolloin ne menivät sekaisin/päällekkäin täysin ennalta-
+  // arvaamattomasti riippuen mitä nappeja/tiloja sattui olemaan näkyvissä. Kiinteän arvauksen
+  // sijaan mitataan alapalkin OIKEA korkeus DOM:sta ja varataan chatille juuri sen verran tilaa.
+  const bottomBarRef = useRef<HTMLDivElement>(null)
+  const [bottomBarHeight, setBottomBarHeight] = useState(190)
+  useEffect(() => {
+    const el = bottomBarRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const update = () => setBottomBarHeight(el.offsetHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+
   async function handleThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
@@ -1218,17 +1239,18 @@ export default function LahetysPage() {
           Jono ({products.length})
         </button>
         {showQueue && (
-          // bottom: 200 (ei 0) jättää tilaa alapalkin (zIndex:10, ~190px korkea) ja
-          // mobiilin chat-overlayn (zIndex:12, input ~190px pohjasta) yläpuolelle - ennen
-          // Jono ulottui koko korkeuden yli ja peitti korkeammalla z-indexillä molemmat,
-          // jolloin chat-tekstikenttä ei enää saanut klikkauksia/fokusta läpi.
-          <div style={{ position: 'absolute', top: 0, left: 0, bottom: 200, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)', borderBottomRightRadius: 12, padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          // bottom (ei 0) jättää tilaa alapalkille ja mobiilin chat-overlaylle yläpuolelle -
+          // ennen Jono ulottui koko korkeuden yli ja peitti korkeammalla z-indexillä molemmat,
+          // jolloin chat-tekstikenttä ei enää saanut klikkauksia/fokusta läpi. Käyttää samaa
+          // mitattua bottomBarHeight-arvoa kuin chat-overlay (ks. bottomBarRef-kommentti
+          // yllä) kiinteän arvauksen sijaan, samasta syystä.
+          <div style={{ position: 'absolute', top: 0, left: 0, bottom: isMobile ? bottomBarHeight + 10 : 200, zIndex: 14, width: isMobile ? '78%' : 240, background: 'rgba(10,10,10,0.94)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255,255,255,0.12)', borderBottom: '1px solid rgba(255,255,255,0.12)', borderBottomRightRadius: 12, padding: '54px 12px 12px', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             {queuePanelContent}
           </div>
         )}
 
         {/* Alapalkki-overlay: nykyinen tuote + pikatoiminnot, videon ALAREUNAN päällä */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(0deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.1) 100%)', padding: isMobile ? '30px 10px 10px' : '40px 16px 14px' }}>
+        <div ref={bottomBarRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(0deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.1) 100%)', padding: isMobile ? '30px 10px 10px' : '40px 16px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
             {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: `2px solid ${GREEN_DIM}` }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1274,10 +1296,15 @@ export default function LahetysPage() {
       )}
 
       {/* Mobiili: chat overlay videon alareunan yläpuolella, kompaktina. zIndex korkeampi kuin
-          alapalkin (10) - muuten alapalkin tuotetietolaatikko peitti chat-inputin kun sen oma
-          korkeus (kesto-valinta+aloitusnappi+pikatoiminnot) ylitti tähän varatun 190px-tilan. */}
+          alapalkin (10). KORJAUS 2026-08-14: pohja-padding oli aiemmin kiinteä 190px-arvaus
+          alapalkin korkeudesta - kun alapalkin todellinen korkeus (kesto-valinta+aloitusnappi+
+          5 pikatoimintonappia, voivat kääriytyä useammalle riville) ylitti sen, alapalkin
+          yläosa (tuotekuva/nimi/hinta) meni sekaisin/päällekkäin chat-inputin kanssa - täsmälleen
+          se mistä tämä kommentti aiemmin varoitti, mutta arvattu vakio ei riittänyt kaikissa
+          tiloissa. `bottomBarHeight` mitataan nyt oikeasti DOM:sta (ks. bottomBarRef yllä), ei
+          arvata. */}
       {isMobile && (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 12, padding: '0 10px 190px', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 12, padding: `0 10px ${bottomBarHeight + 10}px`, pointerEvents: 'none' }}>
           <div
             ref={mobileFeedRef}
             onScroll={e => {
