@@ -285,7 +285,7 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
         </div>
       )}
       {chatTab === 'watching' ? (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {viewerList.length === 0 && <div style={{ fontSize: 12, color: dark ? '#666' : C.muted, textAlign: 'center', padding: '20px 0' }}>Ei kirjautuneita katsojia juuri nyt</div>}
           {viewerList.map(v => (
             <div key={v.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -297,7 +297,7 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
           ))}
         </div>
       ) : (
-        <div ref={chatRef} style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div ref={chatRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {visibleChat.map(msg => (
             <div key={msg.id} style={{ position: 'relative', display: 'flex', gap: 7, alignItems: 'flex-start', opacity: msg.hidden ? 0.5 : 1 }}>
               <div
@@ -908,7 +908,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
 
         {/* Chat */}
-        <div style={{ borderLeft: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ borderLeft: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
           <ChatArea
             dark={true} isMobile={isMobile} t={t} C={C} chatRef={chatRef} chat={chat} chatInput={chatInput} setChatInput={setChatInput} sendChat={sendChat} user={user}
             canModerate={canModerate} chatTab={chatTab} setChatTab={setChatTab} viewerList={viewerList}

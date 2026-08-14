@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Room, RoomEvent, Track } from 'livekit-client'
-import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
@@ -52,15 +51,14 @@ function QueueProductModal({ product, onClose }: { product: Product; onClose: ()
 }
 
 function BackButton({ overlay }: { overlay?: boolean }) {
-  const { C } = useTheme()
   return (
     <Link
       href="/dashboard"
       style={{
         position: overlay ? 'absolute' : 'fixed', top: 14, left: 14, zIndex: 50,
         width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: overlay ? 'rgba(0,0,0,0.55)' : C.cardBg, border: overlay ? 'none' : `1px solid ${C.border}`,
-        color: overlay ? '#fff' : C.text, fontSize: 16, textDecoration: 'none', backdropFilter: overlay ? 'blur(8px)' : undefined,
+        background: overlay ? 'rgba(0,0,0,0.55)' : DARK_PANEL_BG, border: overlay ? 'none' : `1px solid ${DARK_BORDER}`,
+        color: overlay ? '#fff' : DARK_TEXT, fontSize: 16, textDecoration: 'none', backdropFilter: overlay ? 'blur(8px)' : undefined,
       }}
       title="Takaisin"
     >←</Link>
@@ -207,8 +205,34 @@ const GREEN = '#4ADE80'
 const GREEN_DIM = '#2ECC71'
 const GREEN_BG = '#0D2818'
 
+// KORJAUS 2026-08-14 (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 28): yllä oleva
+// GREEN-kiinnitys koski vain napteja, mutta chat-syötteen huuto/osto-laatikot käyttivät SAMOJA
+// C.accent/C.accentBright/C.accentLight-tunnuksia ja lakaistuivat mukaan samaan korjaukseen
+// ilman että syötteen YMPÄRILLÄ oleva paneeli (C.cardBg/C.border/C.text) korjattiin samalla.
+// Tumman teeman käyttäjälle tämä ei näkynyt mitenkään (arvot olivat numeerisesti identtiset
+// ennen/jälkeen), mutta vaalean teeman käyttäjälle syntyi juuri raportoitu oire: valkoinen
+// paneeli jonka SISÄLLÄ kelluu aina-tummia vihreitä laatikoita, joita ei enää erota toisistaan.
+// Viimeistellään sama "aina tumma" -periaate koko chat-syötteeseen, ei vain nappeihin.
+//
+// LAAJENNUS 2026-08-14 (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 27): sama
+// C.bg/C.surface/C.cardBg-vuoto koski myös koko sivun juuritaustaa ja lähetyksen asetus-
+// lomaketta (OBS-asetukset, kategoria/kesto-valinnat) — vaalealla teemalla koko konsoli
+// näytti "puhtaan valkoiselta" LUKITTUA "aina tumma" -periaatetta vastaan. Sen sijaan että
+// keksittäisiin kolmas, teemasta riippuva "pehmeämpi vaalea" -sävy stream-sivulle erikseen
+// (mikä toisintaisi saman C.xxx-vuoto-ongelmaluokan uudestaan myöhemmin), koko sivu käyttää
+// nyt samoja kiinteitä tumman teeman arvoja kuin loppu konsolista jo tekee — yksi johdonmukainen
+// "aina tumma"-toteutus koko `/lahetys`-reitille, ei osittainen.
+const DARK_BG = '#070F09'
+const DARK_SURFACE = '#0D1A10'
+const DARK_PANEL_BG = '#0D1A10'
+const DARK_BORDER = '#1E3324'
+const DARK_TEXT = '#E8F5EE'
+const DARK_TEXT_SUB = '#9DBFA8'
+const DARK_MUTED = '#5A7A65'
+const DARK_SURFACE2 = '#132018'
+const DARK_DIM = '#1E3324'
+
 export default function LahetysPage() {
-  const { C } = useTheme()
   const { lang, t } = useLang()
   const { user } = useAuth()
   const isMobile = useIsMobile()
@@ -819,27 +843,27 @@ export default function LahetysPage() {
 
   const obsCardContent = (
     <>
-      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>OBS-asetukset</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 10 }}>OBS-asetukset</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl || 'Ladataan...'}</div>
-          <button onClick={() => copy(streamUrl, 'server')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
+          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl || 'Ladataan...'}</div>
+          <button onClick={() => copy(streamUrl, 'server')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: C.textSub, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey || 'Ladataan...'}</div>
-          <button onClick={() => copy(streamKey, 'key')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
+          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey || 'Ladataan...'}</div>
+          <button onClick={() => copy(streamKey, 'key')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: GREEN_DIM }}>FAQ:sta</a>.</div>
-      <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
+      <div style={{ fontSize: 11, color: DARK_MUTED, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: GREEN_DIM }}>FAQ:sta</a>.</div>
+      <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
     </>
   )
 
   const modToolsContent = (
     <>
-      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 6 }}>Kielletyt sanat</div>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>Viestit joissa esiintyy jokin näistä sanoista piilotetaan katsojilta — sinä ja moderaattorit näette ne yhä. Yksi sana per rivi.</div>
-      <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={'esim.\nhuijaus\nkielletty sana'} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', color: C.text, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
+      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 6 }}>Kielletyt sanat</div>
+      <div style={{ fontSize: 11, color: DARK_MUTED, marginBottom: 8 }}>Viestit joissa esiintyy jokin näistä sanoista piilotetaan katsojilta — sinä ja moderaattorit näette ne yhä. Yksi sana per rivi.</div>
+      <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={'esim.\nhuijaus\nkielletty sana'} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 10px', color: DARK_TEXT, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
       <button onClick={saveMutedWords} style={{ marginTop: 8, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? 'Tallennettu' : 'Tallenna'}</button>
     </>
   )
@@ -911,37 +935,43 @@ export default function LahetysPage() {
   const chatFeedContent = (
     <>
       <div ref={feedRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {feed.length === 0 && <div style={{ color: C.muted, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Ei viestejä vielä</div>}
+        {feed.length === 0 && <div style={{ color: DARK_MUTED, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Ei viestejä vielä</div>}
         {feed.map(item => {
-          if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 11, color: C.muted, textAlign: 'center', padding: '4px 0' }}>{item.text}</div>
+          if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', padding: '4px 0' }}>{item.text}</div>
+          // Huudot eivät ole enää omia laatikoitaan — aktiivisen huudon aikana niitä tulee
+          // paljon peräkkäin, ja jokainen omana samanvärisenä laatikkonaan näytti "seinältä
+          // identtisiä laatikoita" (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 28).
+          // Rivimäinen esitys + erottuva lihavoitu hintasumma riittää erottamaan huudon
+          // tavallisesta viestistä ilman että se dominoi koko syötettä visuaalisesti.
           if (item.kind === 'bid') return (
-            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 9px', background: GREEN_BG, borderRadius: 7, fontSize: 12 }}>
-              <span style={{ color: GREEN_DIM, fontWeight: 700 }}>{item.username}</span>
-              <span style={{ color: GREEN_DIM, fontWeight: 800 }}>{item.amount}€</span>
+            <div key={item.id} style={{ fontSize: 12 }}>
+              <span style={{ color: GREEN_DIM, fontWeight: 700 }}>{item.username} </span>
+              <span style={{ color: DARK_TEXT_SUB }}>huusi </span>
+              <span style={{ color: GREEN, fontWeight: 800 }}>{item.amount}€</span>
             </div>
           )
           if (item.kind === 'purchase') return (
             <div key={item.id} style={{ padding: '7px 9px', background: GREEN_BG, border: `1px solid ${GREEN}55`, borderRadius: 7, fontSize: 12 }}>
               <span style={{ color: GREEN, fontWeight: 700 }}>{item.username}</span>
-              <span style={{ color: C.text }}> osti </span>
-              <span style={{ color: C.text, fontWeight: 700 }}>{item.productName}</span>
+              <span style={{ color: DARK_TEXT }}> osti </span>
+              <span style={{ color: DARK_TEXT, fontWeight: 700 }}>{item.productName}</span>
               <span style={{ color: GREEN, fontWeight: 800 }}> {item.amount}€</span>
             </div>
           )
           return (
             <div key={item.id} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 700, color: C.text }}>{item.username}: </span>
-                <span style={{ color: C.textSub, overflowWrap: 'break-word' }}>{item.message}</span>
+                <span style={{ fontWeight: 700, color: DARK_TEXT }}>{item.username}: </span>
+                <span style={{ color: DARK_TEXT_SUB, overflowWrap: 'break-word' }}>{item.message}</span>
               </div>
-              <button onClick={() => deleteMessage(item.id)} title="Poista" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>✕</button>
-              <button onClick={() => muteUser(item.userId)} title="Mykistä" style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: 0, flexShrink: 0 }}>MYKISTÄ</button>
+              <button onClick={() => deleteMessage(item.id)} title="Poista" style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>✕</button>
+              <button onClick={() => muteUser(item.userId)} title="Mykistä" style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: 0, flexShrink: 0 }}>MYKISTÄ</button>
             </div>
           )
         })}
       </div>
-      <div style={{ padding: '8px 10px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 6, flexShrink: 0 }}>
-        <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 18, padding: '7px 12px', color: C.text, fontSize: 12, outline: 'none', minWidth: 0 }} />
+      <div style={{ padding: '8px 10px', borderTop: `1px solid ${DARK_BORDER}`, display: 'flex', gap: 6, flexShrink: 0 }}>
+        <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 18, padding: '7px 12px', color: DARK_TEXT, fontSize: 12, outline: 'none', minWidth: 0 }} />
         <button onClick={sendChat} style={{ background: GREEN_DIM, border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13 }}>➤</button>
       </div>
     </>
@@ -959,34 +989,34 @@ export default function LahetysPage() {
   // ===== Ei vielä lähetystä: esikatselu/asetusnäkymä (myös tämä täysnäkymässä, ei dashboard-kehystä) =====
   if (!isLive) {
     return (
-      <div style={{ minHeight: '100vh', background: C.bg, color: C.text }}>
+      <div style={{ minHeight: '100vh', background: DARK_BG, color: DARK_TEXT }}>
         <BackButton />
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '60px 20px 40px' : '60px 32px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Lähetys</h1>
-              <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{products.length} tuotetta jonossa</p>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: DARK_TEXT }}>Lähetys</h1>
+              <p style={{ color: DARK_MUTED, fontSize: 13, marginTop: 4 }}>{products.length} tuotetta jonossa</p>
             </div>
-            <button onClick={() => setShowSettings(s => !s)} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Asetukset</button>
+            <button onClick={() => setShowSettings(s => !s)} style={{ background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Asetukset</button>
           </div>
 
           {showSettings && (
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px', marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 12 }}>Oletuskesto per tuote</div>
+            <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 12, padding: '18px', marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 12 }}>Oletuskesto per tuote</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                 {[60, 120, 180, 300, 600].map(s => (
-                  <button key={s} onClick={() => setAuctionDuration(s)} style={{ background: auctionDuration === s ? GREEN_DIM : C.surface2, border: `1px solid ${auctionDuration === s ? GREEN_DIM : C.border}`, color: auctionDuration === s ? '#fff' : C.muted, padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: auctionDuration === s ? 700 : 400 }}>
+                  <button key={s} onClick={() => setAuctionDuration(s)} style={{ background: auctionDuration === s ? GREEN_DIM : DARK_SURFACE2, border: `1px solid ${auctionDuration === s ? GREEN_DIM : DARK_BORDER}`, color: auctionDuration === s ? '#fff' : DARK_MUTED, padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: auctionDuration === s ? 700 : 400 }}>
                     {s >= 60 ? `${s / 60} min` : `${s}s`}
                   </button>
                 ))}
               </div>
-              <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(Number(e.target.value))} placeholder="tai syötä oma (sekunteina)" style={{ width: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', color: C.text, fontSize: 13, outline: 'none' }} />
+              <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(Number(e.target.value))} placeholder="tai syötä oma (sekunteina)" style={{ width: 200, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none' }} />
             </div>
           )}
 
           {products.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita — lisää tuotteita ensin</div>
+              <div style={{ fontSize: 14, color: DARK_MUTED, marginBottom: 16 }}>Ei tuotteita — lisää tuotteita ensin</div>
               <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
             </div>
           ) : (
@@ -996,16 +1026,16 @@ export default function LahetysPage() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
-                    style={{ flex: 1, background: publishMode === 'phone' ? GREEN_DIM : C.surface, border: `1px solid ${publishMode === 'phone' ? GREEN_DIM : C.border}`, color: publishMode === 'phone' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ flex: 1, background: publishMode === 'phone' ? GREEN_DIM : DARK_SURFACE, border: `1px solid ${publishMode === 'phone' ? GREEN_DIM : DARK_BORDER}`, color: publishMode === 'phone' ? '#fff' : DARK_MUTED, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                   >Ilman OBS:aa</button>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
-                    style={{ flex: 1, background: publishMode === 'obs' ? GREEN_DIM : C.surface, border: `1px solid ${publishMode === 'obs' ? GREEN_DIM : C.border}`, color: publishMode === 'obs' ? '#fff' : C.muted, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                    style={{ flex: 1, background: publishMode === 'obs' ? GREEN_DIM : DARK_SURFACE, border: `1px solid ${publishMode === 'obs' ? GREEN_DIM : DARK_BORDER}`, color: publishMode === 'obs' ? '#fff' : DARK_MUTED, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                   >OBS:lla</button>
                 </div>
 
                 {publishMode === 'obs' && (
-                  <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                  <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
                     {obsCardContent}
                   </div>
                 )}
@@ -1028,48 +1058,48 @@ export default function LahetysPage() {
                 {publishMode === 'phone' ? (
                   <>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>}
+                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>}
                       {camReady && !phonePublishing && (
                         <>
-                          <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
+                          <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
                           <button onClick={startPhonePublish} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
                         </>
                       )}
                       {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
                     </div>
-                    <div style={{ fontSize: 11, color: C.muted }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan tästä laitteesta ilman OBS:aa.'}</div>
+                    <div style={{ fontSize: 11, color: DARK_MUTED }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan tästä laitteesta ilman OBS:aa.'}</div>
                     {phonePublishError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{phonePublishError}</div>}
                   </>
                 ) : (
                   <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
                     {!camReady
-                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
-                      : <button onClick={stopCamera} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, color: C.muted, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
+                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
+                      : <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
                     }
                   </div>
                 )}
-                {publishMode === 'obs' && <div style={{ fontSize: 11, color: C.muted }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>}
+                {publishMode === 'obs' && <div style={{ fontSize: 11, color: DARK_MUTED }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>}
                 {camError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{camError}</div>}
               </div>
 
               {/* Oikea: lähetyksen tiedot -lomake */}
               <div>
-                <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Lähetyksen nimi *</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon-kortteja livenä" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Lähetyksen nimi *</label>
+                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon-kortteja livenä" style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kategoria</label>
-                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Kategoria</label>
+                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
                         <option value="">Valitse...</option>
                         {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{getKatNimi(k, lang as any)}</option>)}
                       </select>
                     </div>
                     {(getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat ?? []).length > 0 && (
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Alakategoria</label>
-                        <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Alakategoria</label>
+                        <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
                           <option value="">Valitse...</option>
                           {getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat.map(a => <option key={a.id} value={a.id}>{getAlaNimi(a, lang as any)}</option>)}
                         </select>
@@ -1077,23 +1107,23 @@ export default function LahetysPage() {
                     )}
                   </div>
 
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
-                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
+                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Kameralähde (esikatselu)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Kameralähde (esikatselu)</label>
                   {devices.length === 0
-                    ? <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>Paina "Testaa kamera" salliaksesi käytön</div>
-                    : <select value={selectedDevice} onChange={e => { setSelectedDevice(e.target.value); if (camReady) startCamera(e.target.value) }} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                    ? <div style={{ fontSize: 13, color: DARK_MUTED, marginBottom: 12 }}>Paina "Testaa kamera" salliaksesi käytön</div>
+                    : <select value={selectedDevice} onChange={e => { setSelectedDevice(e.target.value); if (camReady) startCamera(e.target.value) }} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
                         {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
                       </select>
                   }
 
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>
                   <div
                     onClick={() => thumbnailRef.current?.click()}
                     style={{
                       width: '100%', aspectRatio: '21/9', borderRadius: 10,
-                      border: `2px dashed ${thumbnail ? GREEN_DIM : C.border}`, background: C.surface2,
+                      border: `2px dashed ${thumbnail ? GREEN_DIM : DARK_BORDER}`, background: DARK_SURFACE2,
                       cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', position: 'relative',
                     }}
@@ -1107,7 +1137,7 @@ export default function LahetysPage() {
                         >✕</button>
                       </>
                     ) : (
-                      <div style={{ textAlign: 'center', color: C.muted }}>
+                      <div style={{ textAlign: 'center', color: DARK_MUTED }}>
                         <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
                         <div style={{ fontSize: 12 }}>Lisää markkinointikuva</div>
                       </div>
@@ -1121,7 +1151,7 @@ export default function LahetysPage() {
                 <button onClick={createShow} disabled={starting} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
                   {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}
                 </button>
-                <div style={{ fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
+                <div style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
               </div>
             </div>
           )}
@@ -1135,7 +1165,7 @@ export default function LahetysPage() {
 
   // ===== Live/esikatselukonsoli — TÄYSNÄKYMÄ, ei dashboard-kehystä, video hallitsee =====
   return (
-    <div style={{ height: '100dvh', width: '100vw', overflow: 'hidden', background: C.bg, display: 'flex', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
+    <div style={{ height: '100dvh', width: '100vw', overflow: 'hidden', background: DARK_BG, display: 'flex', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
         <HlsPreview wsUrl={previewWsUrl} token={previewToken} />
@@ -1237,8 +1267,8 @@ export default function LahetysPage() {
 
       {/* ===== CHAT: kapea sarake oikealla desktopilla (~25-26%); mobiilissa ei omaa saraketta, chat on osa overlayta ===== */}
       {!isMobile && (
-        <div style={{ flex: '0 0 25%', minWidth: 260, height: '100%', background: C.cardBg, borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0 }}>Chat</div>
+        <div style={{ flex: '0 0 25%', minWidth: 260, height: '100%', background: DARK_PANEL_BG, borderLeft: `1px solid ${DARK_BORDER}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${DARK_BORDER}`, fontSize: 12, fontWeight: 700, color: DARK_MUTED, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0 }}>Chat</div>
           {chatFeedContent}
         </div>
       )}
@@ -1263,11 +1293,12 @@ export default function LahetysPage() {
                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{item.username} osti {item.productName} · {item.amount}€</span>
                 </div>
               )
-              const text = item.kind === 'bid' ? `Huusi ${item.amount}€` : item.message
               return (
                 <div key={item.id} style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', maxWidth: '85%' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: item.kind === 'bid' ? GREEN : GREEN_DIM }}>{item.username} </span>
-                  <span style={{ fontSize: 11, color: '#fff' }}>{text}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: GREEN_DIM }}>{item.username} </span>
+                  {item.kind === 'bid'
+                    ? <><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>huusi </span><span style={{ fontSize: 11, color: GREEN, fontWeight: 800 }}>{item.amount}€</span></>
+                    : <span style={{ fontSize: 11, color: '#fff' }}>{item.message}</span>}
                 </div>
               )
             })}
