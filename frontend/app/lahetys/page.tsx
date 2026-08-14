@@ -171,7 +171,10 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
-      <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      {/* 'contain' eikä 'cover' (ks. CLAUDE.md 2026-08-14, sama korjaus kuin katsojan
+          VideoPlayerissä) - myyjän oman esikatselun pitää näyttää täsmälleen se mitä
+          katsoja näkee, ei rajattua versiota siitä. */}
+      <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       {waiting && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16 }}>
           Odotetaan OBS-yhteyttä...
@@ -1062,7 +1065,7 @@ export default function LahetysPage() {
                 )}
 
                 <div style={{ borderRadius: 12, overflow: 'hidden', background: '#080C16', aspectRatio: '16/9', position: 'relative', marginBottom: 12 }}>
-                  <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <video ref={videoRef} muted playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                   {!camReady && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
                       <div style={{ fontSize: 36, marginBottom: 8 }}>●</div>

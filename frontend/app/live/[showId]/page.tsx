@@ -84,7 +84,13 @@ function VideoPlayer({ showId }: { showId: string }) {
         autoPlay
         muted
         playsInline
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        // KORJAUS 2026-08-14: 'cover' rajaa kuvan täyttääkseen koko laatikon riippumatta
+        // kuvasuhteesta - leveällä näytöllä (esim. 32" monitori, ks. CLAUDE.md) tämä leikkasi
+        // n. 20% kuvasta ylä-/alareunasta koska striimin 16:9-kuvasuhde ei täsmännyt laatikon
+        // omaan (usein leveämpään) kuvasuhteeseen. 'contain' näyttää koko kuvan aina kokonaan,
+        // jättää tarvittaessa mustat palkit sivuille/ylös-alas - taustan (tumma, ks. ympäröivä
+        // container) päälle nämä eivät näy "reikänä" vaan tavallisilta mustilta reunoilta.
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
       />
       {waiting && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16, background: '#080808' }}>
