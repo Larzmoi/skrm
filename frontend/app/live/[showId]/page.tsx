@@ -688,6 +688,18 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     setShowReport(true)
   }
 
+  // Web Share API mobiilissa (natiivi jako-valikko), leikepöytäkopio muualla.
+  function shareStream() {
+    const url = window.location.href
+    if (navigator.share) {
+      navigator.share({ title: show?.title ?? 'SKRM-live', url }).catch(() => {})
+    } else {
+      navigator.clipboard.writeText(url)
+      setToast(t.live.linkCopied)
+      setTimeout(() => setToast(''), 2000)
+    }
+  }
+
   const products = show?.products ?? []
   const currentProduct = products.find(p => p.id === auction.productId) ?? products[0] ?? { id: '', name: t.live.noProducts, condition: '', startPrice: 0, imageUrl: undefined, status: 'PENDING' }
   const currentLot = products.findIndex(p => p.id === currentProduct.id) + 1
@@ -766,6 +778,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', flexShrink: 0 }} />
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
+                <button onClick={shareStream} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.live.share}>➤</button>
                 <button onClick={openReport} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.report.button}>⚑</button>
                 <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
               </div>
@@ -845,6 +858,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <span style={{ fontSize: 12, color: '#555' }}>· {viewers} {t.live.viewers}</span>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', animation: 'pulse 1s infinite', marginLeft: 4 }} />
         </div>
+        <button onClick={shareStream} style={{ background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer' }}>➤ {t.live.share}</button>
         <button onClick={openReport} style={{ background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer' }}>⚑ {t.report.button}</button>
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
       </div>

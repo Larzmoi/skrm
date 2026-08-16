@@ -31,6 +31,7 @@ const en = {
     waitingForStream: 'Waiting for the stream to start...', noProducts: 'No products queued',
     streamEnded: 'Stream ended',
     showsCount: 'shows',
+    share: 'Share', linkCopied: 'Link copied',
   },
   auction: {
     endsIn: 'Ends in', startPrice: 'Starting price', highestBid: 'Highest bid',

@@ -31,6 +31,7 @@ const fi = {
     waitingForStream: 'Odotetaan lähetyksen alkua...', noProducts: 'Ei tuotteita jonossa',
     streamEnded: 'Lähetys päättynyt',
     showsCount: 'lähetystä',
+    share: 'Jaa', linkCopied: 'Linkki kopioitu',
   },
   auction: {
     endsIn: 'Päättyy', startPrice: 'Lähtöhinta', highestBid: 'Korkein huuto',

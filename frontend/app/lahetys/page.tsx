@@ -305,6 +305,7 @@ export default function LahetysPage() {
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [qaName, setQaName] = useState('')
   const [qaPrice, setQaPrice] = useState('')
+  const [qaBidIncrement, setQaBidIncrement] = useState('')
   const [qaImage, setQaImage] = useState<string | null>(null)
   const [qaSaving, setQaSaving] = useState(false)
   const [qaError, setQaError] = useState('')
@@ -757,6 +758,19 @@ export default function LahetysPage() {
     setTimeout(() => setCopied(''), 2000)
   }
 
+  // Web Share API mobiilissa (natiivi jako-valikko) — työpöydällä sitä ei yleensä ole
+  // saatavilla, jolloin pudotaan takaisin leikepöydälle kopiointiin (sama copy()-apuri
+  // jota OBS-avainten kopiointi jo käyttää, näyttää "✓ Kopioitu" napissa hetken).
+  function shareStream() {
+    if (!show) return
+    const url = `${window.location.origin}/live/${show.id}`
+    if (navigator.share) {
+      navigator.share({ title: title || 'SKRM-lähetys', url }).catch(() => {})
+    } else {
+      copy(url, 'share')
+    }
+  }
+
   function regenerateKey() {
     setConfirmDialog({
       message: 'Vanha stream key lakkaa toimimasta heti — OBS:n Stream-asetuksiin pitää syöttää uusi avain. Jatketaanko?',
@@ -807,12 +821,16 @@ export default function LahetysPage() {
     if (!qaName.trim() || !qaPrice) return
     const price = Number(qaPrice.replace(',', '.'))
     if (!price || price <= 0) { setQaError('Anna kelvollinen hinta'); return }
+    // Tyhjä kenttä -> ei välitetä bidIncrement:iä, backend/frontend molemmat tulkitsevat
+    // puuttuvan arvon 1€ oletuskorotukseksi (sama fallback kuin dashboardin täydellä
+    // lomakkeella, ks. CLAUDE.md "Mobiili-läpikäynti" kohta 8).
+    const bidIncrement = qaBidIncrement ? Number(qaBidIncrement.replace(',', '.')) : undefined
     setQaSaving(true); setQaError('')
     try {
       const { api } = await import('@/lib/api')
-      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, imageUrl: qaImage ?? undefined, showId: show?.id })
+      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, bidIncrement, imageUrl: qaImage ?? undefined, showId: show?.id })
       setProducts(p => [...p, created])
-      setQaName(''); setQaPrice(''); setQaImage(null); setShowQuickAdd(false)
+      setQaName(''); setQaPrice(''); setQaBidIncrement(''); setQaImage(null); setShowQuickAdd(false)
     } catch (e: any) {
       setQaError(e.message ?? 'Lisäys epäonnistui')
     }
@@ -939,6 +957,7 @@ export default function LahetysPage() {
           <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
             <input value={qaName} onChange={e => setQaName(e.target.value)} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder="Minimikorotus € (oletus 1€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: '1px dashed rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
               {qaImage ? <img src={qaImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>+ Kuva</span>}
             </div>
@@ -1215,6 +1234,7 @@ export default function LahetysPage() {
             </div>
           ))}
           <div style={{ flex: 1 }} />
+          <button onClick={shareStream} style={pillBtn}>{copied === 'share' ? '✓ Kopioitu' : 'Jaa striimi'}</button>
           <button onClick={() => setShowModTools(s => !s)} style={pillBtn}>Moderointi</button>
           <button onClick={() => setShowObsInfo(s => !s)} style={pillBtn}>OBS</button>
           {showStatus === 'SCHEDULED' && (
