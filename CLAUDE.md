@@ -876,7 +876,7 @@ Omistajan sanoin: nykyinen desktop-tarjousmekanismi vaatii "pitkän viivan vetä
 4. **Visuaalisen jäädytyksen lopullinen silmämääräinen hyväksyntä** — tekninen työ tehty useissa kierroksissa, odottaa vain omistajan katsomista kokonaisuutena läpi ja vahvistusta
 5. **OY-rekisteröinti** — ei tekninen tehtävä, mutta avaa lukot sekä Paytrailin tuotantotunnuksiin (testivaihe jo valmis) että Posti-integraatioon (LogEDI@posti.com-yhteydenotto, kysymyslista jo valmiina) — todennäköisesti suurin yksittäinen pullonkaula juuri nyt
 6. **WHIP/selainstriimaus ilman OBS:ää** — ei vielä aloitettu, tärkeä kun käyttäjäkunta laajenee puhelinkäyttäjiin
-7. **Loput "Live-ominaisuudet Whatnot-tasolle" -kohdista** — ennakkotarjoukset (storefront on jo valmis sen edellytykseksi), chat-moderoinnin loput (co-host, chat-komennot), giveaway, Katsojan Shop-paneeli
+7. **Loput "Live-ominaisuudet Whatnot-tasolle" -kohdista** — ✅ ennakkotarjoukset TEHTY 2026-08-16 (ks. oma osio alempana), jäljellä: chat-moderoinnin loput (co-host, chat-komennot), giveaway, Katsojan Shop-paneeli
 8. **Tarjoa hintaa -toiminto** — päätetty, ei vielä aikataulutettu
 9. **Kategoriafokus: Keräilykortit ainoana** — suurelta osin tehty, tarkista jäännöskohdat jos ei jo tehty
 
@@ -1167,11 +1167,19 @@ Pohjautuu Whatnot-vertailuun. Neljä ominaisuutta päätetty, muodostavat yhdess
 
 **⚠️ Huom, ei oteta käyttöön Whatnotilta:** "Swipe to Bid/Buy" ja "Auto-Authorize" (automaattinen kortilta veloitus heti voiton jälkeen) — ristiriidassa LUKITTU-sääntöjen kanssa (ei pakollista kortintallennusta, 2h maksuaika, ostaja valitsee maksutavan). Ei myöskään Stripe — Paytrail on jo LUKITTU.
 
-### 1. Ennakkotarjoukset (Pre-bidding)
+### 1. ✅ TEHTY 2026-08-16 — Ennakkotarjoukset (Pre-bidding)
 - Koskee **vain huutokauppatyyppisiä tuotteita**: perinteinen huutokauppa (`saleType: "auction"`) ja live-tuotteet jotka kuuluvat vielä `SCHEDULED`-tilassa olevaan Show'hun. Ei suoramyyntiin (`saleType: "suora"`), koska siellä ei ole huutamista.
 - Tekninen pohja on jo olemassa: `Bid`-mallissa `showId` on jo nullable ("null perinteisen huutokaupan huudoille"), eli malli tukee jo huutoja jotka eivät liity käynnissä olevaan liveen.
 - Toteutus: salli huudon jättäminen tuotteelle jonka `Show.status === 'SCHEDULED'` (nyt oletettavasti sallitaan huudot vain kun `status === 'LIVE'` — tarkista ja avaa tämä ehto scheduled-tuotteille). Kun show alkaa, korkein ennakkotarjous on jo `Product.currentBid`, live jatkuu siitä normaalisti.
 - Ilmoita huutaneelle jos hänet ohitetaan ennakkovaiheessa (käytä olemassa olevaa `OUTBID`-ilmoitustyyppiä).
+
+**Toteutus (huom: koskee vain `saleType: "live"`/`"both"` + `SCHEDULED`-showia — perinteinen huutokauppa `saleType: "auction"` tuki tätä jo ennestään `auctions.ts`:n kautta, ei vaatinut muutosta):**
+- Uusi `POST /products/:id/prebid` (`backend/src/routes/products.ts`) — samat validoinnit kuin `auctions.ts`:n huutoreitillä (minimikorotus, ei omaan tuotteeseen, bannaus estää), mutta vaatii lisäksi `product.show.status === 'SCHEDULED'`. Persistoi samoihin `Product.currentBid`/`currentBidderId`-kenttiin joita perinteinen huutokauppa jo käyttää — ei uusia kenttiä, ei migraatiota.
+- `GET /products/:id` palauttaa nyt myös `show`-relaation (`status` mukana, jotta frontend tietää onko tuote ennakkotarjottavissa) ja `bids`/`_count` samalla periaatteella kuin `GET /auctions/:id`.
+- **Kriittinen jatko:** `socket.ts`:n `start_auction` tarkisti aiemmin AINA vain lähtöhinnan, ei koskaan `Product.currentBid`:ia — jos tätä ei olisi korjattu, ensimmäinen ennakkotarjoaja olisi hiljaisesti menettänyt tarjouksensa kun myyjä aloittaa livehuudon (huutokauppa olisi alkanut nollasta, ei ennakkotarjouksesta). Korjattu: hakee tuotteen `currentBid`/`currentBidderId`:n ja jatkaa siitä jos korkeampi kuin lähtöhinta, hakee myös johtavan tarjoajan käyttäjänimen. `auction_started`-tapahtuma välittää nyt `leaderId`/`leaderName` heti, molemmat frontendit (`/lahetys` + `/live/[showId]`) päivitetty näyttämään tämä heti eikä vasta seuraavassa huudossa.
+- Frontend: `frontend/app/tuotteet/[id]/page.tsx` — aiempi kiinteä "Tämä tuote myydään live-lähetyksessä" -teksti korvattu oikealla tarjouslomakkeella kun `isPreBiddable` (korkein tarjous, tarjousmäärä, syöttökenttä, "Jätä tarjous"). `saleType: "both"` näyttää sekä Osta heti- että ennakkotarjous-osion päällekkäin.
+- **Testattu tuotannossa curlilla end-to-end** (kaksi tilapäistä testitiliä, siivottu pois testin jälkeen samalla transaktiopohjaisella periaatteella kuin testi/testi2-poisto): liian pieni tarjous hylätään oikealla minimihinnalla, kelvollinen tarjous päivittää `currentBid`/`currentBidderId`/`_count.bids` oikein, myyjä ei voi tarjota omasta tuotteestaan, tarjous evätään heti kun show siirtyy `LIVE`-tilaan.
+- **Ei vielä testattu:** `start_auction`-jatko oikealla socket-yhteydellä (vaatisi täyden OBS/selainjulkaisu-simulaation) — koodi tarkistettu lukemalla, looginen ketju on suora jatko jo vahvistetusta REST-puolesta, mutta ei kertaakaan ajettu läpi oikealla live-huudolla.
 
 ### 2. Chat & moderointi — laajennettu speksi (tutkittu Whatnotilta, tarkennettu 2026-08-08, korvaa aiemman suppean version)
 
