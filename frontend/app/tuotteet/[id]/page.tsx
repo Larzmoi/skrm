@@ -35,6 +35,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [preBidAmount, setPreBidAmount] = useState('')
+  const [preBidding, setPreBidding] = useState(false)
+  const [preBidError, setPreBidError] = useState('')
+  const [preBidSuccess, setPreBidSuccess] = useState(false)
 
   useEffect(() => {
     console.log('Haetaan tuote id:', id)
@@ -65,6 +69,31 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const images: string[] = product.imageUrl
     ? product.imageUrl.split('|||').filter((s: string) => s.length > 0)
     : []
+
+  // Ennakkotarjoukset (ks. CLAUDE.md "Live-ominaisuudet Whatnot-tasolle" kohta 1) - sallittu
+  // vain live-tyyppisille tuotteille (live/both) joiden lähetys on vielä SCHEDULED, ei mennyt
+  // vielä julkiseksi. Kun lähetys alkaa, korkein ennakkotarjous jatkuu suoraan (backend).
+  const isPreBiddable = (product.saleType === 'live' || product.saleType === 'both') && product.show?.status === 'SCHEDULED'
+  const currentBidValue = product.currentBid ?? product.startPrice
+  const minPreBid = Math.round((currentBidValue + (product.bidIncrement ?? 1)) * 100) / 100
+  const isLeadingBidder = user && product.currentBidderId === user.id
+
+  async function placePreBid() {
+    if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
+    const amount = Number(preBidAmount.replace(',', '.'))
+    if (!amount || amount < minPreBid) { setPreBidError(`${t.product.minBid}: ${minPreBid}€`); return }
+    setPreBidError(''); setPreBidding(true)
+    try {
+      const updated = await api.prebid(product.id, amount)
+      setProduct(updated)
+      setPreBidAmount('')
+      setPreBidSuccess(true)
+      setTimeout(() => setPreBidSuccess(false), 3000)
+    } catch (e: any) {
+      setPreBidError(e.message ?? 'Tarjous epäonnistui')
+    }
+    setPreBidding(false)
+  }
 
   async function buyNow() {
     if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
@@ -185,9 +214,43 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   </button>
                 )}
               </>
-            ) : (
+            ) : !isPreBiddable ? (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', textAlign: 'center', marginBottom: 10, color: C.muted, fontSize: 14 }}>
-                Tämä tuote myydään live-lähetyksessä
+                {t.product.soldLive}
+              </div>
+            ) : null}
+
+            {isPreBiddable && (
+              <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: '16px', marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.accent, marginBottom: 6 }}>{t.product.preBidTitle}</div>
+                <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>{t.product.preBidDesc}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.text, marginBottom: 4 }}>
+                  <span>{product.currentBid != null ? t.product.currentBid : t.product.startingBid}</span>
+                  <span style={{ fontWeight: 800 }}>{currentBidValue}€</span>
+                </div>
+                {product._count?.bids > 0 && (
+                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>{product._count.bids} {t.product.bidsCount}</div>
+                )}
+                {isLeadingBidder && (
+                  <div style={{ fontSize: 12, color: C.accent, fontWeight: 700, marginBottom: 10 }}>✓ {t.product.youAreLeading}</div>
+                )}
+                {preBidError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{preBidError}</div>}
+                {preBidSuccess ? (
+                  <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', color: C.accent, fontWeight: 700, fontSize: 14 }}>
+                    ✓ {t.product.bidPlaced}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text" inputMode="decimal" value={preBidAmount} onChange={e => setPreBidAmount(e.target.value)}
+                      placeholder={`${t.product.minBid} ${minPreBid}€`}
+                      style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', minWidth: 0, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={placePreBid} disabled={preBidding} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: preBidding ? 'default' : 'pointer', opacity: preBidding ? 0.7 : 1, flexShrink: 0 }}>
+                      {preBidding ? t.product.placingBid : t.product.placeBid}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

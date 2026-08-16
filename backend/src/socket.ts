@@ -293,11 +293,30 @@ export function setupSocket(io: Server) {
         const existing = auctions.get(showId)
         if (existing?.interval) clearInterval(existing.interval)
 
+        // Ennakkotarjoukset (ks. POST /products/:id/prebid, CLAUDE.md "Live-ominaisuudet
+        // Whatnot-tasolle" kohta 1): jos tuotteelle on jo tehty korkeampia tarjouksia ennen
+        // kuin lähetys meni julkiseksi, Product.currentBid/currentBidderId sisältää jo ne -
+        // jatketaan siitä sen sijaan että aloitettaisiin puhtaalta pöydältä lähtöhinnasta,
+        // muuten ensimmäinen ennakkotarjoaja "häviäisi" tarjouksensa huomaamattaan.
+        const product = await prisma.product.findUnique({
+          where: { id: productId },
+          select: { currentBid: true, currentBidderId: true },
+        })
+        let leaderId: string | null = null
+        let leaderName: string | null = null
+        let initialBid = Number(startPrice)
+        if (product?.currentBid != null && product.currentBidderId && product.currentBid >= initialBid) {
+          initialBid = product.currentBid
+          leaderId = product.currentBidderId
+          const leader = await prisma.user.findUnique({ where: { id: product.currentBidderId }, select: { username: true } })
+          leaderName = leader?.username ?? null
+        }
+
         const state: AuctionState = {
           productId,
-          currentBid: Number(startPrice),
-          leaderId: null,
-          leaderName: null,
+          currentBid: initialBid,
+          leaderId,
+          leaderName,
           timer: Number(duration) || 120,
           active: true,
         }
@@ -327,6 +346,8 @@ export function setupSocket(io: Server) {
           productId,
           startPrice: state.currentBid,
           duration: Number(duration) || 120,
+          leaderId: state.leaderId,
+          leaderName: state.leaderName,
         })
       } catch (e) {
         console.error('start_auction error:', e)

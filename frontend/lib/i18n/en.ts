@@ -102,6 +102,13 @@ const en = {
     trackingCode: 'Tracking code provided to buyer',
     category: 'Category', seller: 'Seller', description: 'Description',
     breadcrumbHome: 'Home', breadcrumbBrowse: 'Browse',
+    soldLive: 'This item will be sold during a live stream',
+    preBidTitle: 'Pre-bidding open',
+    preBidDesc: 'This item will be sold in an upcoming live stream. You can place a bid now — the highest bid carries over directly to the start of the stream.',
+    currentBid: 'Highest bid', startingBid: 'Starting price', bidsCount: 'bids',
+    yourBid: 'Your bid (€)', placeBid: 'Place bid', placingBid: 'Sending...',
+    bidPlaced: 'Bid received!', youAreLeading: 'You are currently the highest bidder',
+    minBid: 'Minimum bid',
   },
   profile: {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',

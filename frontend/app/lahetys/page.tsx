@@ -502,9 +502,13 @@ export default function LahetysPage() {
     })
 
     socket.on('auction_started', (data: any) => {
-      setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
+      // leaderName voi olla jo asetettu ennakkotarjousten ansiosta (ks. POST /products/:id/prebid)
+      setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: data.leaderName ?? null, timer: data.duration, active: true })
       const p = products.find(x => x.id === data.productId)
-      addFeed({ kind: 'system', id: `start-${Date.now()}`, text: `Huutokauppa alkoi: ${p?.name ?? ''} — lähtöhinta ${data.startPrice}€` })
+      const startText = data.leaderName
+        ? `Huutokauppa alkoi: ${p?.name ?? ''} — jatkuu ennakkotarjouksesta ${data.startPrice}€ (${data.leaderName})`
+        : `Huutokauppa alkoi: ${p?.name ?? ''} — lähtöhinta ${data.startPrice}€`
+      addFeed({ kind: 'system', id: `start-${Date.now()}`, text: startText })
     })
 
     socket.on('new_bid', (data: any) => {

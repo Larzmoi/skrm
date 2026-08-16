@@ -30,6 +30,7 @@ export const api = {
   createProduct: (data: any) => request('/products', { method: 'POST', body: JSON.stringify(data) }),
   updateProduct: (id: string, data: any) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
+  prebid: (id: string, amount: number) => request(`/products/${id}/prebid`, { method: 'POST', body: JSON.stringify({ amount }) }),
 }
 
 export const userApi = {

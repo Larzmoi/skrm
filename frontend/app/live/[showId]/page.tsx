@@ -555,7 +555,10 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     })
 
     socket.on('auction_started', (data: any) => {
-      setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: null, timer: data.duration, active: true })
+      // leaderName voi olla jo asetettu jos tuotteelle tehtiin ennakkotarjouksia ennen
+      // kuin lähetys meni julkiseksi (ks. POST /products/:id/prebid) - socket.ts:n
+      // start_auction jatkaa korkeimmasta ennakkotarjouksesta, ei aina puhtaalta pöydältä.
+      setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: data.leaderName ?? null, timer: data.duration, active: true })
       setBidAmount(data.startPrice + 1)
       setEndedProductId(null)
     })

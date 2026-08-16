@@ -102,6 +102,13 @@ const fi = {
     trackingCode: 'Seurantakoodi toimitetaan ostajalle',
     category: 'Kategoria', seller: 'Myyjä', description: 'Kuvaus',
     breadcrumbHome: 'Etusivu', breadcrumbBrowse: 'Selaa',
+    soldLive: 'Tämä tuote myydään live-lähetyksessä',
+    preBidTitle: 'Ennakkotarjoukset avoinna',
+    preBidDesc: 'Tuote myydään tulevassa live-lähetyksessä. Voit jättää ennakkotarjouksen jo nyt — korkein tarjous siirtyy suoraan lähetyksen alkuun.',
+    currentBid: 'Korkein tarjous', startingBid: 'Lähtöhinta', bidsCount: 'tarjousta',
+    yourBid: 'Oma tarjouksesi (€)', placeBid: 'Jätä tarjous', placingBid: 'Lähetetään...',
+    bidPlaced: 'Tarjous vastaanotettu!', youAreLeading: 'Olet tällä hetkellä korkein tarjoaja',
+    minBid: 'Minimitarjous',
   },
   profile: {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',

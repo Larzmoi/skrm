@@ -1,9 +1,20 @@
 import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { emitToShow } from '../lib/notify'
+import { emitToShow, notifyUser } from '../lib/notify'
 
 const router = Router()
+
+// Pyöristää senteille — sama apuri kuin auctions.ts:ssä (estää JS:n liukulukutarkkuuden
+// aiheuttamat virheet, esim. 5.1 + 0.1 = 5.199999999999999).
+function roundCents(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
+async function isUserBanned(userId: string) {
+  const ban = await prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } })
+  return ban
+}
 
 // GET /products
 router.get('/', async (req, res) => {
@@ -37,10 +48,74 @@ router.get('/:id', async (req, res) => {
   const id = String(req.params.id)
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } } },
+    include: {
+      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } },
+      // show.status kertoo frontendille onko tuote ennakkotarjottavissa (Show SCHEDULED,
+      // ei vielä LIVE) - ks. POST /:id/prebid. bids/​_count samalla periaatteella kuin
+      // auctions.ts:n GET /auctions/:id, näyttää tarjoushistorian läpinäkyvästi.
+      show: { select: { id: true, status: true, scheduledAt: true, title: true } },
+      bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
+      _count: { select: { bids: true } },
+    },
   })
   if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
   res.json(product)
+})
+
+// POST /products/:id/prebid — ennakkotarjous live-tuotteelle ennen kuin sen lähetys on
+// mennyt julkiseksi (Show.status === 'SCHEDULED'). Kun lähetys alkaa, korkein ennakko-
+// tarjous on jo Product.currentBid/currentBidderId - socket.ts:n start_auction jatkaa
+// siitä normaalisti (ks. CLAUDE.md "Live-ominaisuudet Whatnot-tasolle" kohta 1).
+router.post('/:id/prebid', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { amount } = req.body
+  const productId = String(req.params.id)
+
+  const ban = await isUserBanned(req.userId!)
+  if (ban) return res.status(403).json({ error: `Tilisi on estetty ${ban.endsAt.toLocaleDateString('fi-FI')} asti: ${ban.reason}` })
+
+  const product = await prisma.product.findUnique({ where: { id: productId }, include: { show: true } })
+  if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
+  if (product.saleType !== 'live' && product.saleType !== 'both') {
+    return res.status(400).json({ error: 'Tämä tuote ei ole huutokaupattavissa' })
+  }
+  if (!product.show || product.show.status !== 'SCHEDULED') {
+    return res.status(400).json({ error: 'Ennakkotarjoukset ovat mahdollisia vain ennen lähetyksen alkua' })
+  }
+  if (product.sellerId === req.userId) {
+    return res.status(400).json({ error: 'Et voi tarjota omasta tuotteestasi' })
+  }
+
+  const minBid = roundCents((product.currentBid ?? product.startPrice) + (product.bidIncrement ?? 1))
+  if (Number(amount) < minBid) {
+    return res.status(400).json({ error: `Minimi tarjous on ${minBid}€` })
+  }
+
+  const previousBidderId = product.currentBidderId
+
+  await prisma.$transaction([
+    prisma.bid.create({
+      data: { productId, showId: product.showId, userId: req.userId!, amount: Number(amount), type: 'manual' },
+    }),
+    prisma.product.update({
+      where: { id: productId },
+      data: { currentBid: Number(amount), currentBidderId: req.userId },
+    }),
+  ])
+
+  if (previousBidderId && previousBidderId !== req.userId) {
+    await notifyUser(previousBidderId, 'OUTBID', 'Sinut ohitettiin!', `Joku tarjosi ${amount}€ tuotteesta ${product.name}`, `/tuotteet/${productId}`)
+  }
+
+  const updated = await prisma.product.findUnique({
+    where: { id: productId },
+    include: {
+      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } },
+      show: { select: { id: true, status: true, scheduledAt: true, title: true } },
+      bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
+      _count: { select: { bids: true } },
+    },
+  })
+  res.json(updated)
 })
 
 // POST /products
