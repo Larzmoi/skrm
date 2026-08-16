@@ -4,7 +4,7 @@
 SKRM on suomalainen live-huutokauppa- ja suoramyyntialusta. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä (live-huutokauppa) tai listata ne suoraan myyntiin (suoramyynti). SKRM ei ole osapuoli kaupassa — marketplace-malli kuten Whatnot.
 
 **Domain:** skrm.fi (ostettu, Cloudflare DNS)
-**Testitunnus:** testi@skrm.fi / test1234
+**Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
 ## Tech Stack
 - **Frontend:** Next.js 16.2.12 + TypeScript, App Router, inline styles, Turbopack
@@ -341,11 +341,31 @@ Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti o
 - "Viesti" nappi julkisessa profiilissa toimii
 - Bugikorjaus: uuden viestin ilmoituksen deep link osoitti user ID:hen eikä usernameen
 
-### Testitunnus 2
-- testi2@skrm.fi / test1234 (username: testikaksi)
-- Olemassa oleva keskustelu testi@skrm.fi kanssa
+### Testitunnus 2 (POISTETTU, ks. "Testitilien poisto" -osio)
+- ~~testi2@skrm.fi / test1234 (username: testikaksi)~~ — poistettu 2026-08-16
 
 *(Tämän päivityksen "Tekemättä"-lista on vanhentunut ja poistettu — kaikki tuolloin listatut kohdat paitsi infrastruktuuri/maksut on sittemmin tehty. Ks. ajantasainen lista tiedoston alusta "## Tekemättä".)*
+
+## Testitilien poisto — 2026-08-16
+
+Omistajan pyynnöstä `testi@skrm.fi` ja `testi2@skrm.fi` poistettu kokonaan tuotannon tietokannasta,
+kaikkine liittyvine riveineen (schema.prismassa ei ole `onDelete: Cascade` -määrityksiä, joten poisto
+tehtiin käsin oikeassa FK-riippuvuusjärjestyksessä yhden Prisma-transaktion sisällä — jos jokin olisi
+epäonnistunut, mikään ei olisi jäänyt puolitiehen). Ennen poistoa otettu täysi `pg_dump`-varmuuskopio
+palvelimelle (`/tmp/skrm-backup-*.dump`) turvaverkoksi.
+
+**Huomio joka yllätti:** tuotannossa on vain kolme käyttäjää (Larzmoi/admin + testi + testi2), ja
+Larzmoi oli aktiivisesti testannut ostamalla/myymällä testitilien kanssa — 20 huutoa ja 7 tilausta
+joissa Larzmoi oli vastapuolena. Nämä poistuivat siis myös Larzmoin omasta tilaus-/huutohistoriasta
+sivuvaikutuksena, koska toinen osapuoli (testi/testi2) ei enää ole olemassa — tämä on odotettu lopputulos
+suljetussa 3-tilin testiympäristössä, ei virhe.
+
+**Poistettu:** 9 tuotetta, 36 lähetystä, 97 huutoa, 2 automaattihuutoa, 10 tilausta, 10 tilausriviä,
+2 arvostelua, 5 viestiä, 36 ilmoitusta, 3 maksurikkomusta, 1 banni, 1 ilmianto. Jäljellä tuotannossa
+vain `johan.risberg@outlook.com` (Larzmoi, ADMIN).
+
+**Jos uusi testitunnus tarvitaan:** rekisteröi normaalisti `/register`-sivun kautta — ei enää mitään
+kovakoodattua "testi"-tiliä joka pitäisi muistaa suojata jatkotyössä.
 
 ## Toimituksen aikataulu ja maksuturva (LUKITTU)
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
