@@ -68,15 +68,21 @@ function BackButton({ overlay }: { overlay?: boolean }) {
 // Myyjän oma esikatselu — LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09:
 // Vaihto MediaMTX -> LiveKit"). Liittyy omaan huoneeseensa erillisellä "esikatselu"-
 // identiteetillä (ei julkaisijana — OBS julkaisee Ingressin kautta, ei suoraan selaimesta).
-function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
+type PreviewStats = { w: number; h: number; fps: number; kbps: number }
+
+function HlsPreview({ wsUrl, token, onStats }: { wsUrl: string; token: string; onStats?: (s: PreviewStats | null) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
   // Näkyvät laatutilastot (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 23) —
   // ennen tätä ei ollut mitään tapaa nähdä käyttöliittymästä millä resoluutiolla/bitratella
   // striimi oikeasti kulkee, pelkkä silmämääräinen arvio ei riittänyt laadun tarkistamiseen.
-  const [stats, setStats] = useState<{ w: number; h: number; fps: number; kbps: number } | null>(null)
+  // Siirretty näkyviin ylös LIVE/ESIKATSELU-tilan alle (ks. onStats-callback alla) - itse
+  // laskenta pysyy täällä koska se on sidoksissa tähän komponentin omaan LiveKit-huoneeseen.
+  const [stats, setStats] = useState<PreviewStats | null>(null)
   const statsTrackRef = useRef<any>(null)
   const lastStatsRef = useRef<{ bytes: number; ts: number } | null>(null)
+
+  useEffect(() => { onStats?.(stats) }, [stats, onStats])
 
   // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — ks. alempi kommentti. Näyttää tarkalleen
   // milloin "Odotetaan OBS-yhteyttä" -teksti oikeasti ilmestyy/katoaa renderissä,
@@ -180,20 +186,6 @@ function HlsPreview({ wsUrl, token }: { wsUrl: string; token: string }) {
           Odotetaan OBS-yhteyttä...
         </div>
       )}
-      {stats && (
-        <div style={{
-          position: 'absolute', bottom: 10, left: 10, zIndex: 8,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', borderRadius: 6,
-          padding: '4px 8px', fontSize: 11, fontFamily: 'monospace', color: stats.h >= 720 ? '#4ADE80' : '#FBBF24',
-          display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none',
-        }}>
-          <span>{stats.w}×{stats.h}</span>
-          <span style={{ opacity: 0.6 }}>·</span>
-          <span>{stats.fps}fps</span>
-          <span style={{ opacity: 0.6 }}>·</span>
-          <span>{stats.kbps > 0 ? `${stats.kbps} kbps` : '…'}</span>
-        </div>
-      )}
     </div>
   )
 }
@@ -276,6 +268,9 @@ export default function LahetysPage() {
   const [devices, setDevices] = useState<VideoDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState('')
   const [copied, setCopied] = useState('')
+  // Laatutilastot nostettu HlsPreviewistä ylös LIVE/ESIKATSELU-tilaindikaattorin alle,
+  // omistajan pyynnöstä (aiemmin videon alareunassa, vähemmän huomiota herättävä paikka).
+  const [previewStats, setPreviewStats] = useState<PreviewStats | null>(null)
 
   // Puhelimesta suoraan striimaus ilman OBS:aa (ks. CLAUDE.md "Selainpohjainen
   // mobiilistriimaus") — julkaisee streamRef.current-median suoraan LiveKitiin
@@ -1211,22 +1206,29 @@ export default function LahetysPage() {
     <div style={{ height: '100dvh', width: '100vw', overflow: 'hidden', background: DARK_BG, display: 'flex', flexDirection: isMobile ? 'column' : 'row', position: 'relative' }}>
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
-        <HlsPreview wsUrl={previewWsUrl} token={previewToken} />
+        <HlsPreview wsUrl={previewWsUrl} token={previewToken} onStats={setPreviewStats} />
         <BackButton overlay />
 
         {/* Yläpalkki-overlay: tila + kesto/katsojat/myynti + toiminnot, videon YLÄREUNAN päällä */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', padding: isMobile ? '10px 10px 26px 54px' : '12px 16px 30px 60px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
-          {showStatus === 'LIVE' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: GREEN }}>ESIKATSELU</span>
-            </div>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+            {showStatus === 'LIVE' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: GREEN }}>ESIKATSELU</span>
+              </div>
+            )}
+            {previewStats && (
+              <div style={{ fontSize: 10, fontFamily: 'monospace', color: previewStats.h >= 720 ? '#4ADE80' : '#FBBF24', paddingLeft: 13 }}>
+                {previewStats.w}×{previewStats.h} · {previewStats.fps}fps · {previewStats.kbps > 0 ? `${previewStats.kbps} kbps` : '…'}
+              </div>
+            )}
+          </div>
           {topStats.map(s => (
             <div key={s.label} style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>{s.label}</span>
