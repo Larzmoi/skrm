@@ -265,6 +265,8 @@ const en = {
   notificationsPage: {
     title: 'Notifications', subtitle: 'Stay up to date on bids and orders',
     empty: 'No notifications yet', markAllRead: 'Mark all as read',
+    enablePush: 'Enable browser notifications', enablingPush: 'Enabling...',
+    pushEnabled: '✓ Browser notifications on',
   },
   messagesPage: {
     title: 'Messages', subtitle: 'Your conversations with buyers and sellers',

@@ -91,6 +91,12 @@ export const notificationApi = {
   remove: (id: string) => request(`/notifications/${id}`, { method: 'DELETE' }),
 }
 
+export const pushApi = {
+  subscribe: (endpoint: string, p256dh: string, auth: string) =>
+    request('/push/subscribe', { method: 'POST', body: JSON.stringify({ endpoint, keys: { p256dh, auth } }) }),
+  unsubscribe: (endpoint: string) => request('/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+}
+
 export const reportApi = {
   create: (targetType: 'product' | 'show' | 'user', targetId: string, reason: string, description?: string) =>
     request('/reports', { method: 'POST', body: JSON.stringify({ targetType, targetId, reason, description }) }),

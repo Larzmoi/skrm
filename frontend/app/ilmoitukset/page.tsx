@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -6,6 +7,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useNotifications } from '@/lib/notification-context'
 import { notificationApi } from '@/lib/api'
+import { subscribeToPush, pushSupported } from '@/lib/push'
 
 function timeAgo(iso: string, t: any) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -23,6 +25,15 @@ export default function IlmoituksetPage() {
   const { t } = useLang()
   const router = useRouter()
   const { notifications, unreadNotifCount, refresh, markAllRead, remove } = useNotifications()
+  const [pushEnabled, setPushEnabled] = useState(typeof window !== 'undefined' && typeof Notification !== 'undefined' && Notification.permission === 'granted')
+  const [pushEnabling, setPushEnabling] = useState(false)
+
+  async function enablePush() {
+    setPushEnabling(true)
+    await subscribeToPush()
+    setPushEnabled(typeof Notification !== 'undefined' && Notification.permission === 'granted')
+    setPushEnabling(false)
+  }
 
   async function openNotification(id: string, link: string | null) {
     await notificationApi.markRead(id)
@@ -44,11 +55,22 @@ export default function IlmoituksetPage() {
             <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>{t.notificationsPage.title}</h1>
             <p style={{ color: C.muted, fontSize: 14 }}>{t.notificationsPage.subtitle}</p>
           </div>
-          {unreadNotifCount > 0 && (
-            <button onClick={markAllRead} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              {t.notificationsPage.markAllRead}
-            </button>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            {unreadNotifCount > 0 && (
+              <button onClick={markAllRead} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {t.notificationsPage.markAllRead}
+              </button>
+            )}
+            {pushSupported() && (
+              pushEnabled ? (
+                <span style={{ fontSize: 12, color: C.accent, fontWeight: 600, whiteSpace: 'nowrap' }}>{t.notificationsPage.pushEnabled}</span>
+              ) : (
+                <button onClick={enablePush} disabled={pushEnabling} style={{ background: C.accent, border: 'none', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushEnabling ? 'default' : 'pointer', opacity: pushEnabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {pushEnabling ? t.notificationsPage.enablingPush : t.notificationsPage.enablePush}
+                </button>
+              )
+            )}
+          </div>
         </div>
 
         {notifications.length === 0 ? (

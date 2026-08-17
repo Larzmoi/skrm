@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
-import { emitToShow } from '../lib/notify'
+import { emitToShow, notifyUser } from '../lib/notify'
+import { sendPushToUser } from '../lib/push'
 
 const router = Router()
 
@@ -129,9 +130,23 @@ router.post('/:id/viewer-token', async (req: AuthRequest, res: Response) => {
   res.json({ wsUrl: LIVEKIT_WS_URL_PUBLIC, token: viewerToken, roomName })
 })
 
+// Ilmoittaa kaikille seuraajille (in-app + push, ks. CLAUDE.md "Push-ilmoitukset") kun
+// seurattu myyjä menee liveen. Ei odoteta valmiiksi ennen vastauksen palautusta - myyjän
+// "Aloita julkinen lähetys" -painallus ei saa jäädä roikkumaan ison seuraajamäärän takia.
+async function notifyFollowersOfLiveShow(sellerId: string, sellerUsername: string, showTitle: string, showId: string) {
+  const followers = await prisma.follower.findMany({ where: { sellerId }, select: { followerId: true } })
+  const title = `${sellerUsername} on nyt livenä!`
+  const body = showTitle
+  const link = `/live/${showId}`
+  await Promise.all(followers.map(async f => {
+    await notifyUser(f.followerId, 'SELLER_LIVE', title, body, link).catch(() => {})
+    await sendPushToUser(f.followerId, { title, body, url: link }).catch(() => {})
+  }))
+}
+
 // PATCH /shows/:id/status — muuta tila (LIVE/ENDED)
 router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const show = await prisma.show.findUnique({ where: { id: String(req.params.id) } })
+  const show = await prisma.show.findUnique({ where: { id: String(req.params.id) }, include: { seller: { select: { username: true } } } })
   if (!show || show.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   const { status, thumbnailUrl } = req.body
   const updated = await prisma.show.update({
@@ -147,6 +162,7 @@ router.patch('/:id/status', authMiddleware, async (req: AuthRequest, res: Respon
   // "Lopeta"-napista - vain automaattinen webhook-pohjainen lopetus (ks. webhooks.ts) emittasi
   // tämän ennen, joten manuaalisesti lopetettu lähetys jäi katsojan ruudulle roikkumaan.
   if (status === 'LIVE' || status === 'ENDED') emitToShow(updated.id, 'show_status', { status })
+  if (status === 'LIVE') notifyFollowersOfLiveShow(show.sellerId, show.seller.username, updated.title, updated.id).catch(console.error)
   res.json(updated)
 })
 

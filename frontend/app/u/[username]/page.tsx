@@ -9,6 +9,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { BACKEND_URL as BACKEND } from '@/lib/backend'
 import { userApi } from '@/lib/api'
+import { subscribeToPush } from '@/lib/push'
 import { StarRatingDisplay } from '@/components/StarRating'
 import ReportModal from '@/components/ReportModal'
 import { formatShowTime } from '@/lib/formatShowTime'
@@ -55,6 +56,10 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       const data = await userApi.follow(username)
       setFollowing(data.following)
       setFollowerCount(data.followerCount)
+      // Kysytään push-ilmoituslupa juuri tässä (käyttäjän eleen sisällä, ks. lib/push.ts)
+      // vain kun seuraaminen aloitettiin, ei kun se lopetettiin - näin käyttäjä saa
+      // ilmoituksen kun tämä myyjä menee liveen (ks. CLAUDE.md "Push-ilmoitukset").
+      if (data.following) subscribeToPush()
     } catch {}
     setFollowBusy(false)
   }

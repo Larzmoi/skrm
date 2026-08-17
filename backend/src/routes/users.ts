@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, createPublisherToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
+import { notifyUser } from '../lib/notify'
 
 const router = Router()
 
@@ -128,6 +129,13 @@ router.post('/:username/follow', authMiddleware, async (req: AuthRequest, res: R
     await prisma.follower.delete({ where: { id: existing.id } })
   } else {
     await prisma.follower.create({ data: { sellerId: seller.id, followerId: req.userId! } })
+    // Vain uudesta seuraamisesta ilmoitetaan, ei seuraamisen lopettamisesta - in-app-
+    // ilmoitus riittää tähän (ei push, ks. CLAUDE.md "Push-ilmoitukset" - push on rajattu
+    // koskemaan "seurattu myyjä meni liveen" -tapahtumaa).
+    const follower = await prisma.user.findUnique({ where: { id: req.userId! }, select: { username: true } })
+    if (follower) {
+      await notifyUser(seller.id, 'NEW_FOLLOWER', 'Uusi seuraaja', `${follower.username} alkoi seurata sinua`, `/u/${follower.username}`)
+    }
   }
 
   const followerCount = await prisma.follower.count({ where: { sellerId: seller.id } })

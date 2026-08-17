@@ -265,6 +265,8 @@ const fi = {
   notificationsPage: {
     title: 'Ilmoitukset', subtitle: 'Pysy ajan tasalla huudoista ja tilauksista',
     empty: 'Ei ilmoituksia vielä', markAllRead: 'Merkitse kaikki luetuiksi',
+    enablePush: 'Ota selainilmoitukset käyttöön', enablingPush: 'Otetaan käyttöön...',
+    pushEnabled: '✓ Selainilmoitukset käytössä',
   },
   messagesPage: {
     title: 'Viestit', subtitle: 'Keskustelusi ostajien ja myyjien kanssa',

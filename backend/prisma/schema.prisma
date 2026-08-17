@@ -55,6 +55,8 @@ enum NotificationType {
   REVIEW_RECEIVED
   LISTING_REMOVED
   REFUND_ISSUED
+  NEW_FOLLOWER
+  SELLER_LIVE
 }
 
 enum ReportStatus {
@@ -108,6 +110,20 @@ model User {
   reviewsGiven      Review[]           @relation("ReviewsGiven")
   reviewsReceived   Review[]           @relation("ReviewsReceived")
   reports           Report[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Selaimen Web Push -tilaus (ks. CLAUDE.md "Push-ilmoitukset") - yksi rivi per selain/laite
+// jolla käyttäjä on hyväksynyt ilmoitukset, ei per käyttäjä (sama käyttäjä voi olla
+// kirjautuneena useammalla laitteella, kaikki saavat pushin).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }
 
 model Show {
