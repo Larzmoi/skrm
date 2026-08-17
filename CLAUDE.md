@@ -367,6 +367,68 @@ vain `johan.risberg@outlook.com` (Larzmoi, ADMIN).
 **Jos uusi testitunnus tarvitaan:** rekisteröi normaalisti `/register`-sivun kautta — ei enää mitään
 kovakoodattua "testi"-tiliä joka pitäisi muistaa suojata jatkotyössä.
 
+### Kolme uutta testitiliä — 2026-08-17
+Omistajan pyynnöstä luotu kolme testitiliä tuotantoon (`/register`-reitin kautta, ei kovakoodattu):
+- `testi@testi.com` / `testi12345` (username: `testiuser`)
+- `testi2@testi.com` / `testi12345` (username: `testi2user`)
+- `testi3@testi.com` / `testi12345` (username: `testi3user`)
+
+Kaikki kolme tavallisia `USER`-rooleja, ei admin-oikeuksia. Käytetty myös alla kuvatun
+push-ilmoitusominaisuuden tuotantotestaukseen (seuraaminen + livelle meno), testidata
+(seuraussuhde, ilmoitukset, testi-Show) siivottu pois jälkikäteen — itse tilit jätetty ennalleen
+koska omistaja pyysi ne nimenomaisesti pysyväksi testikäyttöön.
+
+## Push-ilmoitukset (Web Push) — TEHTY 2026-08-17
+
+Omistajan pyyntö: ilmoitus kun (1) joku alkaa seurata profiilia, (2) seurattu myyjä menee liveen —
+jälkimmäisen piti kantautua puhelimelle asti, ei vain in-app-kellokuvakkeeseen.
+
+**Kaksi erillistä kanavaa nyt käytössä, tarkoituksella:**
+1. **In-app-ilmoitus** (jo olemassa oleva `Notification`-malli + socket-push, ks. `lib/notify.ts`) —
+   toimii vain kun sivusto on auki selaimessa.
+2. **Web Push** (uusi) — käyttöjärjestelmätason ilmoitus, toimii myös kun sivusto EI ole auki.
+   Tämä on se osa joka "kantautuu puhelimeen".
+
+**Toteutus:**
+- `web-push`-paketti + VAPID-avainpari (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`
+  backendin `.env`:ssä, julkinen avain toistettuna `NEXT_PUBLIC_VAPID_PUBLIC_KEY`:na frontendin
+  `.env.local`:ssa — julkinen avain ei ole salainen, se on tarkoitettu selaimelle).
+- Uusi `PushSubscription`-malli (`userId`, `endpoint` uniikki, `p256dh`, `auth`) — yksi rivi per
+  selain/laite, ei per käyttäjä (sama tili voi olla kirjautuneena useammalla laitteella).
+- `backend/src/lib/push.ts`: `sendPushToUser(userId, {title, body, url})` — lähettää kaikkiin
+  käyttäjän tunnettuihin laitteisiin rinnakkain, siivoaa vanhentuneet tilaukset (410/404) pois
+  automaattisesti sen sijaan että yrittäisi niitä uudestaan.
+- `frontend/public/sw.js`: minimaalinen service worker, näyttää push-tapahtuman ilmoituksena ja
+  vie oikeaan osoitteeseen klikattaessa.
+- `frontend/lib/push.ts`: `subscribeToPush()` — pyytää selainluvan ja rekisteröi tilauksen.
+  **Kutsuttava käyttäjän eleen (esim. napin klikkaus) sisällä**, muuten selain voi jättää
+  lupapyynnön huomiotta — siksi kutsu on `/u/[username]`:n "Seuraa"-napin klikkauskäsittelijässä,
+  ei esim. sivun latautuessa automaattisesti.
+- Uudet `NotificationType`-arvot: `NEW_FOLLOWER` (in-app, ei pushia — vain "goes live" kantautuu
+  puhelimeen omistajan pyynnön mukaan), `SELLER_LIVE` (in-app + push).
+- `POST /users/:username/follow`: uudesta seuraamisesta (ei seuraamisen lopettamisesta)
+  `notifyUser(seller.id, 'NEW_FOLLOWER', ...)`.
+- `PATCH /shows/:id/status` (status→LIVE): hakee kaikki myyjän seuraajat, lähettää jokaiselle
+  sekä in-app- että push-ilmoituksen rinnakkain (`Promise.all`, ei blokkaa "Aloita julkinen
+  lähetys" -painalluksen vastausta jos seuraajia on paljon).
+- `/ilmoitukset`-sivulle lisätty myös manuaalinen "Ota selainilmoitukset käyttöön" -nappi niille
+  jotka haluavat pushin ilman että täytyy ensin seurata jotakuta.
+
+**Testattu tuotannossa curlilla** (testi/testi2/testi3-tileillä, ks. yllä): seuraaminen synnyttää
+oikean `NEW_FOLLOWER`-ilmoituksen, `PATCH .../status LIVE` synnyttää `SELLER_LIVE`-ilmoituksen
+kaikille seuraajille oikealla title/body/link-sisällöllä, `/push/subscribe` ja `/push/unsubscribe`
+toimivat. **Ei testattu:** oikea push-ilmoitus laitteen lukitusnäytölle asti (vaatisi oikean
+selaimen jolla on Notification-lupa myönnetty ja todellinen push-palvelun endpoint, ei
+automatisoitavissa curlilla) — omistajan kannattaa kokeilla itse: seuraa jotakuta, hyväksy
+selainlupa, mene toisella tilillä liveen.
+
+**Sivuvaikutus/löydös deployn aikana:** GitHub-repo (`Larzmoi/skrm`) oli hetken yksityinen kesken
+deployn, minkä takia Hetzner-palvelimen `git pull` alkoi vaatia kirjautumista eikä toiminut (repo
+oli aiemmin dokumentoitu julkiseksi, palvelimella ei ole koskaan ollut tallennettuja git-
+tunnuksia koska niitä ei aiemmin tarvittu). Omistaja palautti repon julkiseksi kesken istunnon,
+minkä jälkeen deploy jatkui normaalisti. Ei koodimuutos, ei jää pysyväksi ongelmaksi, mutta hyvä
+tietää jos `git pull` joskus alkaa yllättäen kysyä käyttäjätunnusta palvelimella.
+
 ## Toimituksen aikataulu ja maksuturva (LUKITTU)
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
 - **Päivä 5** — paketti ei liikkunut → automaattinen ilmoitus myyjälle ja ostajalle
