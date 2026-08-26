@@ -162,7 +162,7 @@ function SelaaContent() {
       </div>
 
       {isMobile && (
-        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, background: C.navBg, display: 'flex', gap: 8 }}>
+        <div style={{ padding: '10px 24px', borderBottom: `1px solid ${C.border}`, background: C.navBg, display: 'flex', gap: 8 }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.selaa.search} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 12px', fontSize: 14, color: C.text, minWidth: 0 }} />
           <button onClick={() => setShowFilters(s => !s)} style={{ background: showFilters ? C.accent : C.surface, border: `1px solid ${showFilters ? C.accent : C.border}`, color: showFilters ? '#fff' : C.textSub, padding: '9px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {t.selaa.filter}
@@ -171,7 +171,7 @@ function SelaaContent() {
       )}
 
       {isMobile && showFilters && (
-        <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '14px' }}>
+        <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '14px 24px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.selaa.category}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
             {allKats.map(kat => (
@@ -232,7 +232,7 @@ function SelaaContent() {
 
       <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto' }}>
         {!isMobile && (
-          <div style={{ width: 200, flexShrink: 0, padding: '20px 12px', borderRight: `1px solid ${C.border}`, position: 'sticky', top: 58, height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
+          <div style={{ width: 200, boxSizing: 'border-box' as const, flexShrink: 0, padding: '20px 12px 20px 24px', borderRight: `1px solid ${C.border}`, position: 'sticky', top: 58, height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 10 }}>{t.selaa.category}</div>
             {allKats.map(kat => {
               const count = kat.id === 'kaikki' ? products.length : products.filter(p => p.category === kat.id).length
@@ -284,7 +284,7 @@ function SelaaContent() {
           </div>
         )}
 
-        <div style={{ flex: 1, padding: isMobile ? '14px' : '24px', minWidth: 0 }}>
+        <div style={{ flex: 1, padding: isMobile ? '14px 24px' : '24px', minWidth: 0 }}>
           {!isMobile && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.selaa.search} style={{ flex: 1, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '9px 14px', fontSize: 14, color: C.text }} />
