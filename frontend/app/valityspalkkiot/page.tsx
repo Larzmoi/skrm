@@ -5,12 +5,10 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 
 const ROWS = [
-  { price: '10€', skrm: '0,65€' },
-  { price: '50€', skrm: '2,75€' },
-  { price: '100€', skrm: '4,75€' },
-  { price: '200€', skrm: '8,75€' },
-  { price: '333€', skrm: '13,54€' },
-  { price: '500€+', skrm: '20,00€ (max)' },
+  { price: '10€', skrm: '0,35€' },
+  { price: '100€', skrm: '3,50€' },
+  { price: '333€', skrm: '11,66€' },
+  { price: '1000€+', skrm: '35,00€ (max)' },
 ]
 
 export default function ValityspalkkiotPage() {
@@ -32,7 +30,7 @@ export default function ValityspalkkiotPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
               <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.fees.skrmFee}</div>
-                <div style={{ fontSize: 32, fontWeight: 900, color: C.accent, lineHeight: 1, marginBottom: 4 }}>3%</div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: C.accent, lineHeight: 1, marginBottom: 4 }}>3,5%</div>
                 <div style={{ fontSize: 13, color: C.muted }}>max <strong style={{ color: C.text }}>35€</strong> / {lang === 'fi' ? 'kauppa' : 'sale'}</div>
               </div>
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px' }}>
@@ -83,7 +81,7 @@ export default function ValityspalkkiotPage() {
               <tbody>
                 <tr style={{ borderBottom: `1px solid ${C.border}` }}>
                   <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPostal}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>9,90€</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>6,90€</td>
                 </tr>
                 <tr>
                   <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPickup}</td>

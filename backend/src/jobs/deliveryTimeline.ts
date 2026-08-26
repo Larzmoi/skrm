@@ -3,15 +3,32 @@ import { notifyUser } from '../lib/notify'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-// Toimituksen aikataulu SHIPPED-tilauksille (shippedAt:sta laskettuna):
-// päivä 5  — muistutus jos paketti ei ole vielä kuitattu vastaanotetuksi
-// päivä 10 — muistutus ostajalle: kuittaa vastaanotto tai ilmoita ongelmasta
-// päivä 14 — jos ostaja ei ole reagoinut, tilaus suljetaan automaattisesti ja maksu vapautetaan myyjälle
+// Toimituksen aikataulu SHIPPED-tilauksille — kaksi erillistä polkua (LUKITTU, ks. CLAUDE.md
+// "Toimituksen aikataulu ja maksuturva", täsmennetty 2026-08-25):
+//
+// 1. Ostaja kuittaa vastaanoton (deliveryConfirmedAt asetettu) → 48h tarkastusikkuna, sitten
+//    automaattinen vapautus, ellei ostaja reklamoi sinä aikana (reklamointi siirtää tilauksen
+//    DISPUTED-tilaan, jolloin se ei enää täsmää `status: 'SHIPPED'`-hakuun eikä tätä polkua
+//    enää käydä sille läpi).
+// 2. Ostaja EI koskaan kuittaa (deliveryConfirmedAt on null) → shippedAt-pohjainen fallback-
+//    eskalaatio (päivä 5/10/14) samaan tapaan kuin ennenkin, viimeistään päivä 14 vapauttaa
+//    automaattisesti riippumatta siitä onko ostaja reagoinut.
 export async function checkDeliveryTimeline() {
   const shipped = await prisma.order.findMany({ where: { status: 'SHIPPED', shippedAt: { not: null } } })
   const now = Date.now()
 
   for (const order of shipped) {
+    if (order.deliveryConfirmedAt) {
+      const confirmedAge = now - order.deliveryConfirmedAt.getTime()
+      if (confirmedAge >= 2 * DAY_MS) {
+        // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
+        await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
+        await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi vastaanoton eikä reklamoinut 48 tunnin kuluessa — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
+        await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Kauppa suoritettu', 'Reklamointiaikasi on päättynyt — kauppa on nyt suoritettu.', '/ostot')
+      }
+      continue
+    }
+
     const age = now - order.shippedAt!.getTime()
 
     if (age >= 14 * DAY_MS) {

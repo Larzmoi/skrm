@@ -79,8 +79,20 @@ skrm/
       i18n/fi.ts, en.ts, sv.ts    — Käännökset
 ```
 
+## Sisältövirheet 2026-08-25 — hinnat + FAQ-ristiriita (koko sivuston oikoluku käynnissä)
+
+Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäynnin. Ensimmäiset löydökset:
+
+1. **Välityspalkkio korjattu** (ks. yllä "Liiketoimintasäännöt" ja "Välityspalkkiotaulukko") — 3% oli väärin, oikea on 3,5%. 35€ oli jo oikein useimmissa paikoissa, mutta `valityspalkkiot`-sivun esimerkkitaulukossa oli ristiriitaisesti "20,00€ (max)" yhdellä rivillä — nyt korjattu koko taulukko 3,5%:lla laskettuna.
+
+2. **Postihinta muutettu** 9,90€ → 6,90€, JA pakettikoon valinta poistetaan kokonaan (ks. yllä "Postihinnat").
+
+3. **FAQ-ristiriita löydetty:** "Miten huutokauppa toimii?" -kysymys (sekä `yleista`/`ostaja`-osiossa) vastaa **vain live-huutokauppaa** kuvaavalla tekstillä ("Myyjä avaa videolähetyksen ja esittelee tuotteet livenä...") — mutta kysymys on muotoiltu yleiseksi "huutokauppa"-termillä, joka voi sekoittua **perinteiseen (ajastettuun) huutokauppaan**, joka on eri, oma myyntitapansa ilman videota. **Korjaus: erottele nämä selvästi** — joko (a) nimeä kysymys eksplisiittisesti "Miten live-huutokauppa toimii?" ja lisää erillinen kysymys "Miten perinteinen (ajastettu) huutokauppa toimii?", tai (b) yhdistä yksi vastaus joka kattaa molemmat tavat selvästi eroteltuna.
+
+4. **Koko sivusto käydään läpi järjestelmällisesti** — FAQ, käyttöehdot, tietosuoja, välityspalkkiot, etusivu, kaikki tekstisisältö. Lisää löydökset kirjataan tähän osioon sitä mukaa kun niitä tulee.
+
 ## Liiketoimintasäännöt (LUKITTU — ei muuteta)
-- Välityspalkkio: **3% max 35€** + Paytrail ~1,5% + 0,25€ (ei kattoa)
+- **Välityspalkkio — KORJATTU 2026-08-25: 3,5% max 35€** (aiempi "3%" oli kirjoitusvirhe joka oli levinnyt useaan tiedostoon — 3,5% on oikea prosentti, 35€ oli jo oikein useimmissa paikoissa) + Paytrail ~1,5% + 0,25€ (ei kattoa)
 - Kaikki huudot **sitovia** — ei peruutuksia
 - **Yhdistetty lähetys:** sama myyjä + 6h aikaikkuna = yksi tilaus, yksi postikulut (suurimman pakettikoon mukaan). 6h rajan jälkeen uusi erillinen tilaus.
 - **Maksuaika:** voitettu huuto tai ostos → 2h aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
@@ -93,24 +105,22 @@ skrm/
 - Pankkitunnistautuminen (Signicat) pakollinen ennen huutamista/myymistä (tulossa)
 - **Ikäraja: 15+** (huoltajan suostumuksella)
 
-## Välityspalkkiotaulukko
-| Myyntihinta | SKRM-palkkio |
+## Välityspalkkiotaulukko — KORJATTU 2026-08-25 (3,5%:lla laskettuna, ei enää 3%)
+| Myyntihinta | HABAHUB-palkkio |
 |-------------|-------------|
-| 10€ | 0,65€ |
-| 100€ | 4,75€ |
-| 333€ | 13,54€ |
-| 500€+ | 35,00€ (max) |
+| 10€ | 0,35€ |
+| 100€ | 3,50€ |
+| 333€ | 11,66€ |
+| 1000€+ | 35,00€ (max) |
 
-## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-12, LUKITTU
-**Yksi kiinteä hinta kaikille paketeille: 9,90€.** Korvaa aiemman kokoportaikon (XXS-XXL, 9,90€-46,90€) kokonaan — poistettu käytöstä.
+## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-25, LUKITTU (korvaa 2026-08-12-version)
+**Yksi kiinteä hinta: 6,90€.** (Muutos aiemmasta 9,90€:sta.) **Ei enää mitään pakettikokovalintaa ollenkaan** — vain yksi ainoa "pakettikoko" on olemassa, ei kokovaihtoehtoja tuotteen lisäyslomakkeessa. Tämä menee askeleen pidemmälle kuin 2026-08-12:n muutos (joka teki hinnasta kiinteän mutta piti pakettikoko-kentän olemassa) — nyt itse kenttä/valinta poistuu kokonaan käyttöliittymästä.
 
-**Perustelu:** omistaja selvitti, että yritykselle (OY) Postin todellinen kustannus on n. 4-5€ per paketti (painoperusteinen hinnoittelu Postilta) — 9,90€ kiinteä hinta säilyttää terveen katteen kaikilla pakettikoilla, ei tarvitse monimutkaista porrastusta.
+**Toimitusvaihtoehdot (ennallaan):**
+1. **Postitus** — kiinteä 6,90€
+2. **Nouto** — kuuluu maksuturvan piiriin noutokoodilla (ks. "Noutotuotteet"-sääntö)
 
-**Toimitusvaihtoehdot yksinkertaistettu:** vain kaksi vaihtoehtoa, ei muita:
-1. **Postitus** — kiinteä 9,90€
-2. **Nouto** — jos ostos menee SKRM:n checkoutin kautta, kuuluu maksuturvan piiriin noutokoodilla vahvistettuna (ks. tarkennettu "Noutotuotteet"-sääntö alempana). Täysin platformin ulkopuoliset sopimukset (ei koskaan Order-riviä) eivät kuulu meille, ennallaan.
-
-**Tekninen huomio VS Coden Claudelle:** tarkista kaikki paikat joissa vanha kokoportaikko (XXS/S/M/L/XL/XXL-hintalogiikka) on koodissa käytössä — tuotteen luontilomake (pakettikoon valinta saattaa muuttua tarpeettomaksi jos hinta ei enää riipu koosta, mutta pakettikoko voi silti olla tarpeen tiedoksi Postin lähetystarraa varten myöhemmin), tilauksen hinnanlaskenta, "Yhdistetty lähetys" -logiikka (LUKITTU: "sama myyjä + 6h ikkuna = yksi tilaus, yksi postikulut suurimman pakettikoon mukaan" — tarkista onko tämä sääntö nyt tarpeeton koska kaikki paketit maksavat saman verran, vai pitääkö "suurimman pakettikoon mukaan" silti säilyä jostain muusta syystä kuten fyysisestä pakkaamisesta), ja Välityspalkkiot-sivun/muiden julkisten sivujen tekstit jotka näyttävät vanhaa hintaportaikkoa.
+**Tekninen huomio VS Coden Claudelle:** poista pakettikoon valinta kokonaan tuotteen luontilomakkeesta (ei vain piilota, poista käyttöliittymästä ja mahdollisesti tietokantakentästä jos ei enää tarvita muuhun). Tarkista "Yhdistetty lähetys" -logiikka (ei enää tarvitse valita "suurimman pakettikoon mukaan" koska pakettikokoja ei enää ole) — todennäköisesti yksinkertaistuu "sama myyjä + 6h ikkuna = yksi tilaus, 6,90€ postikulut" ilman kokovertailua. Päivitä kaikki julkiset sivut (FAQ, käyttöehdot, välityspalkkiot) jotka viittaavat vanhaan 9,90€:oon tai pakettikoon valintaan.
 
 ## Tärkeät koodaussäännöt
 - **Käännökset:** Käytä AINA `t.xxx` — ei kovakoodattua suomea/englantia
@@ -429,15 +439,24 @@ tunnuksia koska niitä ei aiemmin tarvittu). Omistaja palautti repon julkiseksi 
 minkä jälkeen deploy jatkui normaalisti. Ei koodimuutos, ei jää pysyväksi ongelmaksi, mutta hyvä
 tietää jos `git pull` joskus alkaa yllättäen kysyä käyttäjätunnusta palvelimella.
 
-## Toimituksen aikataulu ja maksuturva (LUKITTU)
+## Toimituksen aikataulu ja maksuturva (LUKITTU — TÄSMENNETTY 2026-08-25)
+
+**Uusi/täsmennetty ydinsääntö: kun toimitus vahvistuu, ostajalla on 48 tuntia aikaa hyväksyä/reklamoida ennen automaattista maksun vapautumista — samaan tapaan kuin Vinted/Tori.**
+
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
-- **Päivä 5** — paketti ei liikkunut → automaattinen ilmoitus myyjälle ja ostajalle
-- **Päivä 10** — ei toimitusta → muistutus ostajalle "kuittaa tai ilmoita ongelmasta"
-- **Päivä 14** — ostaja ei reagoinut → maksu vapautuu automaattisesti myyjälle
-- **Päivä 14 + ostaja ilmoittaa ongelman** → tilanne SKRM:n käsittelyyn, maksu jäädytykseen
-- Ostajalla 3 päivää reklamoida kuittauksen tai automaattivapauttamisen jälkeen
-- Maksu vapautuu kun: Postin API sanoo toimitettu TAI ostaja kuittaa TAI 14 päivää kulunut TAI **noutokoodi vahvistettu** (nouto-toimitustavan tilauksille, ks. "Noutotuotteet"-osio — vapauttaa heti, ei tarvitse odottaa 14 päivää koska molemmat osapuolet fyysisesti läsnä)
-- Ei luoteta pelkästään Postin statukseen — ostajan kuittaus tai aikaraja ratkaisee
+- **Kun toimitus vahvistuu** (Postin API sanoo toimitettu, TAI ostaja itse kuittaa vastaanottaneensa) → **ostajalla 48 tuntia aikaa hyväksyä tai reklamoida**
+  - Jos ostaja ei reagoi 48h sisällä → maksu vapautuu automaattisesti myyjälle (sama kuin hyväksyntä)
+  - Jos ostaja reklamoi 48h sisällä → tilanne HABAHUB:n käsittelyyn, maksu jäädytykseen
+- ⚠️ **Tämä korvaa aiemman käytöksen jossa "Postin API sanoo toimitettu" vapautti maksun VÄLITTÖMÄSTI ilman mitään ostajan tarkastusaikaa** — tarkista koodista (`webhooks.ts` tms.) toimiiko se juuri näin (heti vapauttava) nykyisin, ja korjaa lisäämällä tämä 48h-välivaihe ennen automaattivapautusta
+- **Jos toimitus EI koskaan vahvistu** (paketti katoaa, Posti-status ei koskaan päivity toimitetuksi eikä ostaja itse kuittaa) → alla oleva päivä 5/10/14-eskalaatio on yhä voimassa fallback-polkuna:
+  - **Päivä 5** — paketti ei liikkunut → automaattinen ilmoitus myyjälle ja ostajalle
+  - **Päivä 10** — ei toimitusta → muistutus ostajalle "kuittaa tai ilmoita ongelmasta"
+  - **Päivä 14** — ostaja ei reagoinut eikä toimitus koskaan vahvistunut → maksu vapautuu automaattisesti myyjälle (viimeinen fallback, eri tilanne kuin yllä oleva 48h-sääntö)
+- **Noutokoodi vahvistettu** (nouto-toimitustavan tilauksille) → vapauttaa heti, ei odota 48h eikä 14pv, koska molemmat osapuolet fyysisesti läsnä — tämä pysyy ennallaan, ei muutu
+- Ei luoteta pelkästään Postin statukseen ilman tätä 48h-välivaihetta — ostajalle pitää aina jäädä oikea tarkastusikkuna
+- **Erillinen, säilyvä sääntö (käyttöehdot 6.3):** ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa reklamoida tuotteen virheistä/puutteista — tämä on eri asia kuin yllä oleva 48h-maksunvapautusikkuna, koskee tuotevirheitä yleensä eikä vaikuta suoraan siihen onko maksu jo vapautunut. Ei muutu tässä päivityksessä.
+
+**Käyttöehtojen kohta 7 (Maksuturva) vaatii päivityksen tämän mukaiseksi** — nykyinen teksti ("Maksu vapautetaan Myyjälle toimituksen vahvistamisen jälkeen") ei mainitse 48h-tarkastusikkunaa ollenkaan, lukee kuin vapautus tapahtuisi välittömästi toimitusvahvistuksesta.
 
 ## Lähetysintegraatio (tulossa OY:n jälkeen) — TUTKITTU 2026-08-12, Gemini-tutkimus lähdeviittein, vaatii vielä oman vahvistuksen
 

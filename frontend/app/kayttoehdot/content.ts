@@ -78,7 +78,7 @@ Myyjä sitoutuu lähettämään myytyyn tuotteen 48 tunnin kuluessa kaupan synty
 Myyjä vastaa siitä, että tuotteen kuvaus, kuvat ja muut tiedot vastaavat todellisuutta. Harhaanjohtavat kuvaukset voivat johtaa tilin sulkemiseen ja korvausvelvollisuuteen.
 
 5.5 Välityspalkkio
-HABAHUB perii onnistuneesta kaupasta välityspalkkion, joka on 3 % myyntihinnasta, enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Paytrail) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
+HABAHUB perii onnistuneesta kaupasta välityspalkkion, joka on 3,5 % myyntihinnasta, enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Paytrail) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
 
 5.6 Noutotuotteet
 Myyjä voi tarjota tuotteita noudettavaksi. Noutotuotteiden kaupassa HABAHUB ei tarjoa maksuturvaa eikä vastaa kaupan toteutumisesta. Kauppa tapahtuu suoraan ostajan ja myyjän välillä, ja he sopivat noutoajasta, -paikasta ja maksusta keskenään.
@@ -100,7 +100,7 @@ Ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa ilmoittaa mahdollis
 
 7. MAKSUTURVA
 
-HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Maksu vapautetaan Myyjälle toimituksen vahvistamisen jälkeen.
+HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Kun toimitus vahvistuu (Postin seurantatieto tai Ostajan oma kuittaus), Ostajalla on 48 tuntia aikaa hyväksyä tai reklamoida toimitus. Jos Ostaja ei reagoi 48 tunnin kuluessa, maksu vapautetaan Myyjälle automaattisesti. Jos toimitus ei koskaan vahvistu, maksu vapautetaan Myyjälle viimeistään 14 vuorokauden kuluttua lähetyksestä.
 
 Maksuturva ei kata tilanteita, joissa Ostaja on antanut virheellisen toimitusosoitteen tai muutoin omalla toiminnallaan estänyt toimituksen.
 
@@ -235,7 +235,7 @@ The following may not be sold on the Service:
 The Seller commits to shipping the sold product within 48 hours of the transaction and providing a tracking code to HABAHUB and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
 
 5.4 Commission
-HABAHUB charges a commission of 3% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.
+HABAHUB charges a commission of 3.5% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.
 
 5.5 Pickup items
 The Seller may offer products for local pickup. For pickup transactions, HABAHUB does not provide payment protection and is not responsible for the completion of the transaction. The transaction takes place directly between the Buyer and Seller, who agree on the pickup time, location, and payment between themselves.
@@ -255,7 +255,7 @@ The Buyer has 3 days from receiving the product to report any defects or discrep
 
 7. PAYMENT PROTECTION
 
-HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. Payment is released to the Seller after shipment is confirmed.
+HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. Once delivery is confirmed (via Posti tracking or the Buyer's own confirmation), the Buyer has 48 hours to accept or dispute the delivery. If the Buyer does not respond within 48 hours, payment is released to the Seller automatically. If delivery is never confirmed, payment is released to the Seller no later than 14 days after shipment.
 
 8. DISPUTES
 

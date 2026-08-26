@@ -19,7 +19,8 @@ const FAQ_DATA = {
     {
       id: 'ostaja', title: 'Ostajan opas',
       items: [
-        { q: 'Miten huutokauppa toimii?', a: 'Myyjä avaa videolähetyksen ja esittelee tuotteet livenä. Voit huutaa tuotteista syöttämällä haluamasi summan. Korkein huuto lähetyksen päättyessä voittaa tuotteen.' },
+        { q: 'Miten live-huutokauppa toimii?', a: 'Myyjä avaa videolähetyksen ja esittelee tuotteet livenä. Voit huutaa tuotteista syöttämällä haluamasi summan. Korkein huuto lähetyksen päättyessä voittaa tuotteen.' },
+        { q: 'Miten perinteinen (ajastettu) huutokauppa toimii?', a: 'Myyjä asettaa tuotteelle lähtöhinnan ja keston (1-7 päivää) — videolähetystä ei tarvita. Voit huutaa milloin tahansa huutokauppa on käynnissä. Korkein huuto kun aika loppuu voittaa tuotteen.' },
         { q: 'Ovatko huudot sitovia?', a: 'Kyllä. Kaikki huudot ovat sitovia eikä niitä voi peruuttaa. Huutamalla sitoudut ostamaan tuotteen jos voitat.' },
         { q: 'Miten maksan ostokseni?', a: 'Maksu tapahtuu Paytrailin kautta — tuetaan kaikkia suomalaisia pankkeja, MobilePay, korttimaksut, Google Pay ja Apple Pay.' },
         { q: 'Milloin saan tilaukseni?', a: 'Myyjä sitoutuu lähettämään tuotteen 48 tunnin sisällä huutokaupan päättymisestä. Saat seurantakoodin heti kun myyjä on lähettänyt paketin.' },
@@ -32,14 +33,14 @@ const FAQ_DATA = {
         { q: 'Miten aloitan myymisen?', a: 'Luo tili ja lisää tuotteet dashboardiin. Voit myydä kolmella tavalla: aloita live-lähetys ja huuda tuotteita suorana, aseta tuote ajastettuun perinteiseen huutokauppaan, tai listaa se suoramyyntiin kiinteällä hinnalla — valinta tehdään tuotteen lisäyksen yhteydessä.' },
         { q: 'Mitä voin myydä?', a: 'Voit myydä lähes mitä tahansa laillista käytettyä tai uutta tavaraa. Kiellettyjä ovat mm. aseet ja ampumatarvikkeet, alkoholi, tupakka ja nikotiinituotteet, lääkkeet, huumausaineet ja muut psykoaktiiviset aineet, elävät eläimet, väärennetyt tai tekijänoikeuksia loukkaavat tuotteet, varastettu omaisuus sekä muu lainvastainen tavara. Katso koko lista käyttöehdoista.' },
         { q: 'Milloin saan rahani?', a: 'Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu Habahubille.' },
-        { q: 'Mikä on välityspalkkio?', a: 'Habahub perii 3% välityspalkkion myyntihinnasta, enintään 35€ per kauppa. Lisäksi peritään maksunkäsittelykulut (n. 1,5% + 0,25€).' },
+        { q: 'Mikä on välityspalkkio?', a: 'Habahub perii 3,5% välityspalkkion myyntihinnasta, enintään 35€ per kauppa. Lisäksi peritään maksunkäsittelykulut (n. 1,5% + 0,25€).' },
         { q: 'Miten striimaan lähetyksen OBS:lla?', a: 'Voit striimata OBS Studiolla (ilmainen ohjelma): 1) Lataa ja asenna OBS Studio. 2) Avaa Asetukset → Stream. 3) Valitse Service: Custom. 4) Kopioi Server ja Stream Key dashboardin "Aloita lähetys" -näkymästä OBS:n vastaaviin kenttiin. 5) Paina "Start Streaming" OBS:ssa. Lähetys näkyy katsojille muutaman sekunnin viiveellä.' },
       ],
     },
     {
       id: 'toimitus', title: 'Toimitus',
       items: [
-        { q: 'Kuka maksaa toimituskulut?', a: 'Ostaja maksaa toimituskulut. Myyjä valitsee pakettikoon tuotetta lisätessään.' },
+        { q: 'Kuka maksaa toimituskulut?', a: 'Ostaja maksaa toimituskulut. Postitus on kiinteä 6,90€ riippumatta tuotteen koosta.' },
         { q: 'Kuinka nopeasti myyjän pitää lähettää?', a: 'Myyjä sitoutuu lähettämään tuotteen 48 tunnin sisällä huutokaupan päättymisestä.' },
         { q: 'Mitä tapahtuu jos myyjä ei lähetä?', a: 'Jos myyjä ei lähetä tuotetta 48 tunnin sisällä, Habahub puuttuu tilanteeseen ja ostaja saa täyden hyvityksen.' },
       ],
@@ -58,7 +59,8 @@ const FAQ_DATA = {
     {
       id: 'buyer', title: 'Buyer Guide',
       items: [
-        { q: 'How does the auction work?', a: 'The seller opens a video stream and presents products live. You can bid by entering your desired amount. The highest bid when the auction ends wins the item.' },
+        { q: 'How does a live auction work?', a: 'The seller opens a video stream and presents products live. You can bid by entering your desired amount. The highest bid when the auction ends wins the item.' },
+        { q: 'How does a traditional (scheduled) auction work?', a: 'The seller sets a starting price and a duration (1-7 days) - no video stream needed. You can bid any time while the auction is running. The highest bid when time runs out wins the item.' },
         { q: 'Are bids binding?', a: 'Yes. All bids are binding and cannot be cancelled. By bidding you commit to buying the item if you win.' },
         { q: 'How do I pay?', a: 'Payment is made through Paytrail — supporting all Finnish banks, MobilePay, card payments, Google Pay and Apple Pay.' },
         { q: 'When will I receive my order?', a: 'The seller commits to shipping within 48 hours of the auction ending. You receive a tracking code as soon as the seller has shipped the package.' },
@@ -71,14 +73,14 @@ const FAQ_DATA = {
         { q: 'How do I start selling?', a: 'Create an account and add products to your dashboard. You can sell in three ways: start a live show and auction items in real time, list a product as a scheduled timed auction, or list it for direct sale at a fixed price — you choose when adding the product.' },
         { q: 'What can I sell?', a: 'You can sell almost any legal used or new items. Prohibited items include weapons and ammunition, alcohol, tobacco and nicotine products, medication, narcotics and other psychoactive substances, live animals, counterfeit or copyright-infringing goods, stolen property, and other unlawful items. See the full list in our Terms of Service.' },
         { q: 'When do I get my money?', a: 'Payment is released to the seller when the tracking code has been provided to Habahub.' },
-        { q: 'What is the commission?', a: 'Habahub charges a 3% commission on the sale price, maximum €35 per sale. Payment processing fees also apply (~1.5% + €0.25).' },
+        { q: 'What is the commission?', a: 'Habahub charges a 3.5% commission on the sale price, maximum €35 per sale. Payment processing fees also apply (~1.5% + €0.25).' },
         { q: 'How do I stream with OBS?', a: 'You can stream using OBS Studio (free software): 1) Download and install OBS Studio. 2) Open Settings → Stream. 3) Select Service: Custom. 4) Copy the Server and Stream Key from the "Start stream" view in your dashboard into the matching fields in OBS. 5) Click "Start Streaming" in OBS. Viewers will see the stream with a few seconds of delay.' },
       ],
     },
     {
       id: 'shipping', title: 'Shipping',
       items: [
-        { q: 'Who pays for shipping?', a: 'The buyer pays shipping costs. The seller chooses the package size when adding the product.' },
+        { q: 'Who pays for shipping?', a: 'The buyer pays shipping costs. Shipping is a fixed €6.90 regardless of item size.' },
         { q: 'How quickly must the seller ship?', a: 'The seller commits to shipping within 48 hours of the auction ending.' },
         { q: "What happens if the seller doesn't ship?", a: "If the seller doesn't ship within 48 hours, Habahub intervenes and the buyer receives a full refund." },
       ],

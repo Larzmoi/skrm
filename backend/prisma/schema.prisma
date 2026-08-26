@@ -57,6 +57,7 @@ enum NotificationType {
   REFUND_ISSUED
   NEW_FOLLOWER
   SELLER_LIVE
+  DELIVERY_CONFIRMED
 }
 
 enum ReportStatus {
@@ -267,6 +268,7 @@ model Order {
   shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
   stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty
   reminderNotifiedAt DateTime?  // päivä 10 -muistutus lähetetty
+  deliveryConfirmedAt DateTime? // ostaja kuittasi vastaanoton - 48h tarkastusikkuna ennen automaattista maksun vapautumista (LUKITTU, ks. CLAUDE.md "Toimituksen aikataulu ja maksuturva")
   disputeReason     String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

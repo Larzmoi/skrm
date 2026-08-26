@@ -223,15 +223,20 @@ router.post('/:id/confirm-pickup', authMiddleware, async (req: AuthRequest, res:
   res.json(updated)
 })
 
-// POST /orders/:id/confirm-delivery — ostaja kuittaa tuotteen vastaanotetuksi
+// POST /orders/:id/confirm-delivery — ostaja kuittaa tuotteen vastaanotetuksi. Ei vapauta maksua
+// heti (LUKITTU 2026-08-25, ks. CLAUDE.md "Toimituksen aikataulu ja maksuturva") — tilaus pysyy
+// SHIPPED-tilassa (voi siis yhä reklamoida, ks. /dispute-reitin SHIPPED-vaatimus) ja
+// deliveryConfirmedAt käynnistää 48h tarkastusikkunan, jonka checkDeliveryTimeline() sulkee
+// automaattisesti jos ostaja ei reklamoi sinä aikana.
 router.post('/:id/confirm-delivery', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (order.status !== 'SHIPPED') return res.status(400).json({ error: 'Tilaus ei odota vastaanottokuittausta' })
+  if (order.deliveryConfirmedAt) return res.status(400).json({ error: 'Vastaanotto on jo kuitattu' })
 
-  // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
-  const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
-  await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', `Ostaja kuittasi tilauksen vastaanotetuksi — maksu on vapautettu sinulle.`, '/dashboard/tilaukset')
+  const updated = await prisma.order.update({ where: { id: order.id }, data: { deliveryConfirmedAt: new Date() } })
+  await notifyUser(order.sellerId, 'DELIVERY_CONFIRMED', 'Ostaja kuittasi vastaanoton', 'Ostaja kuittasi tilauksen vastaanotetuksi. Maksu vapautetaan sinulle automaattisesti 48 tunnin kuluttua, ellei ostaja reklamoi sitä ennen.', '/dashboard/tilaukset')
+  await notifyUser(order.buyerId, 'DELIVERY_CONFIRMED', 'Kuittaus vastaanotettu', 'Kiitos kuittauksesta. Sinulla on 48 tuntia aikaa reklamoida, jos tuotteessa on ongelma — muussa tapauksessa maksu vapautuu myyjälle automaattisesti.', '/ostot')
   res.json(updated)
 })
 

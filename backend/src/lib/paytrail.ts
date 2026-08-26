@@ -42,10 +42,10 @@ export function getSubmerchantId(_sellerId: string): string {
   return PAYTRAIL_SUBMERCHANT_ID
 }
 
-// SKRM:n välityspalkkio: 3%, katto 20€ (LUKITTU-sääntö, ks. CLAUDE.md). Palauttaa
+// Habahubin välityspalkkio: 3,5%, katto 35€ (LUKITTU-sääntö, ks. CLAUDE.md). Palauttaa
 // senttejä, koska Paytrailin API käyttää pienintä valuuttayksikköä kaikkialla.
 export function computeCommissionCents(priceEuros: number): number {
-  return Math.round(Math.min(priceEuros * 0.03, 20) * 100)
+  return Math.round(Math.min(priceEuros * 0.035, 35) * 100)
 }
 
 function eurosToCents(euros: number): number {
@@ -139,7 +139,7 @@ export function parseStamp(stamp: string): { orderId: string } | null {
 
 // Luo Shop-in-Shop-muotoisen maksupyynnön. Jokainen tuoterivi saa oman merchant-kentän
 // (myyjän sub-merchant, testivaiheessa aina sama) ja tarvittaessa commission-kentän
-// (SKRM:n 3%/max20€ osuus) - Paytrail hoitaa jaon automaattisesti maksun yhteydessä.
+// (Habahubin 3,5%/max35€ osuus) - Paytrail hoitaa jaon automaattisesti maksun yhteydessä.
 export async function createPayment(params: CreatePaymentParams): Promise<PaymentSession> {
   // Paytrail hylkää pyynnön jos jokin stamp on jo nähty aiemmin SAMALLA merchantilla (oma
   // toistohyökkäyssuoja) - havaittu tuotantotestissä: uudelleenyritys (esim. ostaja peruutti

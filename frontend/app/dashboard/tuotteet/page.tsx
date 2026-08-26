@@ -378,9 +378,9 @@ function TuotteetContent() {
             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{tp.deliveryTitle}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {PAKETTIKOOT.map(p => (
-                // p.nimi sisältää jo hinnan (esim. "Postitus 9,9€", ks. lib/pakettikoot.ts —
-                // päivitetty kiinteän 9,90€ postihinnan myötä) - erillinen p.hinta-rivi tässä
-                // näytti saman hinnan kahteen kertaan peräkkäin samassa napissa.
+                // p.nimi sisältää jo hinnan (esim. "Postitus 6,9€", ks. lib/pakettikoot.ts —
+                // kiinteä postihinta) - erillinen p.hinta-rivi tässä näytti saman hinnan
+                // kahteen kertaan peräkkäin samassa napissa.
                 <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 600 }}>{p.nimi}</div>
                 </button>

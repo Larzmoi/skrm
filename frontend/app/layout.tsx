@@ -4,7 +4,7 @@ import ClientLayout from '@/components/layout/ClientLayout'
 
 export const metadata: Metadata = {
   title: 'Habahub — Live-huutokauppa',
-  description: 'Suomen paras live-huutokauppa. Provisio vain 3%, max 35€.',
+  description: 'Suomen paras live-huutokauppa. Provisio vain 3,5%, max 35€.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
