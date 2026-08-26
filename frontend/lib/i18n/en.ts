@@ -1,6 +1,6 @@
 const en = {
   nav: {
-    home: 'Home', browse: 'Browse', search: 'Search products or sellers...',
+    home: 'Home', browse: 'For Sale', search: 'Search products or sellers...',
     login: 'Sign in', register: 'Sign up', dashboard: 'Dashboard', auctions: 'Auctions',
     liveAuctions: 'Live',
     logout: 'Sign out', profile: 'Profile', purchases: 'Purchases',

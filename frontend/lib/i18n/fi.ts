@@ -1,6 +1,6 @@
 const fi = {
   nav: {
-    home: 'Etusivu', browse: 'Selaa', search: 'Hae tuotteita tai myyjiä...',
+    home: 'Etusivu', browse: 'Myynnissä', search: 'Hae tuotteita tai myyjiä...',
     login: 'Kirjaudu', register: 'Rekisteröidy', dashboard: 'Hallintapaneeli', auctions: 'Huutokaupat',
     liveAuctions: 'Live',
     logout: 'Kirjaudu ulos', profile: 'Profiili', purchases: 'Ostot',
