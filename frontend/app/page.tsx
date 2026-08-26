@@ -54,7 +54,7 @@ export default function Home() {
   useEffect(() => {
     // Piilota hero kirjautuneille jos he ovat piilottaneet sen
     if (user) {
-      const hidden = localStorage.getItem('skrm_hero_hidden')
+      const hidden = localStorage.getItem('habahub_hero_hidden')
       if (hidden === '1') setHeroHidden(true)
     }
   }, [user])
@@ -122,7 +122,7 @@ export default function Home() {
 
   function hideHero() {
     setHeroHidden(true)
-    localStorage.setItem('skrm_hero_hidden', '1')
+    localStorage.setItem('habahub_hero_hidden', '1')
   }
 
   return (

@@ -2,7 +2,7 @@ import { BACKEND_URL as BACKEND } from './backend'
 
 function getToken() {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem('skrm_token')
+  return localStorage.getItem('habahub_token')
 }
 
 async function request(path: string, options: RequestInit = {}) {

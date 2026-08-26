@@ -3,7 +3,7 @@ import './globals.css'
 import ClientLayout from '@/components/layout/ClientLayout'
 
 export const metadata: Metadata = {
-  title: 'SKRM — Live-huutokauppa',
+  title: 'Habahub — Live-huutokauppa',
   description: 'Suomen paras live-huutokauppa. Provisio vain 3%, max 35€.',
 }
 

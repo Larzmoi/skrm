@@ -20,7 +20,7 @@ export default function MeistaPage() {
 
         <section style={{ marginBottom: 40 }}>
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '28px', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 16 }}>SKRM</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 16 }}>Habahub</h2>
             <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.8, marginBottom: 16 }}>{t.about.description1}</p>
             <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.8, marginBottom: 16 }}>{t.about.description2}</p>
             <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.8 }}>{t.about.description3}</p>
@@ -49,9 +49,9 @@ export default function MeistaPage() {
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { label: t.about.email, value: 'support@skrm.fi' },
-                { label: t.about.support, value: 'support@skrm.fi' },
-                { label: t.about.sellerSupport, value: 'support@skrm.fi' },
+                { label: t.about.email, value: 'support@habahub.fi' },
+                { label: t.about.support, value: 'support@habahub.fi' },
+                { label: t.about.sellerSupport, value: 'support@habahub.fi' },
               ].map(c => (
                 <div key={c.label} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, width: 130, flexShrink: 0 }}>{c.label}</span>

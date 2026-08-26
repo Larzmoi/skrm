@@ -482,7 +482,7 @@ export default function LahetysPage() {
     if (!show) return
     const socket = connectSocket()
 
-    const token = localStorage.getItem('skrm_token') || undefined
+    const token = localStorage.getItem('habahub_token') || undefined
     // TILAPÄINEN DIAGNOSTIIKKA 2026-08-12 — sama tarkoitus kuin HlsPreviewin lokit,
     // mutta Socket.io-puolella ("LIVE — yhdistetään..." -teksti käyttää tätä
     // connected-tilaa, EI HlsPreviewin waiting-tilaa — kaksi eri mekanismia jotka
@@ -698,7 +698,7 @@ export default function LahetysPage() {
   }
 
   async function doEndShow() {
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     if (show && auction.active) {
       connectSocket().emit('stop_auction', { showId: show.id, token })
     }
@@ -724,19 +724,19 @@ export default function LahetysPage() {
 
   function startAuction() {
     if (!currentProduct || !show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('start_auction', { showId: show.id, productId: currentProduct.id, startPrice: currentProduct.startPrice, duration: effectiveDuration, token })
   }
 
   function endAuction() {
     if (!show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('stop_auction', { showId: show.id, token })
   }
 
   function extendTimer() {
     if (!show || !auction.active) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('extend_timer', { showId: show.id, seconds: 10, token })
   }
 
@@ -764,7 +764,7 @@ export default function LahetysPage() {
     if (!show) return
     const url = `${window.location.origin}/live/${show.id}`
     if (navigator.share) {
-      navigator.share({ title: title || 'SKRM-lähetys', url }).catch(() => {})
+      navigator.share({ title: title || 'Habahub-lähetys', url }).catch(() => {})
     } else {
       copy(url, 'share')
     }
@@ -787,21 +787,21 @@ export default function LahetysPage() {
 
   function saveMutedWords() {
     if (!show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     const words = mutedWordsInput.split('\n').map(w => w.trim()).filter(Boolean)
     connectSocket().emit('set_muted_words', { showId: show.id, words, token })
   }
 
   function sendChat() {
     if (!chatInput.trim() || !show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('chat_message', { showId: show.id, message: chatInput.trim(), token })
     setChatInput('')
   }
 
   function deleteMessage(id: string) {
     if (!show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('delete_chat_message', { showId: show.id, messageId: id, token })
   }
 
@@ -812,7 +812,7 @@ export default function LahetysPage() {
 
   function doMuteUser(userId: string) {
     if (!show) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     connectSocket().emit('mute_user', { showId: show.id, userId, token })
   }
 

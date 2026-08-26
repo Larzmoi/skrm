@@ -62,7 +62,7 @@ router.delete('/products/:id', async (req, res) => {
     product.sellerId,
     'LISTING_REMOVED',
     'Tuotteesi on poistettu',
-    `Tuotteesi "${product.name}" on poistettu ylläpidon toimesta. Syy: ${reason}. Kysyttävää? support@skrm.fi`,
+    `Tuotteesi "${product.name}" on poistettu ylläpidon toimesta. Syy: ${reason}. Kysyttävää? support@habahub.fi`,
   )
 
   res.json({ ok: true })
@@ -85,7 +85,7 @@ router.delete('/shows/:id', async (req, res) => {
     show.sellerId,
     'LISTING_REMOVED',
     'Lähetyksesi on poistettu',
-    `Lähetyksesi "${show.title}" on poistettu ylläpidon toimesta. Syy: ${reason}. Kysyttävää? support@skrm.fi`,
+    `Lähetyksesi "${show.title}" on poistettu ylläpidon toimesta. Syy: ${reason}. Kysyttävää? support@habahub.fi`,
   )
 
   res.json({ ok: true })

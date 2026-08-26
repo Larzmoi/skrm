@@ -4,18 +4,18 @@ Päivitetty: 3. elokuuta 2026
 
 REKISTERINPITÄJÄ
 
-SKRM
-Sähköposti: support@skrm.fi
+Habahub
+Sähköposti: support@habahub.fi
 
-Tämä tietosuojaseloste kuvaa, miten SKRM-palvelussa kerää, käyttää, säilyttää ja suojaa henkilötietojasi EU:n yleisen tietosuoja-asetuksen (GDPR) ja Suomen tietosuojalainsäädännön mukaisesti.
+Tämä tietosuojaseloste kuvaa, miten Habahub-palvelussa kerää, käyttää, säilyttää ja suojaa henkilötietojasi EU:n yleisen tietosuoja-asetuksen (GDPR) ja Suomen tietosuojalainsäädännön mukaisesti.
 
 1. YHTEYSHENKILÖ TIETOSUOJA-ASIOISSA
 
-Tietosuojaan liittyvissä asioissa voit ottaa yhteyttä: support@skrm.fi
+Tietosuojaan liittyvissä asioissa voit ottaa yhteyttä: support@habahub.fi
 
 2. MITÄ HENKILÖTIETOJA KÄSITTELEMME
 
-Käsittelemme vain sellaisia henkilötietoja, jotka ovat tarpeen SKRM-palvelun tarjoamiseen, lakisääteisten velvoitteiden täyttämiseen ja asiakassuhteen hoitamiseen.
+Käsittelemme vain sellaisia henkilötietoja, jotka ovat tarpeen Habahub-palvelun tarjoamiseen, lakisääteisten velvoitteiden täyttämiseen ja asiakassuhteen hoitamiseen.
 
 2.1 Käyttäjien antamat tiedot
 
@@ -32,7 +32,7 @@ Myyjän tiedot:
 
 Ostaminen:
 - Toimitusosoite ja yhteystiedot tilauksia varten
-- Maksutapahtumien tiedot (käsitellään Paytrailin kautta — SKRM ei tallenna korttitietoja)
+- Maksutapahtumien tiedot (käsitellään Paytrailin kautta — Habahub ei tallenna korttitietoja)
 - Tilaushistoria
 
 Live ja yhteisölliset toiminnot:
@@ -55,7 +55,7 @@ Lomakkeet:
 
 2.3 Mobiilisovellus (tulossa)
 
-Kun SKRM-mobiilisovellus julkaistaan, se voi pyytää lupaa:
+Kun Habahub-mobiilisovellus julkaistaan, se voi pyytää lupaa:
 - Kamera ja mikrofoni live-lähetyksiä varten
 - Kuvagalleria tuotekuvia varten
 - Ilmoitukset
@@ -122,15 +122,15 @@ Oikeus vastustaa käsittelyä: voit vastustaa tietojen käsittelyä oikeutetun e
 
 Oikeus peruuttaa suostumus: voit milloin tahansa peruuttaa antamasi suostumuksen, kuten uutiskirjeen tilauksen.
 
-Pyyntöihin vastataan 30 päivän kuluessa. Ota yhteyttä: support@skrm.fi
+Pyyntöihin vastataan 30 päivän kuluessa. Ota yhteyttä: support@habahub.fi
 
 8. AUTOMAATTINEN PÄÄTÖKSENTEKO
 
-SKRM ei tee automaattisia päätöksiä, joilla olisi merkittäviä oikeudellisia vaikutuksia käyttäjiin.
+Habahub ei tee automaattisia päätöksiä, joilla olisi merkittäviä oikeudellisia vaikutuksia käyttäjiin.
 
 9. EVÄSTEET JA SEURANTA
 
-SKRM käyttää evästeitä:
+Habahub käyttää evästeitä:
 - Kirjautumistilan ylläpitämiseen (välttämätön)
 - Kielivalinnan ja asetusten muistamiseen (toiminnallinen)
 - Palvelun kehittämiseen tilastotietojen avulla (analytiikka, suostumuksella)
@@ -166,8 +166,8 @@ puh. 029 566 6700
 14. YHTEYSTIEDOT
 
 Kaikissa tietosuojaan liittyvissä asioissa:
-SKRM
-Sähköposti: support@skrm.fi
+Habahub
+Sähköposti: support@habahub.fi
 `
 
 export const PRIVACY_EN = `
@@ -176,14 +176,14 @@ Updated: August 3, 2026
 
 DATA CONTROLLER
 
-SKRM
-Email: support@skrm.fi
+Habahub
+Email: support@habahub.fi
 
-This Privacy Policy describes how SKRM collects, uses, stores, and protects your personal data in accordance with the EU General Data Protection Regulation (GDPR) and Finnish data protection legislation.
+This Privacy Policy describes how Habahub collects, uses, stores, and protects your personal data in accordance with the EU General Data Protection Regulation (GDPR) and Finnish data protection legislation.
 
 1. CONTACT FOR PRIVACY MATTERS
 
-For privacy-related matters: support@skrm.fi
+For privacy-related matters: support@habahub.fi
 
 2. WHAT PERSONAL DATA WE PROCESS
 
@@ -202,7 +202,7 @@ Seller data:
 
 Purchasing:
 - Delivery address and contact details for orders
-- Payment transaction data (processed by Paytrail — SKRM does not store card details)
+- Payment transaction data (processed by Paytrail — Habahub does not store card details)
 - Order history
 
 Live and community features:
@@ -221,7 +221,7 @@ Live and community features:
 
 2.3 Mobile app (upcoming)
 
-When the SKRM mobile app is released, it may request permission for:
+When the Habahub mobile app is released, it may request permission for:
 - Camera and microphone for live broadcasts
 - Photo gallery for product images
 - Notifications
@@ -267,7 +267,7 @@ We may share personal data with:
 
 Under GDPR, you have the right to: access your data, correct inaccurate data, request deletion ("right to be forgotten"), restrict processing, data portability, object to processing, and withdraw consent.
 
-Requests will be responded to within 30 days. Contact: support@skrm.fi
+Requests will be responded to within 30 days. Contact: support@habahub.fi
 
 8. SECURITY
 
@@ -285,5 +285,5 @@ We may update this Privacy Policy. Material changes will be communicated at leas
 
 You have the right to lodge a complaint with the Finnish Data Protection Ombudsman: www.tietosuoja.fi
 
-Contact: support@skrm.fi
+Contact: support@habahub.fi
 `

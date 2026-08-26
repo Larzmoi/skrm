@@ -32,7 +32,7 @@ export default function Navbar() {
     return (
       <nav style={{ background: C.navBg, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 100, overflow: 'hidden' }}>
         <div style={{ padding: '0 10px', height: 48, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: C.text, letterSpacing: '-1px', flex: 1 }}>SKRM</Link>
+          <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: C.text, letterSpacing: '-1px', flex: 1 }}>Habahub</Link>
           <ThemeToggle />
 
           {/* Kielenvalinta - puuttui aiemmin kokonaan mobiili-navbarista (ks. CLAUDE.md
@@ -102,7 +102,7 @@ export default function Navbar() {
   return (
     <nav style={{ background: C.navBg, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 24px', height: 58, display: 'flex', alignItems: 'center', gap: 20 }}>
-        <Link href="/" style={{ fontWeight: 900, fontSize: 22, letterSpacing: '-1px', flexShrink: 0, color: C.text, width: 110 }}>SKRM</Link>
+        <Link href="/" style={{ fontWeight: 900, fontSize: 22, letterSpacing: '-1px', flexShrink: 0, color: C.text, whiteSpace: 'nowrap' }}>Habahub</Link>
 
         <div style={{ display: 'flex', gap: 0, flexShrink: 0 }}>
           <Link href="/selaa" style={{ padding: '6px 14px', fontSize: 14, color: C.textSub, fontWeight: 500 }}>{t.nav.browse}</Link>

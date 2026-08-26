@@ -36,15 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem('skrm_user')
+    const stored = localStorage.getItem('habahub_user')
     if (stored && hasAuthCookie()) {
       setUser(JSON.parse(stored))
     } else if (stored) {
-      // localStoragessa on käyttäjä mutta ei skrm_token-cookieta (esim. vanha sessio ennen
+      // localStoragessa on käyttäjä mutta ei habahub_token-cookieta (esim. vanha sessio ennen
       // proxy.ts-lukitusta) — proxy ohjaisi silti /loginiin, mikä aiheuttaisi uudelleenohjaussilmukan.
       // Siivotaan pois niin kirjautumaton tila on yhtenäinen joka paikassa.
-      localStorage.removeItem('skrm_token')
-      localStorage.removeItem('skrm_user')
+      localStorage.removeItem('habahub_token')
+      localStorage.removeItem('habahub_user')
     }
     setLoading(false)
   }, [])
@@ -57,15 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
-    localStorage.setItem('skrm_token', data.token)
-    localStorage.setItem('skrm_user', JSON.stringify(data.user))
+    localStorage.setItem('habahub_token', data.token)
+    localStorage.setItem('habahub_user', JSON.stringify(data.user))
     setAuthCookie(data.token)
     setUser(data.user)
   }
 
   function logout() {
-    localStorage.removeItem('skrm_token')
-    localStorage.removeItem('skrm_user')
+    localStorage.removeItem('habahub_token')
+    localStorage.removeItem('habahub_user')
     clearAuthCookie()
     setUser(null)
   }
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u => {
       if (!u) return u
       const updated = { ...u, ...partial }
-      localStorage.setItem('skrm_user', JSON.stringify(updated))
+      localStorage.setItem('habahub_user', JSON.stringify(updated))
       return updated
     })
   }

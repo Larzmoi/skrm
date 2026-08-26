@@ -185,7 +185,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {product.pakettikoko === 'nouto' && (
               <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#92400E' }}>
                 Tämä on noutotuote. Sovitaan noudon yksityiskohdista myyjän kanssa.
-                SKRM:n maksuturva ei koske noutokauppoja.
+                Habahubin maksuturva ei koske noutokauppoja.
               </div>
             )}
 

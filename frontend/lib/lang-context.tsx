@@ -20,18 +20,18 @@ export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('fi')
 
   useEffect(() => {
-    const saved = localStorage.getItem('skrm_lang')
+    const saved = localStorage.getItem('habahub_lang')
     if (saved && translations[saved]) {
       setLangState(saved as Lang)
     } else {
-      localStorage.removeItem('skrm_lang')
+      localStorage.removeItem('habahub_lang')
       setLangState('fi')
     }
   }, [])
 
   function setLang(l: Lang) {
     setLangState(l)
-    localStorage.setItem('skrm_lang', l)
+    localStorage.setItem('habahub_lang', l)
   }
 
   const t = translations[lang] ?? translations.fi

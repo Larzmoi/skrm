@@ -522,7 +522,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
     socket.on('connect', () => {
       setConnected(true)
-      const token = localStorage.getItem('skrm_token') || undefined
+      const token = localStorage.getItem('habahub_token') || undefined
       socket.emit('join_show', { showId, token })
     })
 
@@ -577,7 +577,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setAuction(a => ({ ...a, active: false, timer: 0 }))
       setEndedProductId(data.productId ?? null)
       if (data.winnerName) {
-        setChat(c => [...c, { id: `sold-${data.productId}-${Date.now()}`, username: 'SKRM', message: `${data.winnerName} voitti hinnalla ${data.finalPrice}€!`, isBid: true }])
+        setChat(c => [...c, { id: `sold-${data.productId}-${Date.now()}`, username: 'Habahub', message: `${data.winnerName} voitti hinnalla ${data.finalPrice}€!`, isBid: true }])
       }
     })
 
@@ -613,7 +613,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     // nykyinen tila suoraan ja korjataan se sekä liitytään huoneeseen heti jos näin kävi.
     if (socket.connected) {
       setConnected(true)
-      const token = localStorage.getItem('skrm_token') || undefined
+      const token = localStorage.getItem('habahub_token') || undefined
       socket.emit('join_show', { showId, token })
     }
 
@@ -643,7 +643,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
   function sendChat() {
     if (!chatInput.trim() || !user) return
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     const socket = connectSocket()
     socket.emit('chat_message', { showId, message: chatInput.trim(), token })
     setChatInput('')
@@ -675,7 +675,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     if (!user) { setBidError('Kirjaudu sisään / Sign in to bid'); setTimeout(() => setBidError(''), 3000); return }
     if (!auction.active) { setBidError(t.live.waitAuction); setTimeout(() => setBidError(''), 3000); return }
     if (bidAmount <= auction.currentBid) { setBidError(`Huudon täytyy olla yli ${auction.currentBid}€`); setTimeout(() => setBidError(''), 3000); return }
-    const token = localStorage.getItem('skrm_token')
+    const token = localStorage.getItem('habahub_token')
     const socket = connectSocket()
     socket.emit('place_bid', { showId, productId: auction.productId, amount: bidAmount, token })
     setSlideX(0); setSliding(false)
@@ -703,7 +703,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   function shareStream() {
     const url = window.location.href
     if (navigator.share) {
-      navigator.share({ title: show?.title ?? 'SKRM-live', url }).catch(() => {})
+      navigator.share({ title: show?.title ?? 'Habahub-live', url }).catch(() => {})
     } else {
       navigator.clipboard.writeText(url)
       setToast(t.live.linkCopied)
@@ -852,7 +852,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#080808' }}>
       {toast && <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 12, zIndex: 100 }}>{toast}</div>}
       <div style={{ background: '#0A0A0A', borderBottom: '1px solid #1A1A1A', height: 50, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, flexShrink: 0 }}>
-        <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: '-0.5px' }}>SKRM</Link>
+        <Link href="/" style={{ fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: '-0.5px' }}>Habahub</Link>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1A1A1A', borderRadius: 20, padding: '5px 12px 5px 8px' }}>
           {show?.seller?.username ? (

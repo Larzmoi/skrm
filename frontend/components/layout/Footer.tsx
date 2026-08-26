@@ -45,7 +45,7 @@ export default function Footer() {
       <div style={{ maxWidth: 1440, margin: '0 auto', padding: '28px 24px 16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 16, marginBottom: 18 }}>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 20, color: C.text, letterSpacing: '-0.5px', marginBottom: 8 }}>SKRM</div>
+            <div style={{ fontWeight: 900, fontSize: 20, color: C.text, letterSpacing: '-0.5px', marginBottom: 8 }}>Habahub</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
               {[t.footer.badgeSecure, t.footer.badgeBinding, t.footer.badgeVerified].map(tag => (
                 <span key={tag} style={{ fontSize: 11, color: C.muted, background: C.surface2, padding: '3px 8px', borderRadius: 10 }}>{tag}</span>

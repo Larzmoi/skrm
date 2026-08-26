@@ -59,7 +59,7 @@ export default function KayttoehdotPage() {
         </div>
         <p style={{ fontSize: 13, color: C.muted, marginTop: 32 }}>
           {lang === 'en' ? 'Questions about the terms? Contact us:' : 'Kysymyksiä käyttöehdoista? Ota yhteyttä:'}{' '}
-          <a href="mailto:support@skrm.fi" style={{ color: C.accent }}>support@skrm.fi</a>
+          <a href="mailto:support@habahub.fi" style={{ color: C.accent }}>support@habahub.fi</a>
         </p>
       </div>
       <Footer />

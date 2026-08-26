@@ -24,14 +24,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark')
 
   useEffect(() => {
-    const saved = localStorage.getItem('skrm_theme') as Theme
+    const saved = localStorage.getItem('habahub_theme') as Theme
     if (saved === 'light' || saved === 'dark') setTheme(saved)
   }, [])
 
   function toggle() {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    localStorage.setItem('skrm_theme', next)
+    localStorage.setItem('habahub_theme', next)
   }
 
   const C = theme === 'dark' ? dark : light

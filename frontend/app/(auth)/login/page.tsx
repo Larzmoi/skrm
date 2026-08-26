@@ -36,7 +36,7 @@ function LoginForm() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <Link href="/" style={{ fontWeight: 900, fontSize: 28, color: C.text, letterSpacing: '-1px', marginBottom: 36 }}>SKRM</Link>
+      <Link href="/" style={{ fontWeight: 900, fontSize: 28, color: C.text, letterSpacing: '-1px', marginBottom: 36 }}>Habahub</Link>
       <div style={{ width: '100%', maxWidth: 400, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, padding: '32px 28px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 6 }}>{t.auth.loginTitle}</h1>
         <p style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{t.auth.loginSub}</p>

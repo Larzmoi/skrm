@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 const PUBLIC_PATHS = ['/login', '/register', '/kayttoehdot', '/tietosuoja']
 
 export function proxy(request: NextRequest) {
-  const token = request.cookies.get('skrm_token')?.value
+  const token = request.cookies.get('habahub_token')?.value
   const path = request.nextUrl.pathname
   const isPublic = PUBLIC_PATHS.some(p => path.startsWith(p))
 

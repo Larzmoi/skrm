@@ -39,8 +39,8 @@ export default function RegisterPage() {
       const res = await fetch(`${BACKEND}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, username, email, password, termsAccepted, privacyAccepted, policyAccepted }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      localStorage.setItem('skrm_token', data.token)
-      localStorage.setItem('skrm_user', JSON.stringify(data.user))
+      localStorage.setItem('habahub_token', data.token)
+      localStorage.setItem('habahub_user', JSON.stringify(data.user))
       setAuthCookie(data.token)
       window.location.href = '/'
     } catch (e: any) { setError(e.message); setLoading(false) }
@@ -53,7 +53,7 @@ export default function RegisterPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <Link href="/" style={{ fontWeight: 900, fontSize: 28, color: C.text, letterSpacing: '-1px', marginBottom: 36 }}>SKRM</Link>
+      <Link href="/" style={{ fontWeight: 900, fontSize: 28, color: C.text, letterSpacing: '-1px', marginBottom: 36 }}>Habahub</Link>
       <div style={{ width: '100%', maxWidth: 420, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, padding: '32px 28px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 6 }}>{t.auth.registerTitle}</h1>
         <p style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{t.auth.registerSub}</p>
