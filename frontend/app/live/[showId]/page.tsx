@@ -345,11 +345,12 @@ interface ShopPanelProps {
   filter: 'all' | 'buynow'; setFilter: (v: 'all' | 'buynow') => void
   sort: 'default' | 'price_asc' | 'price_desc'; setSort: (v: 'default' | 'price_asc' | 'price_desc') => void
   onBuyNow: (productId: string) => void
-  onPreBid: () => void
+  onPreBid: (productId: string) => void
+  preBiddable: boolean
   onProductClick: (product: ShowProduct) => void
 }
 
-function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onPreBid, onProductClick }: ShopPanelProps) {
+function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onPreBid, preBiddable, onProductClick }: ShopPanelProps) {
   let list = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
   if (filter === 'buynow') list = list.filter(p => !!p.buyNowPrice)
   if (sort === 'price_asc') list = [...list].sort((a, b) => a.startPrice - b.startPrice)
@@ -395,9 +396,9 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
                   {isActive && <div style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>NOW</div>}
                 </div>
               </div>
-              {!isSold && (
+              {!isSold && (preBiddable || p.buyNowPrice) && (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={e => { e.stopPropagation(); onPreBid() }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>
+                  {preBiddable && <button onClick={e => { e.stopPropagation(); onPreBid(p.id) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
                   {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
                 </div>
               )}
@@ -666,9 +667,13 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setTimeout(() => setToast(''), 2500)
     }
   }
-  function preBidStub() {
-    setToast('Ennakkotarjoukset — tulossa pian')
-    setTimeout(() => setToast(''), 2000)
+  // Ennakkotarjouksen syöttölomake on jo rakennettu ja testattu /tuotteet/[id]-sivulla
+  // (ks. CLAUDE.md "Ennakkotarjoukset") - ohjataan sinne sen sijaan että kaksinnettaisiin
+  // sama tarjouslogiikka tänne. Tämä nappi näytetään vain kun show on vielä SCHEDULED
+  // (ks. preBiddable-propi ShopPanelille), joten kohdesivun ennakkotarjouslomake on aina
+  // näkyvissä kun tänne päädytään.
+  function goToPreBid(productId: string) {
+    router.push(`/tuotteet/${productId}`)
   }
 
   function placeBid() {
@@ -766,7 +771,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
               <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
             </div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} onProductClick={setModalProduct} />
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} preBiddable={show?.status === 'SCHEDULED'} onProductClick={setModalProduct} />
           </div>
         </div>
 
@@ -882,7 +887,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         {!isTablet && (
           <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} onProductClick={setModalProduct} />
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} preBiddable={show?.status === 'SCHEDULED'} onProductClick={setModalProduct} />
           </div>
         )}
 
@@ -924,7 +929,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
               </div>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={preBidStub} onProductClick={setModalProduct} />
+                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} preBiddable={show?.status === 'SCHEDULED'} onProductClick={setModalProduct} />
               </div>
             </div>
           )}
