@@ -5,6 +5,7 @@ Päivitetty: 3. elokuuta 2026
 REKISTERINPITÄJÄ
 
 Habahub
+Y-tunnus: 3497347-6
 Sähköposti: support@habahub.fi
 
 Tämä tietosuojaseloste kuvaa, miten Habahub-palvelussa kerää, käyttää, säilyttää ja suojaa henkilötietojasi EU:n yleisen tietosuoja-asetuksen (GDPR) ja Suomen tietosuojalainsäädännön mukaisesti.
@@ -177,6 +178,7 @@ Updated: August 3, 2026
 DATA CONTROLLER
 
 Habahub
+Business ID: 3497347-6
 Email: support@habahub.fi
 
 This Privacy Policy describes how Habahub collects, uses, stores, and protects your personal data in accordance with the EU General Data Protection Regulation (GDPR) and Finnish data protection legislation.

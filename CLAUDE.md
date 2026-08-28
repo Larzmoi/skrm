@@ -949,13 +949,19 @@ Kun huutokauppakohde (tuotepaneeli) avataan, se estää chat-tekstikentän valit
 **4. Desktopin tarjouksenteko-UI vaatii uudelleensuunnittelun — mobiili on ok, desktop ei.**
 Omistajan sanoin: nykyinen desktop-tarjousmekanismi vaatii "pitkän viivan vetämisen" tarjouksen tekemiseksi, koettu liian työlääksi/ärsyttäväksi. **Mobiilissa vastaava toiminto koetaan hyväksi** (yksinkertaisempi, luultavasti numeropohjainen +/- -säädin). **Päätös: yksinkertaista desktop-tarjousmekanismi samantyyliseksi kuin mobiilissa jo on** — ei vaadi vetämistä/raahausta, vaan suoraviivainen syöttö/pikanapit. Tarkista VS Coden Claudelle tarkalleen mikä komponentti tämä on (todennäköisesti eri kuin mobiilin numerosyöttö, koska omistaja erottelee ne selvästi "mobiili ok, desktop ei").
 
+## Ilmoitukset-sivun UI-löydökset 2026-08-25 (mobiili, kuvakaappaus) — päätökset tehty, ei vielä toimeksiantoa
+
+1. **"Ota selainilmoitukset käyttöön" -nappi menee päällekkäin/huonosti aseteltuna otsikon kanssa mobiilissa**, eikä anna selvää palautetta onnistumisesta lupapyynnön jälkeen (esim. tila "Ilmoitukset käytössä ✓" napin painamisen jälkeen). **Napin teksti lyhennetään: "Ota ilmoitukset käyttöön"** (poistetaan "selain"-sana).
+2. **"Hallintapaneeli"-nappi leikkautuu näytön ulkopuolelle mobiilissa navbarissa.** Päätös: vaihda mobiilissa pelkäksi kuvakkeeksi (esim. paneeli-/hampurilaisikoni) tekstin sijaan, säästää tilaa.
+3. **Alaotsikko päivitetty:** "Pysy ajan tasalla huudoista ja tilauksista" → **"Kaikki tärkeät päivitykset yhdessä paikassa"** — geneerisempi, kattaa kaikki ilmoitustyypit (viestit, seuraajat, huudot, tilaukset) ilman että tarvitsee päivittää tekstiä joka kerta kun uusi ilmoitustyyppi lisätään.
+
 ## SEURAAVAKSI TEHTÄVÄT — prioriteettijärjestys (päivitetty 2026-08-13)
 
 1. ✅ **LiveKit-migraatio** — TEHTY, vahvistettu 2-3s viive tuotannossa, ylitti tavoitteen
 2. ✅ **Kriittiset live/chat-bugit (13 kpl + bannisääntö)** — TEHTY 2026-08-13, deployattu
 3. **Mux vs. jatka itse -päätös** — käytännössä ratkennut itsestään: LiveKit toimii nyt 2-3s viiveellä eikä ole toistanut aiempaa "korjattu 3-5 kertaa, edelleen rikki" -kuviota. Ei akuuttia syytä vaihtaa managed-palveluun juuri nyt — pidetään avoimena jos luotettavuusongelmia ilmenee isommassa mittakaavassa, mutta ei enää kiireellinen päätös.
 4. **Visuaalisen jäädytyksen lopullinen silmämääräinen hyväksyntä** — tekninen työ tehty useissa kierroksissa, odottaa vain omistajan katsomista kokonaisuutena läpi ja vahvistusta
-5. **OY-rekisteröinti** — ei tekninen tehtävä, mutta avaa lukot sekä Paytrailin tuotantotunnuksiin (testivaihe jo valmis) että Posti-integraatioon (LogEDI@posti.com-yhteydenotto, kysymyslista jo valmiina) — todennäköisesti suurin yksittäinen pullonkaula juuri nyt
+5. ✅ **OY-rekisteröinti — VALMIS 2026-08-25** — Y-tunnus **3497347-6** ja tilinumero (ei kirjattu tähän, ei koskaan julkisesti näkyville — käytetään vain Paytrailin/pankin omissa rekisteröinneissä) ovat nyt olemassa. Tämä avaa: (a) Paytrailin tuotantotunnukset (testivaihe jo tehty ja testattu, seuraava askel: hae oikea Paytrail-sopimus/tuotantotunnukset Y-tunnuksella), (b) Posti-integraatio (LogEDI@posti.com-yhteydenotto, kysymyslista jo valmiina, kohta yllä — lähetä nyt kun Y-tunnus on käytettävissä). **Y-tunnus lisätään myös julkisille sivuille** (Suomen laki edellyttää sen näkymistä, ks. alla oleva kehote).
 6. **WHIP/selainstriimaus ilman OBS:ää** — ei vielä aloitettu, tärkeä kun käyttäjäkunta laajenee puhelinkäyttäjiin
 7. **Loput "Live-ominaisuudet Whatnot-tasolle" -kohdista** — ✅ ennakkotarjoukset TEHTY 2026-08-16 (ks. oma osio alempana), jäljellä: chat-moderoinnin loput (co-host, chat-komennot), giveaway, Katsojan Shop-paneeli
 8. **Tarjoa hintaa -toiminto** — päätetty, ei vielä aikataulutettu

@@ -161,6 +161,8 @@ Riitatilanteet pyritään ratkaisemaan ensisijaisesti neuvottelemalla. Kuluttaja
 
 16. YHTEYSTIEDOT
 
+HABAHUB, Y-tunnus: 3497347-6
+
 Kysymyksissä ja yhteydenotoissa:
 Sähköposti: support@habahub.fi
 `
@@ -269,5 +271,6 @@ HABAHUB is not liable for product quality, delivery failures, indirect damages, 
 
 Finnish law applies to these Terms. Disputes are to be resolved first through negotiation, then through the Finnish Consumer Disputes Board or Helsinki District Court.
 
+HABAHUB, Business ID: 3497347-6
 Contact: support@habahub.fi
 `

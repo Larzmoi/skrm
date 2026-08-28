@@ -190,7 +190,7 @@ const en = {
     fees: 'Fees', legal: 'Legal', terms: 'Terms of Service',
     privacy: 'Privacy Policy', follow: 'Follow', newsletter: 'Newsletter',
     newsletterDesc: 'Selling tips and offers to your inbox.', subscribe: 'Subscribe',
-    emailPlaceholder: 'Email address', copyright: '© 2026 Habahub',
+    emailPlaceholder: 'Email address', copyright: '© 2026 Habahub · Business ID 3497347-6',
     feeNote: 'Commission 3.5% (max €35) + payment processing ~1.5% + €0.25',
     binding: 'All bids are binding',
     prohibited: 'Not allowed: weapons, alcohol/tobacco, medication/narcotics, live animals, counterfeits & other unlawful goods',
@@ -240,7 +240,7 @@ const en = {
     shipping: 'Shipping time', shippingSub: 'Seller commits to ship',
     binding: 'Binding bids', bindingSub: 'Safe to sell',
     contactTitle: 'Contact',
-    email: 'Email', support: 'Customer support', sellerSupport: 'Seller support',
+    email: 'Email', support: 'Customer support', sellerSupport: 'Seller support', businessId: 'Business ID',
     usefulLinks: 'Useful links',
   },
   terms: {

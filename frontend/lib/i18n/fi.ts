@@ -190,7 +190,7 @@ const fi = {
     fees: 'Välityspalkkiot', legal: 'Lakitekstit', terms: 'Käyttöehdot',
     privacy: 'Tietosuoja', follow: 'Seuraa', newsletter: 'Uutiskirje',
     newsletterDesc: 'Myyntivinkkejä suoraan sähköpostiisi.', subscribe: 'Tilaa',
-    emailPlaceholder: 'Sähköpostiosoite', copyright: '© 2026 Habahub',
+    emailPlaceholder: 'Sähköpostiosoite', copyright: '© 2026 Habahub · Y-tunnus 3497347-6',
     feeNote: 'Välityspalkkio 3,5% (max 35€) + maksunkäsittely ~1,5% + 0,25€',
     binding: 'Kaikki huudot sitovia',
     prohibited: 'Ei sallittu: aseet, alkoholi/tupakka, lääkkeet/huumausaineet, elävät eläimet, väärennökset ym. laiton tavara',
@@ -240,7 +240,7 @@ const fi = {
     shipping: 'Lähetysaika', shippingSub: 'Myyjä sitoutuu lähettämään',
     binding: 'Sitovat huudot', bindingSub: 'Turvallinen myydä',
     contactTitle: 'Yhteystiedot',
-    email: 'Sähköposti', support: 'Asiakastuki', sellerSupport: 'Myyjätuki',
+    email: 'Sähköposti', support: 'Asiakastuki', sellerSupport: 'Myyjätuki', businessId: 'Y-tunnus',
     usefulLinks: 'Hyödylliset linkit',
   },
   terms: {

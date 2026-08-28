@@ -58,6 +58,10 @@ export default function MeistaPage() {
                   <a href={`mailto:${c.value}`} style={{ fontSize: 13, color: C.accent }}>{c.value}</a>
                 </div>
               ))}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, width: 130, flexShrink: 0 }}>{t.about.businessId}</span>
+                <span style={{ fontSize: 13, color: C.text }}>HABAHUB, 3497347-6</span>
+              </div>
             </div>
           </div>
         </section>
