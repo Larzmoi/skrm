@@ -7,6 +7,7 @@ import { Room, RoomEvent, Track } from 'livekit-client'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
+import { useCart } from '@/lib/cart-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { BACKEND_URL } from '@/lib/backend'
 import ReportModal from '@/components/ReportModal'
@@ -423,6 +424,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const { showId } = use(params)
   const { C } = useTheme()
   const { user } = useAuth()
+  const { refresh: refreshCart } = useCart()
   const { t } = useLang()
   const router = useRouter()
 
@@ -551,6 +553,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     })
 
     socket.on('viewer_list', (data: { viewers: ViewerEntry[] }) => setViewerList(data.viewers))
+    // Backend lähettää tämän erikseen (ks. socket.ts) koska viewer_list sisältää vain
+    // kirjautuneet/nimetyt katsojat - viewer_count kattaa myös anonyymit. Puuttui täältä
+    // kokonaan, joten "X katsojaa" jäi jumiin sivun ensilatauksen REST-hakuun (usein 0)
+    // eikä koskaan päivittynyt vaikka Watching-lista näytti oikean määrän.
+    socket.on('viewer_count', (data: { count: number }) => setViewers(data.count))
 
     socket.on('moderator_status', (data: { userId: string; isModerator: boolean }) => {
       if (data.userId === user?.id) setIsModerator(data.isModerator)
@@ -635,6 +642,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       socket.off('chat_message_deleted')
       socket.off('your_status')
       socket.off('viewer_list')
+      socket.off('viewer_count')
       socket.off('moderator_status')
       socket.off('user_removed_from_show')
       socket.off('join_rejected')
@@ -670,6 +678,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
     try {
       const { cartApi } = await import('@/lib/api')
       await cartApi.add(productId, 'live', 1)
+      await refreshCart()
       router.push('/kori')
     } catch (e: any) {
       setToast(e.message ?? 'Ostoskoriin lisäys epäonnistui')
