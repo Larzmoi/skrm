@@ -41,6 +41,18 @@ interface AuctionState {
 
 const auctions = new Map<string, AuctionState>()
 
+// Kertoo onko tuote juuri nyt käynnissä olevan live-huutokaupan aktiivinen lot - products.ts:n
+// POST /:id/prebid käyttää tätä sallimaan ennakkotarjoukset myös LIVE-lähetyksen aikana jonossa
+// oleville tuotteille (ei enää vain ennen lähetyksen alkua), paitsi juuri sillä hetkellä
+// huudettavana olevalle tuotteelle - sen huuto pitää mennä normaalin socket-huutojärjestelmän
+// kautta (place_bid), ei tämän REST-reitin, koska vain socket pitää auction.currentBid:in
+// reaaliaikaisesti oikeana koko kutsujoukolle. Sama prosessi (socket.ts + products.ts ajavat
+// samassa Node-prosessissa), joten in-memory-Map on suoraan luettavissa tänne.
+export function isActiveLiveLot(showId: string, productId: string): boolean {
+  const state = auctions.get(showId)
+  return !!state?.active && state.productId === productId
+}
+
 // Kuunneltujen showien setti per socket — tarvitaan jotta disconnect-tapahtumassa tiedetään
 // mistä huoneista katsojamäärä pitää päivittää (socket.rooms on jo tyhjä disconnect-käsittelijässä)
 const socketShows = new Map<string, Set<string>>()

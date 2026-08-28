@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { emitToShow, notifyUser } from '../lib/notify'
+import { isActiveLiveLot } from '../socket'
 
 const router = Router()
 
@@ -62,10 +63,17 @@ router.get('/:id', async (req, res) => {
   res.json(product)
 })
 
-// POST /products/:id/prebid — ennakkotarjous live-tuotteelle ennen kuin sen lähetys on
-// mennyt julkiseksi (Show.status === 'SCHEDULED'). Kun lähetys alkaa, korkein ennakko-
-// tarjous on jo Product.currentBid/currentBidderId - socket.ts:n start_auction jatkaa
-// siitä normaalisti (ks. CLAUDE.md "Live-ominaisuudet Whatnot-tasolle" kohta 1).
+// POST /products/:id/prebid — ennakkotarjous live-tuotteelle joka ei ole vielä ollut
+// huudettavana. Sallittu sekä ennen lähetyksen alkua (Show.status SCHEDULED) että LIVE-
+// lähetyksen aikana jonossa oleville, vielä huutamattomille tuotteille - omistajan päätös
+// 2026-08-28 ("typerää ettei voi tehdä liven aikana ennakkotarjouksia"), korjaa aiemman
+// rajauksen joka salli tämän vain ennen lähetyksen alkua. EI koskaan sallittu juuri sillä
+// hetkellä aktiivisena olevalle lotille (ks. isActiveLiveLot) - sen huuto menee normaalin
+// socket-huutojärjestelmän (place_bid) kautta, joka pitää hinnan reaaliaikaisesti oikeana
+// kaikille katsojille; tämä REST-reitti kirjoittaisi suoraan DB:hen ohi sen, mikä
+// rikkoisi synkronoinnin. Kun tuotteen oma vuoro alkaa, korkein ennakkotarjous on jo
+// Product.currentBid/currentBidderId - socket.ts:n start_auction jatkaa siitä normaalisti
+// (ks. CLAUDE.md "Live-ominaisuudet Whatnot-tasolle" kohta 1).
 router.post('/:id/prebid', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { amount } = req.body
   const productId = String(req.params.id)
@@ -78,8 +86,14 @@ router.post('/:id/prebid', authMiddleware, async (req: AuthRequest, res: Respons
   if (product.saleType !== 'live' && product.saleType !== 'both') {
     return res.status(400).json({ error: 'Tämä tuote ei ole huutokaupattavissa' })
   }
-  if (!product.show || product.show.status !== 'SCHEDULED') {
-    return res.status(400).json({ error: 'Ennakkotarjoukset ovat mahdollisia vain ennen lähetyksen alkua' })
+  if (product.status !== 'PENDING') {
+    return res.status(400).json({ error: 'Tuote ei ole enää saatavilla' })
+  }
+  if (!product.show || (product.show.status !== 'SCHEDULED' && product.show.status !== 'LIVE')) {
+    return res.status(400).json({ error: 'Ennakkotarjoukset eivät ole tällä hetkellä mahdollisia' })
+  }
+  if (product.showId && isActiveLiveLot(product.showId, productId)) {
+    return res.status(400).json({ error: 'Tämän tuotteen huutokauppa on juuri nyt käynnissä livenä - huuda livenä, ei ennakkoon' })
   }
   if (product.sellerId === req.userId) {
     return res.status(400).json({ error: 'Et voi tarjota omasta tuotteestasi' })

@@ -71,9 +71,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     : []
 
   // Ennakkotarjoukset (ks. CLAUDE.md "Live-ominaisuudet Whatnot-tasolle" kohta 1) - sallittu
-  // vain live-tyyppisille tuotteille (live/both) joiden lähetys on vielä SCHEDULED, ei mennyt
-  // vielä julkiseksi. Kun lähetys alkaa, korkein ennakkotarjous jatkuu suoraan (backend).
-  const isPreBiddable = (product.saleType === 'live' || product.saleType === 'both') && product.show?.status === 'SCHEDULED'
+  // live-tyyppisille tuotteille (live/both) sekä ennen lähetyksen alkua (SCHEDULED) että
+  // LIVE-lähetyksen aikana jonossa oleville, vielä myymättömille tuotteille (omistajan
+  // päätös 2026-08-28). Backend on lopullinen totuus juuri sillä hetkellä huudettavana
+  // olevasta lotista (ei tiedossa tällä sivulla ilman socket-yhteyttä) - jos tätä yritetään,
+  // POST /prebid palauttaa selkeän virheen jonka placePreBid näyttää.
+  const isPreBiddable = (product.saleType === 'live' || product.saleType === 'both')
+    && product.status === 'PENDING'
+    && (product.show?.status === 'SCHEDULED' || product.show?.status === 'LIVE')
   const currentBidValue = product.currentBid ?? product.startPrice
   const minPreBid = Math.round((currentBidValue + (product.bidIncrement ?? 1)) * 100) / 100
   const isLeadingBidder = user && product.currentBidderId === user.id
