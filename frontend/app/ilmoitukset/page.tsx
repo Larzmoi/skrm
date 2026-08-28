@@ -50,8 +50,8 @@ export default function IlmoituksetPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
       <Navbar />
       <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-          <div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 24 }}>
+          <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>{t.notificationsPage.title}</h1>
             <p style={{ color: C.muted, fontSize: 14 }}>{t.notificationsPage.subtitle}</p>
           </div>

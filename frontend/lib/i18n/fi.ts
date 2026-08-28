@@ -263,10 +263,10 @@ const fi = {
     total: 'Yhteensä', items: 'tuotetta', allSellers: 'kaikki myyjät',
   },
   notificationsPage: {
-    title: 'Ilmoitukset', subtitle: 'Pysy ajan tasalla huudoista ja tilauksista',
+    title: 'Ilmoitukset', subtitle: 'Kaikki tärkeät päivitykset yhdessä paikassa',
     empty: 'Ei ilmoituksia vielä', markAllRead: 'Merkitse kaikki luetuiksi',
-    enablePush: 'Ota selainilmoitukset käyttöön', enablingPush: 'Otetaan käyttöön...',
-    pushEnabled: '✓ Selainilmoitukset käytössä',
+    enablePush: 'Ota ilmoitukset käyttöön', enablingPush: 'Otetaan käyttöön...',
+    pushEnabled: 'Ilmoitukset käytössä ✓',
   },
   messagesPage: {
     title: 'Viestit', subtitle: 'Keskustelusi ostajien ja myyjien kanssa',

@@ -65,7 +65,9 @@ export default function Navbar() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 {itemCount > 0 && <span style={{ position: 'absolute', top: -2, right: -2, background: C.red, color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 10, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>{itemCount}</span>}
               </Link>
-              <Link href="/dashboard" style={{ background: C.accent, color: '#fff', padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t.nav.dashboard}</Link>
+              <Link href="/dashboard" aria-label={t.nav.dashboard} title={t.nav.dashboard} style={{ background: C.accent, color: '#fff', padding: '6px', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+              </Link>
             </>
           ) : (
             <>

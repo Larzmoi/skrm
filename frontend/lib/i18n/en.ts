@@ -263,10 +263,10 @@ const en = {
     total: 'Total', items: 'items', allSellers: 'all sellers',
   },
   notificationsPage: {
-    title: 'Notifications', subtitle: 'Stay up to date on bids and orders',
+    title: 'Notifications', subtitle: 'All your important updates in one place',
     empty: 'No notifications yet', markAllRead: 'Mark all as read',
-    enablePush: 'Enable browser notifications', enablingPush: 'Enabling...',
-    pushEnabled: '✓ Browser notifications on',
+    enablePush: 'Enable notifications', enablingPush: 'Enabling...',
+    pushEnabled: 'Notifications on ✓',
   },
   messagesPage: {
     title: 'Messages', subtitle: 'Your conversations with buyers and sellers',
