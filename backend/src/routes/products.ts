@@ -137,6 +137,17 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, tyyppi, city, pakettikoko, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
 
+  // showId tuli suoraan pyynnön bodystä ilman omistajuustarkistusta - kuka tahansa kirjautunut
+  // käyttäjä pystyi liittämään oman tuotteensa TOISEN myyjän lähetyksen jonoon (löytyi
+  // 2026-08-28 pre-bid-testauksen sivutuotteena). Sallittu vain kun show on olemassa ja
+  // kuuluu pyynnön tekijälle.
+  if (showId) {
+    const targetShow = await prisma.show.findUnique({ where: { id: String(showId) }, select: { sellerId: true } })
+    if (!targetShow || targetShow.sellerId !== req.userId) {
+      return res.status(403).json({ error: 'Et voi lisätä tuotetta tähän lähetykseen' })
+    }
+  }
+
   // Perinteinen huutokauppa: auctionDurationDays/Hours on kesto luontihetkellä, ei tallenneta sellaisenaan —
   // vain päättymisajankohta persistoidaan (eri asia kuin live-lotin auctionDuration, joka on sekunteina)
   const MAX_AUCTION_HOURS = 30 * 24
