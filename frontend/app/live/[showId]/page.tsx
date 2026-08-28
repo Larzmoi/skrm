@@ -396,11 +396,19 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
                   {isActive && <div style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>NOW</div>}
                 </div>
               </div>
-              {!isSold && (preBiddable || p.buyNowPrice) && (
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {preBiddable && <button onClick={e => { e.stopPropagation(); onPreBid(p.id) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
-                  {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
-                </div>
+              {!isSold && (
+                preBiddable || p.buyNowPrice ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {preBiddable && <button onClick={e => { e.stopPropagation(); onPreBid(p.id) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
+                    {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
+                  </div>
+                ) : (
+                  // Live-tyyppinen (ei "both") tuote jonka vuoro ei ole vielä tullut - ei enää
+                  // ennakkotarjottavissa (show on jo LIVE) eikä ostettavissa suoraan (ei buyNowPrice) -
+                  // huudetaan vasta kun myyjä aloittaa TÄMÄN tuotteen huutokaupan konsolistaan.
+                  // Ilman tätä rivi näytti tyhjältä eikä kertonut miksi napit puuttuvat.
+                  <div style={{ fontSize: 11, color: '#555', textAlign: 'center', padding: '4px 0' }}>Huudetaan myöhemmin lähetyksessä</div>
+                )
               )}
             </div>
           )
