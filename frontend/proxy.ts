@@ -9,7 +9,15 @@ export function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some(p => path.startsWith(p))
 
   if (!token && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    // Säilytä alkuperäinen kohde redirect-parametrissa - ilman tätä esim. Paytrailin
+    // maksun jälkeinen paluu /ostot:iin (ks. lib/paytrail.ts redirectUrls) katosi kokonaan
+    // jos habahub_token-eväste puuttui juuri sillä hetkellä selaimesta (esim. selaimen oma
+    // yksityisyyssuoja pudotti sen ristiin-sivustoisen Paytrail-uudelleenohjauksen aikana) -
+    // login-sivu osaa jatkaa oikeaan paikkaan kirjautumisen (tai session palautuksen,
+    // ks. auth-context.tsx) jälkeen.
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', path + request.nextUrl.search)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()

@@ -37,12 +37,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('habahub_user')
-    if (stored && hasAuthCookie()) {
+    const token = localStorage.getItem('habahub_token')
+    if (stored && token) {
+      // localStorage on aina totuuden lähde (ks. api.ts:n Authorization-header) - habahub_token-
+      // eväste on vain proxy.ts:n reittisuojausta varten, ja se voi hävitä itsenäisesti
+      // localStoragesta (esim. selaimen yksityisyyssuoja pudottaa sen risti-sivustoisen
+      // uudelleenohjauksen, kuten Paytrail-maksun paluun, aikana - löydetty 2026-08-31 kun
+      // ostaja päätyi /loginiin vaikka maksu onnistui täysin normaalisti). Palautetaan eväste
+      // aina kun localStoragessa on kelvollisen näköinen sessio, sen sijaan että kirjattaisiin
+      // koko sessio ulos pelkän evästeen puuttumisen perusteella - jos token on aidosti
+      // vanhentunut, seuraava API-kutsu paljastaa sen normaalisti kuten muuallakin sovelluksessa.
+      if (!hasAuthCookie()) setAuthCookie(token)
       setUser(JSON.parse(stored))
-    } else if (stored) {
-      // localStoragessa on käyttäjä mutta ei habahub_token-cookieta (esim. vanha sessio ennen
-      // proxy.ts-lukitusta) — proxy ohjaisi silti /loginiin, mikä aiheuttaisi uudelleenohjaussilmukan.
-      // Siivotaan pois niin kirjautumaton tila on yhtenäinen joka paikassa.
+    } else if (stored || token) {
+      // Vain toinen puoli (user tai token) löytyi - aidosti epäjohdonmukainen tila, ei
+      // pelastettavissa palauttamalla. Siivotaan molemmat pois.
       localStorage.removeItem('habahub_token')
       localStorage.removeItem('habahub_user')
     }
