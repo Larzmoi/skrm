@@ -9,7 +9,8 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 interface OrderItem { id: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string } }
 interface SellingOrder {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
-  trackingCode: string | null; trackingNumber: string | null; sendingCode: string | null; createdAt: string; items: OrderItem[]
+  trackingCode: string | null; trackingNumber: string | null; sendingCode: string | null; labelUrl: string | null
+  postiShipmentId: string | null; pakettikoko: 'PIENI' | 'ISO' | null; createdAt: string; items: OrderItem[]
   buyer: { name: string; username: string; address?: string; postalCode?: string; city?: string; phone?: string }
   reviews: { reviewerId: string }[]
   paymentDeadline: string | null
@@ -62,10 +63,11 @@ function PendingPaymentCard({ order, C, now }: { order: SellingOrder; C: Record<
   )
 }
 
-function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
+function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, pakettikokoValue, onPakettikokoChange, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
   trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void
   pickupValue: string; onPickupChange: (v: string) => void; onSubmitPickup: () => void; busy: boolean
+  pakettikokoValue: 'PIENI' | 'ISO'; onPakettikokoChange: (v: 'PIENI' | 'ISO') => void
   onCreateShipment: () => void; shipmentBusy: boolean
   review?: {
     alreadyReviewed: boolean; open: boolean; rating: number; comment: string
@@ -118,7 +120,7 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
           </div>
         )}
         {showTracking && order.shippingSize === 'postitus' && !order.trackingNumber && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 320px', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 380px', justifyContent: 'flex-end' }}>
             <input
               value={trackingValue}
               onChange={e => onTrackingChange(e.target.value)}
@@ -128,15 +130,28 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
             <button onClick={onSubmitTracking} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Lisää seurantakoodi'}
             </button>
+            {/* Pakettikoko valitaan vasta tässä, lähetysvaiheessa - ei vaikuta ostajalta jo
+                veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto Postin API:lle
+                (ks. CLAUDE.md "Postihinnat" 2026-08-26). */}
+            <select value={pakettikokoValue} onChange={e => onPakettikokoChange(e.target.value as 'PIENI' | 'ISO')} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flexShrink: 0 }}>
+              <option value="PIENI">Pieni</option>
+              <option value="ISO">Iso</option>
+            </select>
             <button onClick={onCreateShipment} disabled={shipmentBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.text, padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: shipmentBusy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {shipmentBusy ? '...' : 'Luo lähetys (Posti)'}
             </button>
           </div>
         )}
-        {order.shippingSize === 'postitus' && (order.sendingCode || order.trackingCode) && (
-          <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
-            {order.sendingCode ? `Lähetyskoodi: ${order.sendingCode}` : `Seurantakoodi: ${order.trackingCode}`}
-          </span>
+        {order.shippingSize === 'postitus' && (order.labelUrl || order.sendingCode || order.trackingCode) && (
+          order.labelUrl ? (
+            <a href={order.labelUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+              Avaa osoitetarra (PDF) →
+            </a>
+          ) : (
+            <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+              {order.sendingCode ? `Lähetyskoodi: ${order.sendingCode}` : `Seurantakoodi: ${order.trackingCode}`}
+            </span>
+          )
         )}
       </div>
 
@@ -190,6 +205,7 @@ export default function TilauksetPage() {
   const [refundBusy, setRefundBusy] = useState<string | null>(null)
   const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
   const [shipmentBusy, setShipmentBusy] = useState<string | null>(null)
+  const [pakettikokoInput, setPakettikokoInput] = useState<Record<string, 'PIENI' | 'ISO'>>({})
   const [now, setNow] = useState(Date.now())
 
   const load = useCallback(async () => {
@@ -234,7 +250,7 @@ export default function TilauksetPage() {
   async function createShipment(orderId: string) {
     setShipmentBusy(orderId); setError('')
     try {
-      await orderApi.createShipment(orderId)
+      await orderApi.createShipment(orderId, pakettikokoInput[orderId] ?? 'PIENI')
       await load()
     } catch (e: any) { setError(e.message ?? 'Lähetyksen luonti epäonnistui') }
     setShipmentBusy(null)
@@ -299,6 +315,8 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
+                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
+                  onPakettikokoChange={v => setPakettikokoInput(s => ({ ...s, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
@@ -320,6 +338,8 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
+                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
+                  onPakettikokoChange={v => setPakettikokoInput(s => ({ ...s, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
@@ -341,6 +361,8 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
+                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
+                  onPakettikokoChange={v => setPakettikokoInput(s => ({ ...s, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}

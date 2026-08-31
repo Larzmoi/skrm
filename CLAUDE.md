@@ -113,14 +113,20 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 | 333€ | 11,66€ |
 | 1000€+ | 35,00€ (max) |
 
-## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-25, LUKITTU (korvaa 2026-08-12-version)
-**Yksi kiinteä hinta: 6,90€.** (Muutos aiemmasta 9,90€:sta.) **Ei enää mitään pakettikokovalintaa ollenkaan** — vain yksi ainoa "pakettikoko" on olemassa, ei kokovaihtoehtoja tuotteen lisäyslomakkeessa. Tämä menee askeleen pidemmälle kuin 2026-08-12:n muutos (joka teki hinnasta kiinteän mutta piti pakettikoko-kentän olemassa) — nyt itse kenttä/valinta poistuu kokonaan käyttöliittymästä.
+## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-26, LUKITTU (korvaa 2026-08-25-version)
+**Yksi kiinteä hinta ostajalle: 6,90€, ei koskaan muutu.** Postin todellinen kulu vaihtelee pakettikoon mukaan (~4,50€ pieni / ~5,70€ iso) — kate siis vaihtelee 1,20€-2,40€ välillä riippuen paketista, mutta pysyy aina positiivisena isoimmallakin paketilla. **Ei kokovalintaa ostajalle eikä tuotteen lisäyslomakkeessa** — tämä osa pysyy ennallaan 2026-08-25:n päätöksestä.
+
+**UUSI: pakettikoko valitaan lähetysvaiheessa, myyjän toimesta, ei osta/lista-vaiheessa (päätetty 2026-08-26).** Myyjä ei tiedä tarkkaa pakettikokoa ennen kuin oikeasti pakkaa tuotteen — siksi kokovalinta ei kuulu tuotteen listaukseen eikä ostajan checkoutiin, vaan **lähetyksen luontivaiheeseen** (kun myyjä merkitsee tilauksen lähetetyksi / luo Posti-lähetyksen OmaPosti Pro API:n kautta):
+- Myyjälle esitetään yksinkertainen valinta (esim. "Pieni" / "Iso") juuri ennen kuin Posti-lähetys luodaan
+- Tämä valinta **ei vaikuta ostajalta jo veloitettuun 6,90€:oon mitenkään** — puhtaasti tekninen/sisäinen tieto
+- Valinta määrää suoraan minkä `packageCode`-arvon lähetetään Postin OmaPosti Pro API:lle kyseiselle lähetykselle (Postin API vaatii `packageCode`-kentän pakollisena joka lähetyksessä, ks. "Lähetysintegraatio"-osio)
+- Sivuvaikutuksena mahdollistaa todellisen katteen seurannan per lähetys jälkikäteen (valinnainen: tallenna `Order.pakettikoko`-kenttään data raportointia varten)
 
 **Toimitusvaihtoehdot (ennallaan):**
-1. **Postitus** — kiinteä 6,90€
+1. **Postitus** — kiinteä 6,90€ ostajalle, pakettikoko valitaan lähetysvaiheessa yllä kuvatulla tavalla
 2. **Nouto** — kuuluu maksuturvan piiriin noutokoodilla (ks. "Noutotuotteet"-sääntö)
 
-**Tekninen huomio VS Coden Claudelle:** poista pakettikoon valinta kokonaan tuotteen luontilomakkeesta (ei vain piilota, poista käyttöliittymästä ja mahdollisesti tietokantakentästä jos ei enää tarvita muuhun). Tarkista "Yhdistetty lähetys" -logiikka (ei enää tarvitse valita "suurimman pakettikoon mukaan" koska pakettikokoja ei enää ole) — todennäköisesti yksinkertaistuu "sama myyjä + 6h ikkuna = yksi tilaus, 6,90€ postikulut" ilman kokovertailua. Päivitä kaikki julkiset sivut (FAQ, käyttöehdot, välityspalkkiot) jotka viittaavat vanhaan 9,90€:oon tai pakettikoon valintaan.
+**Tekninen huomio VS Coden Claudelle:** älä lisää pakettikoon valintaa takaisin tuotteen lisäyslomakkeeseen tai checkoutiin — se kuuluu myyjän lähetys-/tilaustenhallintanäkymään, aktivoituu vasta kun tilaus merkitään lähetetyksi. Kytke tämä samaan yhteyteen kun Posti-integraatio (OmaPosti Pro API) rakennetaan (ks. "Lähetysintegraatio"-osio) — mock-vaiheessa (ennen oikeaa API-yhteyttä) tämä voidaan jo rakentaa UI-tasolla, koska se ei riipu oikeasta Posti-vastauksesta.
 
 ## Tärkeät koodaussäännöt
 - **Käännökset:** Käytä AINA `t.xxx` — ei kovakoodattua suomea/englantia
@@ -486,7 +492,44 @@ pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapaut
    - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
 4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
 
-### Autentikointi — OAuth 2.0 Client Credentials
+### ✅ VAHVISTUS 2026-08-26 — löytyi oikea API suoraan Postin virallisesta PDF-dokumentaatiosta ("OmaPosti Pro API", v1.0, 28.3.2024)
+
+Tämä on todennäköisesti vastaus siihen avoimeen kysymykseen #1 (mikä API luo yksittäisen C2C-lähetyksen) — **OmaPosti Pro API**, uusi Postin tilauskanava paketti-/kirje-/rahtituotteille, EI GLUE/dropshipping-järjestelmä. Tallentaa tiedot suoraan Postin lähetysrekisteriin, palauttaa osoitetarrat PDF-muodossa.
+
+**Autentikointi — YKSINKERTAISEMPI kuin aiemmin oletettiin, EI OAuth2:** pelkkä API-avain lähetetään `Authorization`-otsikossa (esim. `Authorization: a12bc34d-ef56-78a9-b123-cd45efab6789`). Avain generoidaan/hallitaan OmaPosti Pro -sovelluksen (`https://pro.posti.fi`) "Integration"-valikosta pääkäyttäjän toimesta.
+
+**Testiympäristö vahvistettu olemassa olevaksi:** "saatavilla erillisellä pyynnöllä Postin onboarding-tuelta kun asiakas/integraatiokumppani on valmis testaamaan" — ei itsepalvelullinen, mutta olemassa.
+
+**Tuotanto-URL:** `https://gateway.posti.fi/shippingapi/api/v1/shipping/order` (POST, JSON-body, `Content-Type: application/json`)
+
+**Keskeiset JSON-kentät:**
+- `shipment.sender` / `shipment.receiver` — nimi, osoite, postinumero, kaupunki, maa (pakollisia), puhelin/sähköposti (lisäpalveluiden ilmoituksiin)
+- `shipment.senderPartners` — `[{id: "POSTI", custNo: "<logistiikkasopimusnumero>"}]` pakettituotteille (`ITELLALOG` rahdille) — **custNo saadaan OmaPosti Pro -tililtä**: Käyttäjäasetukset → Omat organisaatiot → "Logistiikkasopimukset"-osio "Asiakasnumerot ja sopimukset" -kohdasta
+- `shipment.agent.quickId` — **noutopisteen valinta**, arvona Location API:sta saatu `pupCode`
+- `shipment.service.id` — valittu palvelukoodi (esim. "PO2103"), koodit löytyvät Postin palvelumatriisista (`posti.fi/en/for-businesses/service-channels/service-matrix`)
+- `parcels[]` — `copies`, `weight`, `packageCode`, `contents` pakollisia
+- `pdfConfig` — määrittää tarran tulostusmuodon (`laser-a5`, `laser-a4`, `thermo-se`, `thermo-225`)
+
+**Noutopisteiden haku: Location API v3** (uusin virallinen versio, korvaa vanhemman `locationservice.posti.com`:n) — dokumentaatio: `https://developer.posti.fi/devportal/apis/0cb54ae8-8a0b-4049-88fe-a6b62bab00fc/overview`. Palauttaa `pupCode`-arvon jota käytetään yllä olevassa `quickId`-kentässä.
+
+**Paluuviesti sisältää:** lähetyksen tiedot, `parcels[].parcelNo` (esim. `"JJFI654321989055198766"` — tämä on todennäköisesti sama kuin aiemmin puhuttu `trackingNumber`), ja `pdfs[]`-taulukon jossa linkki tulostettavaan osoitetarraan (linkki vaatii saman API-avaimen autentikoinnin, voimassa 1h).
+
+**⚠️ AVOIN KYSYMYS, selvitettävä Postilta ennen koodausta:** Tämä dokumentti kuvaa **PDF-osoitetarran tulostamista**, ei mainitse "Sending Code"/labelless-koodia ollenkaan. Kaksi mahdollisuutta:
+1. Sending Code API toimii tämän PÄÄLLÄ — OmaPosti Pro API luo lähetyksen ja palauttaa `parcelNo`:n (= trackingNumber), jolla sitten kutsutaan erikseen Sending Code APIa koodin hakemiseksi
+2. OmaPosti Pro API on puhtaasti tarrapohjainen, eikä "ei tulostettavaa tarraa" -tavoite ole toteutettavissa tällä API:lla — pitää silloin harkita hyväksytäänkö tulostettava tarra osana myyjän lähetysvirtaa (poikkeaisi Vinted-tyylisestä alkuperäisestä tavoitteesta)
+
+**Lisää tämä kysymys Postin sähköpostiin:** "Voiko OmaPosti Pro API:lla luotua lähetystä (parcelNo/trackingNumber) käyttää Sending Code API:n kanssa labelless-koodin hakemiseen, vai ovatko nämä kaksi erillistä, yhteensopimatonta järjestelmää?"
+
+### Eteneminen 2026-08-26: API-avain luotu, seuraavat vaiheet ennen koodausta
+- ✅ Rekisteröidytty `pro.posti.fi`:hin, API-avain luotu Integration-valikosta
+- ✅ **Logistiikkasopimusnumero (custNo): `691317`** — vahvistettu `pro.posti.fi`:n Organisaatiot-sivulta ("Logistiikan sopimustunnukset: 691317 Muistikuva Oy")
+- ℹ️ **Yrityksen rekisteröity toiminimi Postin järjestelmässä on "Muistikuva Oy"** (asiakasnumero 956632), ei "Habahub" — brändi ja virallinen toiminimi ovat eri asioita, tämä on hyvä tietää muuta paperityötä (esim. Paytrail-sopimus) varten. Y-tunnus 3497347-6 pysyy samana riippumatta kummasta nimestä käytetään.
+- ⬜ Valitse **palvelukoodi** Postin palvelumatriisista (`posti.fi/en/for-businesses/service-channels/service-matrix`), suodata pakettikoon/reitin mukaan
+- ⬜ Pyydä **testiympäristö** Postin onboarding-tukitiimiltä (ei itsepalvelullinen dokumentin mukaan) — tarkista onko `pro.posti.fi`:ssä suora yhteydenottokanava tähän
+- ⬜ Vahvista käyttääkö **Location API v3** (noutopisteet) samaa API-avainta vai vaatiiko erillisen rekisteröinnin `developer.posti.fi`:ssä
+- ⬜ Selvitä yhä avoin **labelless/Sending Code -yhteensopivuus** -kysymys (ks. yllä)
+
+### Autentikointi — OAuth 2.0 Client Credentials (koskee alla kuvattua Orders/Shipments V3 -GLUE-järjestelmää, EI OmaPosti Pro API:a yllä)
 ```
 POST https://gateway-auth.posti.fi/api/v1/token
 Body (x-www-form-urlencoded): grant_type=client_credentials&client_id=<ID>&client_secret=<SECRET>

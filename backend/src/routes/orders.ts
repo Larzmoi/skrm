@@ -182,24 +182,47 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
   res.json(updated)
 })
 
-// POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle (MOCK, ks.
-// CLAUDE.md "Mikä voidaan rakentaa NYT ilman Postin sopimusta/tunnuksia" + lib/postiService.ts).
-// Korvaa manuaalisen seurantakoodin syötön automaattisesti generoidulla trackingNumber+
-// sendingCode-parilla, jonka myyjä kirjoittaa pakettiin ilman tulostettavaa osoitekorttia.
+// POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle (MOCK,
+// ks. CLAUDE.md "Lähetysintegraatio" + lib/postiService.ts, OmaPosti Pro API -skeeman
+// mukainen 2026-08-26 alkaen). Myyjä valitsee pakettikoon (PIENI/ISO) vasta tässä vaiheessa
+// - ei vaikuta ostajalta jo veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto
+// Postin parcels[].packageCode-kenttää varten. Korvaa manuaalisen seurantakoodin syötön
+// automaattisesti luodulla trackingNumber + lähetyksen tuloksella (koodi TAI tarra, ks.
+// getShipmentOutput()).
 router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  const pakettikoko = req.body?.pakettikoko === 'ISO' ? 'ISO' : req.body?.pakettikoko === 'PIENI' ? 'PIENI' : null
+  if (!pakettikoko) return res.status(400).json({ error: 'Pakettikoko (PIENI/ISO) vaaditaan' })
+
+  const order = await prisma.order.findUnique({
+    where: { id: String(req.params.id) },
+    include: {
+      seller: { select: { name: true, address: true, postalCode: true, city: true, phone: true, email: true } },
+      buyer: { select: { name: true, address: true, postalCode: true, city: true, phone: true, email: true } },
+    },
+  })
   if (!order || order.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (order.shippingSize !== 'postitus') return res.status(400).json({ error: 'Tilaus ei ole postitus-toimitustavalla' })
   if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota lähetystä' })
 
-  const { shipments } = postiService.createShipment()
-  const { trackingNumber, sendingCode } = shipments[0]
+  const { shipmentId, trackingNumber } = postiService.createShipment({
+    sender: { name: order.seller.name, streetAddress: order.seller.address ?? '', postalCode: order.seller.postalCode ?? '', city: order.seller.city ?? '', phone: order.seller.phone ?? undefined, email: order.seller.email },
+    receiver: { name: order.buyer.name, streetAddress: order.buyer.address ?? '', postalCode: order.buyer.postalCode ?? '', city: order.buyer.city ?? '', phone: order.buyer.phone ?? undefined, email: order.buyer.email },
+    pakettikoko,
+    pickupPointQuickId: order.pickupPointId,
+  })
+  const output = postiService.getShipmentOutput(shipmentId, trackingNumber)
 
   const updated = await prisma.order.update({
     where: { id: order.id },
-    data: { trackingNumber, sendingCode, postiStatus: 'RECEIVED', status: 'SHIPPED', shippedAt: new Date() },
+    data: {
+      trackingNumber, postiShipmentId: shipmentId, pakettikoko,
+      sendingCode: output.type === 'code' ? output.value : null,
+      labelUrl: output.type === 'label_pdf' ? output.url : null,
+      postiStatus: 'RECEIVED', status: 'SHIPPED', shippedAt: new Date(),
+    },
   })
-  await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Lähetyskoodi: ${sendingCode}`, '/ostot')
+  const outputMessage = output.type === 'code' ? `Lähetyskoodi: ${output.value}` : 'Osoitetarra on valmis tulostettavaksi'
+  await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', outputMessage, '/ostot')
   res.json(updated)
 })
 

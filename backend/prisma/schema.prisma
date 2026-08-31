@@ -36,6 +36,15 @@ enum OrderStatus {
   CANCELLED
 }
 
+// Fyysinen pakettikoko Postin lähetystä varten - EI sama asia kuin Order.shippingSize
+// (toimitustapa postitus/nouto). Myyjä valitsee tämän vasta lähetysvaiheessa, ks. CLAUDE.md
+// "Postihinnat" (2026-08-26) - ei vaikuta ostajalta jo veloitettuun kiinteään 6,90€:oon,
+// puhtaasti tekninen tieto joka menee Postin API:n parcels[].packageCode-kenttään.
+enum Pakettikoko {
+  PIENI
+  ISO
+}
+
 enum NotificationType {
   ORDER_WON
   ORDER_PAID
@@ -262,8 +271,15 @@ model Order {
   trackingCode      String?
   pickupCode        String?     // nouto-toimitustavan vahvistuskoodi — ostaja näyttää/kertoo tämän myyjälle fyysisessä noudossa
   pickupPointId     String?     // ostajan valitsema Postin noutopiste postitus-toimitustavalle (MOCK, ks. lib/postiService.ts)
-  trackingNumber    String?     // Postin lähetyksen seurantanumero (MOCK, ks. lib/postiService.ts)
-  sendingCode       String?     // Postin "Sending Code" - kirjoitetaan pakettiin ilman tulostettavaa osoitekorttia (MOCK)
+  trackingNumber    String?     // Postin lähetyksen seurantanumero / parcelNo (MOCK, ks. lib/postiService.ts)
+  postiShipmentId   String?     // OmaPosti Pro API:n lähetystunniste (MOCK) - eri asia kuin trackingNumber,
+                                 // joka on yksittäisen paketin (parcels[]) oma numero
+  pakettikoko       Pakettikoko? // myyjän lähetysvaiheessa valitsema fyysinen koko (ks. yllä enum-kommentti)
+  sendingCode       String?     // ShipmentOutput{type:"code"} - kirjoitetaan pakettiin ilman tulostettavaa osoitekorttia (MOCK)
+  labelUrl          String?     // ShipmentOutput{type:"label_pdf"} - vaihtoehtoinen tulos jos Posti palauttaakin
+                                 // vain tulostettavan osoitetarran koodin sijaan (ks. CLAUDE.md "AVOIN KYSYMYS
+                                 // labelless/Sending Code -yhteensopivuus") - täsmälleen yksi näistä kahdesta on
+                                 // asetettu kerrallaan, ei koskaan molemmat
   postiStatus       String?     // Postin toimitusseurannan tila: RECEIVED/IN_TRANSIT/AT_PICKUP_POINT/PICKED_UP (MOCK)
   shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
   stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty

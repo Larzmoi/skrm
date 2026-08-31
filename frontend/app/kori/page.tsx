@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useCart } from '@/lib/cart-context'
 import { cartApi, orderApi } from '@/lib/api'
+import { POSTI_PICKUP_POINTS } from '@/lib/postiPickupPoints'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -26,6 +27,7 @@ export default function KoriPage() {
   const { groups, pakettikoot, loading, refresh } = useCart()
   const [now, setNow] = useState(Date.now())
   const [selectedSize, setSelectedSize] = useState<Record<string, string>>({})
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState<Record<string, string>>({})
   const [paying, setPaying] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
 
@@ -59,7 +61,7 @@ export default function KoriPage() {
       // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna - toimitustapa
       // pitää siis olla valittuna ENNEN maksun aloitusta (ks. CLAUDE.md "Paytrail").
       const { order } = await cartApi.checkout(sellerId)
-      await orderApi.selectShipping(order.id, pakettikokoId)
+      await orderApi.selectShipping(order.id, pakettikokoId, pakettikokoId === 'postitus' ? selectedPickupPoint[sellerId] : undefined)
       const { redirectUrl } = await orderApi.pay(order.id)
       if (redirectUrl) {
         // Ulkoinen Paytrail-osoite - koko sivun navigointi, ei Next.js-routeria
@@ -143,12 +145,24 @@ export default function KoriPage() {
                     })}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: size === 'postitus' ? 8 : 12 }}>
                     <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>{t.product.delivery}</label>
                     <select value={size} onChange={e => setSelectedSize(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
                       {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : t.kori.free}</option>)}
                     </select>
                   </div>
+
+                  {size === 'postitus' && (
+                    // Noutopiste (MOCK-esimerkkilista, ks. lib/postiPickupPoints.ts) - vastaa
+                    // OmaPosti Pro API:n shipment.agent.quickId-kenttää lähetystä luotaessa.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                      <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>Noutopiste</label>
+                      <select value={selectedPickupPoint[group.sellerId] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
+                        <option value="">Valitse noutopiste...</option>
+                        {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                      </select>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                     <div style={{ fontSize: 13, color: C.muted }}>

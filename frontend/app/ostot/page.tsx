@@ -15,7 +15,7 @@ interface OrderItem { id: string; productId: string; price: number; quantity: nu
 interface Order {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
   paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
-  pickupPointId: string | null; trackingNumber: string | null; sendingCode: string | null; postiStatus: PostiTrackingStep | null
+  pickupPointId: string | null; trackingNumber: string | null; sendingCode: string | null; labelUrl: string | null; postiStatus: PostiTrackingStep | null
   shippedAt: string | null; stalledNotifiedAt: string | null; reminderNotifiedAt: string | null; deliveryConfirmedAt: string | null; disputeReason: string | null
   items: OrderItem[]; seller: { name: string; username: string }; createdAt: string
   reviews: { reviewerId: string }[]
@@ -216,9 +216,13 @@ export default function OstotPage() {
                             </div>
                           )}
 
-                          {section.key === 'SHIPPED' && order.trackingCode && (
-                            <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.trackingCode}</span>
-                          )}
+                          {section.key === 'SHIPPED' && (order.labelUrl ? (
+                            <a href={order.labelUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+                              Osoitetarra (PDF) →
+                            </a>
+                          ) : (order.sendingCode || order.trackingCode) && (
+                            <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.sendingCode ?? order.trackingCode}</span>
+                          ))}
 
                           {section.key === 'PENDING_SHIPPING' && order.shippingSize === 'nouto' && order.pickupCode && (
                             <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.pickupCodeLabel}: {order.pickupCode}</span>
