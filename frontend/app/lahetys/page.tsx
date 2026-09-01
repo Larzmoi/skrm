@@ -1203,7 +1203,25 @@ export default function LahetysPage() {
     )
   }
 
-  if (!show || !currentProduct) return null
+  if (!show) return null
+
+  // Tuotejono tyhjeni (esim. viimeinen tuote myyty/poistettu kesken lähetyksen) - ilman tätä
+  // koko konsoli renderöi pelkän null:in eli tyhjän/mustan ruudun, joka näytti käyttäjän
+  // silmin siltä että sivu kaatui (ks. CLAUDE.md "Iso testauskierros" kohta 13). Selkeä viesti
+  // + tapa lisätä tuotteita tai lopettaa lähetys siististi sen sijaan.
+  if (!currentProduct) {
+    return (
+      <div style={{ height: '100dvh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: DARK_BG, color: DARK_TEXT, padding: 20, textAlign: 'center' }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Jono on tyhjä</div>
+        <div style={{ fontSize: 13, color: DARK_MUTED, maxWidth: 360 }}>Kaikki tuotteet on myyty tai poistettu jonosta. Lisää uusia tuotteita jatkaaksesi, tai lopeta lähetys.</div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>Lisää tuotteita</a>
+          <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta lähetys</button>
+        </div>
+        {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
+      </div>
+    )
+  }
 
   // ===== Live/esikatselukonsoli — TÄYSNÄKYMÄ, ei dashboard-kehystä, video hallitsee =====
   return (

@@ -124,6 +124,7 @@ const fi = {
     yourBid: 'Oma tarjouksesi (€)', placeBid: 'Jätä tarjous', placingBid: 'Lähetetään...',
     bidPlaced: 'Tarjous vastaanotettu!', youAreLeading: 'Olet tällä hetkellä korkein tarjoaja',
     minBid: 'Minimitarjous',
+    notFound: 'Tuotetta ei löydy', noImage: 'Ei kuvaa', pickupFromSeller: 'Nouto myyjältä',
   },
   profile: {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',

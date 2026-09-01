@@ -179,6 +179,11 @@ export default function OstotPage() {
             {sections.filter(s => s.orders.length > 0).map(section => (
               <div key={section.key}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>{section.title} <span style={{ color: C.muted, fontWeight: 400 }}>({section.orders.length})</span></h2>
+                {section.key === 'PENDING_PAYMENT' && (
+                  <div style={{ background: C.warnLight, border: `1px solid ${C.warn}55`, borderRadius: 8, padding: '9px 14px', marginBottom: 12, fontSize: 12, color: C.warn }}>
+                    Jos maksuaika ehtii loppua, tilisi estetään automaattisesti 30 päiväksi — myös ensimmäisellä kerralla.
+                  </div>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {section.orders.map(order => {
                     const paymentRemaining = order.paymentDeadline ? new Date(order.paymentDeadline).getTime() - now : null

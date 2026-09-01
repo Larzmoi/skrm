@@ -59,7 +59,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60 }}>
-        <div style={{ color: C.muted, marginBottom: 16 }}>Tuotetta ei löydy</div>
+        <div style={{ color: C.muted, marginBottom: 16 }}>{t.product.notFound}</div>
         <Link href="/selaa" style={{ color: C.accent }}>← Takaisin</Link>
       </div>
     </div>
@@ -151,7 +151,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               onClick={() => images.length > 0 && setZoomed(true)}>
               {images.length > 0
                 ? <img src={images[activeImg]} alt={product.name} style={{ width: '100%', maxHeight: 520, objectFit: 'contain', display: 'block' }} />
-                : <div style={{ color: C.muted, fontSize: 14, padding: 40 }}>Ei kuvaa</div>
+                : <div style={{ color: C.muted, fontSize: 14, padding: 40 }}>{t.product.noImage}</div>
               }
             </div>
             {images.length > 1 && (
@@ -183,7 +183,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <div style={{ fontSize: 13, color: C.muted }}>+ {t.product.delivery}</div>
               )}
               {product.pakettikoko === 'nouto' && (
-                <div style={{ fontSize: 13, color: C.muted }}>Nouto myyjältä</div>
+                <div style={{ fontSize: 13, color: C.muted }}>{t.product.pickupFromSeller}</div>
               )}
             </div>
 

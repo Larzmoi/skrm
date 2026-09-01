@@ -124,6 +124,7 @@ const en = {
     yourBid: 'Your bid (€)', placeBid: 'Place bid', placingBid: 'Sending...',
     bidPlaced: 'Bid received!', youAreLeading: 'You are currently the highest bidder',
     minBid: 'Minimum bid',
+    notFound: 'Product not found', noImage: 'No image', pickupFromSeller: 'Pickup from seller',
   },
   profile: {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',

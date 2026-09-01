@@ -292,14 +292,24 @@ function TuotteetContent() {
 
   return (
     <div style={{ color: C.text }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{tp.title}</h1>
           <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} {tp.activeSuffix}</p>
         </div>
-        <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          {tp.addProduct}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Monimuu-tuonti — tarkoituksella vähemmän hallitseva kuin päänappi (pelkkä
+              tekstilinkki, ei omaa taustaväriä). Aiemmin kolme yhtä painavaa nappia rinnakkain
+              (yksi niistä jopa täysin duplikaatti "Lisää tuote":n kanssa), sekoitti mikä on
+              ensisijainen tapa lisätä tuote — vahvistettu epäselväksi mobiilitestauksessa
+              2026-09-01 (kohta 12). */}
+          <button onClick={() => { reset(); setShowForm(true); setBulkTab('file') }} style={{ background: 'none', border: 'none', color: C.textSub, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Tuo CSV/TXT-tiedostosta
+          </button>
+          <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+            {tp.addProduct}
+          </button>
+        </div>
       </div>
 
       {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13 }}>{error}</div>}
@@ -307,22 +317,13 @@ function TuotteetContent() {
       {/* Bulk upload section */}
       {(showForm || bulkTab !== 'manual') && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-            <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual'); }} style={{ background: bulkTab === 'manual' ? C.accentSolid : C.surface2, color: bulkTab === 'manual' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              {tp.addProduct}
-            </button>
-            <button onClick={() => setBulkTab('file')} style={{ background: bulkTab === 'file' ? C.accentSolid : C.surface2, color: bulkTab === 'file' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'file' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              Tallenna monimuu (CSV/TXT)
-            </button>
-            <button onClick={() => setBulkTab('manual')} style={{ background: bulkTab === 'manual' ? C.accentSolid : C.surface2, color: bulkTab === 'manual' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              Tee manuaalisesti
-            </button>
-          </div>
-
           {/* File upload / paste area */}
-          {(bulkTab === 'file' || bulkTab === 'manual') && (
+          {bulkTab === 'file' && (
             <div style={{ background: C.surface, borderRadius: 9, border: `1px solid ${C.border}`, padding: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{bulkTab === 'file' ? 'Monimuu lisäys' : 'Manuaalinen lisäys'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>Monimuu lisäys</div>
+                <button onClick={() => { reset(); setShowForm(false) }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
 
               <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.5, marginBottom: 12 }}>
                 Liitä tai kirjoita neljä riviä per tuote: <strong>nimi</strong>, <strong>kunto</strong>, <strong>hinta</strong>, <strong>määrä</strong> — samassa järjestyksessä joka tuotteelle peräkkäin. Kaikki tuotteet luodaan suoramyyntiin samalla kategorialla/tyypillä alla.
@@ -376,29 +377,25 @@ function TuotteetContent() {
               )}
 
               <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                {bulkTab === 'file' && (
-                  <>
-                    <input
-                      ref={fileRef as React.RefObject<HTMLInputElement>}
-                      type="file"
-                      accept=".txt,.csv,.json"
-                      multiple
-                      onChange={e => {
-                        const files = Array.from(e.target.files || [])
-                        if (files.length === 0) return
-                        setBulkFile(files[0])
-                        const reader = new FileReader()
-                        reader.onload = () => setBulkText(String(reader.result || ''))
-                        reader.readAsText(files[0])
-                      }}
-                      style={{ display: 'none' }}
-                    />
-                    <button onClick={() => { (fileRef.current as HTMLInputElement).click() }} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
-                      Valitse tiedosto
-                    </button>
-                  </>
-                )}
-                {(bulkTab === 'file' || bulkTab === 'manual') && bulkText.trim().length > 0 && (
+                <input
+                  ref={fileRef as React.RefObject<HTMLInputElement>}
+                  type="file"
+                  accept=".txt,.csv,.json"
+                  multiple
+                  onChange={e => {
+                    const files = Array.from(e.target.files || [])
+                    if (files.length === 0) return
+                    setBulkFile(files[0])
+                    const reader = new FileReader()
+                    reader.onload = () => setBulkText(String(reader.result || ''))
+                    reader.readAsText(files[0])
+                  }}
+                  style={{ display: 'none' }}
+                />
+                <button onClick={() => { (fileRef.current as HTMLInputElement).click() }} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                  Valitse tiedosto
+                </button>
+                {bulkText.trim().length > 0 && (
                   <button onClick={parseBulkText} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                     Ennen tallennusta
                   </button>

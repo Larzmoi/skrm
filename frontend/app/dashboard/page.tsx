@@ -203,7 +203,11 @@ export default function DashboardPage() {
             ? <div style={{ textAlign: 'center', padding: '24px 0', color: C.muted, fontSize: 13 }}>{t.dashboard.noShows}</div>
             : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {futureShows.map(show => (
-                  <div key={show.id} style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${C.border}` }}>
+                  // Koko rivi vie suoraan /lahetys:aan (poimii itse uusimman SCHEDULED/LIVE-
+                  // lähetyksen, ks. lahetys/page.tsx) - aiemmin tämän käynnistämiseen piti
+                  // löytää erillinen "Aloita lähetys" -linkki ohjeista, vahvistettu sekavaksi
+                  // mobiilitestauksessa 2026-09-01 (kohta 11).
+                  <Link key={show.id} href="/lahetys" className="hb-btn" style={{ background: C.surface, borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${C.border}`, textDecoration: 'none', cursor: 'pointer' }}>
                     <div style={{ width: 44, height: 44, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {show.thumbnailUrl ? <img src={show.thumbnailUrl} alt={show.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 16, color: C.dim }}>+</span>}
                     </div>
@@ -211,8 +215,8 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{show.title}</div>
                       <div style={{ fontSize: 12, color: C.accent }}>{formatShowTime(show.scheduledAt, t, lang as 'fi' | 'en')}</div>
                     </div>
-                    <button onClick={() => removeShow(show.id)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16 }}>✕</button>
-                  </div>
+                    <button onClick={e => { e.preventDefault(); removeShow(show.id) }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16 }}>✕</button>
+                  </Link>
                 ))}
               </div>
           }

@@ -124,6 +124,7 @@ const sv = {
     yourBid: 'Ditt anbud (€)', placeBid: 'Lägg anbud', placingBid: 'Skickar...',
     bidPlaced: 'Anbuden mottaget!', youAreLeading: 'Du är för närvarande den högsta anbuds',
     minBid: 'Minsta anbud',
+    notFound: 'Produkten hittades inte', noImage: 'Ingen bild', pickupFromSeller: 'Hämtning hos säljare',
   },
   profile: {
     follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',
