@@ -188,13 +188,20 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // ("buy_now"), koska bulk-listaus (esim. Cardmarket-tyylinen erä) on tyypillisesti
 // kiinteähintaista tavaraa, ei huutokauppaa/live-lottia.
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { products } = req.body
+  const { products, category, alakategoria, tyyppi } = req.body
   if (!Array.isArray(products) || products.length === 0) {
     return res.status(400).json({ error: 'Tuotteita ei annettu' })
   }
   if (products.length > 500) {
     return res.status(400).json({ error: 'Kerralla voi tuoda enintään 500 tuotetta' })
   }
+
+  // Kategoria/peli/tyyppi koskee koko erää (esim. "Pokémon Irtokortit") - liitetty teksti on
+  // käytännössä aina yhtä settiä/tyyppiä, ei per-rivi valittavissa. tyyppi ratkaisee mm. mikä
+  // kuntoluokitusjärjestelmä pätee (ks. CLAUDE.md "Kuntoluokitus Cardmarket-muotoon irtokorteille").
+  const batchCategory = typeof category === 'string' && category ? category : null
+  const batchAlakategoria = typeof alakategoria === 'string' && alakategoria ? alakategoria : null
+  const batchTyyppi = typeof tyyppi === 'string' && tyyppi ? tyyppi : null
 
   let created = 0
   let skipped = 0
@@ -215,6 +222,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => 
         startPrice: roundCents(startPrice),
         quantity: isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1,
         condition: typeof p?.condition === 'string' && p.condition ? p.condition : null,
+        category: batchCategory, alakategoria: batchAlakategoria, tyyppi: batchTyyppi,
         sellerId: req.userId!,
       },
     })

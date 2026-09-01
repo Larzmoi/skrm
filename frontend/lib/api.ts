@@ -31,8 +31,11 @@ export const api = {
   updateProduct: (id: string, data: any) => request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
   prebid: (id: string, amount: number) => request(`/products/${id}/prebid`, { method: 'POST', body: JSON.stringify({ amount }) }),
-  bulkCreateProducts: (products: { name: string; startPrice: number; quantity?: number; condition?: string }[]) =>
-    request('/products/bulk', { method: 'POST', body: JSON.stringify({ products }) }),
+  bulkCreateProducts: (
+    products: { name: string; startPrice: number; quantity?: number; condition?: string }[],
+    batch?: { category?: string; alakategoria?: string; tyyppi?: string },
+  ) =>
+    request('/products/bulk', { method: 'POST', body: JSON.stringify({ products, ...batch }) }),
 }
 
 export const userApi = {

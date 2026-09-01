@@ -21,6 +21,21 @@ interface Product {
   currentBid?: number
 }
 
+// Kuntoluokitus irtokorteille Cardmarket-asteikolla (ks. CLAUDE.md "Kuntoluokitus Cardmarket-
+// muotoon irtokorteille 2026-09-01") — tallennettava arvo on lyhenne, sama koodaus jota
+// bulkkituonnin Cardmarket-liimaus jo käyttää sellaisenaan (parseBulkText normalisoi/validoi
+// liitetyn tekstin tätä samaa listaa vasten kun tyyppi on 'irtokortit'), joten manuaalinen
+// lomake ja bulkkituonti eivät koskaan voi tallentaa kahta eri koodausta samalle asialle.
+const CARDMARKET_KUNTOLUOKAT = [
+  { id: 'M', nimi: 'Mint (M)' },
+  { id: 'NM', nimi: 'Near Mint (NM)' },
+  { id: 'EX', nimi: 'Excellent (EX)' },
+  { id: 'GD', nimi: 'Good (GD)' },
+  { id: 'LP', nimi: 'Light Played (LP)' },
+  { id: 'PL', nimi: 'Played (PL)' },
+  { id: 'PO', nimi: 'Poor (PO)' },
+]
+
 // Perinteinen huutokauppa jolla on jo huutoja — kategoriaa ei saa enää vaihtaa (bidaajat löysivät/huusivat sen kategorian perusteella)
 function isCategoryLocked(p: Pick<Product, 'saleType' | 'currentBid'>) {
   return p.saleType === 'auction' && p.currentBid != null
@@ -81,6 +96,13 @@ function TuotteetContent() {
   const [bulkFile, setBulkFile] = useState<File | null>(null)
   const [parsedPreview, setParsedPreview] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
+  // Koko erälle yhteinen kategoria/peli/tyyppi (esim. "Pokémon Irtokortit") — sovelletaan kaikkiin
+  // liitetyn tekstin riveihin. Pakollinen jotta Cardmarket-kuntoasteikko (ks. CLAUDE.md
+  // "Kuntoluokitus Cardmarket-muotoon irtokorteille") ylipäätään aktivoituu bulkkituonnille -
+  // ilman tätä bulkkituodut tuotteet eivät koskaan saisi tyyppi-kenttää asetetuksi.
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkAlakategoria, setBulkAlakategoria] = useState('')
+  const [bulkTyyppi, setBulkTyyppi] = useState('')
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -103,6 +125,7 @@ function TuotteetContent() {
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
     // Clear bulk state
     setBulkTab('manual'); setBulkText(''); setBulkFile(null); setParsedPreview([]); setUploading(false)
+    setBulkCategory(''); setBulkAlakategoria(''); setBulkTyyppi('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -156,9 +179,15 @@ function TuotteetContent() {
 
   // Jäsentää liitetyn/kirjoitetun tekstin tuotteiksi paikallisesti (ei tarvitse backendiä
   // esikatseluun) — Cardmarket-tyylinen 4-rivin lohko per tuote: nimi / kunto / hinta / määrä.
+  // Kun erän tyyppi on 'irtokortit', kunto normalisoidaan (trim+isot kirjaimet) ja validoidaan
+  // Cardmarket-lyhenteitä (CARDMARKET_KUNTOLUOKAT) vasten — sama koodaus kuin manuaalisen
+  // lomakkeen pudotusvalikko tallentaa, jotta kahta eri koodausta samalle asialle ei pääse
+  // syntymään (ks. CLAUDE.md "Kuntoluokitus Cardmarket-muotoon irtokorteille"). Tuntematon
+  // lyhenne merkitään virheeksi esikatselussa sen sijaan että tallennettaisiin hiljaa väärin.
   function parseBulkText() {
     if (!bulkText.trim()) { setError('Syötä teksti'); return }
     const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    const validConditions = new Set(CARDMARKET_KUNTOLUOKAT.map(k => k.id))
     const items: any[] = []
     for (let i = 0; i < lines.length; i += 4) {
       const chunk = lines.slice(i, i + 4)
@@ -169,11 +198,16 @@ function TuotteetContent() {
       const [rawName, rawCondition, rawPrice, rawQty] = chunk
       const price = parseFloat(rawPrice.replace(/[^\d,.-]/g, '').replace(',', '.'))
       const quantity = parseInt(rawQty.replace(/[^\d]/g, ''), 10)
+      const condition = bulkTyyppi === 'irtokortit' ? rawCondition.trim().toUpperCase() : rawCondition
       if (!rawName || isNaN(price) || price <= 0) {
-        items.push({ name: rawName || '(tuntematon)', condition: rawCondition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, errors: 'Virheellinen hinta' })
+        items.push({ name: rawName || '(tuntematon)', condition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, errors: 'Virheellinen hinta' })
         continue
       }
-      items.push({ name: rawName, condition: rawCondition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity })
+      if (bulkTyyppi === 'irtokortit' && !validConditions.has(condition)) {
+        items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity, errors: `Tuntematon kunto "${rawCondition}" — odotettiin yksi: M/NM/EX/GD/LP/PL/PO` })
+        continue
+      }
+      items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity })
     }
     if (items.length === 0) { setError('Ei tunnistettuja tuotteita'); return }
     setError('')
@@ -223,9 +257,10 @@ function TuotteetContent() {
 
     try {
       setUploading(true)
-      const response = await api.bulkCreateProducts(validItems.map(p => ({
-        name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined,
-      })))
+      const response = await api.bulkCreateProducts(
+        validItems.map(p => ({ name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined })),
+        { category: bulkCategory || undefined, alakategoria: bulkAlakategoria || undefined, tyyppi: bulkTyyppi || undefined },
+      )
       setParsedPreview(response.results || [])
       setBulkTab('success')
       await loadProducts()
@@ -245,6 +280,8 @@ function TuotteetContent() {
 
   const currentKat = KATEGORIAT.find(k => k.id === category)
   const currentAla: any = currentKat?.alakategoriat.find((a: any) => a.id === alakategoria)
+  const bulkCurrentKat = KATEGORIAT.find(k => k.id === bulkCategory)
+  const bulkCurrentAla: any = bulkCurrentKat?.alakategoriat.find((a: any) => a.id === bulkAlakategoria)
   const paketti = PAKETTIKOOT.find(p => p.id === pakettikoko)
   const pending = products.filter(p => p.status === 'PENDING')
   const editingProduct = editId ? products.find(p => p.id === editId) : null
@@ -300,11 +337,47 @@ function TuotteetContent() {
           {(bulkTab === 'file' || bulkTab === 'manual') && (
             <div style={{ background: C.surface, borderRadius: 9, border: `1px solid ${C.border}`, padding: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{bulkTab === 'file' ? 'Monimuu lisäys' : 'Manuaalinen lisäys'}</div>
-              
+
+              <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.5, marginBottom: 12 }}>
+                Liitä tai kirjoita neljä riviä per tuote: <strong>nimi</strong>, <strong>kunto</strong>, <strong>hinta</strong>, <strong>määrä</strong> — samassa järjestyksessä joka tuotteelle peräkkäin. Kaikki tuotteet luodaan suoramyyntiin samalla kategorialla/tyypillä alla.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
+                <div>
+                  <label style={lbl}>{tp.categoryLabel}</label>
+                  <select value={bulkCategory} onChange={e => { setBulkCategory(e.target.value); setBulkAlakategoria(''); setBulkTyyppi('') }} style={inp}>
+                    <option value="">{tp.selectPlaceholder}</option>
+                    {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi[lang as 'fi' | 'en'] ?? k.nimi.fi}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>{tp.subcategoryLabel}</label>
+                  <select value={bulkAlakategoria} onChange={e => { setBulkAlakategoria(e.target.value); setBulkTyyppi('') }} style={inp} disabled={!bulkCurrentKat || bulkCurrentKat.alakategoriat.length === 0}>
+                    <option value="">{tp.selectPlaceholder}</option>
+                    {bulkCurrentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
+                  </select>
+                </div>
+                {bulkCurrentAla?.tyypit?.length > 0 && (
+                  <div>
+                    <label style={lbl}>{tp.typeLabel}</label>
+                    <select value={bulkTyyppi} onChange={e => setBulkTyyppi(e.target.value)} style={inp}>
+                      <option value="">{tp.selectPlaceholder}</option>
+                      {bulkCurrentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {bulkTyyppi === 'irtokortit' && (
+                <div style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 7, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: C.accent }}>
+                  Kunto-rivi tulkitaan Cardmarket-lyhenteenä: M / NM / EX / GD / LP / PL / PO
+                </div>
+              )}
+
               <textarea
                 value={bulkText}
                 onChange={e => setBulkText(e.target.value)}
-                placeholder={bulkTab === 'file' ? "Silcoon (ASC 012)\nNM\n0,02 €\n1" : "Kirjoita tuotetiedot tähän..."}
+                placeholder={"Silcoon (ASC 012)\nNM\n0,02 €\n1\n\nPikachu ex\nNM\n1,50 €\n2"}
                 rows={8}
                 style={{ ...inp, resize: 'vertical' as const }}
               />
@@ -461,20 +534,22 @@ function TuotteetContent() {
                   {currentAla?.tyypit?.length > 0 && (
                     <div>
                       <label style={lbl}>{tp.typeLabel}</label>
-                      <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp} disabled={editCategoryLocked}>
+                      <select value={tyyppi} onChange={e => { setTyyppi(e.target.value); setCondition('') }} style={inp} disabled={editCategoryLocked}>
                         <option value="">{tp.selectPlaceholder}</option>
                         {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
                       </select>
                     </div>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div>
-                      <label style={lbl}>{tp.conditionLabel}</label>
-                      <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
-                        <option value="">{tp.selectPlaceholder}</option>
-                        {KUNTOLUOKAT.map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
-                      </select>
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: tyyppi === 'sealed' ? '1fr' : '1fr 1fr', gap: 8 }}>
+                    {tyyppi !== 'sealed' && (
+                      <div>
+                        <label style={lbl}>{tp.conditionLabel}</label>
+                        <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
+                          <option value="">{tp.selectPlaceholder}</option>
+                          {(tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
                   </div>
                   <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
@@ -611,7 +686,7 @@ function TuotteetContent() {
                   const priceLine = (
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <span>{p.startPrice}€</span>
-                      {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
+                      {p.condition && <span>· {(p.tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).find(k => k.id === p.condition)?.nimi ?? p.condition}</span>}
                       {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
                     </div>
                   )
