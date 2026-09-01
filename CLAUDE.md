@@ -420,6 +420,17 @@ selaus, LiveKit-video/chat, Paytrail-testimaksu, Console-välilehti auki virheid
 rajoitus kuin Paytrailin hostatun maksusivun läpivienti-testaus (ks. "Paytrail-maksuintegraatio"
 -osio "Ei vielä testattu"), ei automatisoitavissa turvallisesti tästä ympäristöstä.
 
+**⚠️ TOTEUTUNUT RISKI 2026-09-01, KORJATTU:** juuri tämä yllä mainittu testaamattomuus osui
+todellisuuteen — omistaja raportoi "Aloita lähetys" ei enää käynnistänyt striimiä. Syy:
+`connect-src` salli vain `wss:` + nimetyt `https:`-hostit, ei koskaan `stun:`/`turn:`/`turns:`-
+skeemoja. LiveKit-palvelin (`/opt/livekit/livekit.yaml`) ajaa oman TURN-relaynsa TLS:n yli
+(`turns:`, portti 5349, `stream.skrm.fi`) — Chrome/Firefox soveltavat `connect-src`:ää myös
+`RTCPeerConnection`:in ICE-palvelin-URLeihin, ei vain fetch/WebSocketiin, joten ICE-neuvottelu
+epäonnistui hiljaa ilman mitään näkyvää virhettä sivulla. **Korjattu:** `stun:`/`turn:`/`turns:`
+lisätty `connect-src`:ään. Deployattu ja vahvistettu tuotannossa (curl, `Content-Security-Policy`-
+header sisältää nyt nämä). **Silti vaatii omistajan oman selaintestin** yllä mainitulla tavalla —
+tämä yksi puuttuva skeema on korjattu, mutta se ei yksin todista ettei muuta vastaavaa jäänyt.
+
 **Sivutuote-löydös (ei korjattu, vain kirjattu, koska ei ollut osa pyydettyä 4 kohdan listaa):**
 `LIVEKIT_WS_URL` tuotannon backend `.env`:ssä on yhä `wss://stream.skrm.fi` — **vanha domain**,
 vaikka CLAUDE.md:n "Hosting"-osio sanoo `skrm.fi`/`app.skrm.fi` olevan "POISTETTU KOKONAAN
