@@ -17,7 +17,7 @@ export default function ValityspalkkiotPage() {
   const t = tRaw ?? {}
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <h1 style={{ fontSize: 28, fontWeight: 900, color: C.text, marginBottom: 8 }}>{t.fees.title}</h1>

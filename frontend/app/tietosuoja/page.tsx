@@ -13,7 +13,7 @@ export default function TietosuojaPage() {
   const sections = content.trim().split('\n\n').filter(Boolean)
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>

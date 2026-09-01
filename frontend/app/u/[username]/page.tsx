@@ -65,7 +65,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60, color: C.muted }}>Ladataan...</div>
     </div>
@@ -75,7 +75,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const initial = displayName?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
 

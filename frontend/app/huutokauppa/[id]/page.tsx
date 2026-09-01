@@ -99,14 +99,14 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60, color: C.muted }}>Ladataan...</div>
     </div>
   )
 
   if (!product) return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60 }}>
         <div style={{ color: C.muted, marginBottom: 16 }}>Huutokauppaa ei löydy</div>
@@ -121,7 +121,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   const images: string[] = product.imageUrl ? product.imageUrl.split('|||').filter(Boolean) : []
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px' }}>
 

@@ -80,7 +80,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   const { C } = useTheme()
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <Link href="/" style={{ fontWeight: 900, fontSize: 28, color: C.text, letterSpacing: '-1px', marginBottom: 36 }}>Habahub</Link>
       <Suspense>
         <ResetPasswordForm />

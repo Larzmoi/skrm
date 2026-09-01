@@ -49,14 +49,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }, [id])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60, color: C.muted }}>Ladataan...</div>
     </div>
   )
 
   if (!product) return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ textAlign: 'center', padding: 60 }}>
         <div style={{ color: C.muted, marginBottom: 16 }}>Tuotetta ei löydy</div>
@@ -129,7 +129,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '16px' : '24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
 

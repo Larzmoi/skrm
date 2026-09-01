@@ -40,7 +40,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   }, [])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: C.muted, fontSize: 14 }}>Ladataan...</div>
     </div>
   )
@@ -48,7 +48,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   if (!user) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
 
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row' }}>
@@ -74,10 +74,10 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
             {/* User */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 16, background: C.surface, borderRadius: 10, border: `1px solid ${C.border}` }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {avatar
                   ? <img src={avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{user.name?.[0]?.toUpperCase()}</span>
+                  : <span style={{ fontSize: 16, fontWeight: 700, color: C.accentText }}>{user.name?.[0]?.toUpperCase()}</span>
                 }
               </div>
               <div style={{ minWidth: 0 }}>

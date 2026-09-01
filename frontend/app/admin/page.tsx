@@ -188,7 +188,7 @@ export default function AdminPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px' }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 20 }}>{t.admin.title}</h1>

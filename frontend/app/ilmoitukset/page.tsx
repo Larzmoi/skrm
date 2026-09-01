@@ -47,7 +47,7 @@ export default function IlmoituksetPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
       <Navbar />
       <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 24 }}>
