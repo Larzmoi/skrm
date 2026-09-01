@@ -140,7 +140,7 @@ export default function MessagesLayout({ activeUsername }: { activeUsername?: st
                   return (
                     <div key={m.id} style={{ alignSelf: own ? 'flex-end' : 'flex-start', maxWidth: '75%' }}>
                       <div style={{
-                        background: own ? C.accent : C.surface, color: own ? '#fff' : C.text,
+                        background: own ? C.accentSolid : C.surface, color: own ? C.accentText : C.text,
                         padding: '9px 13px', borderRadius: 12, fontSize: 13, wordBreak: 'break-word',
                       }}>
                         {m.body}

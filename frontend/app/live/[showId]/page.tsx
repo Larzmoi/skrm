@@ -193,7 +193,7 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
 
       {auction.leaderName && (
         <div style={{ marginBottom: 8 }}>
-          <span style={{ background: isLeading ? C.accent : '#222', borderRadius: 10, padding: '3px 10px', fontSize: 12, fontWeight: 600, color: isLeading ? '#fff' : '#888' }}>
+          <span style={{ background: isLeading ? C.accentSolid : '#222', borderRadius: 10, padding: '3px 10px', fontSize: 12, fontWeight: 600, color: isLeading ? C.accentText : '#888' }}>
             {ended
               ? (isLeading ? t.live.youWon : `${auction.leaderName} voitti`)
               : (isLeading ? t.live.leading : `${auction.leaderName} johtaa`)}
@@ -217,7 +217,7 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
       {isMobile ? (
         <div
           ref={slideTrackRef}
-          style={{ position: 'relative', height: 52, background: bidSuccess ? C.accent : '#0D2818', borderRadius: 26, overflow: 'hidden', userSelect: 'none', border: `1px solid ${auction.active ? C.accent + '55' : '#333'}`, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.5 }}
+          style={{ position: 'relative', height: 52, background: bidSuccess ? C.accentSolid : '#0D2818', borderRadius: 26, overflow: 'hidden', userSelect: 'none', border: `1px solid ${auction.active ? C.accent + '55' : '#333'}`, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.5 }}
           onMouseDown={e => auction.active && onSlideStart(e.clientX)}
           onMouseMove={e => auction.active && sliding && onSlideMove(e.clientX)}
           onMouseUp={onSlideEnd}
@@ -228,15 +228,15 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
         >
           <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${C.accent}44 0%, ${C.accent}22 100%)`, width: `${maxSlideX > 0 ? (slideX / maxSlideX) * 100 : 0}%`, transition: sliding ? 'none' : 'width 0.3s', borderRadius: 26 }} />
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: bidSuccess ? '#fff' : C.accentBright }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: bidSuccess ? C.accentText : C.accentBright }}>
               {bidSuccess ? t.live.bidPlaced
                 : auction.active ? `${t.live.bid} ${bidAmount}€`
                 : ended ? (auction.leaderName ? t.live.sold : t.live.auctionEndedNoWinner)
                 : t.live.waitAuction}
             </span>
           </div>
-          <div style={{ position: 'absolute', top: 3, left: 4 + slideX, width: 46, height: 46, borderRadius: 23, background: auction.active ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: sliding ? 'none' : 'left 0.3s', boxShadow: `0 2px 12px ${C.accent}88` }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
+          <div style={{ position: 'absolute', top: 3, left: 4 + slideX, width: 46, height: 46, borderRadius: 23, background: auction.active ? C.accentSolid : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: sliding ? 'none' : 'left 0.3s', boxShadow: `0 2px 12px ${C.accent}88` }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={auction.active ? C.accentText : 'white'} strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
           </div>
         </div>
       ) : (
@@ -330,8 +330,8 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
           disabled={!user}
           style={{ flex: 1, background: dark ? '#1A1A1A' : C.surface2, border: `1px solid ${dark ? '#2A2A2A' : C.border}`, borderRadius: 18, padding: '7px 12px', color: dark ? '#fff' : C.text, fontSize: 13, outline: 'none' }}
         />
-        <button onClick={sendChat} disabled={!user} style={{ background: user ? C.accent : '#333', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: user ? 'pointer' : 'not-allowed', flexShrink: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <button onClick={sendChat} disabled={!user} style={{ background: user ? C.accentSolid : '#333', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: user ? 'pointer' : 'not-allowed', flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={user ? C.accentText : 'white'} strokeWidth="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
     </div>
@@ -362,7 +362,7 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Hae tuotteita..." style={{ width: '100%', background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 7, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
         <div style={{ display: 'flex', gap: 6 }}>
           {([['all', 'Kaikki'], ['buynow', 'Osta heti']] as const).map(([id, label]) => (
-            <button key={id} onClick={() => setFilter(id)} style={{ flex: 1, background: filter === id ? C.accent : '#1A1A1A', border: 'none', color: filter === id ? '#fff' : '#888', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+            <button key={id} onClick={() => setFilter(id)} style={{ flex: 1, background: filter === id ? C.accentSolid : '#1A1A1A', border: 'none', color: filter === id ? C.accentText : '#888', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
           ))}
           <select value={sort} onChange={e => setSort(e.target.value as any)} style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 6, color: '#ccc', fontSize: 11, padding: '0 6px' }}>
             <option value="default">Järjestys</option>

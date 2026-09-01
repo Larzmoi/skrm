@@ -228,7 +228,7 @@ export default function DashboardPage() {
               { step: '3', title: t.dashboard.goLive, desc: t.dashboard.startLiveDesc, href: '/lahetys', done: false },
             ].map(item => (
               <Link key={item.step} href={item.href} style={{ display: 'flex', gap: 12, alignItems: 'center', textDecoration: 'none', padding: '12px', borderRadius: 8, background: C.surface, border: `1px solid ${item.done ? C.accent + '44' : C.border}` }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: item.done ? C.accent : C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: item.done ? '#fff' : C.muted, flexShrink: 0 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: item.done ? C.accentSolid : C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: item.done ? C.accentText : C.muted, flexShrink: 0 }}>
                   {item.done ? '✓' : item.step}
                 </div>
                 <div>

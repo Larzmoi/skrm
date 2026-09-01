@@ -80,7 +80,7 @@ export default function LiveKaikki() {
             </button>
             <span style={{ fontSize: 15, color: C.muted, flex: 1 }}>{filteredShows.length} {t.live.showsCount}</span>
             {isMobile && (
-              <button onClick={() => setShowFilters(s => !s)} style={{ background: showFilters ? C.accent : C.surface, border: `1px solid ${showFilters ? C.accent : C.border}`, color: showFilters ? '#fff' : C.textSub, padding: '9px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <button onClick={() => setShowFilters(s => !s)} style={{ background: showFilters ? C.accentSolid : C.surface, border: `1px solid ${showFilters ? C.accentSolid : C.border}`, color: showFilters ? C.accentText : C.textSub, padding: '9px 14px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 {t.selaa.filter}
               </button>
             )}

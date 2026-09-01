@@ -285,13 +285,13 @@ function TuotteetContent() {
       {(showForm || bulkTab !== 'manual') && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-            <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual'); }} style={{ background: bulkTab === 'manual' ? C.accent : C.surface2, color: bulkTab === 'manual' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual'); }} style={{ background: bulkTab === 'manual' ? C.accentSolid : C.surface2, color: bulkTab === 'manual' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               {tp.addProduct}
             </button>
-            <button onClick={() => setBulkTab('file')} style={{ background: bulkTab === 'file' ? C.accent : C.surface2, color: bulkTab === 'file' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'file' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => setBulkTab('file')} style={{ background: bulkTab === 'file' ? C.accentSolid : C.surface2, color: bulkTab === 'file' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'file' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               Tallenna monimuu (CSV/TXT)
             </button>
-            <button onClick={() => setBulkTab('manual')} style={{ background: bulkTab === 'manual' ? C.accent : C.surface2, color: bulkTab === 'manual' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => setBulkTab('manual')} style={{ background: bulkTab === 'manual' ? C.accentSolid : C.surface2, color: bulkTab === 'manual' ? C.accentText : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accentSolid : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
               Tee manuaalisesti
             </button>
           </div>
@@ -515,7 +515,7 @@ function TuotteetContent() {
                       <label style={lbl}>{tp.liveDurationLabel}</label>
                       <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
                         {[60, 120, 300].map(s => (
-                          <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
+                          <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accentSolid : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accentSolid : C.border}`, color: auctionDuration === String(s) ? C.accentText : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
                             {s / 60}min
                           </button>
                         ))}
@@ -547,7 +547,7 @@ function TuotteetContent() {
                     // p.nimi sisältää jo hinnan (esim. "Postitus 6,9€", ks. lib/pakettikoot.ts —
                     // kiinteä postihinta) - erillinen p.hinta-rivi tässä näytti saman hinnan
                     // kahteen kertaan peräkkäin samassa napissa.
-                    <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
+                    <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accentSolid : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accentSolid : C.border}`, color: pakettikoko === p.id ? C.accentText : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
                       <div style={{ fontWeight: 600 }}>{p.nimi}</div>
                     </button>
                   ))}
