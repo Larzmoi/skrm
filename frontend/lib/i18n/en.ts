@@ -232,9 +232,9 @@ const en = {
     deliveryMethod: 'Delivery method', price: 'Price for buyer',
     shippingPostal: 'Shipping', shippingPickup: 'Pickup from seller', shippingFree: 'Free',
     protection: 'Payment protection',
-    protectionDesc: "The buyer's payment is held by Habahub until the seller has shipped the item and provided a tracking code.",
+    protectionDesc: "The buyer's payment is held by Habahub until delivery is confirmed and the buyer accepts the item — or 24 hours pass without a dispute.",
     protectionPoints: [
-      'Payment released to seller when tracking code is provided',
+      'Payment released to seller when the buyer accepts the item, or 24h after delivery is confirmed without a dispute',
       'Buyer has 3 days to file a complaint after receiving',
       'Disputes are handled by Habahub customer support',
     ],

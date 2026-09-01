@@ -232,9 +232,9 @@ const sv = {
     deliveryMethod: 'Leveransmetod', price: 'Pris för köparen',
     shippingPostal: 'Frakt', shippingPickup: 'Hämtning hos säljare', shippingFree: 'Gratis',
     protection: 'Betalningsskydd',
-    protectionDesc: 'Köparens betalning hålls på Habahubs konto tills säljaren har skickat produkten och tillhandahållit en spårningskod.',
+    protectionDesc: 'Köparens betalning hålls på Habahubs konto tills leveransen är bekräftad och köparen har godkänt produkten — eller 24 timmar har gått utan reklamation.',
     protectionPoints: [
-      'Betalningen frigörs till säljaren när spåringskoden är tillhandahållen',
+      'Betalningen frigörs till säljaren när köparen godkänner produkten, eller 24h efter att leveransen bekräftats utan reklamation',
       'Köparen har 3 dagar att vändas efter mottagning',
       'tvist hanteras av Habahub kundservice',
     ],

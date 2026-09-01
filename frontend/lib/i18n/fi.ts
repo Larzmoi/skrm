@@ -232,9 +232,9 @@ const fi = {
     deliveryMethod: 'Toimitustapa', price: 'Hinta ostajalle',
     shippingPostal: 'Postitus', shippingPickup: 'Nouto myyjältä', shippingFree: 'Maksuton',
     protection: 'Maksuturva',
-    protectionDesc: 'Ostajan maksu pidätetään Habahubin tilillä kunnes myyjä on lähettänyt tuotteen ja toimittanut seurantakoodin.',
+    protectionDesc: 'Ostajan maksu pidätetään Habahubin tilillä kunnes toimitus on vahvistettu ja ostaja on hyväksynyt tuotteen — tai 24 tuntia on kulunut ilman reklamaatiota.',
     protectionPoints: [
-      'Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu',
+      'Maksu vapautetaan myyjälle kun ostaja hyväksyy tuotteen, tai 24h kuluttua toimituksen vahvistumisesta ilman reklamaatiota',
       'Ostajalla 3 päivää reklamoida vastaanoton jälkeen',
       'Riitatilanteet selvitetään Habahubin asiakastuessa',
     ],

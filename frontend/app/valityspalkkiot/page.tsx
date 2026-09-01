@@ -6,8 +6,10 @@ import { useLang } from '@/lib/lang-context'
 
 const ROWS = [
   { price: '10€', skrm: '0,35€' },
+  { price: '50€', skrm: '1,75€' },
   { price: '100€', skrm: '3,50€' },
-  { price: '333€', skrm: '11,66€' },
+  { price: '250€', skrm: '8,75€' },
+  { price: '500€', skrm: '17,50€' },
   { price: '1000€+', skrm: '35,00€ (max)' },
 ]
 

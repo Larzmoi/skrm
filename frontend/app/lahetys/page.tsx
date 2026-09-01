@@ -1252,9 +1252,18 @@ export default function LahetysPage() {
         </div>
 
         {(showObsInfo || showModTools) && (
-          <div style={{ position: 'absolute', top: isMobile ? 56 : 60, right: 12, zIndex: 20, width: isMobile ? 'calc(100% - 24px)' : 320, background: 'rgba(15,15,15,0.92)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 16px', color: '#fff' }}>
-            {showObsInfo ? obsCardContent : modToolsContent}
-          </div>
+          <>
+            {/* Näkymätön koko ruudun tausta suljettavaksi klikkaamalla ulkopuolelle — ilman tätä
+                ainoa tapa sulkea paneeli oli klikata samaa avaus-pilinappia uudelleen, joka voi
+                jäädä paneelin ALLE peittoon jos yläpalkin napit kääriytyvät toiselle riville
+                kapealla näytöllä (paneelin kiinteä top-arvo ei tiedä palkin todellista
+                korkeutta). Vahvistettu bugiksi mobiilitestauksessa 2026-09-01. */}
+            <div onClick={() => { setShowObsInfo(false); setShowModTools(false) }} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
+            <div style={{ position: 'absolute', top: isMobile ? 56 : 60, right: 12, zIndex: 20, width: isMobile ? 'calc(100% - 24px)' : 320, background: 'rgba(15,15,15,0.92)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 16px', color: '#fff' }}>
+              <button onClick={() => { setShowObsInfo(false); setShowModTools(false) }} aria-label="Sulje" style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: 700, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+              {showObsInfo ? obsCardContent : modToolsContent}
+            </div>
+          </>
         )}
 
         {auction.active && (

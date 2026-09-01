@@ -50,8 +50,6 @@ export default function MeistaPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
                 { label: t.about.email, value: 'support@habahub.fi' },
-                { label: t.about.support, value: 'support@habahub.fi' },
-                { label: t.about.sellerSupport, value: 'support@habahub.fi' },
               ].map(c => (
                 <div key={c.label} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, width: 130, flexShrink: 0 }}>{c.label}</span>

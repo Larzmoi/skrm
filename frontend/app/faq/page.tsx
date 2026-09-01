@@ -32,7 +32,7 @@ const FAQ_DATA = {
       items: [
         { q: 'Miten aloitan myymisen?', a: 'Luo tili ja lisää tuotteet dashboardiin. Voit myydä kolmella tavalla: aloita live-lähetys ja huuda tuotteita suorana, aseta tuote ajastettuun perinteiseen huutokauppaan, tai listaa se suoramyyntiin kiinteällä hinnalla — valinta tehdään tuotteen lisäyksen yhteydessä.' },
         { q: 'Mitä voin myydä?', a: 'Voit myydä lähes mitä tahansa laillista käytettyä tai uutta tavaraa. Kiellettyjä ovat mm. aseet ja ampumatarvikkeet, alkoholi, tupakka ja nikotiinituotteet, lääkkeet, huumausaineet ja muut psykoaktiiviset aineet, elävät eläimet, väärennetyt tai tekijänoikeuksia loukkaavat tuotteet, varastettu omaisuus sekä muu lainvastainen tavara. Katso koko lista käyttöehdoista.' },
-        { q: 'Milloin saan rahani?', a: 'Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu Habahubille.' },
+        { q: 'Milloin saan rahani?', a: 'Kun ostaja vastaanottaa ja hyväksyy tuotteen, tai kun 24 tuntia on kulunut toimituksen vahvistumisesta ilman reklamaatiota — kumpi tahansa tapahtuu ensin. Jos toimitus ei koskaan vahvistu (esim. paketti katoaa), maksu vapautuu viimeistään 14 päivän kuluttua.' },
         { q: 'Mikä on välityspalkkio?', a: 'Habahub perii 3,5% välityspalkkion myyntihinnasta, enintään 35€ per kauppa. Lisäksi peritään maksunkäsittelykulut (n. 1,5% + 0,25€).' },
         { q: 'Miten striimaan lähetyksen OBS:lla?', a: 'Voit striimata OBS Studiolla (ilmainen ohjelma): 1) Lataa ja asenna OBS Studio. 2) Avaa Asetukset → Stream. 3) Valitse Service: Custom. 4) Kopioi Server ja Stream Key dashboardin "Aloita lähetys" -näkymästä OBS:n vastaaviin kenttiin. 5) Paina "Start Streaming" OBS:ssa. Lähetys näkyy katsojille muutaman sekunnin viiveellä.' },
       ],
@@ -72,7 +72,7 @@ const FAQ_DATA = {
       items: [
         { q: 'How do I start selling?', a: 'Create an account and add products to your dashboard. You can sell in three ways: start a live show and auction items in real time, list a product as a scheduled timed auction, or list it for direct sale at a fixed price — you choose when adding the product.' },
         { q: 'What can I sell?', a: 'You can sell almost any legal used or new items. Prohibited items include weapons and ammunition, alcohol, tobacco and nicotine products, medication, narcotics and other psychoactive substances, live animals, counterfeit or copyright-infringing goods, stolen property, and other unlawful items. See the full list in our Terms of Service.' },
-        { q: 'When do I get my money?', a: 'Payment is released to the seller when the tracking code has been provided to Habahub.' },
+        { q: 'When do I get my money?', a: 'When the buyer receives and accepts the item, or when 24 hours have passed since delivery was confirmed without a dispute being raised — whichever happens first. If delivery is never confirmed (e.g. the package is lost), payment is released after 14 days at the latest.' },
         { q: 'What is the commission?', a: 'Habahub charges a 3.5% commission on the sale price, maximum €35 per sale. Payment processing fees also apply (~1.5% + €0.25).' },
         { q: 'How do I stream with OBS?', a: 'You can stream using OBS Studio (free software): 1) Download and install OBS Studio. 2) Open Settings → Stream. 3) Select Service: Custom. 4) Copy the Server and Stream Key from the "Start stream" view in your dashboard into the matching fields in OBS. 5) Click "Start Streaming" in OBS. Viewers will see the stream with a few seconds of delay.' },
       ],
