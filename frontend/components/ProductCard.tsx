@@ -37,12 +37,12 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
           : <span style={{ fontSize: 32, color: C.dim }}>+</span>
         }
         {timeBadge && (
-          <div style={{ position: 'absolute', bottom: 8, left: 8, background: timeBadge.urgent ? C.red : 'rgba(0,0,0,0.72)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, fontFamily: 'var(--font-hanken), -apple-system, sans-serif' }}>
+          <div style={{ position: 'absolute', bottom: 8, left: 8, background: timeBadge.urgent ? C.red : 'rgba(0,0,0,0.72)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, fontFamily: 'var(--font-display), -apple-system, sans-serif' }}>
             {timeBadge.text}
           </div>
         )}
         {bidCount != null && (
-          <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.72)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'var(--font-hanken), -apple-system, sans-serif' }}>
+          <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.72)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, fontFamily: 'var(--font-display), -apple-system, sans-serif' }}>
             {bidCount} huutoa
           </div>
         )}
@@ -50,14 +50,14 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
       <div style={{ padding: isMobile ? '9px 10px' : '11px 13px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
-            fontFamily: 'var(--font-hanken), -apple-system, sans-serif',
+            fontFamily: 'var(--font-display), -apple-system, sans-serif',
             fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: C.text, marginBottom: 6, lineHeight: 1.32,
             overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
           }}>
             {name}
           </div>
           <div style={{
-            fontFamily: 'var(--font-hanken), -apple-system, sans-serif',
+            fontFamily: 'var(--font-display), -apple-system, sans-serif',
             fontVariantNumeric: 'tabular-nums', fontSize: isMobile ? 15 : 17, fontWeight: 800, color: C.text, letterSpacing: '-0.01em',
           }}>
             {price.toLocaleString('fi-FI')}€

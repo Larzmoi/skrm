@@ -166,7 +166,7 @@ function SelaaContent() {
 
           {userMatch && (
             <Link href={`/u/${encodeURIComponent(userMatch.username)}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 14px', marginBottom: 14, textDecoration: 'none' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                 {userMatch.avatarUrl
                   ? <img src={userMatch.avatarUrl} alt={userMatch.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : (userMatch.name?.[0]?.toUpperCase() ?? '?')
@@ -195,7 +195,7 @@ function SelaaContent() {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{t.selaa.noResults}</div>
-              <button onClick={clearFilters} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={clearFilters} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                 {t.selaa.clearFilters}
               </button>
             </div>

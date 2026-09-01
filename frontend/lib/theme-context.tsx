@@ -1,11 +1,21 @@
 'use client'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
+// Visuaalinen tyylipäivitys 2026-09-01 (ks. CLAUDE.md "Visuaalinen tyylipäivitys" -osio):
+// brand-väri vaihtui metsänvihreästä/smaragdista limeen (#84cc16). Kaksi eri accent-roolia
+// koska sama vaalea/kirkas lime EI toimi molemmissa käyttötavoissa yhtä aikaa:
+//   - accent/accentBright: väri sellaisenaan TEKSTINÄ/ikonina/reunana sivun taustan päällä
+//     (täytyy olla luettava sekä tummalla että vaalealla taustalla, siksi eri sävy per teema —
+//     sama periaate kuin vanhalla metsänvihreällä paletilla oli jo, ei uusi konsepti)
+//   - accentSolid/accentText: KIINTEÄ nappi-/badge-tausta, aina sama kirkas #84cc16 kummassakin
+//     teemassa (aito brand-väri), aina yhdessä tumman accentTextin kanssa koska valkoinen
+//     teksti kirkkaan limen päällä ei ole luettavissa
 const light = {
-  bg: '#F8FAF8', surface: '#F0F4F0', surface2: '#E8EEE8',
-  border: '#D4DDD4', text: '#0A1A0E', textSub: '#3D5442', muted: '#6B8070',
-  accent: '#1B6B3A', accentBright: '#2ECC71', accentLight: '#E8F5EE',
-  red: '#DC2626', cardBg: '#FFFFFF', navBg: '#FFFFFF', dim: '#C4D4C8',
+  bg: '#F8FAFC', surface: '#FFFFFF', surface2: '#F1F5F9',
+  border: '#E2E8F0', text: '#0F172A', textSub: '#475569', muted: '#94A3B8',
+  accent: '#4D7C0F', accentBright: '#65A30D', accentLight: '#ECFCCB',
+  accentSolid: '#84CC16', accentText: '#0C1400',
+  red: '#DC2626', cardBg: '#FFFFFF', navBg: '#FFFFFF', dim: '#CBD5E1',
   // Semanttinen "odottaa/varoitus"-väri - aiemmin kovakoodattu rgba(245,158,11,...) eri
   // kohdissa (esim. tilausten "stalled"-ilmoitus), nyt osa väriteemaa (ks. visuaalinen
   // uudistus 2026-08-31). warnLight on badge-/laatikkotausta samaan tapaan kuin accentLight.
@@ -13,10 +23,11 @@ const light = {
 }
 
 const dark = {
-  bg: '#070F09', surface: '#0D1A10', surface2: '#132018',
-  border: '#1E3324', text: '#E8F5EE', textSub: '#9DBFA8', muted: '#5A7A65',
-  accent: '#2ECC71', accentBright: '#4ADE80', accentLight: '#0D2818',
-  red: '#EF4444', cardBg: '#0D1A10', navBg: '#070F09', dim: '#1E3324',
+  bg: '#030303', surface: '#0E1217', surface2: '#161B22',
+  border: '#1F252D', text: '#F1F5F9', textSub: '#94A3B8', muted: '#64748B',
+  accent: '#84CC16', accentBright: '#A3E635', accentLight: '#1A2410',
+  accentSolid: '#84CC16', accentText: '#0C1400',
+  red: '#EF4444', cardBg: '#0E1217', navBg: '#030303', dim: '#1F252D',
   warn: '#F2A93B', warnLight: '#2B2110',
 }
 

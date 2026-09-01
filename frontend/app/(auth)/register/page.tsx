@@ -91,7 +91,7 @@ export default function RegisterPage() {
             </ul>
           </div>
 
-          <button onClick={submit} disabled={loading || !canSubmit} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: (loading || !canSubmit) ? 'not-allowed' : 'pointer', opacity: (loading || !canSubmit) ? 0.5 : 1, marginTop: 4 }}>
+          <button onClick={submit} disabled={loading || !canSubmit} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: (loading || !canSubmit) ? 'not-allowed' : 'pointer', opacity: (loading || !canSubmit) ? 0.5 : 1, marginTop: 4 }}>
             {loading ? t.auth.loading : t.auth.registerBtn}
           </button>
         </div>

@@ -243,7 +243,7 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
         <button
           onClick={onPlaceBid}
           disabled={!auction.active}
-          style={{ width: '100%', height: 48, borderRadius: 10, border: 'none', background: bidSuccess ? C.accent : auction.active ? C.accent : '#2A2A2A', color: '#fff', fontSize: 14, fontWeight: 800, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.6, transition: 'background 0.2s' }}
+          style={{ width: '100%', height: 48, borderRadius: 10, border: 'none', background: bidSuccess ? C.accentSolid : auction.active ? C.accentSolid : '#2A2A2A', color: auction.active || bidSuccess ? C.accentText : '#fff', fontSize: 14, fontWeight: 800, cursor: auction.active ? 'pointer' : 'not-allowed', opacity: auction.active ? 1 : 0.6, transition: 'background 0.2s' }}
         >
           {bidSuccess ? t.live.bidPlaced
             : auction.active ? `${t.live.bid} ${bidAmount}€`
@@ -296,7 +296,7 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
           {viewerList.length === 0 && <div style={{ fontSize: 12, color: dark ? '#666' : C.muted, textAlign: 'center', padding: '20px 0' }}>Ei kirjautuneita katsojia juuri nyt</div>}
           {viewerList.map(v => (
             <div key={v.userId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: v.isSeller ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{v.username[0].toUpperCase()}</div>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: v.isSeller ? C.accentSolid : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: v.isSeller ? C.accentText : '#fff', flexShrink: 0 }}>{v.username[0].toUpperCase()}</div>
               <span style={{ fontSize: 12, color: dark ? '#ccc' : C.text, flex: 1 }}>{v.username}</span>
               {v.isSeller && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent }}>HOST</span>}
               {!v.isSeller && v.isModerator && <span style={{ fontSize: 10, fontWeight: 700, color: '#8B5CF6' }}>MOD</span>}
@@ -308,7 +308,7 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
           {visibleChat.map(msg => (
             <div key={msg.id} style={{ position: 'relative', display: 'flex', gap: 7, alignItems: 'flex-start', opacity: msg.hidden ? 0.5 : 1 }}>
               <div
-                style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accent : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0, marginTop: 1 }}
+                style={{ width: 22, height: 22, borderRadius: '50%', background: msg.isBid ? C.accentSolid : '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: msg.isBid ? C.accentText : '#fff', flexShrink: 0, marginTop: 1 }}
               >
                 {msg.username[0].toUpperCase()}
               </div>
@@ -404,7 +404,7 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
                 rowPreBiddable || p.buyNowPrice ? (
                   <div style={{ display: 'flex', gap: 6 }}>
                     {rowPreBiddable && <button onClick={e => { e.stopPropagation(); onPreBid(p.id) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
-                    {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accent, border: 'none', color: '#fff', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
+                    {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accentSolid, border: 'none', color: C.accentText, padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
                   </div>
                 ) : (
                   // Vain juuri nyt aktiivisena olevalle lotille - huudetaan livenä
@@ -800,12 +800,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 24, padding: '5px 12px 5px 6px', backdropFilter: 'blur(8px)', flex: 1, minWidth: 0 }}>
                   {show?.seller?.username ? (
                     <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', minWidth: 0 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{show.seller.username[0].toUpperCase()}</div>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>{show.seller.username[0].toUpperCase()}</div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{show.seller.username}</span>
                     </Link>
                   ) : (
                     <>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>?</div>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: C.accentText }}>?</div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
                     </>
                   )}
@@ -840,7 +840,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setShopOpen(true)} style={{ background: C.accent, border: 'none', borderRadius: 20, padding: '0 16px', height: 38, color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>Shop</button>
+                  <button onClick={() => setShopOpen(true)} style={{ background: C.accentSolid, border: 'none', borderRadius: 20, padding: '0 16px', height: 38, color: C.accentText, fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>Shop</button>
                   <input
                     value={chatInput}
                     onChange={e => setChatInput(e.target.value)}
@@ -880,12 +880,12 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1A1A1A', borderRadius: 20, padding: '5px 12px 5px 8px' }}>
           {show?.seller?.username ? (
             <Link href={`/u/${show.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>{show.seller.username[0].toUpperCase()}</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: C.accentText }}>{show.seller.username[0].toUpperCase()}</div>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{show.seller.username}</span>
             </Link>
           ) : (
             <>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>?</div>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: C.accentText }}>?</div>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>...</span>
             </>
           )}

@@ -92,6 +92,37 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 
 4. **Koko sivusto käydään läpi järjestelmällisesti** — FAQ, käyttöehdot, tietosuoja, välityspalkkiot, etusivu, kaikki tekstisisältö. Lisää löydökset kirjataan tähän osioon sitä mukaa kun niitä tulee.
 
+## Visuaalinen tyylipäivitys 2026-09-01 — KÄYNNISSÄ (aloitettu, ei vielä valmis kauttaaltaan)
+
+**Tilanne 2026-09-01 (osa 1):** perusta + jaettu navigointi tehty ja deployattu:
+- `theme-context.tsx`: brand-väri limeen (`#84cc16`) koko paletissa, molemmat teemat. **Kaksi accent-roolia lisätty** (ei ollut mockissa eksplisiittisesti, mutta pakollinen kontrastin vuoksi): `accent`/`accentBright` = teemakohtaisesti säädetty, luettava TEKSTINÄ/reunana sivun taustan päällä (tumma teema kirkas lime, vaalea teema tummempi lime-oliivi) — sama periaate kuin vanhalla metsänvihreällä paletilla jo oli (eri sävy per teema kontrastin vuoksi). `accentSolid`/`accentText` = AINA sama kirkas `#84cc16` + tumma teksti, käytetään nappien/badgejen KIINTEÄNÄ taustana. Syy: mockin oma kirkas lime yhdistettynä olemassa olevaan valkoiseen nappitekstiin (58 kohtaa koko koodikannassa) olisi ollut lukukelvoton — kaikki 58+ kohtaa korjattu käyttämään `accentSolid`+`accentText`-paria.
+- Fontit: Outfit (`--font-display`) + Plus Jakarta Sans (`--font-body`) `next/font/google`:n kautta, korvaa äskettäin lisätyn Hanken Groteskin täysin (4 tiedostoa joissa oli `--font-hanken`, siirretty).
+- `globals.css`: uudet `.bg-noise`, `.glass-panel-dark`/`.glass-panel-light`, `.doppelrand-dark`/`.doppelrand-light`, `.reveal-on-scroll`/`.is-visible` -apuluokat (kunnioittavat `prefers-reduced-motion`).
+- Uudet komponentit: `components/ScrollReveal.tsx` (uudelleenkäytettävä IntersectionObserver-kääre), `components/layout/BackgroundLayers.tsx` (kiinteät aura-taustagradientit — tumma "obsidian aura", vaalea "lämmin alabasteri" -ruudukko, molemmat mockista).
+- `ClientLayout.tsx`: `BackgroundLayers` + kohinaoverlay renderöity kerran, sisältö kääritty `position:relative; zIndex:10` -kerrokseen (sama rakenne kuin mockin oma "MAIN CONTENT WRAPPER") — yksittäisten sivujen ei tarvitse itse huolehtia stacking contextista.
+- `Navbar.tsx`: uudistettu kelluvaksi lasipaneeli-"island"-navigaatioksi desktopilla (mobiilissa lasipaneeli-tyylinen kiinteä yläpalkki, ei kelluva). **Kaikki alkuperäinen toiminnallisuus säilytetty identtisenä**: haku, Selaa/Huutokaupat/Live-linkit, teema-/kielivalinta, ilmoitus-/viesti-/ostoskori-ikonit lukemattomine badgeineen, dashboard/kirjaudu-CTA.
+- `Footer.tsx`: sama rakenne/tekstit/linkit, vain typografia/välit/pyöristykset/hover-tila päivitetty.
+- `ThemeToggle.tsx`: vaihdettu track/thumb-kytkimestä kompaktiksi pyöreäksi ikonipainikkeeksi (mockin oma tyyli), sama toiminta.
+- **⚠️ EI vielä tehty:** yksittäiset sivut eivät vielä läpikäy varsinaista korttien/paneelien doppelrand/glass-panel-käsittelyä, eikä yksikään sivun oma juuri-`background: C.bg` ole vielä läpinäkyvä (mikä tarkoittaa BackgroundLayers-aurataustaa ei vielä NÄY useimmilla sivuilla, vaikka infrastruktuuri on paikallaan) — tämä on seuraava vaihe, sivu/komponentti kerrallaan (ProductCard, Selaa/Huutokaupat/Live, Dashboard-sivut, tuotesivut, auth-sivut jne.).
+- Typecheck + `next build` vihreä jokaisen välivaiheen jälkeen tähän asti.
+
+Alkuperäinen tehtäväkuvaus säilytetty alla muuttumattomana:
+
+## Visuaalinen tyylipäivitys 2026-09-01 — päätetty, ei vielä toteutettu (omistaja teki mock-HTML:n mallia varten)
+
+Omistaja teki erillisen mock-HTML-tiedoston (`landing.html`) uudesta, sulavammasta tyylistä. **Tärkeä tarkennus: `landing.html` on PELKKÄ VISUAALINEN REFERENSSI, ei osa koodikantaa eikä koskaan itsessään päivitettävä/käytettävä sellaisenaan** — päivitys kohdistuu **varsinaisiin olemassa oleviin sovelluksen sivuihin** (Next.js/React-koodi), ei mihinkään mock-tiedostoon.
+
+**⚠️ Laajuus: tämä on KOKO PROJEKTIN visuaalinen muodonmuutos, ei pelkkä väri-/fonttipäivitys.** Kaikki visuaaliset elementit — kortit, napit, efektit, asettelu, välit, varjot, kaikki — päivitetään mockin tyyliin **joka ikisellä sivulla**. **Ainoa mikä EI muutu on tekstisisältö** — jokainen sivu näyttää täsmälleen samat tekstit/otsikot/kuvaukset/nappitekstit kuin nyt, vain visuaalinen toteutustapa vaihtuu kauttaaltaan. **Ei erillistä landing-sivua** — sovellus näkyy edelleen suoraan `habahub.com`-juuriosoitteessa niin kuin nyt, ei mockin tarkkaa hero+preview-rakennetta väkisin sinne, vaan nykyinen sivu (mikä se ikinä onkin, esim. Selaa) saa saman tyylikielen.
+
+**Päätökset:**
+1. **Brand-väri vaihtuu limettiin/hapanvihreään `#84cc16`** — korvaa nykyisen metsänvihreän/smaragdin (`#1B6B3A`/`#2ECC71` tumma teema, `#2ECC71`/`#4ADE80` vaalea teema). Koko `theme-context.tsx`:n väripaletti päivitetään tämän ympärille (accent, accentBright/accentDark, accentLight jne. — sävytä johdonmukaisesti limen ympärille, ei vain korvata yhtä muuttujaa).
+2. **Fontit:** Outfit (otsikot/hinnat/napit/badget) + Plus Jakarta Sans (leipäteksti) — `next/font/google`:n kautta, samaan tapaan kuin äskettäin lisätty Hanken Grotesk (ks. "Löydetty dokumentoimattomia committeja" -osio) — **tämä KORVAA Hanken Groteskin**, ei käytetä molempia yhtä aikaa.
+3. **Kaikki muutkin visuaaliset elementit mockin tyyliin, kauttaaltaan:** korttien/nappien muotoilu (kohokuvio-reunatekniikka `doppelrand-core`, pyöristykset, varjot), lasipaneeli-tyyliset elementit (`backdrop-filter: blur`), hienovarainen kohinatekstuuri (`bg-noise`), scroll-reveal-animaatiot, tumman teeman "obsidian aura" -taustagradientti ja vaalean teeman "lämmin alabasteri" -ruudukkotausta, välit/marginaalit, pyöristyssäteet — periaatteessa koko `globals.css`/komponenttien tyyli tarkistetaan tätä referenssiä vasten.
+4. **⚠️ EI KOSKETA:** mitään tekstisisältöä, nappien tekstiä, toiminnallisuutta, reittejä tai handler-logiikkaa millään sivulla — pelkkä visuaalinen kerros vaihtuu. Sama periaate kuin aiemmassa visuaalisessa uudistuksessa (kanban-tilauslauta-commit 067de19): "ei koskettu mihinkään handler-/datalogiikkaan".
+5. **Korjaa mockista löytynyt tosiasiavirhe jos sen tekstiä käytetään missään:** footerissa lukee "Stripe / Paytrail -integraatio" — Stripe ei ole koskaan ollut käytössä (LUKITTU: vain Paytrail), poista Stripe-maininta kokonaan.
+
+**Laajuus konkreettisesti:** joka ikinen sivu (Selaa, Huutokaupat, Live, Dashboard, Profiili, kaikki alasivut) käy läpi saman visuaalisen linjauksen. Iso urakka — kannattaa tehdä vaiheittain (ensin design-tokenit/perusteet, sitten sivu kerrallaan), ei kaikkea kerralla ilman testausta välissä.
+
 ## Löydetty dokumentoimattomia committeja GitHubista 2026-09-01 — lisätty jälkikäteen
 
 Repon commit-historiasta löytyi neljä committia jotka eivät olleet päätyneet CLAUDE.md:hen (VS Coden Claude oli tehnyt työn mutta ei dokumentoinut sitä tänne asti):

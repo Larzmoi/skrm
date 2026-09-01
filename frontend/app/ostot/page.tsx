@@ -170,7 +170,7 @@ export default function OstotPage() {
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>Ei ostoksia vielä</div>
             <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Ostettuasi tuotteita ne näkyvät täällä seurantakoodeineen.</div>
-            <Link href="/selaa" style={{ background: C.accent, color: '#fff', padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            <Link href="/selaa" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
               Selaa tuotteita
             </Link>
           </div>
@@ -210,7 +210,7 @@ export default function OstotPage() {
                               <span style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
                                 {paymentRemaining > 0 ? `${timeLeftLabel(paymentRemaining)} jäljellä` : 'Aika loppui'}
                               </span>
-                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
                                 {busy === order.id ? 'Käsitellään...' : 'Maksa nyt'}
                               </button>
                             </div>
@@ -265,7 +265,7 @@ export default function OstotPage() {
                                   {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
                                 </select>
                               )}
-                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                                 {busy === order.id ? '...' : 'Vahvista ja maksa'}
                               </button>
                             </div>
@@ -318,7 +318,7 @@ export default function OstotPage() {
                                     Tilaus suljetaan automaattisesti {daysLeft} päivässä, ellet kuittaa vastaanottoa tai ilmoita ongelmasta.
                                   </div>
                                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                    <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
                                       {busy === order.id ? '...' : 'Kuittaa vastaanotto'}
                                     </button>
                                     <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
@@ -362,7 +362,7 @@ export default function OstotPage() {
                                     style={{ width: '100%', marginTop: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
                                   />
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                                    <button onClick={() => submitReview(order.id)} disabled={busy === order.id} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                    <button onClick={() => submitReview(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
                                       {busy === order.id ? '...' : 'Lähetä arvostelu'}
                                     </button>
                                     <button onClick={() => setReviewOpenFor(null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>

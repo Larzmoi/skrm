@@ -116,7 +116,7 @@ export default function DashboardPage() {
       {/* Pikatoiminnot — selkeästi erillään: live-lähetys vs. tuotteiden hallinta */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
         <Link href="/lahetys" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '18px 20px' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#fff', flexShrink: 0 }}>◉</div>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: C.accentText, flexShrink: 0 }}>◉</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{t.dashboard.quickLiveTitle}</div>
             <div style={{ fontSize: 12, color: C.muted }}>{t.dashboard.quickLiveDesc}</div>
@@ -139,7 +139,7 @@ export default function DashboardPage() {
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.dashboard.upcomingShowsTitle}</h2>
-            <button onClick={() => setShowForm(s => !s)} style={{ background: C.accent, color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+            <button onClick={() => setShowForm(s => !s)} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
               + Ajasta
             </button>
           </div>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
                   <input ref={thumbnailRef} type="file" accept="image/*" onChange={handleThumbnail} style={{ display: 'none' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={saveShow} disabled={scheduling} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: scheduling ? 'default' : 'pointer', opacity: scheduling ? 0.7 : 1 }}>{scheduling ? t.auth.loading : t.dashboard.save}</button>
+                  <button onClick={saveShow} disabled={scheduling} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: scheduling ? 'default' : 'pointer', opacity: scheduling ? 0.7 : 1 }}>{scheduling ? t.auth.loading : t.dashboard.save}</button>
                   <button onClick={() => setShowForm(false)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 12px', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>{t.dashboard.cancel}</button>
                 </div>
               </div>

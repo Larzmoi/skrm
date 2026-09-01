@@ -8,7 +8,7 @@ html, body {
 body {
   background: #FFFFFF;
   color: #111111;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -29,7 +29,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 
 /* Otsikko-/hinta-/nappifontti, ks. layout.tsx:n next/font-määrittely. Käytettävissä
-   inline style -objekteissa: fontFamily: 'var(--font-hanken), -apple-system, ...' */
+   inline style -objekteissa: fontFamily: 'var(--font-display), -apple-system, ...' */
 
 /* Kortin kohonta hoverilla (tuotekortit + kanban-tilauskortit) - kiinteät rgba(0,0,0,...)-
    varjot toimivat molemmilla teemoilla, ei tarvitse teemakohtaisia arvoja koska varjo
@@ -60,4 +60,72 @@ input[type=number] { -moz-appearance: textfield; }
   .hb-card:hover { transform: none; }
   .hb-card:hover .hb-card-img { transform: none; }
   .hb-btn:active { transform: none; }
+}
+
+/* ============================================================================
+   Visuaalinen tyylipäivitys 2026-09-01 (ks. CLAUDE.md "Visuaalinen tyylipäivitys")
+   Referenssi: landing.html (pelkkä visuaalinen mockup, ei osa koodikantaa).
+   ============================================================================ */
+
+/* Hienovarainen kohinatekstuuri koko sivun päällä - kiinteä, ei vuorovaikutusta,
+   samat arvot molemmissa teemoissa (opacity niin matala ettei tarvitse teemakohtaisia
+   säätöjä). z-index 40 pitää sen navigaation (yleensä 50+) alla mutta sisällön yläpuolella. */
+.bg-noise {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 40;
+}
+
+/* Lasipaneeli - navbar, modaalit, kelluvat paneelit. Kaksi varianttia koska taustan
+   läpikuultavuuden pohjaväri riippuu teemasta (musta vs. valkoinen perusta). */
+.glass-panel-dark {
+  background: rgba(14, 18, 23, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Kohokuvio-reunatekniikka ("doppelrand") - antaa korteille/paneeleille hienovaraisen
+   kolmiulotteisen reunan ilman että se riippuu taustaväristä. Tumma teema: sisäreunan
+   valo+varjo simuloi kohonnutta pintaa. Vaalea teema: ulkoinen pehmeä varjo + sisäreunan
+   valo simuloi samaa syvyyttä eri suunnalla (koska vaalean teeman "korotus" näkyy varjona
+   alaspäin, ei sisävalona). */
+.doppelrand-dark {
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -1px 1px rgba(0, 0, 0, 0.5);
+}
+.doppelrand-light {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* Scroll-reveal - elementti liukuu/terävöityy näkyviin kun se tulee viewporttiin.
+   Sovelletaan className="reveal-on-scroll" + JS lisää "is-visible" IntersectionObserverilla
+   (ks. components/ScrollReveal.tsx). Kunnioittaa prefers-reduced-motion: liike/blur pois,
+   pelkkä opacity-häivytys jää jäljelle. */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px) scale(0.98);
+  filter: blur(6px);
+  transition: opacity 0.8s cubic-bezier(0.32, 0.72, 0, 1), transform 0.8s cubic-bezier(0.32, 0.72, 0, 1), filter 0.8s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    transform: none;
+    filter: none;
+    transition: opacity 0.4s ease;
+  }
 }

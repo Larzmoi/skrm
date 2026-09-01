@@ -92,7 +92,7 @@ export default function MessagesLayout({ activeUsername }: { activeUsername?: st
                 background: activeUsername === c.user.username ? C.accentLight : 'transparent',
               }}
             >
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                 {c.user.avatarUrl
                   ? <img src={c.user.avatarUrl} alt={c.user.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : c.user.name?.[0]?.toUpperCase()
@@ -122,7 +122,7 @@ export default function MessagesLayout({ activeUsername }: { activeUsername?: st
                 {isMobile && (
                   <Link href="/viestit" style={{ color: C.muted, fontSize: 13, textDecoration: 'none', marginRight: 4 }}>{t.messagesPage.back}</Link>
                 )}
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                   {activeUser.avatarUrl
                     ? <img src={activeUser.avatarUrl} alt={activeUser.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : activeUser.name?.[0]?.toUpperCase()
@@ -158,7 +158,7 @@ export default function MessagesLayout({ activeUsername }: { activeUsername?: st
                   placeholder={t.messagesPage.writeMessage}
                   style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: '9px 12px', fontSize: 13, color: C.text }}
                 />
-                <button onClick={send} disabled={sending || !draft.trim()} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: sending ? 'default' : 'pointer', opacity: sending || !draft.trim() ? 0.6 : 1 }}>
+                <button onClick={send} disabled={sending || !draft.trim()} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: sending ? 'default' : 'pointer', opacity: sending || !draft.trim() ? 0.6 : 1 }}>
                   {t.messagesPage.send}
                 </button>
               </div>

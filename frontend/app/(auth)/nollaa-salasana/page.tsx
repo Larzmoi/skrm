@@ -67,7 +67,7 @@ function ResetPasswordForm() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><label style={lbl}>{t.auth.newPassword}</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inp} /></div>
             <div><label style={lbl}>{t.auth.confirmPassword}</label><input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="••••••••" style={inp} /></div>
-            <button onClick={submit} disabled={loading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+            <button onClick={submit} disabled={loading} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
               {loading ? t.auth.loading : t.auth.resetPasswordBtn}
             </button>
           </div>

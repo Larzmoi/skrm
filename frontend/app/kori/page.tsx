@@ -100,7 +100,7 @@ export default function KoriPage() {
         ) : groups.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>{t.kori.empty}</div>
-            <Link href="/selaa" style={{ background: C.accent, color: '#fff', padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            <Link href="/selaa" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
               {t.kori.browseProducts}
             </Link>
           </div>
@@ -112,7 +112,7 @@ export default function KoriPage() {
               return (
                 <div key={group.sellerId} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: C.accentText }}>
                       {group.seller.name?.[0]?.toUpperCase()}
                     </div>
                     <Link href={`/u/${group.seller.username}`} style={{ fontSize: 14, fontWeight: 700, color: C.text, textDecoration: 'none' }}>{group.seller.name}</Link>
@@ -169,7 +169,7 @@ export default function KoriPage() {
                       {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice).toLocaleString('fi-FI')}€</div>
                     </div>
-                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: paying === group.sellerId ? 'default' : 'pointer', opacity: paying === group.sellerId ? 0.7 : 1 }}>
+                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: paying === group.sellerId ? 'default' : 'pointer', opacity: paying === group.sellerId ? 0.7 : 1 }}>
                       {paying === group.sellerId ? t.kori.processing : t.kori.pay}
                     </button>
                   </div>

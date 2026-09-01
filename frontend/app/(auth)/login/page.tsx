@@ -44,7 +44,7 @@ function LoginForm() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div><label style={lbl}>{t.auth.email}</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sinä@esimerkki.fi" style={inp} /></div>
           <div><label style={lbl}>{t.auth.password}</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="••••••••" style={inp} /></div>
-          <button onClick={submit} disabled={loading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+          <button onClick={submit} disabled={loading} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
             {loading ? t.auth.loading : t.auth.loginBtn}
           </button>
           <Link href="/unohtuiko-salasana" style={{ textAlign: 'center', fontSize: 13, color: C.muted, textDecoration: 'none' }}>{t.auth.forgotPassword}</Link>

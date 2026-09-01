@@ -53,14 +53,14 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
           }
         </div>
         <div style={{ padding: isMobile ? '16px 18px' : '18px 26px', flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>
             Tulossa pian{upcoming.scheduledAt ? ` · ${formatShowTime(upcoming.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
           </div>
-          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{upcoming.title}</div>
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{upcoming.title}</div>
           <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · Ennakkotarjoukset ovat jo auki</div>
         </div>
         <div style={{ padding: isMobile ? '0 18px 16px' : '0 26px 0 0', flexShrink: 0 }}>
-          <span className="hb-btn" style={{ display: 'inline-block', background: C.accent, color: '#fff', padding: '9px 18px', borderRadius: 8, fontFamily: 'var(--font-hanken), sans-serif', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
+          <span className="hb-btn" style={{ display: 'inline-block', background: C.accentSolid, color: C.accentText, padding: '9px 18px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
             Katso lähetys →
           </span>
         </div>
@@ -70,11 +70,11 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
   return (
     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16, background: C.accentLight, border: `1px solid ${C.accent}55`, borderRadius: 16, padding: isMobile ? '18px 20px' : '20px 26px', marginBottom: 32 }}>
       <div>
-        <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>{FALLBACK_PROMO.eyebrow}</div>
-        <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{FALLBACK_PROMO.title}</div>
+        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>{FALLBACK_PROMO.eyebrow}</div>
+        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{FALLBACK_PROMO.title}</div>
         <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{FALLBACK_PROMO.body}</div>
       </div>
-      <Link href={FALLBACK_PROMO.ctaHref} className="hb-btn" style={{ background: C.accent, color: '#fff', padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-hanken), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+      <Link href={FALLBACK_PROMO.ctaHref} className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
         {FALLBACK_PROMO.ctaText} →
       </Link>
     </div>
@@ -195,7 +195,7 @@ export default function Home() {
           </div>
 
           <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? '40px 24px 32px' : '60px 24px 48px', textAlign: 'center', position: 'relative' }}>
-            <h1 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 28 : 44, fontWeight: 800, color: C.text, marginBottom: 12, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 28 : 44, fontWeight: 800, color: C.text, marginBottom: 12, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
               {t.home.heroTitleLine1}<br />{t.home.heroTitleLine2}
             </h1>
             <p style={{ fontSize: isMobile ? 14 : 16, color: C.muted, marginBottom: 28, lineHeight: 1.6 }}>
@@ -203,7 +203,7 @@ export default function Home() {
             </p>
 
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
-              <Link href="/selaa" style={{ background: C.accent, color: '#fff', padding: isMobile ? '11px 24px' : '13px 32px', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none' }}>
+              <Link href="/selaa" style={{ background: C.accentSolid, color: C.accentText, padding: isMobile ? '11px 24px' : '13px 32px', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none' }}>
                 {t.home.heroBrowse}
               </Link>
               <Link href="/register" style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}`, padding: isMobile ? '11px 24px' : '13px 32px', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none' }}>
@@ -310,7 +310,7 @@ export default function Home() {
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.buyNow}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.buyNow}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{filteredProducts.length}</span>
                 </div>
                 <Link href="/selaa" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
@@ -331,7 +331,7 @@ export default function Home() {
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.nav.auctions}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.nav.auctions}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{auctions.length}</span>
                 </div>
                 <Link href="/huutokaupat" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
@@ -357,7 +357,7 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.red, display: 'inline-block' }} />
-                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.liveNow}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.liveNow}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{filteredShows.length}</span>
                 </div>
                 <Link href="/live-kaikki" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
@@ -376,7 +376,7 @@ export default function Home() {
                     </div>
                     <div style={{ padding: isMobile ? '8px' : '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{show.seller[0]?.toUpperCase()}</div>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>{show.seller[0]?.toUpperCase()}</div>
                         <span style={{ fontSize: 11, color: C.muted }}>@{show.seller}</span>
                       </div>
                       <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, lineHeight: 1.3 }}>{show.title}</div>
@@ -392,7 +392,7 @@ export default function Home() {
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.upcoming}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.upcoming}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{displayUpcoming.length}</span>
                 </div>
                 <Link href="/live-kaikki?status=scheduled" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
@@ -406,7 +406,7 @@ export default function Home() {
                         : <span style={{ fontSize: 14, color: C.dim }}>+</span>
                       }
                     </div>
-                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{show.seller[0]?.toUpperCase()}</div>
+                    <div style={{ width: 26, height: 26, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>{show.seller[0]?.toUpperCase()}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{show.title}</div>
                       <div style={{ fontSize: 11, color: C.muted }}>@{show.seller}</div>
@@ -422,7 +422,7 @@ export default function Home() {
           {filteredProducts.length === 0 && filteredShows.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita tai lähetyksiä tässä kategoriassa</div>
-              <button onClick={() => { setActiveKat('kaikki'); setActiveAla('') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={() => { setActiveKat('kaikki'); setActiveAla('') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
                 Näytä kaikki
               </button>
             </div>

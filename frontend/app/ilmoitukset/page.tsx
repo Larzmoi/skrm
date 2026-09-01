@@ -65,7 +65,7 @@ export default function IlmoituksetPage() {
               pushEnabled ? (
                 <span style={{ fontSize: 12, color: C.accent, fontWeight: 600, whiteSpace: 'nowrap' }}>{t.notificationsPage.pushEnabled}</span>
               ) : (
-                <button onClick={enablePush} disabled={pushEnabling} style={{ background: C.accent, border: 'none', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushEnabling ? 'default' : 'pointer', opacity: pushEnabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                <button onClick={enablePush} disabled={pushEnabling} style={{ background: C.accentSolid, border: 'none', color: C.accentText, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushEnabling ? 'default' : 'pointer', opacity: pushEnabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {pushEnabling ? t.notificationsPage.enablingPush : t.notificationsPage.enablePush}
                 </button>
               )

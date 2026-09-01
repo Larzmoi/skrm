@@ -214,7 +214,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
                     min={minBid}
                     style={{ width: '100%', boxSizing: 'border-box' as const, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 15, fontWeight: 700 }}
                   />
-                  <button onClick={placeBid} disabled={busy} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '13px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, marginTop: 8 }}>
+                  <button onClick={placeBid} disabled={busy} style={{ width: '100%', background: C.accentSolid, color: C.accentText, border: 'none', padding: '13px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, marginTop: 8 }}>
                     Huuda {bidAmount}€
                   </button>
                 </div>
@@ -254,14 +254,14 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
             )}
 
             {!user && !ended && (
-              <Link href="/login" style={{ display: 'block', width: '100%', background: C.accent, color: '#fff', padding: '13px', borderRadius: 10, fontWeight: 800, fontSize: 16, textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>
+              <Link href="/login" style={{ display: 'block', width: '100%', background: C.accentSolid, color: C.accentText, padding: '13px', borderRadius: 10, fontWeight: 800, fontSize: 16, textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>
                 Kirjaudu huutaaksesi
               </Link>
             )}
 
             {product.seller && (
               <Link href={`/u/${product.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', textDecoration: 'none', marginBottom: 16 }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: C.accentText }}>
                   {product.seller.username?.[0]?.toUpperCase()}
                 </div>
                 <div style={{ flex: 1 }}>

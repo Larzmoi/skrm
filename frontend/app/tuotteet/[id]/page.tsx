@@ -214,7 +214,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     <div style={{ fontSize: 13, color: C.muted }}>{t.product.goToCart}</div>
                   </Link>
                 ) : (
-                  <button onClick={buyNow} disabled={buying} style={{ width: '100%', background: C.accent, color: '#fff', border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: buying ? 'default' : 'pointer', opacity: buying ? 0.7 : 1, marginBottom: 10 }}>
+                  <button onClick={buyNow} disabled={buying} style={{ width: '100%', background: C.accentSolid, color: C.accentText, border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: buying ? 'default' : 'pointer', opacity: buying ? 0.7 : 1, marginBottom: 10 }}>
                     {buying ? t.auth.loading : t.product.addToCart}
                   </button>
                 )}
@@ -251,7 +251,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       placeholder={`${t.product.minBid} ${minPreBid}€`}
                       style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', minWidth: 0, boxSizing: 'border-box' }}
                     />
-                    <button onClick={placePreBid} disabled={preBidding} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: preBidding ? 'default' : 'pointer', opacity: preBidding ? 0.7 : 1, flexShrink: 0 }}>
+                    <button onClick={placePreBid} disabled={preBidding} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: preBidding ? 'default' : 'pointer', opacity: preBidding ? 0.7 : 1, flexShrink: 0 }}>
                       {preBidding ? t.product.placingBid : t.product.placeBid}
                     </button>
                   </div>
@@ -282,7 +282,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 ) : (
                   <>
                     <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Kirjoita viestisi myyjälle..." rows={3} style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }} />
-                    <button onClick={sendSellerMessage} disabled={sendingMessage || !message.trim()} style={{ marginTop: 8, background: C.accent, color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: sendingMessage ? 'default' : 'pointer', opacity: sendingMessage || !message.trim() ? 0.6 : 1 }}>{t.product.sendMessage}</button>
+                    <button onClick={sendSellerMessage} disabled={sendingMessage || !message.trim()} style={{ marginTop: 8, background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: sendingMessage ? 'default' : 'pointer', opacity: sendingMessage || !message.trim() ? 0.6 : 1 }}>{t.product.sendMessage}</button>
                   </>
                 )}
               </div>
@@ -291,7 +291,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {/* Myyjä */}
             {product.seller && (
               <Link href={`/u/${product.seller.username}`} style={{ display: 'flex', alignItems: 'center', gap: 12, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', textDecoration: 'none', marginBottom: 20 }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                   {product.seller.avatarUrl
                     ? <img src={product.seller.avatarUrl} alt={product.seller.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : product.seller.username?.[0]?.toUpperCase()

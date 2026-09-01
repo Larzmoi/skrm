@@ -116,7 +116,7 @@ export default function ProfiiliPage() {
       <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Perustiedot</h2>
         <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-          <div onClick={() => avatarRef.current?.click()} style={{ width: 72, height: 72, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: '#fff', flexShrink: 0, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
+          <div onClick={() => avatarRef.current?.click()} style={{ width: 72, height: 72, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: C.accentText, flexShrink: 0, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
             {avatar ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.name?.[0]?.toUpperCase()}
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }} onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0')}>
               <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Vaihda</span>
@@ -151,7 +151,7 @@ export default function ProfiiliPage() {
           <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Kerro itsestäsi..." style={{ ...inp, resize: 'vertical' as const }} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
-        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>
       </div>
@@ -181,7 +181,7 @@ export default function ProfiiliPage() {
           <input value={businessId} onChange={e => setBusinessId(e.target.value)} placeholder="1234567-8" style={inp} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
-        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+        <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>
       </div>
@@ -195,7 +195,7 @@ export default function ProfiiliPage() {
             <p style={{ fontSize: 13, color: C.muted }}>Lähetysaika pitenee 7 päivään.</p>
           </div>
           {!showVacForm && (
-            <button onClick={() => vacationOn ? disableVacation() : setShowVacForm(true)} disabled={vacationBusy} style={{ background: C.accent, color: '#fff', border: `1px solid ${C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy ? 'default' : 'pointer', opacity: vacationBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
+            <button onClick={() => vacationOn ? disableVacation() : setShowVacForm(true)} disabled={vacationBusy} style={{ background: C.accentSolid, color: C.accentText, border: `1px solid ${C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy ? 'default' : 'pointer', opacity: vacationBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
               {vacationOn ? 'Poista lomamoodi' : 'Ota käyttöön'}
             </button>
           )}
@@ -223,7 +223,7 @@ export default function ProfiiliPage() {
               <textarea value={vacationMsg} onChange={e => setVacationMsg(e.target.value)} placeholder="esim. Olen lomalla 10.8. asti, tilaukset lähtevät viimeistään 11.8." rows={2} style={{ ...inp, resize: 'vertical' as const }} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={saveVacation} disabled={vacationBusy || !vacationUntil} style={{ background: C.accent, color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy || !vacationUntil ? 'default' : 'pointer', opacity: vacationBusy || !vacationUntil ? 0.7 : 1 }}>
+              <button onClick={saveVacation} disabled={vacationBusy || !vacationUntil} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy || !vacationUntil ? 'default' : 'pointer', opacity: vacationBusy || !vacationUntil ? 0.7 : 1 }}>
                 Tallenna
               </button>
               <button onClick={() => setShowVacForm(false)} disabled={vacationBusy} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '9px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>

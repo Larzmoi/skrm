@@ -274,7 +274,7 @@ function TuotteetContent() {
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{tp.title}</h1>
           <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} {tp.activeSuffix}</p>
         </div>
-        <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+        <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
           {tp.addProduct}
         </button>
       </div>
@@ -340,7 +340,7 @@ function TuotteetContent() {
                   </>
                 )}
                 {(bulkTab === 'file' || bulkTab === 'manual') && bulkText.trim().length > 0 && (
-                  <button onClick={parseBulkText} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  <button onClick={parseBulkText} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                     Ennen tallennusta
                   </button>
                 )}
@@ -375,7 +375,7 @@ function TuotteetContent() {
                 <button onClick={() => setBulkTab('manual')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
                   Palaa muokkausvaiheeseen
                 </button>
-                <button onClick={saveBulk} disabled={uploading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+                <button onClick={saveBulk} disabled={uploading} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
                   {uploading ? 'Tallennetaan...' : 'Tallenna kaikki'}
                 </button>
               </div>
@@ -583,7 +583,7 @@ function TuotteetContent() {
               </div>
 
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={save} disabled={saving} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                <button onClick={save} disabled={saving} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
                   {saving ? tp.saving : editId ? tp.saveChanges : tp.addProductBtn}
                 </button>
                 <button onClick={() => { setShowForm(false); reset() }} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 7, fontSize: 14, cursor: 'pointer' }}>
@@ -672,13 +672,13 @@ function TuotteetContent() {
                   <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} {tp.inDirectSale}</span>
                   <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} {tp.inAuction}</span>
                 </div>
-                <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{tp.goLive}</Link>
+                <Link href="/lahetys" style={{ background: C.accentSolid, color: C.accentText, textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{tp.goLive}</Link>
               </div>
             </div>
           ) : !showForm && bulkTab !== 'preview' && bulkTab !== 'success' && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{tp.noProductsYet}</div>
-              <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 {tp.addFirstProduct}
               </button>
             </div>

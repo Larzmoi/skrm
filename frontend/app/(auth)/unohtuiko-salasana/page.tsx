@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
             {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13 }}>{error}</div>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><label style={lbl}>{t.auth.email}</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} placeholder="sinä@esimerkki.fi" style={inp} /></div>
-              <button onClick={submit} disabled={loading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
+              <button onClick={submit} disabled={loading} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '12px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
                 {loading ? t.auth.loading : t.auth.sendResetLink}
               </button>
               <Link href="/login" style={{ textAlign: 'center', fontSize: 13, color: C.muted, textDecoration: 'none' }}>{t.auth.backToLogin}</Link>

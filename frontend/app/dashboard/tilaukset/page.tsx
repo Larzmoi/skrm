@@ -40,7 +40,7 @@ function PendingPaymentCard({ order, C, now }: { order: SellingOrder; C: Record<
     <div className="hb-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `4px solid ${C.warn}`, borderRadius: 12, padding: '14px 18px', marginBottom: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 9 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
           <div style={{ fontSize: 11.5, color: C.muted }}>@{order.buyer.username}</div>
         </div>
         <span style={{ fontSize: 11, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
@@ -54,9 +54,9 @@ function PendingPaymentCard({ order, C, now }: { order: SellingOrder; C: Record<
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
-        <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
+        <span style={{ fontFamily: 'var(--font-display), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
         <span style={{
-          fontFamily: 'var(--font-hanken), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
+          fontFamily: 'var(--font-display), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
           padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap' as const,
           background: remaining !== null && remaining < 30 * 60 * 1000 ? 'rgba(239,68,68,0.14)' : C.warnLight,
           color: remaining !== null && remaining < 30 * 60 * 1000 ? '#EF4444' : C.warn,
@@ -86,7 +86,7 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
     <div className="hb-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `4px solid ${stripe}`, borderRadius: 12, padding: '14px 18px', marginBottom: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 9 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
           <div style={{ fontSize: 11.5, color: C.muted }}>@{order.buyer.username}</div>
         </div>
         <span style={{ fontSize: 11, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
@@ -107,9 +107,9 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 9, borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
+          <span style={{ fontFamily: 'var(--font-display), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
           <span style={{
-            fontFamily: 'var(--font-hanken), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
+            fontFamily: 'var(--font-display), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
             padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap' as const, background: badge.bg, color: badge.color,
           }}>
             {badge.text}
@@ -126,7 +126,7 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
               placeholder="Noutokoodi"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
             />
-            <button className="hb-btn" onClick={onSubmitPickup} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <button className="hb-btn" onClick={onSubmitPickup} disabled={busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Vahvista nouto'}
             </button>
           </div>
@@ -139,7 +139,7 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
               placeholder="Seurantakoodi (manuaalinen)"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
             />
-            <button className="hb-btn" onClick={onSubmitTracking} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <button className="hb-btn" onClick={onSubmitTracking} disabled={busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Lisää seurantakoodi'}
             </button>
             {/* Pakettikoko valitaan vasta tässä, lähetysvaiheessa - ei vaikuta ostajalta jo
@@ -182,7 +182,7 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
                 style={{ width: '100%', marginTop: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
               />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button onClick={review.onSubmit} disabled={review.busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: review.busy ? 0.7 : 1 }}>
+                <button onClick={review.onSubmit} disabled={review.busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: review.busy ? 0.7 : 1 }}>
                   {review.busy ? '...' : 'Lähetä arvostelu'}
                 </button>
                 <button onClick={review.onCancel} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
@@ -209,9 +209,9 @@ function ColumnHeader({ name, count, sum, stripe, C }: { name: string; count: nu
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: stripe, flexShrink: 0 }} />
-          <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 14, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+          <span style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 14, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
         </div>
-        <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, color: C.muted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: '1px 8px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, color: C.muted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: '1px 8px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
           {count}
         </span>
       </div>
@@ -330,7 +330,7 @@ export default function TilauksetPage() {
   return (
     <div style={{ color: C.text }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 24, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Tilaukset</h1>
+        <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 24, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Tilaukset</h1>
         <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Myyntitilaustesi hallinta</p>
       </div>
 

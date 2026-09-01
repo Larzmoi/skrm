@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
-import { Hanken_Grotesk } from 'next/font/google'
+import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import ClientLayout from '@/components/layout/ClientLayout'
 
-// Otsikoiden/hintojen/nappien fontti (ks. visuaalinen uudistus) - leipäteksti pysyy
-// järjestelmäfontissa (globals.css), tämä tuo vain painavamman, tunnistettavamman
-// leikkauksen korostuksiin. next/font hoitaa itse-hostauksen ja fallbackin, ei erillistä
+// Visuaalinen tyylipäivitys 2026-09-01 (ks. CLAUDE.md) - korvaa aiemman Hanken Groteskin.
+// Outfit: otsikot/hinnat/napit/badget ('--font-display', käytetään inline-tyyleissä
+// fontFamily: 'var(--font-display), sans-serif'). Plus Jakarta Sans: leipäteksti, asetettu
+// suoraan body-elementille globals.css:ssä ('--font-body') - ei tarvitse toistaa jokaisessa
+// komponentissa erikseen. next/font hoitaa itse-hostauksen ja fallbackin, ei erillistä
 // <link>-tagia tarvita.
-const hanken = Hanken_Grotesk({ subsets: ['latin'], weight: ['500', '600', '700', '800'], variable: '--font-hanken', display: 'swap' })
+const outfit = Outfit({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-display', display: 'swap' })
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'], variable: '--font-body', display: 'swap' })
 
 export const metadata: Metadata = {
   title: 'Habahub — Live-huutokauppa',
@@ -16,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fi" className={hanken.variable}>
+    <html lang="fi" className={`${outfit.variable} ${jakarta.variable}`}>
       <body>
         <ClientLayout>{children}</ClientLayout>
       </body>

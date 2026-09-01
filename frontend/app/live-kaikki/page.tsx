@@ -113,7 +113,7 @@ export default function LiveKaikki() {
                     </div>
                     <div style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>{show.seller[0]?.toUpperCase()}</div>
+                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: C.accentText }}>{show.seller[0]?.toUpperCase()}</div>
                         <span style={{ fontSize: 12, color: C.muted }}>@{show.seller}</span>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{show.title}</div>

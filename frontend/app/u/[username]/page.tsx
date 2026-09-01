@@ -94,7 +94,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '28px', marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flex: '1 1 220px', minWidth: 0 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                 {profile?.avatarUrl
                   ? <img src={profile.avatarUrl} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : initial
@@ -224,7 +224,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 <div key={r.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 10 }}>
                     <Link href={`/u/${r.reviewer.username}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', minWidth: 0 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accent, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
                         {r.reviewer.avatarUrl
                           ? <img src={r.reviewer.avatarUrl} alt={r.reviewer.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           : r.reviewer.name?.[0]?.toUpperCase()
