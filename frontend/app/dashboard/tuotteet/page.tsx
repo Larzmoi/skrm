@@ -75,6 +75,13 @@ function TuotteetContent() {
   const [auctionDurationDays, setAuctionDurationDays] = useState(3)
   const [auctionDurationHours, setAuctionDurationHours] = useState(0)
 
+  // Bulk upload state
+  const [bulkTab, setBulkTab] = useState<'manual' | 'file' | 'preview' | 'success'>('manual')
+  const [bulkText, setBulkText] = useState('')
+  const [bulkFile, setBulkFile] = useState<File | null>(null)
+  const [parsedPreview, setParsedPreview] = useState<any[]>([])
+  const [uploading, setUploading] = useState(false)
+
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadProducts() }, [])
@@ -94,6 +101,8 @@ function TuotteetContent() {
     setCondition(''); setQuantity('1'); setDescription(''); setImages([])
     setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
+    // Clear bulk state
+    setBulkTab('manual'); setBulkText(''); setBulkFile(null); setParsedPreview([]); setUploading(false)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -145,6 +154,33 @@ function TuotteetContent() {
     setImages(prev => prev.filter((_, idx) => idx !== i))
   }
 
+  // Jäsentää liitetyn/kirjoitetun tekstin tuotteiksi paikallisesti (ei tarvitse backendiä
+  // esikatseluun) — Cardmarket-tyylinen 4-rivin lohko per tuote: nimi / kunto / hinta / määrä.
+  function parseBulkText() {
+    if (!bulkText.trim()) { setError('Syötä teksti'); return }
+    const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+    const items: any[] = []
+    for (let i = 0; i < lines.length; i += 4) {
+      const chunk = lines.slice(i, i + 4)
+      if (chunk.length < 4) {
+        items.push({ name: chunk[0] || '(tuntematon)', errors: 'Rivi puutteellinen — odotettiin 4 riviä (nimi, kunto, hinta, määrä)' })
+        continue
+      }
+      const [rawName, rawCondition, rawPrice, rawQty] = chunk
+      const price = parseFloat(rawPrice.replace(/[^\d,.-]/g, '').replace(',', '.'))
+      const quantity = parseInt(rawQty.replace(/[^\d]/g, ''), 10)
+      if (!rawName || isNaN(price) || price <= 0) {
+        items.push({ name: rawName || '(tuntematon)', condition: rawCondition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, errors: 'Virheellinen hinta' })
+        continue
+      }
+      items.push({ name: rawName, condition: rawCondition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity })
+    }
+    if (items.length === 0) { setError('Ei tunnistettuja tuotteita'); return }
+    setError('')
+    setParsedPreview(items)
+    setBulkTab('preview')
+  }
+
   async function save() {
     if (!name.trim()) { setError(tp.enterName); return }
     if (!startPrice || Number(startPrice) <= 0) { setError(tp.enterPrice); return }
@@ -178,6 +214,25 @@ function TuotteetContent() {
       setError(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveBulk() {
+    const validItems = parsedPreview.filter(p => !p.errors)
+    if (validItems.length === 0 || uploading) return
+
+    try {
+      setUploading(true)
+      const response = await api.bulkCreateProducts(validItems.map(p => ({
+        name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined,
+      })))
+      setParsedPreview(response.results || [])
+      setBulkTab('success')
+      await loadProducts()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -219,301 +274,415 @@ function TuotteetContent() {
           <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{tp.title}</h1>
           <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{pending.length} {tp.activeSuffix}</p>
         </div>
-        <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+        <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
           {tp.addProduct}
         </button>
       </div>
 
       {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13 }}>{error}</div>}
 
-      {/* Lomake */}
-      {showForm && (
-        <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '20px', marginBottom: 24 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? tp.editTitle : tp.newTitle}</h3>
-
-          {/* Myyntitapa */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={lbl}>{tp.saleTypeLabel}</label>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {saleTypeOptions.map(opt => (
-                <button key={opt.id} type="button" onClick={() => setSaleType(opt.id)} style={{ flex: 1, minWidth: 150, padding: '12px 14px', borderRadius: 8, border: `2px solid ${saleType === opt.id ? C.accent : C.border}`, background: saleType === opt.id ? C.accentLight : C.surface, cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: saleType === opt.id ? C.accent : C.text, marginBottom: 3 }}>{opt.label}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{opt.desc}</div>
-                </button>
-              ))}
-            </div>
+      {/* Bulk upload section */}
+      {(showForm || bulkTab !== 'manual') && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual'); }} style={{ background: bulkTab === 'manual' ? C.accent : C.surface2, color: bulkTab === 'manual' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {tp.addProduct}
+            </button>
+            <button onClick={() => setBulkTab('file')} style={{ background: bulkTab === 'file' ? C.accent : C.surface2, color: bulkTab === 'file' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'file' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              Tallenna monimuu (CSV/TXT)
+            </button>
+            <button onClick={() => setBulkTab('manual')} style={{ background: bulkTab === 'manual' ? C.accent : C.surface2, color: bulkTab === 'manual' ? '#fff' : C.muted, border: `1px solid ${bulkTab === 'manual' ? C.accent : C.border}`, padding: '10px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              Tee manuaalisesti
+            </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '150px 1fr', gap: 16, marginBottom: 14 }}>
-            {/* Kuva */}
-            <div>
-              <label style={lbl}>{tp.imageLabel}</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-                  {images.map((img, i) => (
-                    <div key={i} style={{ aspectRatio: '1', borderRadius: 7, overflow: 'hidden', position: 'relative' }}>
-                      <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          {/* File upload / paste area */}
+          {(bulkTab === 'file' || bulkTab === 'manual') && (
+            <div style={{ background: C.surface, borderRadius: 9, border: `1px solid ${C.border}`, padding: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{bulkTab === 'file' ? 'Monimuu lisäys' : 'Manuaalinen lisäys'}</div>
+              
+              <textarea
+                value={bulkText}
+                onChange={e => setBulkText(e.target.value)}
+                placeholder={bulkTab === 'file' ? "Silcoon (ASC 012)\nNM\n0,02 €\n1" : "Kirjoita tuotetiedot tähän..."}
+                rows={8}
+                style={{ ...inp, resize: 'vertical' as const }}
+              />
+
+              {bulkFile && (
+                <div style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 7, padding: '8px 12px', marginTop: 10, fontSize: 12 }}>
+                  Valittu tiedosto: {bulkFile.name}
+                  <button onClick={() => setBulkFile(null)} style={{ marginLeft: 8, background: 'none', border: 'none', color: C.accent, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                {bulkTab === 'file' && (
+                  <>
+                    <input
+                      ref={fileRef as React.RefObject<HTMLInputElement>}
+                      type="file"
+                      accept=".txt,.csv,.json"
+                      multiple
+                      onChange={e => {
+                        const files = Array.from(e.target.files || [])
+                        if (files.length === 0) return
+                        setBulkFile(files[0])
+                        const reader = new FileReader()
+                        reader.onload = () => setBulkText(String(reader.result || ''))
+                        reader.readAsText(files[0])
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                    <button onClick={() => { (fileRef.current as HTMLInputElement).click() }} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                      Valitse tiedosto
+                    </button>
+                  </>
+                )}
+                {(bulkTab === 'file' || bulkTab === 'manual') && bulkText.trim().length > 0 && (
+                  <button onClick={parseBulkText} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    Ennen tallennusta
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Preview before bulk save */}
+          {bulkTab === 'preview' && parsedPreview.length > 0 && (
+            <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: 16, marginTop: 14 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 12 }}>Ennen tallennusta ({parsedPreview.length} tuotetta)</h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                {parsedPreview.map((p: any, idx: number) => (
+                  <div key={idx} style={{ background: C.surface, borderRadius: 7, border: `1px solid ${C.border}`, padding: '12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {p.startPrice && <span>{p.startPrice}€</span>}
+                      {p.quantity && <span>· {p.quantity} kpl</span>}
+                      {p.condition && <span>· {p.condition}</span>}
                     </div>
+                    {p.errors && (
+                      <div style={{ fontSize: 10, color: '#CC0000', marginTop: 4, background: '#FFF0F0', padding: '4px 8px', borderRadius: 5 }}>
+                        Virhe: {p.errors}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <button onClick={() => setBulkTab('manual')} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                  Palaa muokkausvaiheeseen
+                </button>
+                <button onClick={saveBulk} disabled={uploading} style={{ background: C.accent, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+                  {uploading ? 'Tallennetaan...' : 'Tallenna kaikki'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bulkTab === 'success' && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 9, padding: 14, marginTop: 14 }}>
+              <h4 style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>Tallennus onnistui!</h4>
+              <div style={{ fontSize: 12, color: C.muted, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <span>Uusia: {parsedPreview.reduce((acc: any, p: any) => acc + (p.created ? 1 : 0), 0)}</span>
+                <span>Ohitettuja: {parsedPreview.reduce((acc: any, p: any) => acc + (p.skipped ? 1 : 0), 0)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Regular product form */}
+          {showForm && bulkTab === 'manual' && (
+            <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '20px', marginBottom: 24 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? tp.editTitle : tp.newTitle}</h3>
+
+              {/* Myyntitapa */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={lbl}>{tp.saleTypeLabel}</label>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {saleTypeOptions.map(opt => (
+                    <button key={opt.id} type="button" onClick={() => setSaleType(opt.id)} style={{ flex: 1, minWidth: 150, padding: '12px 14px', borderRadius: 8, border: `2px solid ${saleType === opt.id ? C.accent : C.border}`, background: saleType === opt.id ? C.accentLight : C.surface, cursor: 'pointer', textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: saleType === opt.id ? C.accent : C.text, marginBottom: 3 }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{opt.desc}</div>
+                    </button>
                   ))}
-                  {images.length < 6 && (
-                    <div onClick={() => fileRef.current?.click()} style={{ aspectRatio: '1', borderRadius: 7, border: `2px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ fontSize: 20, color: C.muted }}>+</div>
-                      <div style={{ fontSize: 9, color: C.dim }}>{images.length}/6</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '150px 1fr', gap: 16, marginBottom: 14 }}>
+                {/* Kuva */}
+                <div>
+                  <label style={lbl}>{tp.imageLabel}</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                      {images.map((img, i) => (
+                        <div key={i} style={{ aspectRatio: '1', borderRadius: 7, overflow: 'hidden', position: 'relative' }}>
+                          <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        </div>
+                      ))}
+                      {images.length < 6 && (
+                        <div onClick={() => fileRef.current?.click()} style={{ aspectRatio: '1', borderRadius: 7, border: `2px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ fontSize: 20, color: C.muted }}>+</div>
+                          <div style={{ fontSize: 9, color: C.dim }}>{images.length}/6</div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.dim, textAlign: 'center' }}>{tp.maxImagesHint}</div>
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImage} style={{ display: 'none' }} />
+                </div>
+
+                {/* Perustiedot */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} style={inp} /></div>
+                  {editCategoryLocked && (
+                    <div style={{ fontSize: 11, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 6, padding: '6px 10px' }}>
+                      {tp.categoryLockedNotice}
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={lbl}>{tp.categoryLabel}</label>
+                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp} disabled={editCategoryLocked}>
+                        <option value="">{tp.selectPlaceholder}</option>
+                        {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi[lang as 'fi' | 'en'] ?? k.nimi.fi}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>{tp.subcategoryLabel}</label>
+                      <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={editCategoryLocked || !currentKat || currentKat.alakategoriat.length === 0}>
+                        <option value="">{tp.selectPlaceholder}</option>
+                        {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {currentAla?.tyypit?.length > 0 && (
+                    <div>
+                      <label style={lbl}>{tp.typeLabel}</label>
+                      <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp} disabled={editCategoryLocked}>
+                        <option value="">{tp.selectPlaceholder}</option>
+                        {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={lbl}>{tp.conditionLabel}</label>
+                      <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
+                        <option value="">{tp.selectPlaceholder}</option>
+                        {KUNTOLUOKAT.map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
+                      </select>
+                    </div>
+                    <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
+                  </div>
+                  <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
+                </div>
+              </div>
+
+              {/* Hinnoittelu */}
+              <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.pricingTitle}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                  <div>
+                    <label style={lbl}>{saleType === 'buy_now' ? tp.salePriceLabel : tp.startPriceLabel}</label>
+                    <input type="number" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0" style={inp} />
+                    <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? tp.fixedPriceHint : tp.startingPriceHint}</div>
+                  </div>
+                  {(saleType === 'both' || saleType === 'auction') && (
+                    <div>
+                      <label style={lbl}>{tp.buyNowPriceLabel}</label>
+                      <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder={tp.buyNowPricePlaceholder} style={inp} />
+                    </div>
+                  )}
+                  {saleType !== 'buy_now' && (
+                    <div>
+                      <label style={lbl}>{tp.reservePriceLabel}</label>
+                      <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder={tp.reservePricePlaceholder} style={inp} />
+                      <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.reservePriceHint}</div>
+                    </div>
+                  )}
+                  {saleType !== 'buy_now' && (
+                    <div>
+                      <label style={lbl}>{tp.bidIncrementLabel}</label>
+                      <input type="number" step="0.01" min="0.01" value={bidIncrement} onChange={e => setBidIncrement(e.target.value)} placeholder="1.00" style={inp} />
+                      <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.bidIncrementHint}</div>
+                    </div>
+                  )}
+                  {(saleType === 'live' || saleType === 'both') && (
+                    <div>
+                      <label style={lbl}>{tp.liveDurationLabel}</label>
+                      <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                        {[60, 120, 300].map(s => (
+                          <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
+                            {s / 60}min
+                          </button>
+                        ))}
+                      </div>
+                      <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder={tp.liveDurationPlaceholder} style={inp} />
+                    </div>
+                  )}
+                  {saleType === 'auction' && (
+                    <div>
+                      <label style={lbl}>{tp.auctionDurationLabel}</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <select value={auctionDurationDays} onChange={e => setAuctionDurationDays(Number(e.target.value))} style={inp}>
+                          {Array.from({ length: 31 }, (_, d) => d).map(d => <option key={d} value={d}>{d} {tp.days}</option>)}
+                        </select>
+                        <select value={auctionDurationHours} onChange={e => setAuctionDurationHours(Number(e.target.value))} style={inp}>
+                          {Array.from({ length: 24 }, (_, h) => h).map(h => <option key={h} value={h}>{h} {tp.hours}</option>)}
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: C.dim, textAlign: 'center' }}>{tp.maxImagesHint}</div>
               </div>
-              <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImage} style={{ display: 'none' }} />
-            </div>
 
-            {/* Perustiedot */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} style={inp} /></div>
-              {editCategoryLocked && (
-                <div style={{ fontSize: 11, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 6, padding: '6px 10px' }}>
-                  {tp.categoryLockedNotice}
+              {/* Toimitus */}
+              <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{tp.deliveryTitle}</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {PAKETTIKOOT.map(p => (
+                    // p.nimi sisältää jo hinnan (esim. "Postitus 6,9€", ks. lib/pakettikoot.ts —
+                    // kiinteä postihinta) - erillinen p.hinta-rivi tässä näytti saman hinnan
+                    // kahteen kertaan peräkkäin samassa napissa.
+                    <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600 }}>{p.nimi}</div>
+                    </button>
+                  ))}
                 </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <label style={lbl}>{tp.categoryLabel}</label>
-                  <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria(''); setTyyppi('') }} style={inp} disabled={editCategoryLocked}>
-                    <option value="">{tp.selectPlaceholder}</option>
-                    {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{k.nimi[lang as 'fi' | 'en'] ?? k.nimi.fi}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={lbl}>{tp.subcategoryLabel}</label>
-                  <select value={alakategoria} onChange={e => { setAlakategoria(e.target.value); setTyyppi('') }} style={inp} disabled={editCategoryLocked || !currentKat || currentKat.alakategoriat.length === 0}>
-                    <option value="">{tp.selectPlaceholder}</option>
-                    {currentKat?.alakategoriat.map(a => <option key={a.id} value={a.id}>{a.nimi[lang as 'fi' | 'en'] ?? a.nimi.fi}</option>)}
-                  </select>
-                </div>
-              </div>
-              {currentAla?.tyypit?.length > 0 && (
-                <div>
-                  <label style={lbl}>{tp.typeLabel}</label>
-                  <select value={tyyppi} onChange={e => setTyyppi(e.target.value)} style={inp} disabled={editCategoryLocked}>
-                    <option value="">{tp.selectPlaceholder}</option>
-                    {currentAla.tyypit.map((ty: any) => <option key={ty.id} value={ty.id}>{getTyyppiNimi(ty, lang as any)}</option>)}
-                  </select>
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <label style={lbl}>{tp.conditionLabel}</label>
-                  <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
-                    <option value="">{tp.selectPlaceholder}</option>
-                    {KUNTOLUOKAT.map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
-                  </select>
-                </div>
-                <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
-              </div>
-              <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
-            </div>
-          </div>
+                {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{tp.buyerPays} <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
 
-          {/* Hinnoittelu */}
-          <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.pricingTitle}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              <div>
-                <label style={lbl}>{saleType === 'buy_now' ? tp.salePriceLabel : tp.startPriceLabel}</label>
-                <input type="number" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0" style={inp} />
-                <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{saleType === 'buy_now' ? tp.fixedPriceHint : tp.startingPriceHint}</div>
-              </div>
-              {(saleType === 'both' || saleType === 'auction') && (
-                <div>
-                  <label style={lbl}>{tp.buyNowPriceLabel}</label>
-                  <input type="number" value={buyNowPrice} onChange={e => setBuyNowPrice(e.target.value)} placeholder={tp.buyNowPricePlaceholder} style={inp} />
-                </div>
-              )}
-              {saleType !== 'buy_now' && (
-                <div>
-                  <label style={lbl}>{tp.reservePriceLabel}</label>
-                  <input type="number" value={reservePrice} onChange={e => setReservePrice(e.target.value)} placeholder={tp.reservePricePlaceholder} style={inp} />
-                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.reservePriceHint}</div>
-                </div>
-              )}
-              {saleType !== 'buy_now' && (
-                <div>
-                  <label style={lbl}>{tp.bidIncrementLabel}</label>
-                  <input type="number" step="0.01" min="0.01" value={bidIncrement} onChange={e => setBidIncrement(e.target.value)} placeholder="1.00" style={inp} />
-                  <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.bidIncrementHint}</div>
-                </div>
-              )}
-              {(saleType === 'live' || saleType === 'both') && (
-                <div>
-                  <label style={lbl}>{tp.liveDurationLabel}</label>
-                  <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
-                    {[60, 120, 300].map(s => (
-                      <button key={s} type="button" onClick={() => setAuctionDuration(String(s))} style={{ background: auctionDuration === String(s) ? C.accent : C.surface2, border: `1px solid ${auctionDuration === String(s) ? C.accent : C.border}`, color: auctionDuration === String(s) ? '#fff' : C.muted, padding: '4px 8px', borderRadius: 5, fontSize: 11, cursor: 'pointer' }}>
-                        {s / 60}min
-                      </button>
-                    ))}
+                {pakettikoko === 'nouto' && (
+                  <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
+                      {tp.pickupTitle}
+                    </div>
+                    <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
+                      {tp.pickupBody}
+                    </p>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={noutoPolicyAccepted}
+                        onChange={e => setNoutoPolicyAccepted(e.target.checked)}
+                        style={{ marginTop: 2, flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
+                        {tp.pickupCheckbox}
+                      </span>
+                    </label>
                   </div>
-                  <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(e.target.value)} placeholder={tp.liveDurationPlaceholder} style={inp} />
-                </div>
-              )}
-              {saleType === 'auction' && (
-                <div>
-                  <label style={lbl}>{tp.auctionDurationLabel}</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <select value={auctionDurationDays} onChange={e => setAuctionDurationDays(Number(e.target.value))} style={inp}>
-                      {Array.from({ length: 31 }, (_, d) => d).map(d => <option key={d} value={d}>{d} {tp.days}</option>)}
-                    </select>
-                    <select value={auctionDurationHours} onChange={e => setAuctionDurationHours(Number(e.target.value))} style={inp}>
-                      {Array.from({ length: 24 }, (_, h) => h).map(h => <option key={h} value={h}>{h} {tp.hours}</option>)}
-                    </select>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+                )}
+              </div>
 
-          {/* Toimitus */}
-          <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{tp.deliveryTitle}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {PAKETTIKOOT.map(p => (
-                // p.nimi sisältää jo hinnan (esim. "Postitus 6,9€", ks. lib/pakettikoot.ts —
-                // kiinteä postihinta) - erillinen p.hinta-rivi tässä näytti saman hinnan
-                // kahteen kertaan peräkkäin samassa napissa.
-                <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accent : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accent : C.border}`, color: pakettikoko === p.id ? '#fff' : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>{p.nimi}</div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={lbl}>{tp.descriptionLabel}</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={save} disabled={saving} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  {saving ? tp.saving : editId ? tp.saveChanges : tp.addProductBtn}
                 </button>
-              ))}
-            </div>
-            {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{tp.buyerPays} <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
-
-            {pakettikoko === 'nouto' && (
-              <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
-                  {tp.pickupTitle}
-                </div>
-                <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
-                  {tp.pickupBody}
-                </p>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={noutoPolicyAccepted}
-                    onChange={e => setNoutoPolicyAccepted(e.target.checked)}
-                    style={{ marginTop: 2, flexShrink: 0 }}
-                  />
-                  <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
-                    {tp.pickupCheckbox}
-                  </span>
-                </label>
+                <button onClick={() => { setShowForm(false); reset() }} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 7, fontSize: 14, cursor: 'pointer' }}>
+                  {tp.cancel}
+                </button>
               </div>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>{tp.descriptionLabel}</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
-          </div>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={save} disabled={saving} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? tp.saving : editId ? tp.saveChanges : tp.addProductBtn}
-            </button>
-            <button onClick={() => { setShowForm(false); reset() }} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 7, fontSize: 14, cursor: 'pointer' }}>
-              {tp.cancel}
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Product list */}
       {/* Tuotelista */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>{tp.loading}</div>
-      ) : pending.length > 0 ? (
-        <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.activeSectionTitle} ({pending.length})</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {pending.map((p, i) => {
-              const kat = KATEGORIAT.find(k => k.id === p.category)
-              const ala: any = kat?.alakategoriat.find((a: any) => a.id === p.alakategoria)
-              const ty = ala?.tyypit?.find((t: any) => t.id === p.tyyppi)
-              const sl = saleLabel[p.saleType] ?? saleLabel.live
-              const priceLine = (
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span>{p.startPrice}€</span>
-                  {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
-                  {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
-                </div>
-              )
-              const badge = <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>{sl.label}</span>
-              const image = (
-                <div style={{ width: 48, height: 48, borderRadius: 7, background: C.surface2, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18, color: C.muted }}>+</span>}
-                </div>
-              )
-              const index = <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-              const deleteLocked = isDeleteLocked(p)
-              const deleteTitle = deleteLocked ? tp.deleteLockedTitle : undefined
-              const deleteBtn = (mobile: boolean) => (
-                <button
-                  onClick={() => !deleteLocked && deleteProduct(p.id)}
-                  disabled={deleteLocked}
-                  title={deleteTitle}
-                  style={{ background: 'none', border: 'none', color: deleteLocked ? C.dim : C.muted, cursor: deleteLocked ? 'not-allowed' : 'pointer', fontSize: mobile ? 16 : 16, padding: '4px 8px' }}
-                >✕</button>
-              )
-
-              return isMobile ? (
-                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {index}
-                    {image}
-                    <Link href={`/tuotteet/${p.id}`} style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
-                  </div>
-                  {priceLine}
-                  {deleteLocked && <div style={{ fontSize: 11, color: '#B45309' }}>{tp.reserveExceededNotice}</div>}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    {badge}
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>{tp.edit}</button>
-                      {deleteBtn(true)}
+            <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>{tp.loading}</div>
+          ) : pending.length > 0 ? (
+            <div style={{ marginBottom: 28 }}>
+              <h2 style={{ fontSize: 13, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>{tp.activeSectionTitle} ({pending.length})</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pending.map((p, i) => {
+                  const kat = KATEGORIAT.find(k => k.id === p.category)
+                  const ala: any = kat?.alakategoriat.find((a: any) => a.id === p.alakategoria)
+                  const ty = ala?.tyypit?.find((t: any) => t.id === p.tyyppi)
+                  const sl = saleLabel[p.saleType] ?? saleLabel.live
+                  const priceLine = (
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <span>{p.startPrice}€</span>
+                      {p.condition && <span>· {KUNTOLUOKAT.find(k => k.id === p.condition)?.nimi}</span>}
+                      {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
                     </div>
-                  </div>
+                  )
+                  const badge = <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 5, whiteSpace: 'nowrap' }}>{sl.label}</span>
+                  const image = (
+                    <div style={{ width: 48, height: 48, borderRadius: 7, background: C.surface2, flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18, color: C.muted }}>+</span>}
+                    </div>
+                  )
+                  const index = <div style={{ width: 20, height: 20, borderRadius: 4, background: C.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: C.muted, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                  const deleteLocked = isDeleteLocked(p)
+                  const deleteTitle = deleteLocked ? tp.deleteLockedTitle : undefined
+                  const deleteBtn = (mobile: boolean) => (
+                    <button
+                      onClick={() => !deleteLocked && deleteProduct(p.id)}
+                      disabled={deleteLocked}
+                      title={deleteTitle}
+                      style={{ background: 'none', border: 'none', color: deleteLocked ? C.dim : C.muted, cursor: deleteLocked ? 'not-allowed' : 'pointer', fontSize: mobile ? 16 : 16, padding: '4px 8px' }}
+                    >✕</button>
+                  )
+
+                  return isMobile ? (
+                    <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {index}
+                        {image}
+                        <Link href={`/tuotteet/${p.id}`} style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
+                      </div>
+                      {priceLine}
+                      {deleteLocked && <div style={{ fontSize: 11, color: '#B45309' }}>{tp.reserveExceededNotice}</div>}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        {badge}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600 }}>{tp.edit}</button>
+                          {deleteBtn(true)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {image}
+                      {index}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
+                        {priceLine}
+                        {deleteLocked && <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>{tp.reserveExceededNotice}</div>}
+                      </div>
+                      {badge}
+                      <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>{tp.edit}</button>
+                      {deleteBtn(false)}
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} {tp.inLiveQueue}</span>
+                  <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} {tp.inDirectSale}</span>
+                  <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} {tp.inAuction}</span>
                 </div>
-              ) : (
-                <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {image}
-                  {index}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <Link href={`/tuotteet/${p.id}`} style={{ fontSize: 14, fontWeight: 600, color: C.text, textDecoration: 'none' }}>{p.name}</Link>
-                    {priceLine}
-                    {deleteLocked && <div style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>{tp.reserveExceededNotice}</div>}
-                  </div>
-                  {badge}
-                  <button onClick={() => openEdit(p)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer', fontSize: 12, padding: '5px 10px', borderRadius: 5, fontWeight: 600, flexShrink: 0 }}>{tp.edit}</button>
-                  {deleteBtn(false)}
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ marginTop: 14, padding: '14px 18px', background: C.accentLight, border: `1px solid ${C.accent}33`, borderRadius: 9, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'live' || p.saleType === 'both').length} {tp.inLiveQueue}</span>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'buy_now' || p.saleType === 'both').length} {tp.inDirectSale}</span>
-              <span style={{ fontSize: 13, color: C.text }}>{pending.filter(p => p.saleType === 'auction').length} {tp.inAuction}</span>
+                <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{tp.goLive}</Link>
+              </div>
             </div>
-            <Link href="/lahetys" style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, textAlign: 'center' }}>{tp.goLive}</Link>
-          </div>
-        </div>
-      ) : !showForm && (
-        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{tp.noProductsYet}</div>
-          <button onClick={() => { reset(); setShowForm(true) }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-            {tp.addFirstProduct}
-          </button>
-        </div>
-      )}
+          ) : !showForm && bulkTab !== 'preview' && bulkTab !== 'success' && (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{tp.noProductsYet}</div>
+              <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accent, color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                {tp.addFirstProduct}
+              </button>
+            </div>
+          )}
     </div>
   )
 }

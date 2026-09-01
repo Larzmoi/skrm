@@ -183,6 +183,48 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   res.status(201).json(product)
 })
 
+// POST /products/bulk — monimuu-tuonti (CSV/TXT-liite tai liitetty teksti, jäsennetty jo
+// frontendissä 4-rivin lohkoihin: nimi/kunto/hinta/määrä). Kaikki luodaan suoramyyntiin
+// ("buy_now"), koska bulk-listaus (esim. Cardmarket-tyylinen erä) on tyypillisesti
+// kiinteähintaista tavaraa, ei huutokauppaa/live-lottia.
+router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const { products } = req.body
+  if (!Array.isArray(products) || products.length === 0) {
+    return res.status(400).json({ error: 'Tuotteita ei annettu' })
+  }
+  if (products.length > 500) {
+    return res.status(400).json({ error: 'Kerralla voi tuoda enintään 500 tuotetta' })
+  }
+
+  let created = 0
+  let skipped = 0
+  const results: any[] = []
+
+  for (const p of products) {
+    const name = typeof p?.name === 'string' ? p.name.trim() : ''
+    const startPrice = Number(p?.startPrice)
+    if (!name || !isFinite(startPrice) || startPrice <= 0) {
+      skipped++
+      results.push({ name: name || '(tuntematon)', skipped: true, error: 'Puuttuva nimi tai virheellinen hinta' })
+      continue
+    }
+    const quantity = Number(p?.quantity)
+    const product = await prisma.product.create({
+      data: {
+        name, saleType: 'buy_now',
+        startPrice: roundCents(startPrice),
+        quantity: isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1,
+        condition: typeof p?.condition === 'string' && p.condition ? p.condition : null,
+        sellerId: req.userId!,
+      },
+    })
+    created++
+    results.push({ name: product.name, created: true, id: product.id })
+  }
+
+  res.status(201).json({ created, skipped, total: products.length, results })
+})
+
 // PUT /products/:id
 router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const id = String(req.params.id)

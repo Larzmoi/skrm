@@ -121,6 +121,21 @@ model User {
   reviewsReceived   Review[]           @relation("ReviewsReceived")
   reports           Report[]
   pushSubscriptions PushSubscription[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+// Salasanan palautuslinkin token (ks. CLAUDE.md "KRIITTINEN LÖYDÖS" / "Resend"). tokenHash on
+// SHA-256-tiiviste raakatokenista - itse raakatoken kulkee vain sähköpostilinkissä, ei koskaan
+// tietokannassa, jotta DB-vuoto ei suoraan antaisi valmiita palautuslinkkejä. usedAt estää saman
+// linkin uudelleenkäytön; forgot-passwordin uusi pyyntö mitätöi aiemmat käyttämättömät tokenit.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // Selaimen Web Push -tilaus (ks. CLAUDE.md "Push-ilmoitukset") - yksi rivi per selain/laite

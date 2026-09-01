@@ -1,9 +1,10 @@
-# SKRM — Suomalainen Live-huutokauppa & Marketplace
+# HABAHUB (koodinimi SKRM) — Suomalainen Live-huutokauppa & Marketplace
 
 ## Projektin kuvaus
-SKRM on suomalainen live-huutokauppa- ja suoramyyntialusta. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä (live-huutokauppa) tai listata ne suoraan myyntiin (suoramyynti). SKRM ei ole osapuoli kaupassa — marketplace-malli kuten Whatnot.
+Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen live-huutokauppa- ja suoramyyntialusta. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä (live-huutokauppa) tai listata ne suoraan myyntiin (suoramyynti). Habahub ei ole osapuoli kaupassa — marketplace-malli kuten Whatnot.
 
-**Domain:** skrm.fi (ostettu, Cloudflare DNS)
+**Domain — VAIHDETTU 2026-08-25:** ~~skrm.fi~~ → **habahub.com** (kanoninen) + **habahub.fi** (ohjautuu .com:iin, ks. "Hosting"-osio). Cloudflare DNS.
+**Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
 ## Tech Stack
@@ -91,6 +92,34 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 
 4. **Koko sivusto käydään läpi järjestelmällisesti** — FAQ, käyttöehdot, tietosuoja, välityspalkkiot, etusivu, kaikki tekstisisältö. Lisää löydökset kirjataan tähän osioon sitä mukaa kun niitä tulee.
 
+## Löydetty dokumentoimattomia committeja GitHubista 2026-09-01 — lisätty jälkikäteen
+
+Repon commit-historiasta löytyi neljä committia jotka eivät olleet päätyneet CLAUDE.md:hen (VS Coden Claude oli tehnyt työn mutta ei dokumentoinut sitä tänne asti):
+
+### ✅ TEHTY — Visuaalinen uudistus: kanban-tilauslauta, tuotekortit, etusivun promo-paikka
+Toteutettu hyväksytyn mockupin mukaisesti, ei koskettu mihinkään handler-/datalogiikkaan. Lisätty additiivisesti, ei poistettu mitään olemassa olevaa:
+- **Hanken Grotesk** -fontti (`next/font/google`, `layout.tsx`) käyttöön otsikoihin/hintoihin/nappeihin/badgeihin `--font-hanken`-muuttujalla — leipäteksti pysyy vanhassa system-font-pinossa
+- `theme-context.tsx`: uudet `warn`/`warnLight`-semanttiset väritokenit (keltainen/amber), korvaavat aiemmin sinne tänne hajautetut kovakoodatut `rgba(245,158,11,...)`-arvot
+- `globals.css`: `.hb-card` (hover-nosto+varjo), `.hb-card-img` (kuvan zoomaus hoverissa), `.hb-btn` (paina/hover-palaute) — kiinteät `rgba(0,0,0,...)`-varjot toimivat identtisesti molemmissa teemoissa, ei tarvitse teemakohtaisia arvoja. Kaikki kunnioittavat `prefers-reduced-motion`-asetusta.
+
+### ✅ TEHTY — Paytrail-paluu saattoi pompauttaa juuri maksaneen asiakkaan /loginiin
+**Vahvistettu ettei backend/webhook-puoli ollut koskaan rikki** — tilaus meni tietokannassa oikein `SHIPPED`-tilaan, maksu onnistui normaalisti. **Bugi oli puhtaasti frontend-puolella:** Paytrailin `redirectUrls.success` osoittaa `/ostot`-sivulle, jonka `proxy.ts` suojaa `habahub_token`-evästeen taakse. Jos eväste puuttuu juuri sillä hetkellä kun selain palaa `habahub.com`:iin (esim. selaimen yksityisyyssuoja pudottaa sen risti-sivustoisen uudelleenohjauksen aikana `pay.paytrail.com`:n kautta), `proxy.ts` ohjasi `/loginiin` vaikka käyttäjä oli yhä aidosti kirjautuneena — oikea sessio elää `localStoragessa` (jota `api.ts`:n Authorization-header lukee), eikä risti-sivustoinen uudelleenohjaus koske sitä mitenkään.
+- **Korjaus 1:** `proxy.ts` lisää nyt `?redirect=<alkuperäinen polku+query>`:n kun se ohjaa `/loginiin`, ei enää hylkää kohdetta kokonaan
+- **Korjaus 2:** `auth-context.tsx`:n init-effekti tyhjensi ennen `localStoragen` aina kun eväste puuttui (oikein SKRM→Habahub-evästeen uudelleennimeämistapauksessa, jolloin vanha eväste oli aidosti pysyvästi poissa). Nyt: jos `localStoragessa` on sekä token että user, eväste PALAUTETAAN `localStoragesta` sen sijaan että sessio tyhjennettäisiin — `localStorage` on totuuden lähde, eväste on vain `proxy.ts`:n vihje. Tyhjennys tapahtuu enää vain kun nämä kaksi ovat aidosti epäjohdonmukaiset (toinen olemassa, toinen ei).
+- **Lopputulos:** päätyminen `/loginiin` yhä voimassa olevalla `localStorage`-sessiolla palauttaa evästeen hiljaisesti ja jatkaa alkuperäiseen kohteeseen sen sijaan että näyttäisi kirjautumislomakkeen tai hukkaisi kohteen.
+
+### ✅ TEHTY — Kaksi pientä bugia: "Osta heti" ei päivittänyt ostoskoria, katsojamäärä jäätyi sivun latauslukemaan
+1. **`buyNow()`** `/live/[showId]`-sivulla lisäsi tuotteen ostoskoriin (`cartApi.add()`) mutta navigoi suoraan `/koriin` päivittämättä jaettua `CartContext`:ia ensin — `/kori` lukee samasta kontekstista ja hakee uudelleen vain reaktiivisesti (kun huomaa vanhentuneen tuotteen), ei koskaan mount-hetkellä. Juuri lisätty tuote oli siis näkymätön kunnes jokin muu pakotti uudelleenhaun. `/tuotteet/[id]` teki tämän jo oikein (kutsuu `refreshCart()`:ia ennen navigointia) — live-sivulta puuttui sama kutsu, lisätty nyt.
+2. **"X katsojaa"**-luku myyjän nimen vieressä jäätyi siihen arvoon jonka ensimmäinen `GET /shows/:id` palautti sivun latautuessa (usein 0, juuri kun striimi alkaa) eikä koskaan päivittynyt sen jälkeen. Backend lähettää jo `viewer_count`-socket-tapahtuman jokaisella liittymisellä/poistumisella (`broadcastViewerCount`, `socket.ts`) — frontendiltä puuttui vain kuuntelija tälle, toisin kuin erilliselle `viewer_list`-tapahtumalle (Watching-välilehteä varten, joka siksi jo toimi oikein). Lisätty puuttuva `socket.on('viewer_count', ...)`-käsittelijä.
+
+### ✅ TEHTY, TURVALLISUUS — Tuotteen pystyi liittämään toisen myyjän lähetykseen
+Löydetty ennakkotarjous-korjauksen testauksen sivutuotteena: `POST /products` otti `showId`:n suoraan pyynnön bodystä ilman omistajuustarkistusta — **kuka tahansa kirjautunut käyttäjä pystyi liittämään oman tuotteensa toisen myyjän live-/ajastetun lähetyksen jonoon.** Korjattu: tarkistetaan nyt että show on olemassa JA kuuluu pyynnön tekijälle ennen kuin liittäminen sallitaan (403 muuten).
+
+**Ennakkotarjous (pre-bid) -ominaisuus on siis myös valmis ja testattu** (tämän korjauksen konteksti paljastaa sen) — ei ollut vielä erikseen kirjattu tänne, ks. yllä oleva mainita "Ennakkotarjoukset (pre-bid) — TEHTY, vahvistettu omistajalta 2026-08-16" täsmää tähän.
+
+## HUOMIO TYÖSKENTELYTAVASTA: CLAUDE.md ei aina päivity samaan tahtiin kuin koodi
+2026-09-01 löydetty: neljä committia oli tehty ja pushattu GitHubiin ilman että CLAUDE.md päivittyi samalla — tämä tarkoittaa VS Coden Claude -session ja tämän Claude.ai-keskustelun välillä voi syntyä viive dokumentaation ja koodin välillä. **Suositus jatkoa varten: tarkista GitHubin commit-historia (`git log --oneline -10`) aina silloin tällöin CLAUDE.md:n rinnalla**, ei pelkästään luoteta siihen että CLAUDE.md kertoo koko totuuden koodin tilasta.
+
 ## Liiketoimintasäännöt (LUKITTU — ei muuteta)
 - **Välityspalkkio — KORJATTU 2026-08-25: 3,5% max 35€** (aiempi "3%" oli kirjoitusvirhe joka oli levinnyt useaan tiedostoon — 3,5% on oikea prosentti, 35€ oli jo oikein useimmissa paikoissa) + Paytrail ~1,5% + 0,25€ (ei kattoa)
 - Kaikki huudot **sitovia** — ei peruutuksia
@@ -153,7 +182,18 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
 3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. "Paytrail-maksuintegraatio" -osio alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
-5. **Resend** — sähköpostinotifikaatiot (odottaa skrm.fi domain-aktivoitumista Zohon jälkeen)
+5. **Resend** — sähköpostinotifikaatiot. **Vahvistettu koodista 2026-08-26: EI toteutettu ollenkaan**, ainoa jälki on yksi TODO-kommentti (`backend/src/routes/webhooks.ts`, rivi 57: "TODO: Resend — ilmoita käyttäjälle bannista sähköpostilla"). **Domain-vaihto vaikuttaa:** aiempi suunnitelma odotti `skrm.fi`-domainin aktivoitumista Zohossa — nyt domain on `habahub.com`/`habahub.fi`, joten Resendin lähetysdomain-vahvistus (SPF/DKIM-tietueet) pitää tehdä UUDELLEEN uudella domainilla, ei kelpaa mikään aiempi valmistelu skrm.fi:lle.
+   - **Markkinointi- vs. transaktionaaliset sähköpostit — päätös 2026-08-26:** käytetään **yhtä ja samaa palvelua molempiin, Resend** (transaktionaaliset API + Broadcasts/Audiences-toiminnot markkinointiin) — yksinkertaisempi ylläpitää kuin kahta erillistä palvelua (esim. Resend + Mailchimp). Jos Resendin markkinointipuoli osoittautuu myöhemmin liian suppeaksi, erillinen työkalu voidaan lisätä sitten — ei monimutkaisteta etukäteen.
+   - **Zoho Mail koettu huonoksi (11€/vuosi, hankala asentaa) — vaihtoehtoja harkittu tälle uudelle domainille (support@habahub.com):** Fastmail (~30-50€/v, siistimpi hallintapaneeli), Namecheap Private Email (usein halvempi), Google Workspace / Microsoft 365 (tutuin käyttöliittymä, kalliimpi), Hetznerin oma webhosting-sähköposti (eri tuote kuin nykyinen Cloud VPS, hinta/käyttökokemus ei vahvistettu), tai ilmainen Cloudflare Email Routing + oma Outlook (vain vastaanotto+uudelleenohjaus, ei voi lähettää `support@habahub.com`-osoitteesta). **Ei vielä valittu — omistaja päättää myöhemmin, tämä on erillinen valinta Resendin sähköpostilähetyksestä** (Resend hoitaa sovelluksen lähettämät automaattiset viestit, tämä valinta koskee ihmisten välistä sähköpostiliikennettä `support@`-osoitteeseen).
+
+6. **⚠️ KRIITTINEN LÖYDÖS 2026-08-26 — salasanan palautusta ei ole olemassa ollenkaan.** Vahvistettu koodista: `backend/src/routes/auth.ts` sisältää vain `/register` ja `/login`, ei mitään `/forgot-password`- tai `/reset-password`-reittiä. **Käyttäjä joka unohtaa salasanansa on tällä hetkellä lopullisesti lukossa tililtään, ei mitään palautuskeinoa.** Tämä on tavallinen, pakollinen ominaisuus mille tahansa tuotantosivustolle ennen julkaisua.
+
+**Suunniteltu ratkaisu (riippuu Resendistä, joten nämä kaksi kannattaa rakentaa yhdessä):**
+- Uusi reitti `POST /auth/forgot-password` — ottaa sähköpostin, generoi kertakäyttöisen, aikarajoitetun (esim. 1h) tokenin, tallentaa tietokantaan
+- Resendin kautta lähetetään sähköposti linkillä joka sisältää tokenin
+- Uusi reitti `POST /auth/reset-password` — ottaa tokenin + uuden salasanan, validoi tokenin voimassaolon, päivittää salasanan
+- Frontend: "Unohditko salasanan?" -linkki login-sivulle, uusi sivu tokenin syöttöä/uuden salasanan asettamista varten
+- **Sama Resend-infra palvelee myös muita jo suunniteltuja sähköposteja** (banni-ilmoitus TODO:sta yllä, tulevat tilausvahvistukset yms.) — kannattaa rakentaa Resend-peruspalvelu kerralla kunnolla, ei vain yhtä käyttötapausta varten
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
 8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
@@ -246,7 +286,7 @@ curl-testillä — seuraava askel jos tarpeen.**
   Nordeaa tai OP:ta testaukseen (ei vaadi mitään tunnuksia, täysin turvallinen).
 - Myyjäkohtainen submerchant-onboarding-prosessi tuotantoon — tietoisesti rajattu pois tästä
   vaiheesta käyttäjän ohjeen mukaisesti, eri myöhempi vaihe
-- Uusi kiinteä 9,90€ postihinta (ks. "Postihinnat" -osio) ei vielä toteutettu koodissa
+- ✅ Kiinteä 9,90€ postihinta muuttunut 6,90€:oon (ks. "Postihinnat" -osio) — **vahvistettu koodista 2026-09-01: TEHTY** (`backend/src/lib/shipping.ts`, `faq.tsx`, `valityspalkkiot`-sivu)
   (`backend/src/lib/shipping.ts` sisältää yhä vanhan kokoportaikon) — ei vaikuta Paytrail-
   integraation toimintaan koska hinta luetaan aina `getShippingPrice()`:n kautta, ei kovakoodattu
   maksulogiikkaan, mutta erillinen tehtävä joka vielä odottaa toteutusta
@@ -296,13 +336,42 @@ curl-testillä — seuraava askel jos tarpeen.**
 - Windowsin/selaimen DNS-välimuisti voi näyttää vanhaa osoitetta hetken vaikka Cloudflaren tietue on jo oikein — `ipconfig /flushdns` tai yksityinen selainikkuna auttaa
 - `pg_dump --disable-triggers` -lippu antaa "permission denied" -virheitä system-triggereille ilman superuser-oikeuksia, mutta itse `COPY`-komennot menevät silti läpi oikein jos taulut tuodaan riippuvuusjärjestyksessä — virheistä ei tarvitse hätääntyä, tarkista aina lopuksi `SELECT COUNT(*)` oikealla taululla
 
-### Hosting — Railway POISTETTU KOKONAAN, app.skrm.fi:n Netlify pois käytöstä, landing pysyy
-Migraatio Hetznerille on valmis ja vahvistettu (ks. yllä). **Railway-projekti on poistettu kokonaan** (2026-08-08) — ei enää olemassa, ei varakopiota sieltä saatavilla jos joskus tarvittaisiin (kaikki tarpeellinen data on jo siirretty Hetznerille aiemmin tehdyllä `pg_dump`-migraatiolla). `app.skrm.fi`:n Netlify-sivusto voidaan sammuttaa Netlify-dashboardista jos ei jo tehty.
-- **skrm.fi** (landing page) → **pysyy Netlifyssä** (`skrm.netlify.app`) — staattinen HTML, FI/SV/EN, "tulossa"-sivu, ei liity backendiin, ei syytä siirtää
-- **app.skrm.fi** (sovellus) → **Hetzner**, ks. yllä oleva tekninen kokoonpano
-- **Backend** → **Hetzner**, PM2 `skrm-backend`
-- **Tietokanta** → **Hetzner**, paikallinen PostgreSQL — **ainoa tietokanta, ei enää Railway-varakopiota olemassa**
-- Repot: GitLab (https://gitlab.com/lpjr86/skrm, private) ja GitHub (https://github.com/Larzmoi/skrm, **julkinen**)
+### Hosting — PÄIVITETTY 2026-08-26: domain vaihdettu skrm.fi/app.skrm.fi:stä habahub.com/habahub.fi:hin
+**skrm.fi ja app.skrm.fi POISTETTU KOKONAAN käytöstä** (nginx-konfiguraatio ja SSL-sertifikaatit poistettu Hetzneriltä, ks. aiempi domain-vaihtokeskustelu). Sivusto pyörii nyt kokonaan osoitteissa **habahub.com** ja **habahub.fi**, sama Hetzner-palvelin, sama tekninen kokoonpano (PM2, nginx, PostgreSQL) kuin ennen — vain domain-nimi vaihtui.
+
+**✅ TEHTY 2026-09-01: `.fi`- ja `www`-osoitteet ohjautuvat (301) kanoniseen `habahub.com`:iin.** Kanoninen domain on **habahub.com**. Nginx (`/etc/nginx/sites-available/habahub`, ei git-repossa, varmuuskopioitu palvelimelle ennen muutosta `habahub.bak-20260901`) jaettu kolmeen server-lohkoon: (1) `server_name habahub.com;` — ainoa joka oikeasti proxy_passaa sovellukseen (portit 3000/4000), (2) `server_name www.habahub.com habahub.fi www.habahub.fi;` (sama sertifikaatti kattaa kaikki neljä nimeä SAN:eina) — `return 301 https://habahub.com$request_uri;`, (3) HTTP (portti 80, kaikki neljä hostnimeä) — `return 301 https://habahub.com$request_uri;` suoraan yhdellä hypyllä (ei enää oman hostin HTTPS:ään ensin sitten kanoniseen). Vahvistettu curlilla: `habahub.fi`/`www.habahub.fi`/`www.habahub.com` (sekä HTTP että HTTPS) → 301 → `https://habahub.com`, `habahub.com` itse toimii ennallaan (307 login-seinä, ei uudelleenohjauslooppia).
+
+**⬜ TEKEMÄTTÄ: sähköposti (Zoho Mail) pitää rekisteröidä uudelleen uudelle domainille.** Aiempi työ tehtiin `skrm.fi`:lle (support@skrm.fi, MX/SPF/DKIM-tietueet Cloudflaressa) — tämä ei siirry automaattisesti, sama prosessi (Zoho-rekisteröinti + DNS-tietueet Cloudflaressa) pitää tehdä uudelleen `habahub.com`:lle (tai `.fi`:lle, riippuen kumpaa halutaan sähköpostiosoitteena — kanoninen `.com`-päätös yllä viittaisi siihen että `support@habahub.com` on looginen valinta, mutta molemmat voivat vastaanottaa jos halutaan).
+
+- **skrm.fi + app.skrm.fi** → poistettu kokonaan, ei enää käytössä missään
+- **habahub.com** (kanoninen) + **habahub.fi** (ohjautuu .com:iin) → **Hetzner**, sama tekninen kokoonpano
+- **Backend** → **Hetzner**, PM2 `skrm-backend` (prosessin nimi ei ole vielä päivitetty vastaamaan uutta brändiä, kosmeettinen, ei kiireellinen)
+- **Tietokanta** → **Hetzner**, paikallinen PostgreSQL
+- Repot: GitLab (https://gitlab.com/lpjr86/skrm, private) ja GitHub (https://github.com/Larzmoi/skrm, **yksityinen** — muutettu takaisin 2026-08-25)
+
+## Turvallisuusauditointi 2026-08-26 (Security Headers, ImmuniWeb, Qualys SSL Labs) — korjaukset päätetty, ei vielä toteutettu
+
+Ulkoinen tietoturva-auditointi paljasti puuttuvia HTTP-security-headereitä ja TLS-asetuksia. Osa korjataan koodissa (VS Coden Claude), osa on pelkkiä Cloudflare-dashboard-asetuksia (omistaja tekee itse, ei koodia).
+
+### A) Cloudflare-dashboard-asetukset (omistaja tekee itse, ei koodia)
+1. **TLS 1.0/1.1 pois käytöstä** — SSL/TLS → Edge Certificates → Minimum TLS Version → **TLS 1.2**
+2. **HSTS päälle** — samalla sivulla, Enable HSTS, Max Age 12kk (`preload`-vaihtoehto jätetään pois toistaiseksi — preload-listalle pääsy on käytännössä pysyvä sitoumus, ei kannata sitoutua siihen vielä)
+
+### B) next.config.js — koodimuutos, VAATII HUOLELLISEN TESTAUKSEN
+**⚠️ Sivustolla on erityistarpeita jotka CSP:n pitää sallia:** LiveKit WebRTC, Paytrail-maksu-uudelleenohjaus, Socket.io, base64-tallennetut kuvat. Liian tiukka CSP voi hiljaa rikkoa toiminnallisuutta ilman selvää virheilmoitusta.
+
+1. `poweredByHeader: false` — poistaa `X-Powered-By: Next.js`-headerin (tietovuoto-riski, paljastaa teknologian)
+2. `headers()`-funktio joka asettaa: `Strict-Transport-Security` (max-age=63072000; includeSubDomains), `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (kamera/mikrofoni sallittu `self`:lle koska WebRTC-striimaus vaatii sen, geolocation kielletty)
+3. **Content-Security-Policy** — ehdotettu lähtökohta joka sallii tunnetut tarpeet:
+   - `connect-src` sallii `wss:` (LiveKit/Socket.io), `https://*.paytrail.com`, `https://gateway.posti.fi`, `https://gateway-auth.posti.fi`
+   - `frame-src`/`form-action` sallii `https://*.paytrail.com` (maksu-uudelleenohjaus)
+   - `img-src`/`media-src` sallii `data:`/`blob:` (base64-kuvat, video)
+   - `object-src 'none'`, `base-uri 'self'`
+
+**Testausvaatimus ennen käyttöönottoa:** käy selaimen Console-välilehdeltä läpi koko sivusto (kirjautuminen, selaus, LiveKit-video/chat, Paytrail-testimaksu) ja varmista ettei yhtään CSP-virhettä ilmesty punaisena ennen kuin luotetaan konfiguraatioon.
+
+### C) GDPR/tietosuoja-linkki ei löytynyt auditoinnissa
+Auditointityökalu ei löytänyt tietosuojaseloste-linkkiä crawlausvaiheessa. Todennäköinen syy: footerin "Tietosuoja"-linkki ei ole oikea `<a href="/tietosuoja">`-tagi (esim. pelkkä JS-onClick/router.push ilman href:ää), tai linkki puuttuu joltain sivulta. Tarkista molemmat.
 
 ## Kategoriat (14 kpl — LUKITTU)
 1. Keräilykortit

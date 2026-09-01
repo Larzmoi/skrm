@@ -4,6 +4,7 @@ import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
 import { verifyCallbackSignature, parseStamp } from '../lib/paytrail'
+import { sendBanNotificationEmail } from '../lib/resend'
 
 const router = Router()
 
@@ -18,7 +19,7 @@ const BAN_DAYS = 30
 export async function checkExpiredPayments() {
   const expired = await prisma.order.findMany({
     where: { status: 'PENDING_PAYMENT', paymentDeadline: { lt: new Date() } },
-    include: { items: { include: { product: true } } },
+    include: { items: { include: { product: true } }, buyer: true },
   })
 
   for (const order of expired) {
@@ -54,7 +55,7 @@ export async function checkExpiredPayments() {
           },
         })
         await notifyUser(order.buyerId, 'BAN_ISSUED', 'Tilisi on estetty', `Tilisi on estetty ${BAN_DAYS} päiväksi maksamattoman tilauksen vuoksi.`, '/dashboard/profiili')
-        // TODO: Resend — ilmoita käyttäjälle bannista sähköpostilla kun skrm.fi-domain on aktivoitu
+        await sendBanNotificationEmail(order.buyer.email, order.buyer.name, ban.endsAt.toISOString(), 'Maksamaton tilaus')
         console.log(`[ban] Käyttäjä ${order.buyerId} bannattu ${ban.endsAt.toISOString()} asti (${violationCount} maksamatonta tilausta)`)
       }
     }
