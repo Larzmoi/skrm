@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
+import ProductCard from '@/components/ProductCard'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { auctionApi } from '@/lib/api'
@@ -147,32 +147,12 @@ export default function HuutokaupatPage() {
               {filtered.map(a => {
                 const remaining = new Date(a.auctionEndsAt).getTime() - now
                 const urgent = remaining < 60 * 60 * 1000
-                const thumbnail = a.imageUrl ? a.imageUrl.split('|||')[0] : ''
                 return (
-                  <Link key={a.id} href={`/huutokauppa/${a.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
-                    <div style={{ aspectRatio: '1', position: 'relative', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {thumbnail
-                        ? <img src={thumbnail} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                      }
-                      <div style={{ position: 'absolute', bottom: 6, left: 6, background: urgent ? '#EF4444' : C.accent, color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4 }}>
-                        {timeLeftLabel(remaining)}
-                      </div>
-                      <div style={{ position: 'absolute', top: 6, right: 6, background: C.accent, color: '#fff', fontSize: 10, padding: '2px 7px', borderRadius: 4 }}>
-                        {a._count?.bids ?? 0} huutoa
-                      </div>
-                    </div>
-                    <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{a.name}</div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{(a.currentBid ?? a.startPrice).toLocaleString('fi-FI')}€</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: C.muted }}>@{a.seller?.username}</div>
-                        {auctionCity(a) && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{auctionCity(a)}</div>}
-                      </div>
-                    </div>
-                  </Link>
+                  <ProductCard
+                    key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
+                    price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} city={auctionCity(a)}
+                    timeBadge={{ text: timeLeftLabel(remaining), urgent }} bidCount={a._count?.bids ?? 0}
+                  />
                 )
               })}
             </div>

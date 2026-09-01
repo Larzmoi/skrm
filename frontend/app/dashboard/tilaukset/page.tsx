@@ -37,34 +37,40 @@ function timeLeftLabel(ms: number) {
 function PendingPaymentCard({ order, C, now }: { order: SellingOrder; C: Record<string, string>; now: number }) {
   const remaining = order.paymentDeadline ? new Date(order.paymentDeadline).getTime() - now : null
   return (
-    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 12, opacity: 0.85 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+    <div className="hb-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `4px solid ${C.warn}`, borderRadius: 12, padding: '14px 18px', marginBottom: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 9 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
-          <div style={{ fontSize: 12, color: C.muted }}>@{order.buyer.username}</div>
+          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
+          <div style={{ fontSize: 11.5, color: C.muted }}>@{order.buyer.username}</div>
         </div>
-        <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+        <span style={{ fontSize: 11, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 9 }}>
         {order.items.map(item => (
-          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: C.text }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
-            <span style={{ color: C.muted }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
+          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+            <span style={{ color: C.textSub }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
+            <span style={{ color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
           </div>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-        <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: remaining !== null && remaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
-          {remaining !== null ? (remaining > 0 ? `Ostajan maksuaikaa ${timeLeftLabel(remaining)}` : 'Maksuaika umpeutunut') : 'Odottaa maksua'}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
+        <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
+        <span style={{
+          fontFamily: 'var(--font-hanken), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
+          padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap' as const,
+          background: remaining !== null && remaining < 30 * 60 * 1000 ? 'rgba(239,68,68,0.14)' : C.warnLight,
+          color: remaining !== null && remaining < 30 * 60 * 1000 ? '#EF4444' : C.warn,
+        }}>
+          {remaining !== null ? (remaining > 0 ? timeLeftLabel(remaining) : 'Umpeutunut') : 'Odottaa'}
         </span>
       </div>
     </div>
   )
 }
 
-function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, pakettikokoValue, onPakettikokoChange, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
+function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, pakettikokoValue, onPakettikokoChange, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
+  stripe: string; badge: { text: string; bg: string; color: string }
   trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void
   pickupValue: string; onPickupChange: (v: string) => void; onSubmitPickup: () => void; busy: boolean
   pakettikokoValue: 'PIENI' | 'ISO'; onPakettikokoChange: (v: 'PIENI' | 'ISO') => void
@@ -77,32 +83,38 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
   onRefund: () => void; refundBusy: boolean
 }) {
   return (
-    <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+    <div className="hb-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderLeft: `4px solid ${stripe}`, borderRadius: 12, padding: '14px 18px', marginBottom: 10, boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 9 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
-          <div style={{ fontSize: 12, color: C.muted }}>@{order.buyer.username}</div>
+          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 13.5, fontWeight: 700, color: C.text }}>{order.buyer.name}</div>
+          <div style={{ fontSize: 11.5, color: C.muted }}>@{order.buyer.username}</div>
         </div>
-        <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+        <span style={{ fontSize: 11, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 9 }}>
         {order.items.map(item => (
-          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: C.text }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
-            <span style={{ color: C.muted }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
+          <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+            <span style={{ color: C.textSub }}>{item.product.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span>
+            <span style={{ color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{(item.price * item.quantity).toLocaleString('fi-FI')}€</span>
           </div>
         ))}
       </div>
 
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
+      <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>
         {addressLine(order.buyer)}{order.buyer.phone ? ` · ${order.buyer.phone}` : ''}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
-          <button onClick={onRefund} disabled={refundBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', opacity: refundBusy ? 0.6 : 1 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 9, borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{(order.productTotal + (order.shippingPrice ?? 0)).toLocaleString('fi-FI')}€</span>
+          <span style={{
+            fontFamily: 'var(--font-hanken), sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' as const,
+            padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap' as const, background: badge.bg, color: badge.color,
+          }}>
+            {badge.text}
+          </span>
+          <button className="hb-btn" onClick={onRefund} disabled={refundBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', opacity: refundBusy ? 0.6 : 1 }}>
             {refundBusy ? '...' : 'Hyvitä'}
           </button>
         </div>
@@ -114,7 +126,7 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
               placeholder="Noutokoodi"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
             />
-            <button onClick={onSubmitPickup} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <button className="hb-btn" onClick={onSubmitPickup} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Vahvista nouto'}
             </button>
           </div>
@@ -127,7 +139,7 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
               placeholder="Seurantakoodi (manuaalinen)"
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flex: '1 1 140px', minWidth: 0 }}
             />
-            <button onClick={onSubmitTracking} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <button className="hb-btn" onClick={onSubmitTracking} disabled={busy} style={{ background: C.accent, color: '#fff', border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : 'Lisää seurantakoodi'}
             </button>
             {/* Pakettikoko valitaan vasta tässä, lähetysvaiheessa - ei vaikuta ostajalta jo
@@ -137,7 +149,7 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
               <option value="PIENI">Pieni</option>
               <option value="ISO">Iso</option>
             </select>
-            <button onClick={onCreateShipment} disabled={shipmentBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.text, padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: shipmentBusy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <button className="hb-btn" onClick={onCreateShipment} disabled={shipmentBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.text, padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: shipmentBusy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {shipmentBusy ? '...' : 'Luo lähetys (Posti)'}
             </button>
           </div>
@@ -187,6 +199,29 @@ function OrderCard({ order, showTracking, C, trackingValue, onTrackingChange, on
       )}
     </div>
   )
+}
+
+// Kanban-sarakkeen otsikko - väristripe + nimi + kappalemäärä-badge + rahasumma. Sama
+// tieto joka aiemmin luki pelkässä <h2>-otsikossa, nyt näkyy silmäyksellä ilman lukemista.
+function ColumnHeader({ name, count, sum, stripe, C }: { name: string; count: number; sum: number; stripe: string; C: Record<string, string> }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: stripe, flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 14, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+        </div>
+        <span style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, color: C.muted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: '1px 8px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+          {count}
+        </span>
+      </div>
+      <div style={{ fontSize: 11.5, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{sum.toLocaleString('fi-FI')}€</div>
+    </div>
+  )
+}
+
+function EmptyColumn({ text, C }: { text: string; C: Record<string, string> }) {
+  return <div style={{ color: C.muted, fontSize: 13, padding: '10px 0' }}>{text}</div>
 }
 
 export default function TilauksetPage() {
@@ -283,10 +318,19 @@ export default function TilauksetPage() {
   const shipped = orders.filter(o => o.status === 'SHIPPED')
   const delivered = orders.filter(o => o.status === 'DELIVERED')
 
+  const orderTotal = (o: SellingOrder) => o.productTotal + (o.shippingPrice ?? 0)
+  const sumOf = (list: SellingOrder[]) => list.reduce((s, o) => s + orderTotal(o), 0)
+
+  const shippedBadge = (o: SellingOrder) => ({
+    text: o.labelUrl ? 'Tarra' : (o.sendingCode ?? o.trackingCode ?? 'Matkalla'),
+    bg: C.surface2, color: C.textSub,
+  })
+  const doneBadge = { text: '✓ Valmis', bg: C.accentLight, color: C.accent }
+
   return (
     <div style={{ color: C.text }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Tilaukset</h1>
+        <h1 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 24, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>Tilaukset</h1>
         <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Myyntitilaustesi hallinta</p>
       </div>
 
@@ -295,20 +339,24 @@ export default function TilauksetPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
       ) : (
-        <>
+        // auto-fit + minmax rivittää sarakkeet konttiin sopiviksi sen sijaan että ne
+        // vierisivät sivusuunnassa - 4 rinnakkain leveällä näytöllä, tippuu 2:een tai
+        // 1:een kapeammalla, ei koskaan overflow-x:ää millään näytön leveydellä.
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 18, alignItems: 'start' }}>
           {pendingPayment.length > 0 && (
-            <>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Odottaa maksua <span style={{ color: C.muted, fontWeight: 400 }}>({pendingPayment.length})</span></h2>
-              <div style={{ marginBottom: 24 }}>{pendingPayment.map(o => <PendingPaymentCard key={o.id} order={o} C={C} now={now} />)}</div>
-            </>
+            <div style={{ minWidth: 0 }}>
+              <ColumnHeader name="Odottaa maksua" count={pendingPayment.length} sum={pendingPayment.reduce((s, o) => s + o.productTotal, 0)} stripe={C.warn} C={C} />
+              {pendingPayment.map(o => <PendingPaymentCard key={o.id} order={o} C={C} now={now} />)}
+            </div>
           )}
 
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Uudet tilaukset <span style={{ color: C.muted, fontWeight: 400 }}>({ready.length})</span></h2>
-          {ready.length === 0
-            ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0', marginBottom: 24 }}>Ei lähetettäviä tilauksia</div>
-            : <div style={{ marginBottom: 24 }}>{ready.map(o => (
+          <div style={{ minWidth: 0 }}>
+            <ColumnHeader name="Uudet tilaukset" count={ready.length} sum={sumOf(ready)} stripe={C.accent} C={C} />
+            {ready.length === 0
+              ? <EmptyColumn text="Ei lähetettäviä tilauksia" C={C} />
+              : ready.map(o => (
                 <OrderCard
-                  key={o.id} order={o} showTracking C={C}
+                  key={o.id} order={o} showTracking C={C} stripe={C.accent} badge={doneBadge}
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
@@ -323,15 +371,17 @@ export default function TilauksetPage() {
                   onRefund={() => setRefundConfirmFor(o.id)}
                   refundBusy={refundBusy === o.id}
                 />
-              ))}</div>
-          }
+              ))
+            }
+          </div>
 
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Lähetetty <span style={{ color: C.muted, fontWeight: 400 }}>({shipped.length})</span></h2>
-          {shipped.length === 0
-            ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0', marginBottom: 24 }}>Ei matkalla olevia tilauksia</div>
-            : <div style={{ marginBottom: 24 }}>{shipped.map(o => (
+          <div style={{ minWidth: 0 }}>
+            <ColumnHeader name="Lähetetty" count={shipped.length} sum={sumOf(shipped)} stripe={C.muted} C={C} />
+            {shipped.length === 0
+              ? <EmptyColumn text="Ei matkalla olevia tilauksia" C={C} />
+              : shipped.map(o => (
                 <OrderCard
-                  key={o.id} order={o} showTracking={false} C={C}
+                  key={o.id} order={o} showTracking={false} C={C} stripe={C.muted} badge={shippedBadge(o)}
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
@@ -346,15 +396,17 @@ export default function TilauksetPage() {
                   onRefund={() => setRefundConfirmFor(o.id)}
                   refundBusy={refundBusy === o.id}
                 />
-              ))}</div>
-          }
+              ))
+            }
+          </div>
 
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>Toimitetut <span style={{ color: C.muted, fontWeight: 400 }}>({delivered.length})</span></h2>
-          {delivered.length === 0
-            ? <div style={{ color: C.muted, fontSize: 13, padding: '12px 0' }}>Ei toimitettuja tilauksia</div>
-            : <div>{delivered.map(o => (
+          <div style={{ minWidth: 0 }}>
+            <ColumnHeader name="Toimitetut" count={delivered.length} sum={sumOf(delivered)} stripe={C.accent} C={C} />
+            {delivered.length === 0
+              ? <EmptyColumn text="Ei toimitettuja tilauksia" C={C} />
+              : delivered.map(o => (
                 <OrderCard
-                  key={o.id} order={o} showTracking={false} C={C}
+                  key={o.id} order={o} showTracking={false} C={C} stripe={C.accent} badge={doneBadge}
                   trackingValue={trackingInput[o.id] ?? ''}
                   onTrackingChange={v => setTrackingInput(s => ({ ...s, [o.id]: v }))}
                   onSubmitTracking={() => submitTracking(o.id)}
@@ -381,9 +433,10 @@ export default function TilauksetPage() {
                     busy: reviewBusy === o.id,
                   }}
                 />
-              ))}</div>
-          }
-        </>
+              ))
+            }
+          </div>
+        </div>
       )}
 
       {refundConfirmFor && (

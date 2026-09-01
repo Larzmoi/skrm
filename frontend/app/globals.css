@@ -27,3 +27,37 @@ input[type=number] { -moz-appearance: textfield; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Otsikko-/hinta-/nappifontti, ks. layout.tsx:n next/font-määrittely. Käytettävissä
+   inline style -objekteissa: fontFamily: 'var(--font-hanken), -apple-system, ...' */
+
+/* Kortin kohonta hoverilla (tuotekortit + kanban-tilauskortit) - kiinteät rgba(0,0,0,...)-
+   varjot toimivat molemmilla teemoilla, ei tarvitse teemakohtaisia arvoja koska varjo
+   tummentaa aina riippumatta taustan väristä. Käytetään className="hb-card" (+valinnainen
+   hb-card-stripe reunajuovaksi) yhdessä olemassa olevien C.xxx-inline-tyylien kanssa -
+   korvaa vain kohonnan/siirtymän, ei muuta väri-/mittajärjestelmää. */
+.hb-card {
+  transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.hb-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+.hb-card-img {
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.hb-card:hover .hb-card-img {
+  transform: scale(1.06);
+}
+.hb-btn {
+  transition: filter 0.12s ease, transform 0.08s ease;
+}
+.hb-btn:hover { filter: brightness(1.08); }
+.hb-btn:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-card, .hb-card-img, .hb-btn { transition: none; }
+  .hb-card:hover { transform: none; }
+  .hb-card:hover .hb-card-img { transform: none; }
+  .hb-btn:active { transform: none; }
+}

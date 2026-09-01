@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
+import ProductCard from '@/components/ProductCard'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { api, userApi } from '@/lib/api'
@@ -201,25 +202,11 @@ function SelaaContent() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
               {filtered.map(p => (
-                <Link key={p.id} href={`/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
-                  <div style={{ aspectRatio: '1', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {p.imageUrl
-                      ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                    }
-                  </div>
-                  <div style={{ padding: isMobile ? '8px' : '10px 12px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, marginBottom: 3, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{p.name}</div>
-                      <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text }}>{p.startPrice.toLocaleString('fi-FI')}€</div>
-                      {p.condition && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{p.condition}</div>}
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, color: C.muted }}>@{p.seller?.username}</div>
-                      {productCity(p) && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{productCity(p)}</div>}
-                    </div>
-                  </div>
-                </Link>
+                <ProductCard
+                  key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
+                  price={p.startPrice} condition={p.condition} sellerUsername={p.seller?.username}
+                  city={productCity(p)} isMobile={isMobile}
+                />
               ))}
             </div>
           )}

@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
+import ProductCard from '@/components/ProductCard'
 import { useTheme } from '@/lib/theme-context'
 import { useState, useMemo, useEffect } from 'react'
 import { useKategoria } from '@/lib/kategoria-context'
@@ -22,6 +23,62 @@ function auctionTimeLeft(ms: number) {
   if (d > 0) return `${d}pv ${h}h`
   if (h > 0) return `${h}h ${m}min`
   return `${m}min`
+}
+
+// Mainostila etusivulle (omistajan pyyntö). Kun tuleva lähetys on jo aikataulutettu,
+// nostetaan se suoraan tänne omana korostettuna bannerinaan - hyödyntää dataa joka on jo
+// haettu (displayUpcoming), ei vaadi erillistä sisällönhallintaa. Jos yhtään lähetystä ei
+// ole aikataulutettu, näytetään evergreen-viesti. FALLBACK_PROMO on ainoa kohta jota
+// omistajan tarvitsee muokata jos hän haluaa vaihtaa mainoksen sisällön.
+const FALLBACK_PROMO = {
+  eyebrow: 'HABAHUB',
+  title: 'Ei listaus- eikä kuukausimaksuja',
+  body: 'Maksat vain 3,5 % kun tuote oikeasti myydään, enintään 35 €. Aloita myyminen tänään.',
+  ctaText: 'Ryhdy myyjäksi',
+  ctaHref: '/register',
+}
+
+function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, string>; isMobile: boolean; upcoming?: { id: string; seller: string; title: string; thumbnail: string; scheduledAt?: string }; t: any; lang: string }) {
+  if (upcoming) {
+    return (
+      <Link
+        href={`/live/${upcoming.id}`}
+        className="hb-card"
+        style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 0, background: C.accentLight, border: `1px solid ${C.accent}55`, borderRadius: 16, overflow: 'hidden', textDecoration: 'none', marginBottom: 32, boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }}
+      >
+        <div className="hb-card-img" style={{ width: isMobile ? '100%' : 220, height: isMobile ? 140 : 124, flexShrink: 0, background: C.surface, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {upcoming.thumbnail
+            ? <img src={upcoming.thumbnail} alt={upcoming.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            : <span style={{ fontSize: 28, color: C.dim }}>+</span>
+          }
+        </div>
+        <div style={{ padding: isMobile ? '16px 18px' : '18px 26px', flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>
+            Tulossa pian{upcoming.scheduledAt ? ` · ${formatShowTime(upcoming.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
+          </div>
+          <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{upcoming.title}</div>
+          <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · Ennakkotarjoukset ovat jo auki</div>
+        </div>
+        <div style={{ padding: isMobile ? '0 18px 16px' : '0 26px 0 0', flexShrink: 0 }}>
+          <span className="hb-btn" style={{ display: 'inline-block', background: C.accent, color: '#fff', padding: '9px 18px', borderRadius: 8, fontFamily: 'var(--font-hanken), sans-serif', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
+            Katso lähetys →
+          </span>
+        </div>
+      </Link>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16, background: C.accentLight, border: `1px solid ${C.accent}55`, borderRadius: 16, padding: isMobile ? '18px 20px' : '20px 26px', marginBottom: 32 }}>
+      <div>
+        <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>{FALLBACK_PROMO.eyebrow}</div>
+        <div style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{FALLBACK_PROMO.title}</div>
+        <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{FALLBACK_PROMO.body}</div>
+      </div>
+      <Link href={FALLBACK_PROMO.ctaHref} className="hb-btn" style={{ background: C.accent, color: '#fff', padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-hanken), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {FALLBACK_PROMO.ctaText} →
+      </Link>
+    </div>
+  )
 }
 
 export default function Home() {
@@ -138,7 +195,7 @@ export default function Home() {
           </div>
 
           <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? '40px 24px 32px' : '60px 24px 48px', textAlign: 'center', position: 'relative' }}>
-            <h1 style={{ fontSize: isMobile ? 28 : 42, fontWeight: 900, color: C.text, marginBottom: 12, lineHeight: 1.15, letterSpacing: '-0.5px' }}>
+            <h1 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: isMobile ? 28 : 44, fontWeight: 800, color: C.text, marginBottom: 12, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
               {t.home.heroTitleLine1}<br />{t.home.heroTitleLine2}
             </h1>
             <p style={{ fontSize: isMobile ? 14 : 16, color: C.muted, marginBottom: 28, lineHeight: 1.6 }}>
@@ -246,31 +303,24 @@ export default function Home() {
         {/* Pääsisältö */}
         <div style={{ flex: 1, padding: isMobile ? '16px 14px' : '24px 24px', minWidth: 0 }}>
 
+          <PromoBanner C={C} isMobile={isMobile} upcoming={displayUpcoming[0]} t={t} lang={lang} />
+
           {/* Myynnissä — ensin */}
           {filteredProducts.length > 0 && (
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{t.home.buyNow}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.buyNow}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{filteredProducts.length}</span>
                 </div>
                 <Link href="/selaa" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(180px, 1fr))', gap: isMobile ? 10 : 12 }}>
                 {filteredProducts.map(p => (
-                  <Link key={p.id} href={`/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
-                    <div style={{ aspectRatio: '1', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {p.thumbnail
-                        ? <img src={p.thumbnail} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                      }
-                    </div>
-                    <div style={{ padding: isMobile ? '8px' : '9px 11px' }}>
-                      <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, marginBottom: 2, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: C.muted, marginBottom: 3 }}>{p.condition}</div>
-                      <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text }}>{p.price.toLocaleString('fi-FI')}€</div>
-                    </div>
-                  </Link>
+                  <ProductCard
+                    key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.thumbnail}
+                    price={p.price} condition={p.condition} sellerUsername={p.seller} isMobile={isMobile}
+                  />
                 ))}
               </div>
             </section>
@@ -281,31 +331,20 @@ export default function Home() {
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{t.nav.auctions}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.nav.auctions}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{auctions.length}</span>
                 </div>
                 <Link href="/huutokaupat" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(180px, 1fr))', gap: isMobile ? 10 : 12 }}>
                 {auctions.map((a: any) => {
-                  const thumbnail = a.imageUrl ? a.imageUrl.split('|||')[0] : ''
                   const remaining = new Date(a.auctionEndsAt).getTime() - now
                   return (
-                    <Link key={a.id} href={`/huutokauppa/${a.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
-                      <div style={{ aspectRatio: '1', position: 'relative', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {thumbnail
-                          ? <img src={thumbnail} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                          : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                        }
-                        <div style={{ position: 'absolute', bottom: 6, left: 6, background: remaining < 60 * 60 * 1000 ? '#EF4444' : C.accent, color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 4 }}>
-                          {auctionTimeLeft(remaining)}
-                        </div>
-                      </div>
-                      <div style={{ padding: isMobile ? '8px' : '9px 11px' }}>
-                        <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 600, color: C.text, marginBottom: 2, lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{a.name}</div>
-                        <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text }}>{(a.currentBid ?? a.startPrice).toLocaleString('fi-FI')}€</div>
-                      </div>
-                    </Link>
+                    <ProductCard
+                      key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
+                      price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} isMobile={isMobile}
+                      timeBadge={{ text: auctionTimeLeft(remaining), urgent: remaining < 60 * 60 * 1000 }}
+                    />
                   )
                 })}
               </div>
@@ -318,7 +357,7 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.red, display: 'inline-block' }} />
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{t.home.liveNow}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.liveNow}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{filteredShows.length}</span>
                 </div>
                 <Link href="/live-kaikki" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
@@ -353,7 +392,7 @@ export default function Home() {
             <section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{t.home.upcoming}</h2>
+                  <h2 style={{ fontFamily: 'var(--font-hanken), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.upcoming}</h2>
                   <span style={{ fontSize: 13, color: C.muted }}>{displayUpcoming.length}</span>
                 </div>
                 <Link href="/live-kaikki?status=scheduled" style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>{t.home.showAll}</Link>
