@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/kayttoehdot', '/tietosuoja']
+const PUBLIC_PATHS = ['/login', '/register', '/kayttoehdot', '/tietosuoja', '/unohtuiko-salasana', '/nollaa-salasana']
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('habahub_token')?.value
