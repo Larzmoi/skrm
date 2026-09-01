@@ -92,21 +92,88 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 
 4. **Koko sivusto käydään läpi järjestelmällisesti** — FAQ, käyttöehdot, tietosuoja, välityspalkkiot, etusivu, kaikki tekstisisältö. Lisää löydökset kirjataan tähän osioon sitä mukaa kun niitä tulee.
 
-## Visuaalinen tyylipäivitys 2026-09-01 — KÄYNNISSÄ (aloitettu, ei vielä valmis kauttaaltaan)
+## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — ✅ TEHTY JA DEPLOYATTU
 
-**Tilanne 2026-09-01 (osa 1):** perusta + jaettu navigointi tehty ja deployattu:
-- `theme-context.tsx`: brand-väri limeen (`#84cc16`) koko paletissa, molemmat teemat. **Kaksi accent-roolia lisätty** (ei ollut mockissa eksplisiittisesti, mutta pakollinen kontrastin vuoksi): `accent`/`accentBright` = teemakohtaisesti säädetty, luettava TEKSTINÄ/reunana sivun taustan päällä (tumma teema kirkas lime, vaalea teema tummempi lime-oliivi) — sama periaate kuin vanhalla metsänvihreällä paletilla jo oli (eri sävy per teema kontrastin vuoksi). `accentSolid`/`accentText` = AINA sama kirkas `#84cc16` + tumma teksti, käytetään nappien/badgejen KIINTEÄNÄ taustana. Syy: mockin oma kirkas lime yhdistettynä olemassa olevaan valkoiseen nappitekstiin (58 kohtaa koko koodikannassa) olisi ollut lukukelvoton — kaikki 58+ kohtaa korjattu käyttämään `accentSolid`+`accentText`-paria.
-- Fontit: Outfit (`--font-display`) + Plus Jakarta Sans (`--font-body`) `next/font/google`:n kautta, korvaa äskettäin lisätyn Hanken Groteskin täysin (4 tiedostoa joissa oli `--font-hanken`, siirretty).
-- `globals.css`: uudet `.bg-noise`, `.glass-panel-dark`/`.glass-panel-light`, `.doppelrand-dark`/`.doppelrand-light`, `.reveal-on-scroll`/`.is-visible` -apuluokat (kunnioittavat `prefers-reduced-motion`).
-- Uudet komponentit: `components/ScrollReveal.tsx` (uudelleenkäytettävä IntersectionObserver-kääre), `components/layout/BackgroundLayers.tsx` (kiinteät aura-taustagradientit — tumma "obsidian aura", vaalea "lämmin alabasteri" -ruudukko, molemmat mockista).
-- `ClientLayout.tsx`: `BackgroundLayers` + kohinaoverlay renderöity kerran, sisältö kääritty `position:relative; zIndex:10` -kerrokseen (sama rakenne kuin mockin oma "MAIN CONTENT WRAPPER") — yksittäisten sivujen ei tarvitse itse huolehtia stacking contextista.
-- `Navbar.tsx`: uudistettu kelluvaksi lasipaneeli-"island"-navigaatioksi desktopilla (mobiilissa lasipaneeli-tyylinen kiinteä yläpalkki, ei kelluva). **Kaikki alkuperäinen toiminnallisuus säilytetty identtisenä**: haku, Selaa/Huutokaupat/Live-linkit, teema-/kielivalinta, ilmoitus-/viesti-/ostoskori-ikonit lukemattomine badgeineen, dashboard/kirjaudu-CTA.
-- `Footer.tsx`: sama rakenne/tekstit/linkit, vain typografia/välit/pyöristykset/hover-tila päivitetty.
-- `ThemeToggle.tsx`: vaihdettu track/thumb-kytkimestä kompaktiksi pyöreäksi ikonipainikkeeksi (mockin oma tyyli), sama toiminta.
-- **⚠️ EI vielä tehty:** yksittäiset sivut eivät vielä läpikäy varsinaista korttien/paneelien doppelrand/glass-panel-käsittelyä, eikä yksikään sivun oma juuri-`background: C.bg` ole vielä läpinäkyvä (mikä tarkoittaa BackgroundLayers-aurataustaa ei vielä NÄY useimmilla sivuilla, vaikka infrastruktuuri on paikallaan) — tämä on seuraava vaihe, sivu/komponentti kerrallaan (ProductCard, Selaa/Huutokaupat/Live, Dashboard-sivut, tuotesivut, auth-sivut jne.).
-- Typecheck + `next build` vihreä jokaisen välivaiheen jälkeen tähän asti.
+**Kaikki kohdat 1-5 valmiit, myyjät voivat listata.** Toteutus:
+- `frontend/lib/conditions.ts` (uusi) — `CARDMARKET_KUNTOLUOKAT` jaettu lähde, käyttää sekä manuaalinen lomake (`dashboard/tuotteet/page.tsx`) että Selaa/Huutokaupat-suodattimet (`CategorySidebar.tsx`) — ei kahta eri koodausta.
+- Manuaalinen lomake: kuntokenttä vaihtuu Cardmarket-asteikkoon kun `tyyppi === 'irtokortit'`, piilotetaan kokonaan kun `tyyppi === 'sealed'`, geneerinen 5-portainen pysyy fallbackina kaikelle muulle (mm. `slabit`, koskematon kuten pyydetty).
+- **Bulkkituonti sai kokonaan puuttuneen kategoria/peli/tyyppi-valitsimen** (ei ollut ennen — bulkkituodut tuotteet eivät koskaan saaneet `tyyppi`-kenttää asetetuksi, mikä olisi tehnyt koko Cardmarket-erottelusta merkityksettömän niille). `parseBulkText()` normalisoi (trim+isot kirjaimet) ja validoi liitetyn kunto-rivin samoja seitsemää lyhennettä vasten kun erän tyyppi on irtokortit, merkitsee tuntemattoman arvon riville virheeksi esikatselussa. `POST /products/bulk` hyväksyy nyt `category`/`alakategoria`/`tyyppi` koko erälle.
+- Selaa/Huutokaupat: uusi kuntosuodatin `CategorySidebar`:ssa (ei ollut ennen ollenkaan), näkyy vain kun aktiivinen tyyppi-suodatin on 'irtokortit'.
+- Typecheck + build vihreä joka välivaiheen jälkeen, deployattu tuotantoon 2026-09-01.
 
-Alkuperäinen tehtäväkuvaus säilytetty alla muuttumattomana:
+Alkuperäinen tehtäväkuvaus säilytetty alla:
+
+## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — päätetty, kiireellinen (200k€ inventaario tulossa)
+
+Nykyinen `KUNTOLUOKAT` (`dashboard/tuotteet/page.tsx`) on geneerinen 5-portainen (uusi/erinomainen/hyvä/tyydyttävä/käytetty) — ei sovi kortteihin, koska ostajat/myyjät ajattelevat kuntoa Cardmarket-asteikolla. Vahvistettu koodista: `Product.condition` on pelkkä `String?`, ei enum — joustava, ei vaadi migraatiota, vain sovelluslogiikan muutosta.
+
+**Ratkaisu käyttää jo olemassa olevaa `Product.tyyppi`-kenttää** ("slabit"/"sealed"/"irtokortit", kolmas kategoriataso Keräilykortit-kategorian sisällä) erottamaan mikä kuntojärjestelmä pätee:
+
+1. **`tyyppi === 'irtokortit'` → Cardmarket-asteikko käyttöön, sekä manuaalisessa lomakkeessa että suodattimissa:**
+   - `Mint (M)`, `Near Mint (NM)`, `Excellent (EX)`, `Good (GD)`, `Light Played (LP)`, `Played (PL)`, `Poor (PO)`
+   - Tallennettava arvo = lyhenne (`M`/`NM`/`EX`/`GD`/`LP`/`PL`/`PO`), näytettävä teksti = täysi nimi
+   - **Bulkkilistauksen (CSV/TXT) parseri** (jo toteutettu aiemmin) käyttää jo näitä samoja lyhenteitä Cardmarket-liimauksesta — varmista että manuaalinen lomake ja bulkkituonti tallentavat IDENTTISET arvot samaan kenttään, ei kahta eri koodausta samalle asialle
+2. **`tyyppi === 'sealed'`** (esim. boosterirasiat) → **kuntokenttä piilotetaan kokonaan lomakkeesta ja suodattimista** tälle tyypille — sinetöity tuote ei tarvitse kuntoarviota, se on aina uusi/sinetöity oletuksena
+3. **`tyyppi === 'slabit'`** (gradatut kortit) → **EI kosketeta tässä korjauksessa.** Näillä on eri, oma järjestelmänsä (gradauspalvelu + numeroarvosana, esim. "PSA 9", "BGS 9.5") — tämä on rakenteellisesti eri ongelma kuin kuntoluokitus (tarvitsisi oman `gradingCompany`+`grade`-kenttäparin, ei yhtä `condition`-merkkijonoa). **Merkitään erilliseksi, myöhemmäksi tehtäväksi**, ei sekoiteta tähän kiireelliseen korjaukseen.
+4. **Muut tyypit/kategoriat** (jos kategoriafokus joskus laajenee Keräilykorttien ulkopuolelle) → vanha geneerinen 5-portainen asteikko säilyy fallbackina.
+
+**Suodattimet (Selaa/Huutokaupat-sivujen sivupaneeli):** kuntosuodatin näyttää Cardmarket-asteikon vaihtoehdot kun käyttäjä on suodattanut/selaa "irtokortit"-tyyppiä, ei geneeristä asteikkoa.
+
+**Kiireellisyys:** kaksi myyjää (veljekset) valmistautuvat listaamaan yli 200 000€ arvosta tavaraa heti kun sivu on valmis — väärä kuntojärjestelmä nyt tarkoittaisi kaiken datan uudelleenkäsittelyä myöhemmin, joten tämä kannattaa korjata ennen kuin he aloittavat.
+
+## Iso testauskierros 2026-09-01 (mobiili, tuotanto) — ✅ kohdat 1,2,3,6,7,8,9,10,11,12,13 TEHTY, 15 aloitettu, 4/5/14 odottaa omistajaa
+
+**Tehty ja deployattu 2026-09-01:**
+- **1 (SV piilossa):** juurisyy oli ettei `sv` ollut koskaan lisätty `LANGUAGES`-listaan/`Lang`-tyyppiin (`lib/i18n/index.ts`) vaikka käännös oli jo täysin valmis — lisätty, kielenvalitsin näyttää nyt Suomi/English/Svenska.
+- **2 (OBS-modaali ei sulkeudu):** paneelilla ei ollut X-nappia eikä klikkaus-ulkopuolelle-sulkemista, ainoa tapa oli sama pilinappi jonka paneeli saattoi peittää kapealla näytöllä. Lisätty X-nappi + koko ruudun tausta joka sulkee klikkaamalla.
+- **3 (Footer allekkain):** linkkisarakkeiden `minmax(150px,...)` -ruudukko romahti yhdeksi sarakkeeksi kapeilla puhelimilla. Eriytetty omaksi `minmax(110px,...)` -ruudukoksi (mahtuu 2 sarakkeeseen luotettavasti), Habahub-nimi/badget siirretty footerin viimeiseksi elementiksi.
+- **6, 7, 8, 9 (yhteystiedot/FAQ/palkkiotaulukko/protectionDesc):** ks. yllä olevat LUKITTU-osiot, kaikki päivitetty.
+- **10 (bannivaroitus puuttuu):** lisätty näkyvä varoitus `/ostot`-sivun "Odottaa maksua" -osioon.
+- **11 (ajastettu lähetys ei käynnisty klikkaamalla):** dashboardin tuleva lähetys -rivi on nyt itse linkki suoraan `/lahetys`:aan.
+- **12 (bulkkilistaus epäselvä):** kolme yhtä painavaa nappia (yksi niistä täysi duplikaatti) korvattu yhdellä pää­napilla + vähemmän hallitsevalla tekstilinkillä, bulkki-paneeli ja yksittäistuotelomake eivät enää renderöidy samaan aikaan.
+- **13 (livekonsoli näyttää kaatuneelta):** `if (!show || !currentProduct) return null` korvattu selkeällä "Jono on tyhjä" -näkymällä (tapahtuu kun viimeinen tuote myydään/poistetaan kesken lähetyksen).
+- **15 (i18n-läpikäynti):** aloitettu nimetystä esimerkkisivusta (`tuotteet/[id]`) — 3 kovakoodattua merkkijonoa siirretty `t.product.*`:iin. **Koko `frontend/lib/i18n/`-kansion kattava läpikäynti on oma, isompi erillinen tehtävänsä, ei tehty tässä.**
+
+**Odottaa omistajan vastausta, EI korjattu (ks. alkuperäinen kuvaus alla):**
+- **4** — Meistä-sivun 48h näytti jo oikein koodista, omistajan pitää testata kovapäivityksen jälkeen.
+- **5** — "Ryhdy myyjäksi" linkittää jo oikein /register:iin koodista, omistajan pitää testata uudelleen.
+- **14** — "Hyvitä"-napin liiketoimintalogiikka (pitäisikö toimia myös toimitetulle tuotteelle) vaatii omistajan päätöksen.
+
+Alkuperäinen löydöslista säilytetty alla muuttumattomana:
+
+## Iso testauskierros 2026-09-01 (mobiili, tuotanto) — koottu löydöslista, osa vahvistettu koodista
+
+Omistaja kävi läpi sivustoa laajasti mobiililla. Merkitty ✅=vahvistettu koodista todeksi bugiksi, 🔍=tarkistettu koodista mutta EI toistunut (mahdollisesti selaimen välimuisti/vanha näkymä), ⬜=ei vielä tarkistettu koodista, luotetaan suoraan omistajan havaintoon.
+
+1. **⬜ Kielenvaihto (SV) piilossa/rikki.** SV-käännös on jo olemassa jossain (i18n-tiedostoissa), mutta kielenvalitsin jää piiloon eikä sitä saa auki — voi valita vain suomen. Tutki `lang-context.tsx`/navbarin kielenvalitsin-komponentti.
+
+2. **⬜ OBS-asetukset-valikkoa ei saa suljettua** live-konsolissa kun liven on aloittanut. Modaali/dropdown jää auki, ei sulkeutumismekanismia (klikkaus ulkopuolelle / X-nappi puuttuu tai ei toimi).
+
+3. **⬜ Footer: linkit allekkain, pitäisi olla kahdella rivillä + yleinen siivous.** Tiivistä footer-linkit kahteen riviin yhden pitkän pystylistan sijaan. Siivoa turhat/toisteiset linkit, siirrä osa muualle jos ei ole pakollisia, ja **Habahub-brändinimi/copyright viimeiseksi elementiksi footerissa**.
+
+4. **🔍 Meistä-sivun toimitusaika näyttää jo koodissa oikein "48h"** (`meista/page.tsx` rivi 35, `t.about.shipping`) — ei löytynyt mitään "24h"-mainintaa koodista. Todennäköisesti selaimen välimuisti/vanha lataus — pyydä omistajaa kovapäivittämään (hard refresh) ja tarkistamaan uudelleen ennen kuin tätä tutkitaan pidemmälle.
+
+5. **🔍 "Ryhdy myyjäksi" -CTA linkittää jo oikein `/register`:iin** (`frontend/app/page.tsx` rivi 39, `ctaHref: '/register'`) — ei ohjaa etusivulle koodin mukaan. Jos omistaja näki sen ohjaavan etusivulle, testaa uudelleen — saattoi olla jo kirjautuneena jolloin `/register` uudelleenohjaa takaisin (tarkista `/register`-sivun oma logiikka kirjautuneelle käyttäjälle, ei bugi CTA:ssa itsessään jos näin on).
+
+6. **✅ Yhteystiedot-sivulla sama sähköposti toistuu kolmesti turhaan.** Vahvistettu koodista (`meista/page.tsx` rivit 52-54): `email`, `support`, `sellerSupport` näyttävät kaikki saman `support@habahub.fi`:n kolmena erillisenä rivinä. **Korjaus: yhdistä yhdeksi riviksi (pelkkä sähköposti) + Y-tunnus, poista turha toisto.**
+
+7. **✅ FAQ:n "Milloin saan rahani?" -vastaus vanhentunut, ristiriidassa LUKITTU-säännön kanssa.** Vahvistettu koodista (`faq/page.tsx` rivi 35): sanoo "Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu Habahubille" — tämä on VANHA sääntö. **Oikea, päivitetty teksti: maksu vapautuu kun ostaja on vastaanottanut JA hyväksynyt tuotteen, tai kun 24 tuntia on kulunut toimituksen vahvistumisesta ilman reklamaatiota** (ks. päivitetty "Toimituksen aikataulu ja maksuturva" -osio, LUKITTU 24h).
+
+8. **✅ Välityspalkkiotaulukko ei vastaa sovittua — käyttää yhä 333€:a, puuttuu 50€/250€/500€-rivit.** Vahvistettu koodista (`valityspalkkiot/page.tsx`): taulukko on nyt `10€→0,35€, 100€→3,50€, 333€→11,66€, 1000€+→35,00€`. **Sovittu (ja jo kertaalleen annettu) oikea taulukko on: 10€→0,35€, 50€→1,75€, 100€→3,50€, 250€→8,75€, 500€→17,50€, 1000€+→35,00€ (max).** Päivitä `ROWS`-taulukko täsmälleen tähän, poista 333€-rivi kokonaan.
+
+9. **✅ i18n:n `protectionDesc` (maksuturvan kuvaus) vanhentunut, sama ongelma kuin FAQ:ssa.** Vahvistettu koodista (`frontend/lib/i18n/fi.ts` rivi 235): "Ostajan maksu pidätetään Habahubin tilillä kunnes myyjä on lähettänyt tuotteen ja toimittanut seurantakoodin" + "Maksu vapautetaan myyjälle kun seurantakoodi on toimitettu" — molemmat kuvaavat vanhaa (välitöntä lähetyksen jälkeistä) vapautusta. **Kirjoita uudelleen 24h-toimitusvahvistus+hyväksyntä-säännön mukaiseksi**, sama korjaus kuin kohdassa 7, tee molemmat yhdessä koska teksti on todennäköisesti osittain sama/jaettu.
+
+10. **⬜ Puuttuu ilmoitus/tieto bannista jos ei maksa.** Käyttäjälle ei näytetä mitään tietoa siitä että maksamatta jättäminen johtaa automaattiseen 30 päivän banniin (ks. "Banni"-sääntö, LUKITTU: jo ensimmäisestä maksamattomasta tilauksesta). Lisää tämä näkyväksi joko maksuajastimen yhteyteen ("Odottaa maksua" -näkymä) tai käyttöehtoihin selkeästi viitattuna sieltä.
+
+11. **⬜ Ajastettua (SCHEDULED) lähetystä ei voi klikata käynnistääkseen suoraan** — pitää mennä erillisen "Aloita live" -reitin kautta dashboardista, epäselvä käyttäjälle. Selvitä voisiko ajastetun lähetyksen kortista/riviltä klikata suoraan käynnistääkseen sen, sen sijaan että pitää etsiä erillinen nappi.
+
+12. **⬜ Bulkkilistauksen (CSV/TXT) käyttöliittymä epäselvä, kaipaa ohjeita tai uudelleensuunnittelua, ja pitäisi olla alempana/vähemmän prominentti.** Nykyinen sijoittelu (näkyy heti "Tallenna monimuu" ensimmäisten nappien joukossa) nostaa sen liian näkyväksi verrattuna manuaaliseen lisäykseen. **Siirrä alemmas/vähemmän hallitsevaksi vaihtoehdoksi**, ja lisää selkeä ohjeteksti/esimerkki miten muoto toimii ennen kuin käyttäjä liimaa mitään.
+
+13. **⬜ Livea ei voi aloittaa ennen kuin tuotteita on lisätty — näyttää siltä kuin sivu kaatuisi.** Tarvitaan selkeä, ei-pelottava virheviesti/ohje ("Lisää vähintään yksi tuote ennen kuin voit aloittaa lähetyksen") sen sijaan että käyttöliittymä vaikuttaa rikkoutuneelta.
+
+14. **✅ "Hyvitä"-nappi ON toiminnallinen (kutsuu oikeaa Paytrail-hyvitys-APIa), mutta liiketoimintalogiikka epäselvä toimitetulle tuotteelle.** Vahvistettu koodista (`backend/src/routes/orders.ts`, `POST /:id/refund` → `refundFull`/`refundItem` Paytrailin kautta) — nappi ei ole tyhjä kuori, se palauttaa oikeasti rahaa. **Avoin kysymys omistajalle: pitäisikö "Hyvitä" olla käytettävissä vapaasti MYÖS jo toimitetulle/vastaanotetulle tilaukselle (jolloin myyjä palauttaa rahaa mutta ostaja pitää tuotteen), vai pitäisikö se rajata johonkin tiettyyn tilaan (esim. vain ennen lähetystä, tai vasta kun ostaja/HABAHUB on hyväksynyt palautuksen)?** Tämä on liiketoimintapäätös, ei tekninen bugi — päätä ennen kuin rajataan koodissa.
+
+15. **⬜ Käännökset yhä keskeneräiset — puuttuu myös perus-UI-käännöksiä, ei vain ilmoitustekstejä.** Esim. tuotteen tarkastelusivulla puuttuu peruskäännöksiä. Vaatii kattavamman läpikäynnin koko `frontend/lib/i18n/`-kansiosta, ei vain yksittäisten sivujen pistokoetta.
 
 ## Visuaalinen tyylipäivitys 2026-09-01 — päätetty, ei vielä toteutettu (omistaja teki mock-HTML:n mallia varten)
 
@@ -165,12 +232,14 @@ Löydetty ennakkotarjous-korjauksen testauksen sivutuotteena: `POST /products` o
 - Pankkitunnistautuminen (Signicat) pakollinen ennen huutamista/myymistä (tulossa)
 - **Ikäraja: 15+** (huoltajan suostumuksella)
 
-## Välityspalkkiotaulukko — KORJATTU 2026-08-25 (3,5%:lla laskettuna, ei enää 3%)
+## Välityspalkkiotaulukko — KORJATTU 2026-09-01 (poistettu 333€-rivi, lisätty 50/250/500€)
 | Myyntihinta | HABAHUB-palkkio |
 |-------------|-------------|
 | 10€ | 0,35€ |
+| 50€ | 1,75€ |
 | 100€ | 3,50€ |
-| 333€ | 11,66€ |
+| 250€ | 8,75€ |
+| 500€ | 17,50€ |
 | 1000€+ | 35,00€ (max) |
 
 ## Postihinnat (ostaja maksaa) — PÄIVITETTY 2026-08-26, LUKITTU (korvaa 2026-08-25-version)
@@ -420,17 +489,6 @@ selaus, LiveKit-video/chat, Paytrail-testimaksu, Console-välilehti auki virheid
 rajoitus kuin Paytrailin hostatun maksusivun läpivienti-testaus (ks. "Paytrail-maksuintegraatio"
 -osio "Ei vielä testattu"), ei automatisoitavissa turvallisesti tästä ympäristöstä.
 
-**⚠️ TOTEUTUNUT RISKI 2026-09-01, KORJATTU:** juuri tämä yllä mainittu testaamattomuus osui
-todellisuuteen — omistaja raportoi "Aloita lähetys" ei enää käynnistänyt striimiä. Syy:
-`connect-src` salli vain `wss:` + nimetyt `https:`-hostit, ei koskaan `stun:`/`turn:`/`turns:`-
-skeemoja. LiveKit-palvelin (`/opt/livekit/livekit.yaml`) ajaa oman TURN-relaynsa TLS:n yli
-(`turns:`, portti 5349, `stream.skrm.fi`) — Chrome/Firefox soveltavat `connect-src`:ää myös
-`RTCPeerConnection`:in ICE-palvelin-URLeihin, ei vain fetch/WebSocketiin, joten ICE-neuvottelu
-epäonnistui hiljaa ilman mitään näkyvää virhettä sivulla. **Korjattu:** `stun:`/`turn:`/`turns:`
-lisätty `connect-src`:ään. Deployattu ja vahvistettu tuotannossa (curl, `Content-Security-Policy`-
-header sisältää nyt nämä). **Silti vaatii omistajan oman selaintestin** yllä mainitulla tavalla —
-tämä yksi puuttuva skeema on korjattu, mutta se ei yksin todista ettei muuta vastaavaa jäänyt.
-
 **Sivutuote-löydös (ei korjattu, vain kirjattu, koska ei ollut osa pyydettyä 4 kohdan listaa):**
 `LIVEKIT_WS_URL` tuotannon backend `.env`:ssä on yhä `wss://stream.skrm.fi` — **vanha domain**,
 vaikka CLAUDE.md:n "Hosting"-osio sanoo `skrm.fi`/`app.skrm.fi` olevan "POISTETTU KOKONAAN
@@ -593,24 +651,26 @@ tunnuksia koska niitä ei aiemmin tarvittu). Omistaja palautti repon julkiseksi 
 minkä jälkeen deploy jatkui normaalisti. Ei koodimuutos, ei jää pysyväksi ongelmaksi, mutta hyvä
 tietää jos `git pull` joskus alkaa yllättäen kysyä käyttäjätunnusta palvelimella.
 
-## Toimituksen aikataulu ja maksuturva (LUKITTU — TÄSMENNETTY 2026-08-25)
+## Toimituksen aikataulu ja maksuturva (LUKITTU — TIUKENNETTU 2026-09-01: 48h → 24h)
 
-**Uusi/täsmennetty ydinsääntö: kun toimitus vahvistuu, ostajalla on 48 tuntia aikaa hyväksyä/reklamoida ennen automaattista maksun vapautumista — samaan tapaan kuin Vinted/Tori.**
+**Ydinsääntö: kun toimitus vahvistuu, ostajalla on 24 tuntia aikaa hyväksyä/reklamoida ennen automaattista maksun vapautumista** — tiukennettu Vinted/Tori-tyylisestä 48h:sta 24h:iin.
 
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
-- **Kun toimitus vahvistuu** (Postin API sanoo toimitettu, TAI ostaja itse kuittaa vastaanottaneensa) → **ostajalla 48 tuntia aikaa hyväksyä tai reklamoida**
-  - Jos ostaja ei reagoi 48h sisällä → maksu vapautuu automaattisesti myyjälle (sama kuin hyväksyntä)
-  - Jos ostaja reklamoi 48h sisällä → tilanne HABAHUB:n käsittelyyn, maksu jäädytykseen
-- ⚠️ **Tämä korvaa aiemman käytöksen jossa "Postin API sanoo toimitettu" vapautti maksun VÄLITTÖMÄSTI ilman mitään ostajan tarkastusaikaa** — tarkista koodista (`webhooks.ts` tms.) toimiiko se juuri näin (heti vapauttava) nykyisin, ja korjaa lisäämällä tämä 48h-välivaihe ennen automaattivapautusta
+- **Kun toimitus vahvistuu** (Postin API sanoo toimitettu, TAI ostaja itse kuittaa vastaanottaneensa) → **ostajalla 24 tuntia aikaa hyväksyä tai reklamoida**
+  - Jos ostaja ei reagoi 24h sisällä → maksu vapautuu automaattisesti myyjälle (sama kuin hyväksyntä)
+  - Jos ostaja reklamoi 24h sisällä → tilanne HABAHUB:n käsittelyyn, maksu jäädytykseen
+- ⚠️ **Tämä korvaa aiemman käytöksen jossa "Postin API sanoo toimitettu" vapautti maksun VÄLITTÖMÄSTI ilman mitään ostajan tarkastusaikaa** — tarkista koodista (`webhooks.ts` tms.) toimiiko se juuri näin (heti vapauttava) nykyisin, ja korjaa lisäämällä tämä 24h-välivaihe ennen automaattivapautusta
 - **Jos toimitus EI koskaan vahvistu** (paketti katoaa, Posti-status ei koskaan päivity toimitetuksi eikä ostaja itse kuittaa) → alla oleva päivä 5/10/14-eskalaatio on yhä voimassa fallback-polkuna:
   - **Päivä 5** — paketti ei liikkunut → automaattinen ilmoitus myyjälle ja ostajalle
   - **Päivä 10** — ei toimitusta → muistutus ostajalle "kuittaa tai ilmoita ongelmasta"
-  - **Päivä 14** — ostaja ei reagoinut eikä toimitus koskaan vahvistunut → maksu vapautuu automaattisesti myyjälle (viimeinen fallback, eri tilanne kuin yllä oleva 48h-sääntö)
-- **Noutokoodi vahvistettu** (nouto-toimitustavan tilauksille) → vapauttaa heti, ei odota 48h eikä 14pv, koska molemmat osapuolet fyysisesti läsnä — tämä pysyy ennallaan, ei muutu
-- Ei luoteta pelkästään Postin statukseen ilman tätä 48h-välivaihetta — ostajalle pitää aina jäädä oikea tarkastusikkuna
-- **Erillinen, säilyvä sääntö (käyttöehdot 6.3):** ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa reklamoida tuotteen virheistä/puutteista — tämä on eri asia kuin yllä oleva 48h-maksunvapautusikkuna, koskee tuotevirheitä yleensä eikä vaikuta suoraan siihen onko maksu jo vapautunut. Ei muutu tässä päivityksessä.
+  - **Päivä 14** — ostaja ei reagoinut eikä toimitus koskaan vahvistunut → maksu vapautuu automaattisesti myyjälle (viimeinen fallback, eri tilanne kuin yllä oleva 24h-sääntö)
+- **Noutokoodi vahvistettu** (nouto-toimitustavan tilauksille) → vapauttaa heti, ei odota 24h eikä 14pv, koska molemmat osapuolet fyysisesti läsnä — tämä pysyy ennallaan, ei muutu
+- Ei luoteta pelkästään Postin statukseen ilman tätä 24h-välivaihetta — ostajalle pitää aina jäädä oikea tarkastusikkuna
+- **Erillinen, säilyvä sääntö (käyttöehdot 6.3):** ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa reklamoida tuotteen virheistä/puutteista — tämä on eri asia kuin yllä oleva 24h-maksunvapautusikkuna, koskee tuotevirheitä yleensä eikä vaikuta suoraan siihen onko maksu jo vapautunut. Ei muutu tässä päivityksessä.
 
-**Käyttöehtojen kohta 7 (Maksuturva) vaatii päivityksen tämän mukaiseksi** — nykyinen teksti ("Maksu vapautetaan Myyjälle toimituksen vahvistamisen jälkeen") ei mainitse 48h-tarkastusikkunaa ollenkaan, lukee kuin vapautus tapahtuisi välittömästi toimitusvahvistuksesta.
+**Käyttöehtojen kohta 7 (Maksuturva) JA FAQ:n "Milloin saan rahani" JA i18n:n `protectionDesc` (`fi.ts`) vaativat kaikki päivityksen tämän mukaiseksi** — nykyinen teksti kaikissa kolmessa paikassa ("Maksu vapautetaan Myyjälle toimituksen vahvistamisen jälkeen" / "kun seurantakoodi on toimitettu") on VANHENTUNUT ja suoraan ristiriidassa tämän säännön kanssa, vahvistettu koodista 2026-09-01 (`frontend/lib/i18n/fi.ts` rivi 235, `faq/page.tsx` rivi 35).
+
+
 
 ## Lähetysintegraatio (tulossa OY:n jälkeen) — TUTKITTU 2026-08-12, Gemini-tutkimus lähdeviittein, vaatii vielä oman vahvistuksen
 
