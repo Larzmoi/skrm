@@ -182,18 +182,12 @@ Ennen kuin mitään uutta toiminnallisuutta rakennetaan, koko sivusto käydään
 2. ✅ **Deploytaus — TEHTY 2026-08-07.** Koko projekti (backend+DB+frontend) on Hetznerillä, PM2:n ja nginxin hallinnassa, SSL kunnossa. Railway ja app.skrm.fi:n Netlify pois käytöstä. Ainoa jäljellä oleva Netlify-kohde on `skrm.fi`-landing-sivu, joka pysyy siellä tarkoituksella (staattinen, ei backend-riippuvuutta). Ks. "Hetzner — KOKO PROJEKTI SIIRRETTY" -osio täydelliselle tekniselle kokoonpanolle.
 3. ✅ **Paytrail — TEHTY JA TESTATTU TUOTANNOSSA 2026-08-12** (Shop-in-Shop, testitunnuksilla — ks. "Paytrail-maksuintegraatio" -osio alla täydelliselle selvitykselle, korvaa vanhan mock-pay-testivirran kokonaan)
 4. **Signicat** — pankkitunnistautuminen (pakollinen ennen huutamista/myymistä) — vaatii OY:n
-5. **Resend** — sähköpostinotifikaatiot. **Vahvistettu koodista 2026-08-26: EI toteutettu ollenkaan**, ainoa jälki on yksi TODO-kommentti (`backend/src/routes/webhooks.ts`, rivi 57: "TODO: Resend — ilmoita käyttäjälle bannista sähköpostilla"). **Domain-vaihto vaikuttaa:** aiempi suunnitelma odotti `skrm.fi`-domainin aktivoitumista Zohossa — nyt domain on `habahub.com`/`habahub.fi`, joten Resendin lähetysdomain-vahvistus (SPF/DKIM-tietueet) pitää tehdä UUDELLEEN uudella domainilla, ei kelpaa mikään aiempi valmistelu skrm.fi:lle.
+5. **Resend** — sähköpostinotifikaatiot. **✅ PERUSPALVELU TEHTY 2026-09-01, odottaa vielä oikeaa API-avainta.** `backend/src/lib/resend.ts` — yleiskäyttöinen `sendEmail()` + `sendPasswordResetEmail()`/`sendBanNotificationEmail()`, kytketty sekä uuteen salasanan palautukseen (ks. alla) että aiempaan `webhooks.ts`:n banni-ilmoitus-TODO:hon (rivi 57, nyt oikeasti lähettää). **`RESEND_API_KEY` ei ole vielä asetettu tuotannon `.env`:ssä** — ilman sitä sähköpostit vain lokitetaan konsoliin (`[email] RESEND_API_KEY ei asetettu...`), eivät lähde oikeasti. **Seuraava askel: omistaja antaa oikean Resend API-avaimen**, jonka jälkeen se lisätään `.env`:iin (`RESEND_API_KEY=...`, valinnainen `RESEND_FROM_EMAIL` jos ei haluta oletusta `Habahub <no-reply@habahub.com>`) — ei vaadi koodimuutoksia. **Domain-vaihto vaikuttaa:** SPF/DKIM-tietueet pitää vahvistaa Resendin dashboardista uudelle `habahub.com`-domainille (Cloudflare DNS) ennen kuin lähetys toimii luotettavasti — ei tehty vielä, koska API-avainta/domainin lähetysvahvistusta ei ole vielä aloitettu.
    - **Markkinointi- vs. transaktionaaliset sähköpostit — päätös 2026-08-26:** käytetään **yhtä ja samaa palvelua molempiin, Resend** (transaktionaaliset API + Broadcasts/Audiences-toiminnot markkinointiin) — yksinkertaisempi ylläpitää kuin kahta erillistä palvelua (esim. Resend + Mailchimp). Jos Resendin markkinointipuoli osoittautuu myöhemmin liian suppeaksi, erillinen työkalu voidaan lisätä sitten — ei monimutkaisteta etukäteen.
    - **Zoho Mail koettu huonoksi (11€/vuosi, hankala asentaa) — vaihtoehtoja harkittu tälle uudelle domainille (support@habahub.com):** Fastmail (~30-50€/v, siistimpi hallintapaneeli), Namecheap Private Email (usein halvempi), Google Workspace / Microsoft 365 (tutuin käyttöliittymä, kalliimpi), Hetznerin oma webhosting-sähköposti (eri tuote kuin nykyinen Cloud VPS, hinta/käyttökokemus ei vahvistettu), tai ilmainen Cloudflare Email Routing + oma Outlook (vain vastaanotto+uudelleenohjaus, ei voi lähettää `support@habahub.com`-osoitteesta). **Ei vielä valittu — omistaja päättää myöhemmin, tämä on erillinen valinta Resendin sähköpostilähetyksestä** (Resend hoitaa sovelluksen lähettämät automaattiset viestit, tämä valinta koskee ihmisten välistä sähköpostiliikennettä `support@`-osoitteeseen).
 
-6. **⚠️ KRIITTINEN LÖYDÖS 2026-08-26 — salasanan palautusta ei ole olemassa ollenkaan.** Vahvistettu koodista: `backend/src/routes/auth.ts` sisältää vain `/register` ja `/login`, ei mitään `/forgot-password`- tai `/reset-password`-reittiä. **Käyttäjä joka unohtaa salasanansa on tällä hetkellä lopullisesti lukossa tililtään, ei mitään palautuskeinoa.** Tämä on tavallinen, pakollinen ominaisuus mille tahansa tuotantosivustolle ennen julkaisua.
-
-**Suunniteltu ratkaisu (riippuu Resendistä, joten nämä kaksi kannattaa rakentaa yhdessä):**
-- Uusi reitti `POST /auth/forgot-password` — ottaa sähköpostin, generoi kertakäyttöisen, aikarajoitetun (esim. 1h) tokenin, tallentaa tietokantaan
-- Resendin kautta lähetetään sähköposti linkillä joka sisältää tokenin
-- Uusi reitti `POST /auth/reset-password` — ottaa tokenin + uuden salasanan, validoi tokenin voimassaolon, päivittää salasanan
-- Frontend: "Unohditko salasanan?" -linkki login-sivulle, uusi sivu tokenin syöttöä/uuden salasanan asettamista varten
-- **Sama Resend-infra palvelee myös muita jo suunniteltuja sähköposteja** (banni-ilmoitus TODO:sta yllä, tulevat tilausvahvistukset yms.) — kannattaa rakentaa Resend-peruspalvelu kerralla kunnolla, ei vain yhtä käyttötapausta varten
+6. **✅ TEHTY 2026-09-01 — salasanan palautus.** `POST /auth/forgot-password` (sähköposti → SHA-256-tiivistetty kertakäyttöinen token, `PasswordResetToken`-malli, 1h voimassaolo, vanhat käyttämättömät tokenit mitätöityvät uudesta pyynnöstä, vastaus aina sama riippumatta löytyikö käyttäjä — ei paljasta rekisteröityneitä sähköposteja) + `POST /auth/reset-password` (validoi tokenin, päivittää salasanan bcryptillä). Frontend: `/unohtuiko-salasana` (sähköpostin syöttö) + `/nollaa-salasana?token=...` (uusi salasana), "Unohditko salasanan?" -linkki login-sivulla. **Sivuvaikutus/löydös:** molemmat uudet sivut piti myös lisätä `frontend/proxy.ts`:n `PUBLIC_PATHS`-listaan — ilman sitä koko sivuston auth-seinä (kaikki paitsi `/login`/`/register`/`/kayttoehdot`/`/tietosuoja` vaatii kirjautumisen, ks. proxy.ts) olisi ohjannut juuri ne käyttäjät jotka eivät pääse sisään takaisin `/login`:iin nähdäkseen palautuslomakkeen. Testattu tuotannossa curlilla: olematon sähköposti ja oikea sähköposti antavat molemmat saman `{"ok":true}`-vastauksen, virheellinen token `/reset-password`:ssä antaa 400:n, molemmat sivut palauttavat 200:n ilman kirjautumista.
+- Sähköposti EI vielä lähde oikeasti käyttäjälle asti (ks. yllä oleva Resend-kohta — `RESEND_API_KEY` puuttuu, lokitetaan vain konsoliin toistaiseksi). Toiminnallisuus on siis valmis ja testattu API-tasolla, mutta päästä-päähän "käyttäjä saa oikean sähköpostin ja pääsee vaihtamaan salasanan" ei ole vielä mahdollista todentaa ennen API-avainta.
 6. **Postin tracking API** — automaattinen toimitusseuranta (nyt myyjä syöttää seurantakoodin manuaalisesti)
 7. **Cloudflare R2** — kuvat pois tietokannasta (nyt base64 suoraan Postgresissa)
 8. ✅ **OBS-testi Hetznerillä — TEHTY osittain, LOPPUUN ASTI TEKEMÄTTÄ.** RTMP-vastaanotto + HLS-tiedostojen generointi + nginx-jakelu on vahvistettu toimivaksi end-to-end (curl 200 OK oikealla HLS-tiedostolla). Jäljellä: frontendin `VideoPlayer` ei vielä näytä kuvaa oikein — todennäköisesti HLS-URL:in rakennuksessa virhe. Ks. "Tunnettuja bugeja" alla.
@@ -349,29 +343,72 @@ curl-testillä — seuraava askel jos tarpeen.**
 - **Tietokanta** → **Hetzner**, paikallinen PostgreSQL
 - Repot: GitLab (https://gitlab.com/lpjr86/skrm, private) ja GitHub (https://github.com/Larzmoi/skrm, **yksityinen** — muutettu takaisin 2026-08-25)
 
-## Turvallisuusauditointi 2026-08-26 (Security Headers, ImmuniWeb, Qualys SSL Labs) — korjaukset päätetty, ei vielä toteutettu
+## Turvallisuusauditointi 2026-08-26 (Security Headers, ImmuniWeb, Qualys SSL Labs) — B ja C toteutettu 2026-09-01, A odottaa omistajaa
 
 Ulkoinen tietoturva-auditointi paljasti puuttuvia HTTP-security-headereitä ja TLS-asetuksia. Osa korjataan koodissa (VS Coden Claude), osa on pelkkiä Cloudflare-dashboard-asetuksia (omistaja tekee itse, ei koodia).
 
-### A) Cloudflare-dashboard-asetukset (omistaja tekee itse, ei koodia)
+### A) Cloudflare-dashboard-asetukset (omistaja tekee itse, ei koodia) — TEKEMÄTTÄ
 1. **TLS 1.0/1.1 pois käytöstä** — SSL/TLS → Edge Certificates → Minimum TLS Version → **TLS 1.2**
 2. **HSTS päälle** — samalla sivulla, Enable HSTS, Max Age 12kk (`preload`-vaihtoehto jätetään pois toistaiseksi — preload-listalle pääsy on käytännössä pysyvä sitoumus, ei kannata sitoutua siihen vielä)
 
-### B) next.config.js — koodimuutos, VAATII HUOLELLISEN TESTAUKSEN
-**⚠️ Sivustolla on erityistarpeita jotka CSP:n pitää sallia:** LiveKit WebRTC, Paytrail-maksu-uudelleenohjaus, Socket.io, base64-tallennetut kuvat. Liian tiukka CSP voi hiljaa rikkoa toiminnallisuutta ilman selvää virheilmoitusta.
+### B) next.config.ts — ✅ TEHTY 2026-09-01
+`frontend/next.config.ts`: `poweredByHeader: false` + `headers()` asettaa kaikki ehdotetut headerit
+(HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy) + CSP.
 
-1. `poweredByHeader: false` — poistaa `X-Powered-By: Next.js`-headerin (tietovuoto-riski, paljastaa teknologian)
-2. `headers()`-funktio joka asettaa: `Strict-Transport-Security` (max-age=63072000; includeSubDomains), `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (kamera/mikrofoni sallittu `self`:lle koska WebRTC-striimaus vaatii sen, geolocation kielletty)
-3. **Content-Security-Policy** — ehdotettu lähtökohta joka sallii tunnetut tarpeet:
-   - `connect-src` sallii `wss:` (LiveKit/Socket.io), `https://*.paytrail.com`, `https://gateway.posti.fi`, `https://gateway-auth.posti.fi`
-   - `frame-src`/`form-action` sallii `https://*.paytrail.com` (maksu-uudelleenohjaus)
-   - `img-src`/`media-src` sallii `data:`/`blob:` (base64-kuvat, video)
-   - `object-src 'none'`, `base-uri 'self'`
+**CSP suunniteltiin oikean koodin perusteella, ei vain auditoinnin arvauksella:**
+- `connect-src` sallii `wss:` (mikä tahansa host) — **vahvistettu aidosti tarpeelliseksi**: LiveKitin
+  selainyhteys (`LIVEKIT_WS_URL`) menee ERI hostiin kuin sovellus itse (ks. alla oleva löydös —
+  tuotannossa tämä on tätä kirjoitettaessa yhä `stream.skrm.fi`, vanha domain). Socket.io käyttää
+  samaa originia mutta wss-skeemaa upgrade-yhteydelle.
+- `connect-src`/`frame-src`/`form-action` sallivat `https://*.paytrail.com` ja Postin
+  (`gateway.posti.fi`/`gateway-auth.posti.fi`) siitä huolimatta että **kooditarkistus paljasti
+  etteivät nämä ole tällä hetkellä aidosti tarpeen**: Paytrail-maksu tehdään täydellä
+  sivunavigoinnilla (`window.location.href`, `frontend/app/kori/page.tsx` + `ostot/page.tsx`), ei
+  fetch/iframe-upotuksella, ja Posti-kutsut ovat tähän mennessä pelkkää backend-koodia
+  (`postiService.ts`, mock). Pidetty silti mukana CSP:ssä valmiiksi tulevaa varten (esim. jos
+  Posti-integraatio joskus rakennetaan selainpuolelle) — ei turvariskiä koska molemmat ovat jo
+  tunnettuja, syvästi integroituja kolmannen osapuolen palveluita.
+- Ei mitään external-viittauksia (fontit/skriptit/tyylit) löytynyt käännetystä HTML:stä paikallisella
+  buildilla (`Hanken Grotesk` on `next/font/google`:n kautta itse-hostattu build-aikana, ei
+  runtime-pyyntöä `fonts.googleapis.com`:iin) — `font-src`/`style-src`/`script-src` eivät siis
+  tarvitse ylimääräisiä ulkoisia hosteja.
+- **script-src sallii yhä `'unsafe-inline' 'unsafe-eval'`** (ei nonce-pohjainen) — tietoinen
+  kompromissi: en pystynyt ajamaan interaktiivista selainta LiveKit-videon/Paytrail-testimaksun läpi
+  (vain palvelinpuolinen curl-testaus + paikallinen build+headerien tarkistus mahdollista tässä
+  ympäristössä), ja liian tiukka script-src olisi pahin mahdollinen epäonnistumistapa (koko sivu
+  tyhjä, ei virheilmoitusta). Muu politiikka (frame-ancestors, object-src none, base-uri self,
+  rajattu connect/frame/form-action) tuottaa silti merkittävän parannuksen ilman tätä riskiä.
 
-**Testausvaatimus ennen käyttöönottoa:** käy selaimen Console-välilehdeltä läpi koko sivusto (kirjautuminen, selaus, LiveKit-video/chat, Paytrail-testimaksu) ja varmista ettei yhtään CSP-virhettä ilmesty punaisena ennen kuin luotetaan konfiguraatioon.
+**✅ Tehty (korvaa auditoinnin oman testausvaatimuksen sikäli kuin ilman selainta voi):**
+paikallinen `next build` onnistui, headerit vahvistettu curlilla (`Strict-Transport-Security`,
+`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
+`Content-Security-Policy` kaikki läsnä vastauksessa, ei `X-Powered-By`-headeria), käännetyn HTML:n
+läpikäynti ei paljastanut ulkoisia resurssiviittauksia jotka CSP olisi hiljaa estänyt.
+**⚠️ EI vielä tehty, vaatii omistajan: interaktiivinen selaintesti tuotannossa** (kirjautuminen,
+selaus, LiveKit-video/chat, Paytrail-testimaksu, Console-välilehti auki virheiden varalta) — sama
+rajoitus kuin Paytrailin hostatun maksusivun läpivienti-testaus (ks. "Paytrail-maksuintegraatio"
+-osio "Ei vielä testattu"), ei automatisoitavissa turvallisesti tästä ympäristöstä.
 
-### C) GDPR/tietosuoja-linkki ei löytynyt auditoinnissa
-Auditointityökalu ei löytänyt tietosuojaseloste-linkkiä crawlausvaiheessa. Todennäköinen syy: footerin "Tietosuoja"-linkki ei ole oikea `<a href="/tietosuoja">`-tagi (esim. pelkkä JS-onClick/router.push ilman href:ää), tai linkki puuttuu joltain sivulta. Tarkista molemmat.
+**Sivutuote-löydös (ei korjattu, vain kirjattu, koska ei ollut osa pyydettyä 4 kohdan listaa):**
+`LIVEKIT_WS_URL` tuotannon backend `.env`:ssä on yhä `wss://stream.skrm.fi` — **vanha domain**,
+vaikka CLAUDE.md:n "Hosting"-osio sanoo `skrm.fi`/`app.skrm.fi` olevan "POISTETTU KOKONAAN
+käytöstä". Todellisuudessa `stream.skrm.fi` toimii yhä teknisesti (DNS resolvii, Let's Encrypt
+-sertifikaatti olemassa `/etc/letsencrypt/live/stream.skrm.fi/`, oma nginx-sivusto `hls` on
+enabloituna) — striimaus ei siis ole rikki, mutta domain-migraatio habahub.com:iin jäi kesken
+juuri tämän yhden alidomainin osalta. Ei kosketettu tässä, koska muutos vaatisi joko uuden
+`stream.habahub.com`-sertifikaatin+DNS-tietueen provisioinnin tai päätöksen pitää striimaus-
+alidomain tarkoituksella erillään sovellusdomainista — omistajan päätettävä kumpi.
+
+### C) GDPR/tietosuoja-linkki ei löytynyt auditoinnissa — ✅ TARKISTETTU 2026-09-01, ei koodivikaa
+Footerin (`frontend/components/layout/Footer.tsx`) "Tietosuoja"-linkki on jo oikea Next.js `<Link
+href="/tietosuoja">`, joka renderöityy aina oikeaksi `<a href>`-tagiksi — ei JS-only-navigointia.
+**Todellinen syy löytyi:** koko sivusto (etusivu mukaan lukien) vaatii kirjautumisen anonyymiltä
+kävijältä (`frontend/proxy.ts`:n `PUBLIC_PATHS`-allowlist kattaa vain `/login`, `/register`,
+`/kayttoehdot`, `/tietosuoja` — ei edes `/`:ää). Ulkoinen auditointirobotti ei koskaan päässyt
+kirjautumissivun ohi nähdäkseen footeria ollenkaan — linkki on siis olemassa ja toimiva, se vain ei
+ollut crawlerin saavutettavissa. Ei koodimuutosta tehty tähän, koska koko-sivuston auth-seinä
+vaikuttaa tarkoitukselliselta nykyiselle sulje-beta-vaiheelle (myös rekisteröityminen on
+väliaikaisesti pois käytöstä login-sivulla) — ei minun päätettäväni avata sitä ilman erillistä pyyntöä.
 
 ## Kategoriat (14 kpl — LUKITTU)
 1. Keräilykortit
