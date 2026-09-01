@@ -21,6 +21,16 @@ import type { NextConfig } from "next";
 // hostiin kuin sovellus itse (LIVEKIT_WS_URL, tuotannossa tätä kirjoitettaessa stream.skrm.fi —
 // HUOM tämä on vanha domain, ei vielä siirretty habahub.com:iin, ks. CLAUDE.md "Hosting"-osio),
 // ja Socket.io käyttää samaa originia mutta wss-skeemaa upgrade-yhteydelle.
+//
+// ⚠️ KORJATTU 2026-09-01 (löytyi tuotannossa: "Aloita lähetys" ei enää käynnistänyt striimiä
+// CSP:n käyttöönoton jälkeen) — "stun:"/"turn:"/"turns:" PUUTTUIVAT connect-src:stä kokonaan.
+// LiveKit-palvelin (/opt/livekit/livekit.yaml) ajaa oman TURN-relaynsa TLS:n yli (turns:,
+// portti 5349, stream.skrm.fi) nimenomaan niitä katsojia/myyjiä varten joiden verkko ei
+// muuten pystyisi muodostamaan suoraa WebRTC-yhteyttä — ilman tätä ICE-neuvottelu epäonnistuu
+// hiljaa selaimessa (ei mitään näkyvää virhettä sivulla), täsmälleen tämä oli aiemmin dokumentoitu
+// tunnettu riski ("en pystynyt ajamaan interaktiivista selainta LiveKit-videon läpi") joka
+// toteutui. Chrome/Firefox soveltavat connect-src:ää myös RTCPeerConnectionin ICE-palvelin-URLeihin
+// (stun:/turn:/turns:), ei vain fetch/XHR/WebSocketiin.
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -36,7 +46,7 @@ const securityHeaders = [
       "img-src 'self' data: blob:",
       "media-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' wss: https://*.paytrail.com https://gateway.posti.fi https://gateway-auth.posti.fi",
+      "connect-src 'self' wss: stun: turn: turns: https://*.paytrail.com https://gateway.posti.fi https://gateway-auth.posti.fi",
       "frame-src 'self' https://*.paytrail.com",
       "form-action 'self' https://*.paytrail.com",
       "frame-ancestors 'self'",
