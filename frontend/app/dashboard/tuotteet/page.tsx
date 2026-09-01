@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
+import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
 import { api } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
@@ -20,21 +21,6 @@ interface Product {
   alakategoria?: string; tyyppi?: string; city?: string; pakettikoko?: string; status: string
   currentBid?: number
 }
-
-// Kuntoluokitus irtokorteille Cardmarket-asteikolla (ks. CLAUDE.md "Kuntoluokitus Cardmarket-
-// muotoon irtokorteille 2026-09-01") — tallennettava arvo on lyhenne, sama koodaus jota
-// bulkkituonnin Cardmarket-liimaus jo käyttää sellaisenaan (parseBulkText normalisoi/validoi
-// liitetyn tekstin tätä samaa listaa vasten kun tyyppi on 'irtokortit'), joten manuaalinen
-// lomake ja bulkkituonti eivät koskaan voi tallentaa kahta eri koodausta samalle asialle.
-const CARDMARKET_KUNTOLUOKAT = [
-  { id: 'M', nimi: 'Mint (M)' },
-  { id: 'NM', nimi: 'Near Mint (NM)' },
-  { id: 'EX', nimi: 'Excellent (EX)' },
-  { id: 'GD', nimi: 'Good (GD)' },
-  { id: 'LP', nimi: 'Light Played (LP)' },
-  { id: 'PL', nimi: 'Played (PL)' },
-  { id: 'PO', nimi: 'Poor (PO)' },
-]
 
 // Perinteinen huutokauppa jolla on jo huutoja — kategoriaa ei saa enää vaihtaa (bidaajat löysivät/huusivat sen kategorian perusteella)
 function isCategoryLocked(p: Pick<Product, 'saleType' | 'currentBid'>) {

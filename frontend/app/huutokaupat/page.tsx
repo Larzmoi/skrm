@@ -10,7 +10,7 @@ import { auctionApi } from '@/lib/api'
 
 interface Auction {
   id: string; name: string; startPrice: number; currentBid: number | null; auctionEndsAt: string
-  imageUrl?: string; category?: string; alakategoria?: string; city?: string | null
+  imageUrl?: string; category?: string; alakategoria?: string; tyyppi?: string; condition?: string; city?: string | null
   seller: { username: string; city?: string | null }; _count?: { bids: number }
 }
 
@@ -37,6 +37,7 @@ export default function HuutokaupatPage() {
   const [activeKat, setActiveKat] = useState('kaikki')
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
+  const [activeCondition, setActiveCondition] = useState('')
   const [city, setCity] = useState('')
   const [isMobile, setIsMobile] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
@@ -72,9 +73,11 @@ export default function HuutokaupatPage() {
   }, [auctions])
 
   const filtered = useMemo(() => {
-    if (!city) return auctions
-    return auctions.filter(a => auctionCity(a) === city)
-  }, [auctions, city])
+    let a = auctions
+    if (city) a = a.filter(x => auctionCity(x) === city)
+    if (activeCondition) a = a.filter(x => x.condition === activeCondition)
+    return a
+  }, [auctions, city, activeCondition])
 
   const sortOptions = [
     { id: 'ending_soon', label: 'Päättyy pian' },
@@ -89,7 +92,7 @@ export default function HuutokaupatPage() {
       <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto', flex: 1, width: '100%' }}>
         {!isMobile && (
           <>
-            <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={false} />
+            <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} activeCondition={activeCondition} setActiveCondition={setActiveCondition} isMobile={false} />
           </>
         )}
 
@@ -121,7 +124,7 @@ export default function HuutokaupatPage() {
 
           {isMobile && showFilters && (
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={true} />
+              <CategorySidebar items={auctions} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} activeCondition={activeCondition} setActiveCondition={setActiveCondition} isMobile={true} />
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '14px 0 8px' }}>{t.selaa.sort}</div>
               <select value={sort} onChange={e => setSort(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' as const }}>
                 {sortOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}

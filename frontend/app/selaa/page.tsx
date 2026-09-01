@@ -27,6 +27,7 @@ function SelaaContent() {
   const [activeKat, setActiveKat] = useState(urlKat)
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
+  const [activeCondition, setActiveCondition] = useState('')
   const [search, setSearch] = useState(urlHaku)
   const [sort, setSort] = useState('newest')
   const [minPrice, setMinPrice] = useState('')
@@ -81,13 +82,14 @@ function SelaaContent() {
     if (minPrice) p = p.filter(x => x.startPrice >= Number(minPrice))
     if (maxPrice) p = p.filter(x => x.startPrice <= Number(maxPrice))
     if (city) p = p.filter(x => productCity(x) === city)
+    if (activeCondition) p = p.filter(x => x.condition === activeCondition)
     return p
-  }, [products, search, minPrice, maxPrice, city])
+  }, [products, search, minPrice, maxPrice, city, activeCondition])
 
-  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!activeTyyppi || !!search.trim() || !!minPrice || !!maxPrice || !!city
+  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!activeTyyppi || !!activeCondition || !!search.trim() || !!minPrice || !!maxPrice || !!city
 
   function clearFilters() {
-    setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
+    setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi(''); setActiveCondition(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
   }
 
   // Suora käyttäjähaku — löytää myyjän tililtä vaikka hänellä ei olisi juuri nyt tuotteita myynnissä
@@ -112,7 +114,7 @@ function SelaaContent() {
 
       <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto', flex: 1, width: '100%' }}>
         {!isMobile && (
-          <CategorySidebar items={products} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={false} />
+          <CategorySidebar items={products} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} activeCondition={activeCondition} setActiveCondition={setActiveCondition} isMobile={false} />
         )}
 
         <div style={{ flex: 1, padding: isMobile ? '16px 14px' : '24px', minWidth: 0 }}>
@@ -142,7 +144,7 @@ function SelaaContent() {
 
           {isMobile && showFilters && (
             <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 16 }}>
-              <CategorySidebar items={products} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} isMobile={true} />
+              <CategorySidebar items={products} activeKat={activeKat} setActiveKat={setActiveKat} activeAla={activeAla} setActiveAla={setActiveAla} activeTyyppi={activeTyyppi} setActiveTyyppi={setActiveTyyppi} activeCondition={activeCondition} setActiveCondition={setActiveCondition} isMobile={true} />
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '14px 0 8px' }}>{t.selaa.sort}</div>
               <select value={sort} onChange={e => setSort(e.target.value)} style={{ width: '100%', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' as const }}>
                 {SORT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
