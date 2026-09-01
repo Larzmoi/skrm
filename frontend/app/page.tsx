@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import ProductCard from '@/components/ProductCard'
+import ScrollReveal from '@/components/ScrollReveal'
 import { useTheme } from '@/lib/theme-context'
 import { useState, useMemo, useEffect } from 'react'
 import { useKategoria } from '@/lib/kategoria-context'
@@ -183,48 +184,56 @@ export default function Home() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
 
       {/* Hero */}
       {!heroHidden && (
-        <div style={{ background: C.navBg, borderBottom: `1px solid ${C.border}`, position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
           {/* Pulssi-efekti taustalla */}
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 400, height: 400, borderRadius: '50%', background: `radial-gradient(circle, ${C.accent}15 0%, transparent 70%)` }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 500, borderRadius: '50%', background: `radial-gradient(circle, ${C.accentSolid}1a 0%, transparent 70%)` }} />
           </div>
 
-          <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? '40px 24px 32px' : '60px 24px 48px', textAlign: 'center', position: 'relative' }}>
-            <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 28 : 44, fontWeight: 800, color: C.text, marginBottom: 12, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
-              {t.home.heroTitleLine1}<br />{t.home.heroTitleLine2}
-            </h1>
-            <p style={{ fontSize: isMobile ? 14 : 16, color: C.muted, marginBottom: 28, lineHeight: 1.6 }}>
-              {t.home.heroSubtitle}
-            </p>
+          <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? '48px 24px 32px' : '76px 24px 52px', textAlign: 'center', position: 'relative' }}>
+            <ScrollReveal>
+              <h1 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 30 : 52, fontWeight: 800, color: C.text, marginBottom: 14, lineHeight: 1.08, letterSpacing: '-0.03em' }}>
+                {t.home.heroTitleLine1}<br />{t.home.heroTitleLine2}
+              </h1>
+            </ScrollReveal>
+            <ScrollReveal delay={80}>
+              <p style={{ fontSize: isMobile ? 14 : 17, color: C.muted, marginBottom: 30, lineHeight: 1.6, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+                {t.home.heroSubtitle}
+              </p>
+            </ScrollReveal>
 
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
-              <Link href="/selaa" style={{ background: C.accentSolid, color: C.accentText, padding: isMobile ? '11px 24px' : '13px 32px', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none' }}>
-                {t.home.heroBrowse}
-              </Link>
-              <Link href="/register" style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}`, padding: isMobile ? '11px 24px' : '13px 32px', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none' }}>
-                {t.home.heroBecomeSeller}
-              </Link>
-            </div>
+            <ScrollReveal delay={160}>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 36 }}>
+                <Link href="/selaa" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: isMobile ? '12px 26px' : '14px 34px', borderRadius: 999, fontWeight: 800, fontSize: isMobile ? 14 : 15, textDecoration: 'none', fontFamily: 'var(--font-display), sans-serif' }}>
+                  {t.home.heroBrowse}
+                </Link>
+                <Link href="/register" className="hb-btn" style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}`, padding: isMobile ? '12px 26px' : '14px 34px', borderRadius: 999, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none', fontFamily: 'var(--font-display), sans-serif' }}>
+                  {t.home.heroBecomeSeller}
+                </Link>
+              </div>
+            </ScrollReveal>
 
             {/* Luottamuspalkki */}
-            <div style={{ display: 'flex', gap: isMobile ? 16 : 32, justifyContent: 'center', flexWrap: 'wrap' }}>
-              {[
-                { label: t.home.heroTrustSecure },
-                { label: t.home.heroTrustFinnish },
-                { label: t.home.heroTrustCommission },
-                { label: t.home.heroTrustFreeSignup },
-              ].map(item => (
-                <span key={item.label} style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: C.accent, display: 'inline-block', flexShrink: 0 }} />
-                  {item.label}
-                </span>
-              ))}
-            </div>
+            <ScrollReveal delay={240}>
+              <div style={{ display: 'flex', gap: isMobile ? 16 : 32, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {[
+                  { label: t.home.heroTrustSecure },
+                  { label: t.home.heroTrustFinnish },
+                  { label: t.home.heroTrustCommission },
+                  { label: t.home.heroTrustFreeSignup },
+                ].map(item => (
+                  <span key={item.label} style={{ fontSize: 12, color: C.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: C.accent, display: 'inline-block', flexShrink: 0 }} />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </ScrollReveal>
           </div>
 
           {/* Piilota-nappi kirjautuneille */}
@@ -307,7 +316,7 @@ export default function Home() {
 
           {/* Myynnissä — ensin */}
           {filteredProducts.length > 0 && (
-            <section style={{ marginBottom: 36 }}>
+            <ScrollReveal><section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.buyNow}</h2>
@@ -323,12 +332,12 @@ export default function Home() {
                   />
                 ))}
               </div>
-            </section>
+            </section></ScrollReveal>
           )}
 
           {/* Huutokaupat */}
           {auctions.length > 0 && (
-            <section style={{ marginBottom: 36 }}>
+            <ScrollReveal><section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.nav.auctions}</h2>
@@ -348,12 +357,12 @@ export default function Home() {
                   )
                 })}
               </div>
-            </section>
+            </section></ScrollReveal>
           )}
 
           {/* Live nyt — vain jos lähetyksiä */}
           {filteredShows.length > 0 && (
-            <section style={{ marginBottom: 36 }}>
+            <ScrollReveal><section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.red, display: 'inline-block' }} />
@@ -364,7 +373,7 @@ export default function Home() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: isMobile ? 10 : 14 }}>
                 {filteredShows.map(show => (
-                  <Link key={show.id} href={`/live/${show.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
+                  <Link key={show.id} href={`/live/${show.id}`} className="hb-card" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', display: 'block', textDecoration: 'none' }}>
                     <div style={{ aspectRatio: '16/9', position: 'relative', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {show.thumbnail
                         ? <img src={show.thumbnail} alt={show.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -384,12 +393,12 @@ export default function Home() {
                   </Link>
                 ))}
               </div>
-            </section>
+            </section></ScrollReveal>
           )}
 
           {/* Tulossa pian — vain jos lähetyksiä ja kaikki-näkymässä */}
           {activeKat === 'kaikki' && displayUpcoming.length > 0 && (
-            <section style={{ marginBottom: 36 }}>
+            <ScrollReveal><section style={{ marginBottom: 36 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <h2 style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 17, fontWeight: 700, color: C.text, letterSpacing: '-0.005em' }}>{t.home.upcoming}</h2>
@@ -415,7 +424,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </section>
+            </section></ScrollReveal>
           )}
 
           {/* Tyhjä tila */}

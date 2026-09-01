@@ -29,7 +29,9 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
     <Link
       href={href}
       className="hb-card"
-      style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', display: 'block', textDecoration: 'none' }}
+      style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', display: 'block', textDecoration: 'none', transition: 'border-color 0.16s ease' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = `${C.accentSolid}80` }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = C.border }}
     >
       <div style={{ aspectRatio: '1', position: 'relative', overflow: 'hidden', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {imageUrl
