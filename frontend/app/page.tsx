@@ -29,16 +29,11 @@ function auctionTimeLeft(ms: number) {
 // Mainostila etusivulle (omistajan pyyntö). Kun tuleva lähetys on jo aikataulutettu,
 // nostetaan se suoraan tänne omana korostettuna bannerinaan - hyödyntää dataa joka on jo
 // haettu (displayUpcoming), ei vaadi erillistä sisällönhallintaa. Jos yhtään lähetystä ei
-// ole aikataulutettu, näytetään evergreen-viesti. FALLBACK_PROMO on ainoa kohta jota
-// omistajan tarvitsee muokata jos hän haluaa vaihtaa mainoksen sisällön.
-const FALLBACK_PROMO = {
-  eyebrow: 'HABAHUB',
-  title: 'Ei listaus- eikä kuukausimaksuja',
-  body: 'Maksat vain 3,5 % kun tuote oikeasti myydään, enintään 35 €. Aloita myyminen tänään.',
-  ctaText: 'Ryhdy myyjäksi',
-  ctaHref: '/register',
-}
-
+// ole aikataulutettu, näytetään evergreen-viesti (t.home.promo*) sen sijaan.
+//
+// KORJAUS 2026-09-02: kaikki tämän komponentin tekstit olivat kovakoodattua suomea (rikkoi
+// LUKITTU "AINA t.xxx" -sääntöä) - kielenvaihto EI vaikuttanut tähän bannerinin ollenkaan,
+// vahvistettu omistajan raportoimaksi bugiksi. Siirretty t.home-nimiavaruuteen (fi/en/sv).
 function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, string>; isMobile: boolean; upcoming?: { id: string; seller: string; title: string; thumbnail: string; scheduledAt?: string }; t: any; lang: string }) {
   if (upcoming) {
     return (
@@ -55,14 +50,14 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
         </div>
         <div style={{ padding: isMobile ? '16px 18px' : '18px 26px', flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>
-            Tulossa pian{upcoming.scheduledAt ? ` · ${formatShowTime(upcoming.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
+            {t.home.upcoming}{upcoming.scheduledAt ? ` · ${formatShowTime(upcoming.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
           </div>
           <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{upcoming.title}</div>
-          <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · Ennakkotarjoukset ovat jo auki</div>
+          <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · {t.home.upcomingPreBidOpen}</div>
         </div>
         <div style={{ padding: isMobile ? '0 18px 16px' : '0 26px 0 0', flexShrink: 0 }}>
           <span className="hb-btn" style={{ display: 'inline-block', background: C.accentSolid, color: C.accentText, padding: '9px 18px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
-            Katso lähetys →
+            {t.home.watchShow} →
           </span>
         </div>
       </Link>
@@ -71,12 +66,41 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
   return (
     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16, background: C.accentLight, border: `1px solid ${C.accent}55`, borderRadius: 16, padding: isMobile ? '18px 20px' : '20px 26px', marginBottom: 32 }}>
       <div>
-        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>{FALLBACK_PROMO.eyebrow}</div>
-        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{FALLBACK_PROMO.title}</div>
-        <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{FALLBACK_PROMO.body}</div>
+        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>HABAHUB</div>
+        <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{t.home.promoTitle}</div>
+        <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{t.home.promoBody}</div>
       </div>
-      <Link href={FALLBACK_PROMO.ctaHref} className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
-        {FALLBACK_PROMO.ctaText} →
+      <Link href="/register" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {t.home.promoCta} →
+      </Link>
+    </div>
+  )
+}
+
+// Maksettu/nostettu mainospaikka (ks. landing.html-referenssi "MAINOSBANNEREITA" -osio,
+// mock, ei osa koodikantaa). Ei vielä oikeaa mainosmyynti-/varausjärjestelmää taustalla, joten
+// badge lukee "Habahub suosittelee" eikä "Sponsoroitu mainos" kuten mockissa - viimeksi
+// mainittu väittäisi olevan maksettu kolmannen osapuolen mainos vaikka kyseessä on tässä
+// vaiheessa alustan oma nosto. Sisältö promoo huutokauppoja/live-lähetyksiä yleisesti (ei
+// väitetä tarkkoja lukuja kuten "50 kohdetta" koska se ei perustu oikeaan dataan).
+function AdBanner({ C, isMobile, t }: { C: Record<string, string>; isMobile: boolean; t: any }) {
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
+      <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
+        {t.home.adLabel}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{t.home.adEyebrow}</div>
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 16 : 19, color: '#fff', marginBottom: 3 }}>{t.home.adTitle}</div>
+          <p style={{ fontSize: 12, color: '#CBD5E1', margin: 0 }}>{t.home.adBody}</p>
+        </div>
+      </div>
+      <Link href="/huutokaupat" className="hb-btn" style={{ whiteSpace: 'nowrap', padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0 }}>
+        {t.home.adCta} →
       </Link>
     </div>
   )
@@ -313,6 +337,7 @@ export default function Home() {
         <div style={{ flex: 1, padding: isMobile ? '16px 14px' : '24px 24px', minWidth: 0 }}>
 
           <PromoBanner C={C} isMobile={isMobile} upcoming={displayUpcoming[0]} t={t} lang={lang} />
+          <AdBanner C={C} isMobile={isMobile} t={t} />
 
           {/* Myynnissä — ensin */}
           {filteredProducts.length > 0 && (
