@@ -139,7 +139,38 @@ Typecheck + build vihreä molemmilla puolilla ennen deployta.
 
 **Lisäys 2026-09-02, sama päivä — erän myyntitapa valittavaksi kerralla.** Omistajan huomio: jos bulkkituonnilla listaa kerralla 1000 tuotetta, olisi työlästä karsia/muokata livetuotteet erikseen jälkikäteen yksi kerrallaan. Bulkkipaneeliin lisätty erän tasoinen myyntitapa-valitsin ("Suoramyynti" / "Molemmat" — sama koodaus ja samat käännösavaimet kuin manuaalisen lomakkeen `saleTypeOptions`), oletus `buy_now` (vastaa aiempaa kovakoodattua käytöstä). `POST /products/bulk` lukee nyt `saleType`-kentän pyynnöstä hardkoodatun `'buy_now'`:n sijaan, validoi arvoksi vain `'buy_now'`/`'both'` (mikä tahansa muu/puuttuva → `'buy_now'`-fallback, ei kaadu). Testattu tuotannossa neljällä skenaariolla (puuttuva, `buy_now`, `both`, virheellinen arvo) — kaikki neljä tallensivat oikean `saleType`-arvon, testituotteet siivottu pois.
 
-Alkuperäiset tehtäväkuvaukset (bulkkiparseri, kuntoluokitus) ja kaksi vanhentunutta "ei vielä toteutettu" -otsikkoa admin-käyttäjähallinnasta poistettu siivouksessa 2026-09-02 — kaikki kolme ovat valmiita, ks. yksityiskohdat: bulkkiparseri edellä, kuntoluokitus edellä, admin-käyttäjähallinta kokonaisuudessaan alempana (hae "Laajennus 2026-09-02 — Käyttäjähallinta").
+Alkuperäinen bulkkiparserin tehtäväkuvaus ja kaksi vanhentunutta "ei vielä toteutettu" -otsikkoa admin-käyttäjähallinnasta poistettu siivouksessa 2026-09-02 — molemmat ovat valmiita, ks. yksityiskohdat: bulkkiparseri edellä, admin-käyttäjähallinta kokonaisuudessaan alempana (hae "Laajennus 2026-09-02 — Käyttäjähallinta").
+
+## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — ✅ TEHTY JA DEPLOYATTU
+
+**⚠️ Palautettu tähän 2026-09-02: tämä koko osio katosi vahingossa aiemmasta siivouksesta (uncommitted-muutos toisesta kanavasta, joka lakaistiin mukaan erään git-committiin ilman että sisältöä oli tarkistettu ensin) — palautettu sanatarkasti aiemmasta keskustelukontekstista, ei uudelleenkirjoitettu muistista.**
+
+**Kaikki kohdat 1-5 valmiit, myyjät voivat listata.** Toteutus:
+- `frontend/lib/conditions.ts` (uusi) — `CARDMARKET_KUNTOLUOKAT` jaettu lähde, käyttää sekä manuaalinen lomake (`dashboard/tuotteet/page.tsx`) että Selaa/Huutokaupat-suodattimet (`CategorySidebar.tsx`) — ei kahta eri koodausta.
+- Manuaalinen lomake: kuntokenttä vaihtuu Cardmarket-asteikkoon kun `tyyppi === 'irtokortit'`, piilotetaan kokonaan kun `tyyppi === 'sealed'`, geneerinen 5-portainen pysyy fallbackina kaikelle muulle (mm. `slabit`, koskematon kuten pyydetty).
+- **Bulkkituonti sai kokonaan puuttuneen kategoria/peli/tyyppi-valitsimen** (ei ollut ennen — bulkkituodut tuotteet eivät koskaan saaneet `tyyppi`-kenttää asetetuksi, mikä olisi tehnyt koko Cardmarket-erottelusta merkityksettömän niille). `parseBulkText()` normalisoi (trim+isot kirjaimet) ja validoi liitetyn kunto-rivin samoja seitsemää lyhennettä vasten kun erän tyyppi on irtokortit, merkitsee tuntemattoman arvon riville virheeksi esikatselussa. `POST /products/bulk` hyväksyy nyt `category`/`alakategoria`/`tyyppi` koko erälle.
+- Selaa/Huutokaupat: uusi kuntosuodatin `CategorySidebar`:ssa (ei ollut ennen ollenkaan), näkyy vain kun aktiivinen tyyppi-suodatin on 'irtokortit'.
+- Typecheck + build vihreä joka välivaiheen jälkeen, deployattu tuotantoon 2026-09-01.
+
+Alkuperäinen tehtäväkuvaus säilytetty alla:
+
+## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — päätetty, kiireellinen (200k€ inventaario tulossa)
+
+Nykyinen `KUNTOLUOKAT` (`dashboard/tuotteet/page.tsx`) on geneerinen 5-portainen (uusi/erinomainen/hyvä/tyydyttävä/käytetty) — ei sovi kortteihin, koska ostajat/myyjät ajattelevat kuntoa Cardmarket-asteikolla. Vahvistettu koodista: `Product.condition` on pelkkä `String?`, ei enum — joustava, ei vaadi migraatiota, vain sovelluslogiikan muutosta.
+
+**Ratkaisu käyttää jo olemassa olevaa `Product.tyyppi`-kenttää** ("slabit"/"sealed"/"irtokortit", kolmas kategoriataso Keräilykortit-kategorian sisällä) erottamaan mikä kuntojärjestelmä pätee:
+
+1. **`tyyppi === 'irtokortit'` → Cardmarket-asteikko käyttöön, sekä manuaalisessa lomakkeessa että suodattimissa:**
+   - `Mint (M)`, `Near Mint (NM)`, `Excellent (EX)`, `Good (GD)`, `Light Played (LP)`, `Played (PL)`, `Poor (PO)`
+   - Tallennettava arvo = lyhenne (`M`/`NM`/`EX`/`GD`/`LP`/`PL`/`PO`), näytettävä teksti = täysi nimi
+   - **Bulkkilistauksen (CSV/TXT) parseri** (jo toteutettu aiemmin) käyttää jo näitä samoja lyhenteitä Cardmarket-liimauksesta — varmista että manuaalinen lomake ja bulkkituonti tallentavat IDENTTISET arvot samaan kenttään, ei kahta eri koodausta samalle asialle
+2. **`tyyppi === 'sealed'`** (esim. boosterirasiat) → **kuntokenttä piilotetaan kokonaan lomakkeesta ja suodattimista** tälle tyypille — sinetöity tuote ei tarvitse kuntoarviota, se on aina uusi/sinetöity oletuksena
+3. **`tyyppi === 'slabit'`** (gradatut kortit) → **EI kosketeta tässä korjauksessa.** Näillä on eri, oma järjestelmänsä (gradauspalvelu + numeroarvosana, esim. "PSA 9", "BGS 9.5") — tämä on rakenteellisesti eri ongelma kuin kuntoluokitus (tarvitsisi oman `gradingCompany`+`grade`-kenttäparin, ei yhtä `condition`-merkkijonoa). **Merkitään erilliseksi, myöhemmäksi tehtäväksi**, ei sekoiteta tähän kiireelliseen korjaukseen.
+4. **Muut tyypit/kategoriat** (jos kategoriafokus joskus laajenee Keräilykorttien ulkopuolelle) → vanha geneerinen 5-portainen asteikko säilyy fallbackina.
+
+**Suodattimet (Selaa/Huutokaupat-sivujen sivupaneeli):** kuntosuodatin näyttää Cardmarket-asteikon vaihtoehdot kun käyttäjä on suodattanut/selaa "irtokortit"-tyyppiä, ei geneeristä asteikkoa.
+
+**Kiireellisyys:** kaksi myyjää (veljekset) valmistautuvat listaamaan yli 200 000€ arvosta tavaraa heti kun sivu on valmis — väärä kuntojärjestelmä nyt tarkoittaisi kaiken datan uudelleenkäsittelyä myöhemmin, joten tämä kannattaa korjata ennen kuin he aloittavat.
 
 ## Kuntosuodattimen kaksi puutetta 2026-09-02 (löydettävyys + monivalinta)
 
@@ -741,6 +772,16 @@ pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapaut
    - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
 4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
 
+### Eteneminen 2026-09-02 — Vaihe 1 (token-haku) testattu ja toimii, Vaihe 2 JÄÄDYTETTY odottamaan Postin vastausta testiympäristöstä
+
+**⚠️ Palautettu tähän 2026-09-02, sama päivä: tämä osio katosi vahingossa väliaikaisesti (uncommitted-muutos toisesta kanavasta lakaistiin mukaan erään git-committiin ilman tarkistusta) — palautettu heti kun huomattiin, sisältö sama kuin alun perin kirjoitettu.**
+
+**✅ OAuth2-tunnukset lisätty tuotannon `.env`:iin** (`POSTI_CLIENT_ID`/`POSTI_CLIENT_SECRET`), tili `enabled`, logistiikkasopimus 691317 valittuna organisaatioattribuuteista — kaikki kolme aiemmin listattua estettä (ks. alla "Päivitetty tarkistuslista") poistettu.
+
+**✅ Vaihe 1 testattu erillisellä, sovelluksen ulkopuolisella skriptillä palvelimella 2026-09-02** (ei koskettu `postiService.ts`:ään eikä muuhun koodiin, skripti poistettu testin jälkeen): `POST https://gateway-auth.posti.fi/api/v1/token` → HTTP 200, `token_type: Bearer`, `expires_in: 3600` (1h, täsmää dokumentoituun), `access_token` 2350 merkkiä pitkä opaakki token (alkaa `PostiExt.1.F...`, ei JWT-muotoinen). Token-haku siis toimii oikeilla tunnuksilla.
+
+**⏸️ Vaihe 2 (lähetyksen luonti, `POST /shippingapi/api/v2/shipping/order`) JÄÄDYTETTY omistajan päätöksellä 2026-09-02.** Syy: ei ole vahvistettua testiympäristöä v2:lle (ks. alla kohta 4, "EI TESTIYMPÄRISTÖÄ vielä ollenkaan v2:lle") — kaikki testaus tapahtuisi suoraan tuotannossa "näytelähettäjillä", ja riski on että jokin testikutsu loisi vahingossa oikean lähetyksen jonka joku sitten veisi fyysisesti Postiin (→ laskutus). **Omistaja odottaa Postin vastausta siitä onko/milloin testiympäristö saatavilla ennen kuin lähetyksen luontia testataan.** Älä etene Vaiheeseen 2 ilman omistajan eksplisiittistä lupaa, vaikka tunnukset ja koodi olisivat muuten valmiit. Kun lupa tulee, testaa edelleen selvästi merkityllä testidatalla ("TESTI" nimissä), pieni määrä kerrallaan, älä koskaan vie fyysistä pakettia Postiin testin aikana.
+
 ### ⚠️ PÄIVITYS 2026-09-02 — Postin oma tuki vahvisti: käytetään API v2:ta, ei v1:tä (ohje saatu suoraan Tomilta, Postin LogEDI-tiimistä)
 
 Tom kysyi sähköpostitse suoraan "Olihan kyseessä OmaPosti Pro API versio 2?" — vahvistettu omalla erillisellä ohjedokumentilla. **Tämä muuttaa useita asioita yllä olevasta v1-tutkimuksesta:**
@@ -760,10 +801,11 @@ Tom kysyi sähköpostitse suoraan "Olihan kyseessä OmaPosti Pro API versio 2?" 
 8. **Sending Code API ei edelleenkään mainita tässäkään v2-dokumentissa** — vahvistaa aiemman epäilyn että se on täysin erillinen, oma dokumenttinsa (Tomin linkkaama `sending-code-api-2026-04`), käytetään v2-shipping-order-API:n `parcelNo`:n päällä erikseen. Kysymys Postille pysyy samana kuin aiemmin.
 
 **Päivitetty tarkistuslista ennen koodausta:**
-- 🟡 **OAuth2 clientId/clientSecret luotu `developer.posti.fi`:ssä 2026-09-02** (rooli `shippingapi`, tallennettu turvallisesti .env:ään, EI tähän tiedostoon) — **mutta EI VIELÄ KÄYTTÖVALMIS, kaksi asiaa puuttuu:**
-  1. Käyttäjätili on tilassa `enabled: false` — pitää kytkeä päälle `developer.posti.fi`:n hallintanäkymässä
-  2. Kaikki organisaatioattribuutit (asiakasnumero 956632, logistiikkasopimus 691317, laskutusosoitenumero 4176528, kumppaninumero 1043828) ovat tilassa `selected: false` — pitää käydä valitsemassa erikseen ainakin logistiikkasopimus 691317 samasta näkymästä ennen kuin kutsut toimivat
+- ✅ **OAuth2 clientId/clientSecret luotu `developer.posti.fi`:ssä 2026-09-02** (rooli `shippingapi`, tallennettu tuotannon `.env`:iin `POSTI_CLIENT_ID`/`POSTI_CLIENT_SECRET`, EI tähän tiedostoon) — **KÄYTTÖVALMIS 2026-09-02, kaikki kolme aiempaa estettä poistettu:**
+  1. ✅ Käyttäjätili kytketty `enabled: true`:ksi
+  2. ✅ Organisaatioattribuutit valittu (mm. logistiikkasopimus 691317)
   3. Vahvistettu `businessId`-muoto Postin järjestelmässä: `FI34973476` (Y-tunnus FI-etuliitteellä, ei väliviivaa) — käytä tätä täsmällistä muotoa jos jokin kenttä vaatii sen
+  - **Token-haku testattu ja vahvistettu toimivaksi, ks. yllä "Eteneminen 2026-09-02"-osio.**
 - ✅ Logistiikkasopimusnumero 691317 on jo tiedossa, käytetään samaa
 - ✅ Palvelukoodi todennäköisesti `PO2103` (vahvista silti Postilta lopullisesti)
 - ⬜ Lue Sending Code API v2:n oma dokumentaatio (`developer.posti.com/api-catalogue/2026-04/document/sending-code-api-2026-04`) ennen koodausta
