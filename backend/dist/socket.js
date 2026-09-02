@@ -301,11 +301,19 @@ function setupSocket(io) {
                 // muuten ensimmäinen ennakkotarjoaja "häviäisi" tarjouksensa huomaamattaan.
                 const product = await prisma_1.prisma.product.findUnique({
                     where: { id: productId },
-                    select: { currentBid: true, currentBidderId: true },
+                    select: { currentBid: true, currentBidderId: true, startPrice: true },
                 });
                 let leaderId = null;
                 let leaderName = null;
-                let initialBid = Number(startPrice);
+                // Myyjä voi muokata lähtöhintaa livessä juuri ennen huudon aloitusta (ks. CLAUDE.md
+                // "WhatsApp-palaute 2026-09-02" kohta 2) - se ei enää ole suoraan luotettu tuotteen
+                // tallennettu startPrice vaan kentästä tuleva arvo. Validoidaan kunnolla koska tämä on
+                // nyt käyttäjän syöte, ei enää sisäinen DB-arvo: virheellinen/negatiivinen arvo kaatuu
+                // takaisin tuotteen omaan tallennettuun hintaan, ei jätetä NaN:ia kiertämään huutoa.
+                // Tämä on VAIN tämän huutokierroksen aloitushinta, ei muuta Product.startPrice-tietuetta
+                // pysyvästi - sama periaate kuin durationin session-kohtainen ylikirjoitus.
+                const rawStartPrice = Number(startPrice);
+                let initialBid = Number.isFinite(rawStartPrice) && rawStartPrice > 0 ? rawStartPrice : (product?.startPrice ?? 0);
                 if (product?.currentBid != null && product.currentBidderId && product.currentBid >= initialBid) {
                     initialBid = product.currentBid;
                     leaderId = product.currentBidderId;

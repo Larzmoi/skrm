@@ -266,6 +266,7 @@ export default function LahetysPage() {
   const [auction, setAuction] = useState<AuctionState>({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
   const [auctionDuration, setAuctionDuration] = useState(120)
   const [durationOverride, setDurationOverride] = useState<number | null>(null)
+  const [startPriceOverride, setStartPriceOverride] = useState<string>('')
   const [soldItems, setSoldItems] = useState<string[]>([])
   const [soldAmounts, setSoldAmounts] = useState<Record<string, number>>({})
   const [showSettings, setShowSettings] = useState(false)
@@ -726,12 +727,21 @@ export default function LahetysPage() {
   const currentProduct = currentIndex >= 0 ? products[currentIndex] : products[0]
   const effectiveDuration = durationOverride ?? currentProduct?.auctionDuration ?? auctionDuration
 
-  useEffect(() => { setDurationOverride(null) }, [currentProductId])
+  useEffect(() => { setDurationOverride(null); setStartPriceOverride('') }, [currentProductId])
+
+  // Myyjä voi muokata lähtöhintaa juuri ennen huudon aloitusta (ks. CLAUDE.md "WhatsApp-
+  // palaute 2026-09-02" kohta 2 - varastosta poimitun suoramyyntituotteen tallennettu hinta
+  // lukkiutui aiemmin automaattisesti huutokaupan lähtöhinnaksi ilman muokkausmahdollisuutta).
+  // Session-kohtainen ylikirjoitus, sama periaate kuin durationOverride - ei muuta tuotteen
+  // omaa tallennettua startPrice-tietuetta pysyvästi.
+  const effectiveStartPrice = startPriceOverride.trim() !== '' && Number(startPriceOverride) > 0
+    ? Number(startPriceOverride)
+    : (currentProduct?.startPrice ?? 0)
 
   function startAuction() {
     if (!currentProduct || !show) return
     const token = localStorage.getItem('habahub_token')
-    connectSocket().emit('start_auction', { showId: show.id, productId: currentProduct.id, startPrice: currentProduct.startPrice, duration: effectiveDuration, token })
+    connectSocket().emit('start_auction', { showId: show.id, productId: currentProduct.id, startPrice: effectiveStartPrice, duration: effectiveDuration, token })
   }
 
   function endAuction() {
@@ -1318,11 +1328,24 @@ export default function LahetysPage() {
               <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{auction.active ? 'Nykyinen huuto' : 'Lähtöhinta'}{auction.leaderName ? ` · ${auction.leaderName} johtaa` : ''}</div>
             </div>
-            <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? GREEN : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : currentProduct.startPrice}€</div>
+            <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? GREEN : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : effectiveStartPrice}€</div>
           </div>
 
           {!auction.active && !isSold && (
             <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Lähtöhinta:</span>
+                <input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  placeholder={String(currentProduct.startPrice)}
+                  value={startPriceOverride}
+                  onChange={e => setStartPriceOverride(e.target.value)}
+                  style={{ width: 80, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 11, outline: 'none' }}
+                />
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>€</span>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Kesto:</span>
                 {[30, 60, 120].map(s => (
