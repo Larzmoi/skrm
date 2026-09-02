@@ -3,15 +3,9 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from '../db/prisma'
-import { sendPasswordResetEmail } from '../lib/resend'
+import { createAndSendPasswordResetToken } from '../lib/passwordReset'
 
 const router = Router()
-
-// 1h voimassaoloaika salasanan palautuslinkille — sama periaate kuin muualla sovelluksessa
-// käytetyt lyhyet aikaikkunat (esim. 2h maksuaika), riittävän pitkä oikeaan käyttöön mutta
-// lyhyt jos linkki päätyisi vahingossa väärille silmille (esim. jaettu sähköpostitili).
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
 router.post('/register', async (req, res) => {
   const { email, password, name, username, termsAccepted, privacyAccepted, policyAccepted } = req.body
@@ -57,16 +51,7 @@ router.post('/forgot-password', async (req, res) => {
     // Vastaus on aina sama riippumatta löytyikö käyttäjä — ei paljasteta mitkä sähköpostit
     // ovat rekisteröityneet (estää tilien luettelointihyökkäyksen).
     if (user) {
-      const rawToken = crypto.randomBytes(32).toString('hex')
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
-      // Vanhat käyttämättömät tokenit mitätöidään — vain viimeisin lähetetty linkki toimii,
-      // ei kasaannu käyttämättömiä rivejä jos käyttäjä pyytää palautusta useasti peräkkäin.
-      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } })
-      await prisma.passwordResetToken.create({
-        data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
-      })
-      const resetUrl = `${FRONTEND_URL}/nollaa-salasana?token=${rawToken}`
-      await sendPasswordResetEmail(user.email, user.name, resetUrl)
+      await createAndSendPasswordResetToken(user)
     }
     res.json({ ok: true })
   } catch {

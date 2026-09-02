@@ -3,6 +3,7 @@ import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { adminMiddleware } from '../middleware/admin'
 import { notifyUser } from '../lib/notify'
+import { createAndSendPasswordResetToken } from '../lib/passwordReset'
 
 const router = Router()
 
@@ -91,17 +92,63 @@ router.delete('/shows/:id', async (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /admin/users?search=nimi — hae käyttäjä bannausta varten
+// Hakee käyttäjän uusimman AKTIIVISEN bannin (endsAt tulevaisuudessa) - jaettu apuri
+// GET /users:lle ja tarvittaessa muualle. Palauttaa null jos ei aktiivista bannia
+// (vanhat/umpeutuneet bannit jäävät historiaan, ei näytetä admin-paneelissa "voimassa"-tilassa).
+async function findActiveBan(userId: string) {
+  return prisma.ban.findFirst({
+    where: { userId, endsAt: { gt: new Date() } },
+    orderBy: { endsAt: 'desc' },
+    select: { id: true, reason: true, endsAt: true, createdAt: true },
+  })
+}
+
+// GET /admin/users?search=nimi — hae käyttäjä bannausta/käyttäjähallintaa varten. Palauttaa
+// nyt myös canStream/customCommissionRate/customCommissionCap/activeBan (ks. INTEGRATION.md)
+// admin-käyttäjähallintapaneelia varten.
 router.get('/users', async (req, res) => {
   const { search } = req.query
   if (!search || String(search).trim().length < 2) return res.json([])
   const q = String(search).trim()
   const users = await prisma.user.findMany({
     where: { OR: [{ username: { contains: q, mode: 'insensitive' } }, { email: { contains: q, mode: 'insensitive' } }, { name: { contains: q, mode: 'insensitive' } }] },
-    select: { id: true, name: true, username: true, email: true, role: true },
+    select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true },
     take: 10,
   })
-  res.json(users)
+  const enriched = await Promise.all(users.map(async u => ({ ...u, activeBan: await findActiveBan(u.id) })))
+  res.json(enriched)
+})
+
+// PATCH /admin/users/:id — osittainen päivitys (canStream/customCommissionRate/
+// customCommissionCap). Kaikki kentät valinnaisia, vain annetut päivitetään.
+router.patch('/users/:id', async (req, res) => {
+  const userId = String(req.params.id)
+  const { canStream, customCommissionRate, customCommissionCap } = req.body
+
+  const existing = await prisma.user.findUnique({ where: { id: userId } })
+  if (!existing) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
+
+  const data: any = {}
+  if (typeof canStream === 'boolean') data.canStream = canStream
+  if (customCommissionRate !== undefined) {
+    if (customCommissionRate !== null && (typeof customCommissionRate !== 'number' || !isFinite(customCommissionRate) || customCommissionRate < 0)) {
+      return res.status(400).json({ error: 'Virheellinen komissioprosentti' })
+    }
+    data.customCommissionRate = customCommissionRate
+  }
+  if (customCommissionCap !== undefined) {
+    if (customCommissionCap !== null && (typeof customCommissionCap !== 'number' || !isFinite(customCommissionCap) || customCommissionCap < 0)) {
+      return res.status(400).json({ error: 'Virheellinen komissiokatto' })
+    }
+    data.customCommissionCap = customCommissionCap
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data,
+    select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true },
+  })
+  res.json({ ...updated, activeBan: await findActiveBan(userId) })
 })
 
 // POST /admin/users/:id/ban — manuaalinen banni (erillinen automaattisesta maksurikebannista)
@@ -120,6 +167,27 @@ router.post('/users/:id/ban', async (req, res) => {
   await notifyUser(userId, 'BAN_ISSUED', 'Tilisi on estetty', `Tilisi on estetty ${endsAt.toLocaleDateString('fi-FI')} asti. Syy: ${reason}`)
 
   res.json(ban)
+})
+
+// DELETE /admin/users/:id/ban — poistaa aktiivisen bannin asettamalla sen endsAt:n
+// menneisyyteen (ei poisteta riviä - banni jää historiaan, vain lakkaa olemasta aktiivinen).
+router.delete('/users/:id/ban', async (req, res) => {
+  const userId = String(req.params.id)
+  const active = await prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } }, orderBy: { endsAt: 'desc' } })
+  if (!active) return res.status(404).json({ error: 'Ei aktiivista bannia' })
+  await prisma.ban.update({ where: { id: active.id }, data: { endsAt: new Date(Date.now() - 1000) } })
+  res.json({ ok: true })
+})
+
+// POST /admin/users/:id/send-password-reset — käyttää samaa token-luontia/sähköpostia kuin
+// käyttäjän oma /auth/forgot-password (ks. lib/passwordReset.ts), admin käynnistää sen
+// käyttäjän puolesta esim. tukipyynnön yhteydessä.
+router.post('/users/:id/send-password-reset', async (req, res) => {
+  const userId = String(req.params.id)
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
+  await createAndSendPasswordResetToken(user)
+  res.json({ ok: true })
 })
 
 export default router

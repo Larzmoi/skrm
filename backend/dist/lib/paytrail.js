@@ -49,10 +49,16 @@ const BACKEND_PUBLIC_URL = process.env.BACKEND_PUBLIC_URL || 'http://localhost:4
 function getSubmerchantId(_sellerId) {
     return PAYTRAIL_SUBMERCHANT_ID;
 }
-// Habahubin välityspalkkio: 3,5%, katto 35€ (LUKITTU-sääntö, ks. CLAUDE.md). Palauttaa
+// Habahubin välityspalkkio: 3,5%, katto 35€ (LUKITTU-sääntö, ks. CLAUDE.md) — oletusarvot,
+// paitsi jos myyjälle on admin-paneelista asetettu poikkeavat customRate/customCap-arvot
+// (ks. CLAUDE.md/INTEGRATION.md 2026-09-02, User.customCommissionRate/Cap). Palauttaa
 // senttejä, koska Paytrailin API käyttää pienintä valuuttayksikköä kaikkialla.
-function computeCommissionCents(priceEuros) {
-    return Math.round(Math.min(priceEuros * 0.035, 35) * 100);
+// TÄRKEÄÄ: customRate/customCap on AINA haettava myyjän User-riviltä juuri ennen tätä
+// kutsua (ks. orders.ts) — ei koskaan luoteta frontendiltä tulevaan arvoon.
+function computeCommissionCents(priceEuros, customRatePercent, customCapEuros) {
+    const rate = (customRatePercent != null && isFinite(customRatePercent) && customRatePercent >= 0) ? customRatePercent : 3.5;
+    const cap = (customCapEuros != null && isFinite(customCapEuros) && customCapEuros >= 0) ? customCapEuros : 35;
+    return Math.round(Math.min(priceEuros * (rate / 100), cap) * 100);
 }
 function eurosToCents(euros) {
     return Math.round(euros * 100);
@@ -146,7 +152,7 @@ async function createPayment(params) {
             stamp: `${item.itemId}__${attemptId}`,
             reference: item.itemId,
             ...(item.chargeCommission
-                ? { commission: { merchant: PAYTRAIL_COMMISSION_MERCHANT_ID, amount: computeCommissionCents(item.unitPriceEuros * item.quantity) } }
+                ? { commission: { merchant: PAYTRAIL_COMMISSION_MERCHANT_ID, amount: computeCommissionCents(item.unitPriceEuros * item.quantity, item.customCommissionRate, item.customCommissionCap) } }
                 : {}),
         })),
         customer: { email: params.buyerEmail },

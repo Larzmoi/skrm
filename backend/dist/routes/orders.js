@@ -128,6 +128,9 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
         include: {
             items: { include: { product: { select: { name: true } } } },
             buyer: { select: { email: true } },
+            // Myyjän mahdolliset admin-asettamat komissiopoikkeukset (ks. CLAUDE.md/INTEGRATION.md
+            // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon.
+            seller: { select: { customCommissionRate: true, customCommissionCap: true } },
         },
     });
     if (!order || order.buyerId !== req.userId)
@@ -143,11 +146,12 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
         const items = order.items.map(i => ({
             itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
             sellerId: order.sellerId, chargeCommission: true,
+            customCommissionRate: order.seller.customCommissionRate, customCommissionCap: order.seller.customCommissionCap,
         }));
         // Toimitus omana rivinään samassa maksussa - ei komissiota postista, SKRM ottaa
         // osuutensa vain myyntihinnasta (LUKITTU-sääntö).
         if (order.shippingPrice > 0) {
-            items.push({ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false });
+            items.push({ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false, customCommissionRate: null, customCommissionCap: null });
         }
         const session = await (0, paytrail_1.createPayment)({ orderId: order.id, items, buyerEmail: order.buyer.email });
         await prisma_1.prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId, paytrailAttemptId: session.attemptId } });

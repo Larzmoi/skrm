@@ -8,13 +8,8 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = require("../db/prisma");
-const resend_1 = require("../lib/resend");
+const passwordReset_1 = require("../lib/passwordReset");
 const router = (0, express_1.Router)();
-// 1h voimassaoloaika salasanan palautuslinkille — sama periaate kuin muualla sovelluksessa
-// käytetyt lyhyet aikaikkunat (esim. 2h maksuaika), riittävän pitkä oikeaan käyttöön mutta
-// lyhyt jos linkki päätyisi vahingossa väärille silmille (esim. jaettu sähköpostitili).
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 router.post('/register', async (req, res) => {
     const { email, password, name, username, termsAccepted, privacyAccepted, policyAccepted } = req.body;
     if (!email || !password || !name || !username) {
@@ -63,16 +58,7 @@ router.post('/forgot-password', async (req, res) => {
         // Vastaus on aina sama riippumatta löytyikö käyttäjä — ei paljasteta mitkä sähköpostit
         // ovat rekisteröityneet (estää tilien luettelointihyökkäyksen).
         if (user) {
-            const rawToken = crypto_1.default.randomBytes(32).toString('hex');
-            const tokenHash = crypto_1.default.createHash('sha256').update(rawToken).digest('hex');
-            // Vanhat käyttämättömät tokenit mitätöidään — vain viimeisin lähetetty linkki toimii,
-            // ei kasaannu käyttämättömiä rivejä jos käyttäjä pyytää palautusta useasti peräkkäin.
-            await prisma_1.prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
-            await prisma_1.prisma.passwordResetToken.create({
-                data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
-            });
-            const resetUrl = `${FRONTEND_URL}/nollaa-salasana?token=${rawToken}`;
-            await (0, resend_1.sendPasswordResetEmail)(user.email, user.name, resetUrl);
+            await (0, passwordReset_1.createAndSendPasswordResetToken)(user);
         }
         res.json({ ok: true });
     }

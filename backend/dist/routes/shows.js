@@ -80,6 +80,13 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
     const { title, category, alakategoria, city, scheduledAt, thumbnailUrl } = req.body;
     if (!title)
         return res.status(400).json({ error: 'Nimi vaaditaan' });
+    // Striimausoikeus on admin-myönnettävä (ks. CLAUDE.md/INTEGRATION.md 2026-09-02,
+    // User.canStream) - frontendin kytkin ei itsessään estä mitään, tämä backend-tarkistus on
+    // se mikä oikeasti rajoittaa pääsyn.
+    const streamer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { canStream: true } });
+    if (!streamer?.canStream) {
+        return res.status(403).json({ error: 'Striimausoikeutta ei ole vielä myönnetty' });
+    }
     // Varmistaa että myyjän Ingress on olemassa (lazy-luonti) vaikka ei suoraan tarvita tässä.
     await (0, livekit_1.getOrCreateStreamKey)(req.userId);
     const show = await prisma_1.prisma.show.create({
