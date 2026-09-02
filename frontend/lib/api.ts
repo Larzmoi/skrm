@@ -114,6 +114,10 @@ export const adminApi = {
   deleteShow: (id: string, reason: string) => request(`/admin/shows/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
   searchUsers: (search: string) => request(`/admin/users?search=${encodeURIComponent(search)}`),
   banUser: (id: string, reason: string, days: number) => request(`/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ reason, days }) }),
+  updateUser: (id: string, data: { canStream?: boolean; customCommissionRate?: number | null; customCommissionCap?: number | null }) =>
+    request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeBan: (id: string) => request(`/admin/users/${id}/ban`, { method: 'DELETE' }),
+  sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
 }
 
 export const messageApi = {

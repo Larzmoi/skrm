@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
+import { adminApi } from '@/lib/api'
 
 type Ban = {
   id: string
@@ -23,52 +24,13 @@ type AdminUser = {
   activeBan: Ban | null
 }
 
-/**
- * TEMPLATE ONLY
- *
- * This component intentionally does not change your repository or assume that
- * the backend endpoints already exist. Replace the mock API functions below
- * with your adminApi methods when integrating.
- *
- * Expected backend contract:
- *   GET    /admin/users?search=
- *   PATCH  /admin/users/:id
- *   POST   /admin/users/:id/ban
- *   DELETE /admin/users/:id/ban
- *   POST   /admin/users/:id/send-password-reset
- */
+// Kytketty INTEGRATION.md:n suunnitelman mukaisesti oikeisiin adminApi-kutsuihin 2026-09-02
+// (ks. CLAUDE.md) — searchUsers/banUser käyttävät jo olemassa olevia adminApi-metodeja
+// sellaisenaan, updateUser/removeBan/sendPasswordReset ovat uusia metodeja jotka vastaavat
+// uusia backend-reittejä (PATCH/DELETE/POST /admin/users/:id/...).
 
 const DEFAULT_RATE = 3.5
 const DEFAULT_CAP = 35
-
-const MOCK_USERS: AdminUser[] = [
-  {
-    id: 'demo-1',
-    name: 'Matti Meikäläinen',
-    username: 'mattimeikalainen',
-    email: 'matti@example.com',
-    role: 'USER',
-    canStream: true,
-    customCommissionRate: null,
-    customCommissionCap: null,
-    activeBan: null,
-  },
-  {
-    id: 'demo-2',
-    name: 'Super Myyjä',
-    username: 'supermyyja',
-    email: 'seller@example.com',
-    role: 'USER',
-    canStream: false,
-    customCommissionRate: 3,
-    customCommissionCap: 25,
-    activeBan: {
-      id: 'ban-demo',
-      reason: 'Testibanni',
-      endsAt: '2026-09-15T12:00:00.000Z',
-    },
-  },
-]
 
 function isActiveBan(ban: Ban | null) {
   return !!ban && new Date(ban.endsAt).getTime() > Date.now()
@@ -78,35 +40,28 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fi-FI')
 }
 
-/**
- * Replace these four functions with calls to your existing adminApi.
- *
- * Example:
- *   return adminApi.searchUsers(search)
- */
-async function searchUsers(_search: string): Promise<AdminUser[]> {
-  await new Promise(resolve => setTimeout(resolve, 150))
-  return MOCK_USERS
+async function searchUsers(search: string): Promise<AdminUser[]> {
+  return adminApi.searchUsers(search)
 }
 
-async function updateUser(_id: string, _data: {
+async function updateUser(id: string, data: {
   canStream?: boolean
   customCommissionRate?: number | null
   customCommissionCap?: number | null
 }) {
-  await new Promise(resolve => setTimeout(resolve, 150))
+  return adminApi.updateUser(id, data)
 }
 
-async function banUser(_id: string, _reason: string, _days: number) {
-  await new Promise(resolve => setTimeout(resolve, 150))
+async function banUser(id: string, reason: string, days: number) {
+  return adminApi.banUser(id, reason, days)
 }
 
-async function removeBan(_id: string) {
-  await new Promise(resolve => setTimeout(resolve, 150))
+async function removeBan(id: string) {
+  return adminApi.removeBan(id)
 }
 
-async function sendPasswordReset(_id: string) {
-  await new Promise(resolve => setTimeout(resolve, 150))
+async function sendPasswordReset(id: string) {
+  return adminApi.sendPasswordReset(id)
 }
 
 function UserRow({
@@ -236,12 +191,18 @@ function UserRow({
         padding: 16,
       }}
     >
+      {/* overflowX: auto - ruudukon minmax-sarakkeilla on kiinteä minimileveys (yht. ~550px+),
+          eivät rivity useammalle riville kapealla näytöllä kuten auto-fit/auto-fill tekisi.
+          Tämä pitää mahdollisen ylivuodon oman laatikkonsa sisällä eikä koko sivun leveydellä
+          (ks. sivuston LUKITTU "ei sivuttaissvollausta" -periaate). */}
+      <div style={{ overflowX: 'auto' }}>
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(130px, .7fr) minmax(120px, .7fr) minmax(120px, .7fr)',
           gap: 14,
           alignItems: 'start',
+          minWidth: 560,
         }}
       >
         <div>
@@ -331,6 +292,7 @@ function UserRow({
             style={{ ...inputStyle, marginTop: 7 }}
           />
         </label>
+      </div>
       </div>
 
       <div
@@ -469,7 +431,7 @@ function UserRow({
   )
 }
 
-export default function AdminUserManagementTemplate() {
+export default function AdminUserManagement() {
   const { C } = useTheme()
   const { t } = useLang()
   const [search, setSearch] = useState('')

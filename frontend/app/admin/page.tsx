@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { adminApi } from '@/lib/api'
+import AdminUserManagement from './AdminUserManagement'
 
 type StatusFilter = '' | 'PENDING' | 'REVIEWED'
 
@@ -96,63 +97,9 @@ function ReportRow({ report, t, C, onChanged }: { report: any; t: any; C: any; o
   )
 }
 
-function UsersTab({ t, C }: { t: any; C: any }) {
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<any[]>([])
-  const [banTarget, setBanTarget] = useState<any>(null)
-  const [banReason, setBanReason] = useState('')
-  const [banDays, setBanDays] = useState(30)
-  const [busy, setBusy] = useState(false)
-  const [success, setSuccess] = useState(false)
-
-  useEffect(() => {
-    const q = search.trim()
-    if (q.length < 2) { setResults([]); return }
-    const timeout = setTimeout(() => {
-      adminApi.searchUsers(q).then(setResults).catch(() => setResults([]))
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [search])
-
-  async function confirmBan() {
-    if (!banTarget || !banReason.trim()) return
-    setBusy(true)
-    try {
-      await adminApi.banUser(banTarget.id, banReason.trim(), banDays)
-      setSuccess(true)
-      setTimeout(() => { setBanTarget(null); setBanReason(''); setSuccess(false) }, 1500)
-    } catch {}
-    setBusy(false)
-  }
-
-  return (
-    <div>
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.admin.userSearchPlaceholder} style={{ width: '100%', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: '11px 14px', fontSize: 14, color: C.text, boxSizing: 'border-box', marginBottom: 16 }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {results.map(u => (
-          <div key={u.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{u.name} <span style={{ color: C.muted, fontWeight: 400 }}>@{u.username}</span></div>
-              <div style={{ fontSize: 12, color: C.muted }}>{u.email} {u.role === 'ADMIN' && `· ${u.role}`}</div>
-            </div>
-            {banTarget?.id === u.id ? (
-              success ? <div style={{ color: C.accent, fontSize: 13, fontWeight: 600 }}>{t.admin.banSuccess}</div> : (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input value={banReason} onChange={e => setBanReason(e.target.value)} placeholder={t.admin.banReasonPlaceholder} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 10px', fontSize: 12, color: C.text, width: 200 }} />
-                  <input type="number" min={1} value={banDays} onChange={e => setBanDays(Number(e.target.value))} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: '7px 10px', fontSize: 12, color: C.text, width: 70 }} />
-                  <button onClick={() => setBanTarget(null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.textSub, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>{t.admin.cancel}</button>
-                  <button onClick={confirmBan} disabled={busy || !banReason.trim()} style={{ background: '#EF4444', color: '#fff', border: 'none', padding: '7px 12px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: busy || !banReason.trim() ? 0.6 : 1 }}>{t.admin.banConfirm}</button>
-                </div>
-              )
-            ) : (
-              <button onClick={() => setBanTarget(u)} style={{ background: 'none', border: `1px solid #EF4444`, color: '#EF4444', padding: '7px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{t.admin.ban}</button>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
+// Vanha UsersTab (pelkkä haku + bannaus) korvattu AdminUserManagement-komponentilla
+// 2026-09-02 (ks. INTEGRATION.md) - laajempi käyttäjähallinta samalla hakukentällä:
+// striimausoikeus, mukautettu komissio, bannin luonti/poisto, salasanan palautuslinkki.
 
 export default function AdminPage() {
   const { C } = useTheme()
@@ -190,7 +137,7 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: tab === 'users' ? 1040 : 800, margin: '0 auto', padding: '32px 24px' }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 20 }}>{t.admin.title}</h1>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
@@ -219,7 +166,7 @@ export default function AdminPage() {
             )}
           </>
         ) : (
-          <UsersTab t={t} C={C} />
+          <AdminUserManagement />
         )}
       </div>
       <Footer />
