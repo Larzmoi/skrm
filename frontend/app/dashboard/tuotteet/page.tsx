@@ -18,7 +18,7 @@ interface Product {
   startPrice: number; buyNowPrice?: number; reservePrice?: number; bidIncrement?: number
   auctionDuration?: number; quantity: number; condition?: string
   description?: string; imageUrl?: string; category?: string
-  alakategoria?: string; tyyppi?: string; city?: string; pakettikoko?: string; status: string
+  alakategoria?: string; tyyppi?: string; city?: string; allowPickup?: boolean; allowShipping?: boolean; status: string
   currentBid?: number
 }
 
@@ -62,11 +62,17 @@ function TuotteetContent() {
   const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<string[]>([])
-  const [pakettikoko, setPakettikokoState] = useState('')
+  // Toimitustapa-rajoitukset — valinnainen lisäasetus, ei pakollinen valinta (ks. CLAUDE.md
+  // "Kaksi UX-löydöstä 2026-09-02" kohta 2). Oletus: molemmat sallittu, ostaja valitsee
+  // checkoutissa. showDeliveryAdvanced pitää osion kiinni oletuksena — jos myyjä ei koskaan
+  // avaa sitä, ei tarvitse ottaa kantaa noutokoodi-ehtoihinkaan (ks. alla noutoPolicyAccepted).
+  const [showDeliveryAdvanced, setShowDeliveryAdvanced] = useState(false)
+  const [allowPickup, setAllowPickupState] = useState(true)
+  const [allowShipping, setAllowShipping] = useState(true)
   const [noutoPolicyAccepted, setNoutoPolicyAccepted] = useState(false)
-  function setPakettikoko(id: string) {
-    setPakettikokoState(id)
-    if (id !== 'nouto') setNoutoPolicyAccepted(false)
+  function setAllowPickup(val: boolean) {
+    setAllowPickupState(val)
+    if (val) setNoutoPolicyAccepted(false) // tuore hyväksyntä vaaditaan aina kun nouto kytketään päälle
   }
   const [startPrice, setStartPrice] = useState('')
   const [buyNowPrice, setBuyNowPrice] = useState('')
@@ -111,7 +117,8 @@ function TuotteetContent() {
     setSaleType('live'); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
     setCity('')
     setCondition(''); setQuantity('1'); setDescription(''); setImages([])
-    setPakettikokoState(''); setNoutoPolicyAccepted(false); setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
+    setAllowPickupState(true); setAllowShipping(true); setShowDeliveryAdvanced(false); setNoutoPolicyAccepted(false)
+    setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
     // Clear bulk state
     setBulkTab('manual'); setBulkText(''); setBulkFile(null); setParsedPreview([]); setUploading(false)
@@ -125,7 +132,14 @@ function TuotteetContent() {
     setCity(p.city ?? '')
     setCondition(p.condition ?? ''); setQuantity(String(p.quantity ?? 1))
     setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
-    setPakettikokoState(p.pakettikoko ?? ''); setNoutoPolicyAccepted(p.pakettikoko === 'nouto')
+    // Muokattaessa jo julkaistua tuotetta: tuotteen NYKYINEN tila katsotaan jo hyväksytyksi (ei
+    // pakoteta uutta noutokoodi-hyväksyntää pelkän hinnan tms. muokkauksen yhteydessä) — tuore
+    // hyväksyntä vaaditaan vain jos myyjä itse kytkee noudon päälle uudelleen tästä editoinnista.
+    const pAllowPickup = p.allowPickup ?? true
+    const pAllowShipping = p.allowShipping ?? true
+    setAllowPickupState(pAllowPickup); setAllowShipping(pAllowShipping)
+    setShowDeliveryAdvanced(!pAllowPickup || !pAllowShipping)
+    setNoutoPolicyAccepted(pAllowPickup)
     setStartPrice(String(p.startPrice))
     setBuyNowPrice(p.buyNowPrice ? String(p.buyNowPrice) : '')
     setReservePrice(p.reservePrice ? String(p.reservePrice) : '')
@@ -233,7 +247,8 @@ function TuotteetContent() {
   async function save() {
     if (!name.trim()) { setError(tp.enterName); return }
     if (!startPrice || Number(startPrice) <= 0) { setError(tp.enterPrice); return }
-    if (pakettikoko === 'nouto' && !noutoPolicyAccepted) { setError(tp.acceptPickupTerms); return }
+    if (!allowPickup && !allowShipping) { setError(tp.selectAtLeastOneDelivery); return }
+    if (showDeliveryAdvanced && allowPickup && !noutoPolicyAccepted) { setError(tp.acceptPickupTerms); return }
     setError(''); setSaving(true)
 
     const data = {
@@ -247,7 +262,8 @@ function TuotteetContent() {
       auctionDurationHours: saleType === 'auction' ? auctionDurationHours : undefined,
       quantity: Number(quantity) || 1,
       condition: condition || undefined, category: category || undefined,
-      alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined, pakettikoko: pakettikoko || undefined,
+      alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined,
+      allowPickup, allowShipping,
       description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
     }
 
@@ -297,7 +313,7 @@ function TuotteetContent() {
   const currentAla: any = currentKat?.alakategoriat.find((a: any) => a.id === alakategoria)
   const bulkCurrentKat = KATEGORIAT.find(k => k.id === bulkCategory)
   const bulkCurrentAla: any = bulkCurrentKat?.alakategoriat.find((a: any) => a.id === bulkAlakategoria)
-  const paketti = PAKETTIKOOT.find(p => p.id === pakettikoko)
+  const shippingOption = PAKETTIKOOT.find(p => p.id === 'postitus')
   const pending = products.filter(p => p.status === 'PENDING')
   const editingProduct = editId ? products.find(p => p.id === editId) : null
   const editCategoryLocked = editingProduct ? isCategoryLocked(editingProduct) : false
@@ -646,40 +662,58 @@ function TuotteetContent() {
                 </div>
               </div>
 
-              {/* Toimitus */}
+              {/* Toimitus — valinnainen lisäasetus, EI pakollinen valinta (ks. CLAUDE.md "Kaksi
+                  UX-löydöstä 2026-09-02" kohta 2). Oletus: ostaja saa valita nouto TAI postitus
+                  checkoutissa jokaiselle tuotteelle, kiinni oletuksena ettei myyjän tarvitse
+                  ottaa kantaa tähän ollenkaan jos ei halua rajata mitään. */}
               <div style={{ background: C.surface, borderRadius: 9, padding: '14px', marginBottom: 12, border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>{tp.deliveryTitle}</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {PAKETTIKOOT.map(p => (
-                    // p.nimi sisältää jo hinnan (esim. "Postitus 6,9€", ks. lib/pakettikoot.ts —
-                    // kiinteä postihinta) - erillinen p.hinta-rivi tässä näytti saman hinnan
-                    // kahteen kertaan peräkkäin samassa napissa.
-                    <button key={p.id} type="button" onClick={() => setPakettikoko(p.id)} style={{ background: pakettikoko === p.id ? C.accentSolid : C.surface2, border: `1px solid ${pakettikoko === p.id ? C.accentSolid : C.border}`, color: pakettikoko === p.id ? C.accentText : C.muted, padding: '7px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', textAlign: 'left' }}>
-                      <div style={{ fontWeight: 600 }}>{p.nimi}</div>
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{tp.deliveryTitle}</div>
+                  <button type="button" onClick={() => setShowDeliveryAdvanced(s => !s)} style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                    {showDeliveryAdvanced ? tp.deliveryHide : tp.deliveryEdit}
+                  </button>
                 </div>
-                {paketti && paketti.hinta > 0 && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>{tp.buyerPays} <span style={{ color: C.accent, fontWeight: 700 }}>{paketti.hinta.toFixed(2)}€</span></div>}
+                <p style={{ fontSize: 12, color: C.muted, marginTop: 6, marginBottom: 0 }}>{tp.deliveryDefaultHint}</p>
 
-                {pakettikoko === 'nouto' && (
-                  <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
-                      {tp.pickupTitle}
-                    </div>
-                    <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
-                      {tp.pickupBody}
-                    </p>
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={noutoPolicyAccepted}
-                        onChange={e => setNoutoPolicyAccepted(e.target.checked)}
-                        style={{ marginTop: 2, flexShrink: 0 }}
-                      />
-                      <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
-                        {tp.pickupCheckbox}
+                {showDeliveryAdvanced && (
+                  <div style={{ marginTop: 12 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                      <input type="checkbox" checked={allowShipping} onChange={e => setAllowShipping(e.target.checked)} />
+                      <span style={{ fontSize: 13, color: C.text }}>
+                        {tp.allowShippingLabel}
+                        {shippingOption && <span style={{ color: C.muted }}> ({tp.buyerPays.toLowerCase()} {shippingOption.hinta.toFixed(2)}€)</span>}
                       </span>
                     </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={allowPickup} onChange={e => setAllowPickup(e.target.checked)} />
+                      <span style={{ fontSize: 13, color: C.text }}>{tp.allowPickupLabel}</span>
+                    </label>
+
+                    {!allowPickup && !allowShipping && (
+                      <div style={{ fontSize: 12, color: '#CC0000', marginTop: 8 }}>{tp.selectAtLeastOneDelivery}</div>
+                    )}
+
+                    {allowPickup && (
+                      <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '14px 16px', marginTop: 12 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#B45309', marginBottom: 8 }}>
+                          {tp.pickupTitle}
+                        </div>
+                        <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6, marginBottom: 12 }}>
+                          {tp.pickupBody}
+                        </p>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={noutoPolicyAccepted}
+                            onChange={e => setNoutoPolicyAccepted(e.target.checked)}
+                            style={{ marginTop: 2, flexShrink: 0 }}
+                          />
+                          <span style={{ fontSize: 13, color: '#92400E', fontWeight: 600 }}>
+                            {tp.pickupCheckbox}
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

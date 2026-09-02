@@ -179,18 +179,23 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div style={{ fontSize: 32, fontWeight: 900, color: C.text, marginBottom: 4 }}>
                 {(product.buyNowPrice ?? product.startPrice).toLocaleString('fi-FI')}€
               </div>
-              {product.pakettikoko && product.pakettikoko !== 'nouto' && (
+              {/* Toimitustapa-hinta/nouto-vihje — ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02"
+                  kohta 2. allowPickup/allowShipping puuttuvat kentästä tulkitaan sallituksi
+                  (`!== false`), sama oletus kuin koko toimitustapa-logiikassa muuallakin. */}
+              {product.allowShipping !== false && product.allowPickup !== false && (
+                <div style={{ fontSize: 13, color: C.muted }}>{t.product.deliveryBothOptions}</div>
+              )}
+              {product.allowShipping !== false && product.allowPickup === false && (
                 <div style={{ fontSize: 13, color: C.muted }}>+ {t.product.delivery}</div>
               )}
-              {product.pakettikoko === 'nouto' && (
+              {product.allowPickup !== false && product.allowShipping === false && (
                 <div style={{ fontSize: 13, color: C.muted }}>{t.product.pickupFromSeller}</div>
               )}
             </div>
 
-            {product.pakettikoko === 'nouto' && (
+            {product.allowPickup !== false && product.allowShipping === false && (
               <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 8, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#92400E' }}>
-                Tämä on noutotuote. Sovitaan noudon yksityiskohdista myyjän kanssa.
-                Habahubin maksuturva ei koske noutokauppoja.
+                {t.product.pickupInfoBox}
               </div>
             )}
 

@@ -62,7 +62,7 @@ async function withLiveTrackingStatus(order) {
     return { ...order, postiStatus: status };
 }
 const orderInclude = {
-    items: { include: { product: { select: { id: true, name: true, imageUrl: true, condition: true } } } },
+    items: { include: { product: { select: { id: true, name: true, imageUrl: true, condition: true, allowPickup: true, allowShipping: true } } } },
     buyer: { select: { id: true, name: true, username: true, address: true, postalCode: true, city: true, phone: true } },
     seller: { select: { id: true, name: true, username: true } },
     reviews: { select: { reviewerId: true } },

@@ -46,12 +46,24 @@ export default function KoriPage() {
     }
   }, [now, groups, refresh])
 
-  function sizeFor(sellerId: string, suggested: string | null) {
-    return selectedSize[sellerId] ?? suggested ?? pakettikoot[0]?.id ?? ''
+  // Ryhmän (= tulevan Orderin) todella tarjolla olevat toimitustavat — jos yksikin ryhmän
+  // tuote on rajannut jommankumman pois, sitä ei näytetä vaihtoehtona ollenkaan (ks. CLAUDE.md
+  // "Kaksi UX-löydöstä 2026-09-02" kohta 2). Backendin select-shipping ei validoi tätä erikseen
+  // (tarkoituksella, ks. sama osio) — rajaus tapahtuu tässä, näyttämällä vain sallitut vaihtoehdot.
+  function optionsFor(group: { allowShipping: boolean; allowPickup: boolean }) {
+    return pakettikoot.filter(p => (p.id === 'postitus' ? group.allowShipping : p.id === 'nouto' ? group.allowPickup : true))
   }
 
-  function shippingPriceFor(sellerId: string, suggested: string | null) {
-    const id = sizeFor(sellerId, suggested)
+  function sizeFor(group: { sellerId: string; suggestedPakettikoko: string | null; allowShipping: boolean; allowPickup: boolean }) {
+    const options = optionsFor(group)
+    const chosen = selectedSize[group.sellerId]
+    if (chosen && options.some(o => o.id === chosen)) return chosen
+    if (group.suggestedPakettikoko && options.some(o => o.id === group.suggestedPakettikoko)) return group.suggestedPakettikoko
+    return options[0]?.id ?? ''
+  }
+
+  function shippingPriceFor(group: { sellerId: string; suggestedPakettikoko: string | null; allowShipping: boolean; allowPickup: boolean }) {
+    const id = sizeFor(group)
     return pakettikoot.find(p => p.id === id)?.hinta ?? 0
   }
 
@@ -84,7 +96,7 @@ export default function KoriPage() {
     } catch {}
   }
 
-  const grandTotal = groups.reduce((sum, g) => sum + g.total + shippingPriceFor(g.sellerId, g.suggestedPakettikoko), 0)
+  const grandTotal = groups.reduce((sum, g) => sum + g.total + shippingPriceFor(g), 0)
   const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0)
 
   return (
@@ -107,8 +119,9 @@ export default function KoriPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {groups.map(group => {
-              const size = sizeFor(group.sellerId, group.suggestedPakettikoko)
-              const shippingPrice = shippingPriceFor(group.sellerId, group.suggestedPakettikoko)
+              const options = optionsFor(group)
+              const size = sizeFor(group)
+              const shippingPrice = shippingPriceFor(group)
               return (
                 <div key={group.sellerId} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -145,12 +158,20 @@ export default function KoriPage() {
                     })}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: size === 'postitus' ? 8 : 12 }}>
-                    <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>{t.product.delivery}</label>
-                    <select value={size} onChange={e => setSelectedSize(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
-                      {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : t.kori.free}</option>)}
-                    </select>
-                  </div>
+                  {options.length === 0 ? (
+                    // Aidosti ristiriitainen ryhmä: yksi tuote sallii vain postituksen, toinen
+                    // vain noudon, samassa myyjän 6h-yhdistämisikkunassa - harvinainen reunatapaus,
+                    // ei estä maksamista (backend ei vaadi validointia tähän, ks. CLAUDE.md), mutta
+                    // kerrotaan ostajalle miksi eikä näytetä tyhjää pudotusvalikkoa selittämättä.
+                    <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 12 }}>{t.kori.deliveryConflict}</div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: size === 'postitus' ? 8 : 12 }}>
+                      <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>{t.product.delivery}</label>
+                      <select value={size} onChange={e => setSelectedSize(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
+                        {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : t.kori.free}</option>)}
+                      </select>
+                    </div>
+                  )}
 
                   {size === 'postitus' && (
                     // Noutopiste (MOCK-esimerkkilista, ks. lib/postiPickupPoints.ts) - vastaa
@@ -169,7 +190,7 @@ export default function KoriPage() {
                       {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice).toLocaleString('fi-FI')}€</div>
                     </div>
-                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: paying === group.sellerId ? 'default' : 'pointer', opacity: paying === group.sellerId ? 0.7 : 1 }}>
+                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId || options.length === 0} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: (paying === group.sellerId || options.length === 0) ? 'default' : 'pointer', opacity: (paying === group.sellerId || options.length === 0) ? 0.7 : 1 }}>
                       {paying === group.sellerId ? t.kori.processing : t.kori.pay}
                     </button>
                   </div>

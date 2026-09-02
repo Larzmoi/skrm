@@ -157,6 +157,7 @@ const sv = {
     bidPlaced: 'Anbuden mottaget!', youAreLeading: 'Du är för närvarande den högsta anbuds',
     minBid: 'Minsta anbud',
     notFound: 'Produkten hittades inte', noImage: 'Ingen bild', pickupFromSeller: 'Hämtning hos säljare',
+    deliveryBothOptions: 'Hämtning eller frakt', pickupInfoBox: 'Detta är en hämtningsprodukt. Kom överens om hämtningsdetaljerna med säljaren — hämtning omfattas normalt av Habahubs betalningsskydd.',
   },
   profile: {
     follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',
@@ -221,6 +222,10 @@ const sv = {
     liveDurationLabel: 'Auktionens varaktighet (i live-strömmen)', liveDurationPlaceholder: 'i sekunder',
     auctionDurationLabel: 'Auktionens varaktighet', days: 'd', hours: 'h',
     deliveryTitle: 'Leverans', buyerPays: 'Köparen betalar',
+    deliveryEdit: 'Begränsa leveransmetoder', deliveryHide: 'Dölj',
+    deliveryDefaultHint: 'Som standard kan köparen välja hämtning ELLER frakt vid utcheckning. Du kan valfritt begränsa ett av alternativen.',
+    allowShippingLabel: 'Tillåt frakt', allowPickupLabel: 'Tillåt hämtning hos dig',
+    selectAtLeastOneDelivery: 'Minst en leveransmetod (hämtning eller frakt) måste vara tillåten',
     pickupTitle: 'Hämtning hos dig — hur det fungerar',
     pickupBody: 'När en köpare köper produkten genom Habahub och väljer hämtning som leveransmetod, försäljningen ingår normalt i betalningsskyddet. Köparen får en hämtningskod, vilken du anger i systemet när du överlämnar produkten — betalningen frigörs till dig så fort koden bekräftas. Detta gäller inte för ordningar som görs helt utanför Habahub (t.ex. kontanter direkt utan Habahub-order) — där är Habahub inte en part och inte erbjuder betalningsskydd.',
     pickupCheckbox: 'Jag förstår att köparen får en hämtningskod och betalningen frigörs till mig bara när jag bekräftar hämtningen',
@@ -309,6 +314,7 @@ const sv = {
     liveTimeLeft: 'Live-köp — tid att betala', timeUp: 'Tiden är uppe',
     products: 'Produkter', shipping: 'leverans', pay: 'Betalning', processing: 'Behandlas...',
     total: 'Totalt', items: 'produkter', allSellers: 'alla säljare',
+    deliveryConflict: 'Dessa produkters leveransmetoder är i konflikt (en tillåter bara frakt, den andra bara hämtning) — kontakta säljaren.',
   },
   notificationsPage: {
     title: 'Aviseringar', subtitle: 'Alla dina viktiga uppdateringar på en plats',

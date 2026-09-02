@@ -130,7 +130,7 @@ router.post('/:id/prebid', auth_1.authMiddleware, async (req, res) => {
 });
 // POST /products
 router.post('/', auth_1.authMiddleware, async (req, res) => {
-    const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, tyyppi, city, pakettikoko, showId } = req.body;
+    const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body;
     if (!name || !startPrice)
         return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' });
     // showId tuli suoraan pyynnön bodystä ilman omistajuustarkistusta - kuka tahansa kirjautunut
@@ -163,7 +163,8 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
             quantity: Number(quantity ?? 1),
             condition: condition ?? null, description: description ?? null,
             imageUrl: imageUrl ?? null, category: category ?? null,
-            alakategoria: alakategoria ?? null, tyyppi: tyyppi ?? null, city: city ?? null, pakettikoko: pakettikoko ?? null,
+            alakategoria: alakategoria ?? null, tyyppi: tyyppi ?? null, city: city ?? null,
+            allowPickup: allowPickup !== false, allowShipping: allowShipping !== false,
             sellerId: req.userId, showId: showId ?? null,
         },
     });
@@ -252,7 +253,8 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
             quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
             condition: req.body.condition ?? null, description: req.body.description ?? null,
             imageUrl: req.body.imageUrl ?? undefined, category: newCategory,
-            alakategoria: newAlakategoria, tyyppi: newTyyppi, city: req.body.city ?? null, pakettikoko: req.body.pakettikoko ?? null,
+            alakategoria: newAlakategoria, tyyppi: newTyyppi, city: req.body.city ?? null,
+            allowPickup: req.body.allowPickup !== false, allowShipping: req.body.allowShipping !== false,
         },
     });
     res.json(updated);

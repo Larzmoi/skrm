@@ -111,10 +111,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const groups = Array.from(bySeller.entries()).map(([sellerId, items]) => {
     const seller = items[0].product.seller
     const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-    // Postitus voittaa jos yksikin tuote sitä tarvitsee (ei voi jättää tuotetta noutamatta erikseen),
-    // nouto vain jos kaikki tuotteet ovat nouto-tyyppisiä — ei enää pakettikokoportaikkoa vertailtavana
-    const sizes = items.map(i => i.product.pakettikoko)
-    const suggestedPakettikoko = sizes.includes('postitus') ? 'postitus' : (sizes.every(s => s === 'nouto') ? 'nouto' : null)
+    // Koko ryhmä jakaa yhden toimitustavan (yksi Order, yksi shippingSize) - jos yksikin tuote
+    // rajaa jommankumman tavan pois (allowPickup/allowShipping === false), koko ryhmä ei voi
+    // enää tarjota sitä tapaa. Sama tie-break-periaate kuin ennen (postitus oletuksena jos
+    // molemmat sallittuja) - vain lähde vaihtui pakollisesta pakettikoko-merkkijonosta näihin
+    // kahteen valinnaiseen boolean-kenttään (ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02" kohta 2).
+    const allowShipping = items.every(i => i.product.allowShipping)
+    const allowPickup = items.every(i => i.product.allowPickup)
+    const suggestedPakettikoko = allowShipping ? 'postitus' : (allowPickup ? 'nouto' : null)
     return {
       sellerId,
       seller: { name: seller.name, username: seller.username },
@@ -126,6 +130,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       })),
       total,
       suggestedPakettikoko,
+      allowShipping,
+      allowPickup,
     }
   })
 

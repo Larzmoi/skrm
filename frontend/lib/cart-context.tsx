@@ -14,6 +14,10 @@ export interface CartGroup {
   items: CartItemView[]
   total: number
   suggestedPakettikoko: string | null
+  // Ryhmän (= tulevan Orderin) sallitut toimitustavat — false jos yksikin ryhmän tuote on
+  // rajannut kyseisen tavan pois (ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02" kohta 2).
+  allowShipping: boolean
+  allowPickup: boolean
 }
 export type { PakettikokoOption }
 

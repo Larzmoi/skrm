@@ -157,6 +157,7 @@ const fi = {
     bidPlaced: 'Tarjous vastaanotettu!', youAreLeading: 'Olet tällä hetkellä korkein tarjoaja',
     minBid: 'Minimitarjous',
     notFound: 'Tuotetta ei löydy', noImage: 'Ei kuvaa', pickupFromSeller: 'Nouto myyjältä',
+    deliveryBothOptions: 'Nouto tai postitus', pickupInfoBox: 'Tämä on noutotuote. Sovi noudon yksityiskohdista myyjän kanssa — nouto kuuluu normaalisti Habahubin maksuturvan piiriin.',
   },
   profile: {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',
@@ -221,6 +222,10 @@ const fi = {
     liveDurationLabel: 'Huutokaupan kesto (live-lähetyksessä)', liveDurationPlaceholder: 'sekunteina',
     auctionDurationLabel: 'Huutokaupan kesto', days: 'pv', hours: 'h',
     deliveryTitle: 'Toimitus', buyerPays: 'Ostaja maksaa',
+    deliveryEdit: 'Rajaa toimitustapoja', deliveryHide: 'Piilota',
+    deliveryDefaultHint: 'Oletuksena ostaja saa valita nouto TAI postitus checkoutissa. Voit halutessasi rajata jommankumman pois.',
+    allowShippingLabel: 'Salli postitus', allowPickupLabel: 'Salli nouto myyjältä',
+    selectAtLeastOneDelivery: 'Vähintään yksi toimitustapa (nouto tai postitus) pitää olla sallittu',
     pickupTitle: 'Nouto myyjältä — miten se toimii',
     pickupBody: 'Kun ostaja ostaa tuotteen Habahubin kautta ja valitsee toimitustavaksi noudon, kauppa kuuluu normaalisti maksuturvan piiriin. Ostaja saa noutokoodin, jonka syötät järjestelmään kun luovutat tuotteen — maksu vapautuu sinulle heti kun koodi on vahvistettu. Tämä ei koske sopimuksia jotka sovitaan kokonaan Habahubin ulkopuolella (esim. suoraan sovittu käteiskauppa ilman Habahub-tilausta) — niissä Habahub ei ole osapuoli eikä tarjoa maksuturvaa.',
     pickupCheckbox: 'Ymmärrän että ostaja saa noutokoodin ja maksu vapautuu minulle vasta kun vahvistan noudon',
@@ -309,6 +314,7 @@ const fi = {
     liveTimeLeft: 'Live-osto — maksuaikaa', timeUp: 'Aika loppui',
     products: 'Tuotteet', shipping: 'toimitus', pay: 'Maksa', processing: 'Käsitellään...',
     total: 'Yhteensä', items: 'tuotetta', allSellers: 'kaikki myyjät',
+    deliveryConflict: 'Näiden tuotteiden toimitustavat ovat ristiriidassa keskenään (yksi sallii vain postituksen, toinen vain noudon) — ota yhteyttä myyjään.',
   },
   notificationsPage: {
     title: 'Ilmoitukset', subtitle: 'Kaikki tärkeät päivitykset yhdessä paikassa',

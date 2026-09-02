@@ -208,6 +208,17 @@ model Product {
   bidIncrement    Float?        // minimikorotus huudolle — oletus 1€ jos ei asetettu, myyjä voi asettaa pienemmänkin (esim. 0,10€)
   auctionDuration Int?          // live-lähetyksen huutokauppa-lotin kesto SEKUNTEINA — eri asia kuin perinteisen huutokaupan auctionEndsAt
   quantity        Int           @default(1)
+  // Toimitustapa-rajoitukset — KORVAA vanhan pakollisen `pakettikoko` (postitus XOR nouto)
+  // -kentän 2026-09-02 (ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02" kohta 2). Oletus true
+  // molemmille = ei rajoitusta, ostaja saa valita kumman tahansa checkoutissa. Myyjä voi
+  // halutessaan rajata jommankumman pois valinnaisena lisäasetuksena tuotelomakkeessa.
+  allowPickup     Boolean       @default(true)
+  allowShipping   Boolean       @default(true)
+  // ⚠️ VÄLIAIKAISESTI säilytetty rinnalla migraation ajan — tuotannossa on olemassa olevaa dataa
+  // (1 "nouto", 5 "postitus", 4 vanhentunutta "xxs"-jäännettä poistetusta kokoportaikosta) joka
+  // pitää siirtää allowPickup/allowShipping-kenttiin ennen tämän poistamista, jotta myyjien jo
+  // tekemät rajaukset eivät katoa hiljaisesti. Poistetaan heti backfill-skriptin jälkeen samassa
+  // deployssä — ei jää pysyväksi kaksoiskoodaukseksi.
   pakettikoko     String?
   status          ProductStatus @default(PENDING)
   order           Int           @default(0)

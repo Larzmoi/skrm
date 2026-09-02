@@ -11,7 +11,7 @@ import { StarRatingInput } from '@/components/StarRating'
 import { POSTI_PICKUP_POINTS } from '@/lib/postiPickupPoints'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 
-interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string } }
+interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string; allowPickup?: boolean; allowShipping?: boolean } }
 interface Order {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
   paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
@@ -84,6 +84,16 @@ export default function OstotPage() {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
+
+  // Tilauksen rivien sallitut toimitustavat — jos yksikin tuote on rajannut jommankumman pois
+  // (allowPickup/allowShipping === false), sitä ei tarjota vaihtoehtona (ks. CLAUDE.md "Kaksi
+  // UX-löydöstä 2026-09-02" kohta 2). Puuttuva kenttä (vanha tuote, ei koskaan asetettu)
+  // tulkitaan sallituksi (`!== false`) — sama oletus kuin backendin create/update-reiteillä.
+  function deliveryOptionsFor(order: Order) {
+    const allowShipping = order.items.every(i => i.product.allowShipping !== false)
+    const allowPickup = order.items.every(i => i.product.allowPickup !== false)
+    return pakettikoot.filter(p => (p.id === 'postitus' ? allowShipping : p.id === 'nouto' ? allowPickup : true))
+  }
 
   // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna (ks. CLAUDE.md
   // "Paytrail" — omistajan korjaus 2026-08-12). Jos pakettikokoa ei ole vielä valittu
@@ -259,21 +269,29 @@ export default function OstotPage() {
                                 {shippingRemaining > 0 ? `Toimitusvalinta-aikaa ${timeLeftLabel(shippingRemaining)}` : '6h ikkuna umpeutunut'}
                               </div>
                             )}
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
-                                <option value="">Valitse pakettikoko...</option>
-                                {pakettikoot.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
-                              </select>
-                              {selectedSize[order.id] === 'postitus' && (
-                                <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
-                                  <option value="">Valitse noutopiste...</option>
-                                  {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
-                                </select>
-                              )}
-                              <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                                {busy === order.id ? '...' : 'Vahvista ja maksa'}
-                              </button>
-                            </div>
+                            {(() => {
+                              const options = deliveryOptionsFor(order)
+                              if (options.length === 0) {
+                                return <div style={{ fontSize: 12, color: '#EF4444' }}>{t.kori.deliveryConflict}</div>
+                              }
+                              return (
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                                    <option value="">Valitse pakettikoko...</option>
+                                    {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
+                                  </select>
+                                  {selectedSize[order.id] === 'postitus' && (
+                                    <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                                      <option value="">Valitse noutopiste...</option>
+                                      {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                                    </select>
+                                  )}
+                                  <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                                    {busy === order.id ? '...' : 'Vahvista ja maksa'}
+                                  </button>
+                                </div>
+                              )
+                            })()}
                           </div>
                         )}
 

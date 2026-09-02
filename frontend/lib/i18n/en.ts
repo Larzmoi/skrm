@@ -157,6 +157,7 @@ const en = {
     bidPlaced: 'Bid received!', youAreLeading: 'You are currently the highest bidder',
     minBid: 'Minimum bid',
     notFound: 'Product not found', noImage: 'No image', pickupFromSeller: 'Pickup from seller',
+    deliveryBothOptions: 'Pickup or shipping', pickupInfoBox: "This is a pickup item. Arrange the pickup details with the seller — pickup is normally covered by Habahub's payment protection.",
   },
   profile: {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',
@@ -221,6 +222,10 @@ const en = {
     liveDurationLabel: 'Auction duration (in live stream)', liveDurationPlaceholder: 'in seconds',
     auctionDurationLabel: 'Auction duration', days: 'd', hours: 'h',
     deliveryTitle: 'Shipping', buyerPays: 'Buyer pays',
+    deliveryEdit: 'Restrict delivery methods', deliveryHide: 'Hide',
+    deliveryDefaultHint: 'By default the buyer can choose pickup OR shipping at checkout. You can optionally restrict one of them.',
+    allowShippingLabel: 'Allow shipping', allowPickupLabel: 'Allow pickup from you',
+    selectAtLeastOneDelivery: 'At least one delivery method (pickup or shipping) must be allowed',
     pickupTitle: 'Pickup from you — how it works',
     pickupBody: 'When a buyer purchases the item through Habahub and chooses pickup as the delivery method, the sale is normally covered by payment protection. The buyer receives a pickup code, which you enter into the system when you hand over the item — the payment is released to you as soon as the code is confirmed. This does not apply to arrangements made entirely outside Habahub (e.g. a cash sale agreed directly, with no Habahub order) — Habahub is not a party to those and does not offer payment protection.',
     pickupCheckbox: 'I understand the buyer gets a pickup code and payment is released to me only once I confirm the pickup',
@@ -309,6 +314,7 @@ const en = {
     liveTimeLeft: 'Live purchase — time to pay', timeUp: 'Time is up',
     products: 'Products', shipping: 'shipping', pay: 'Pay', processing: 'Processing...',
     total: 'Total', items: 'items', allSellers: 'all sellers',
+    deliveryConflict: "These products' delivery methods conflict (one only allows shipping, the other only pickup) — contact the seller.",
   },
   notificationsPage: {
     title: 'Notifications', subtitle: 'All your important updates in one place',
