@@ -184,7 +184,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 // POST /products/bulk — monimuu-tuonti (CSV/TXT-liite tai liitetty teksti, jäsennetty jo
-// frontendissä 4-rivin lohkoihin: nimi/kunto/hinta/määrä). Kaikki luodaan suoramyyntiin
+// frontendissä: nimi/kunto/[valinnainen kommentti]/hinta/määrä, rivimäärä per tuote vaihtelee
+// 4-5 riippuen onko kommenttia — ks. CLAUDE.md "Bulkkiparserin kommenttirivi-puute 2026-09-02").
+// Kaikki luodaan suoramyyntiin
 // ("buy_now"), koska bulk-listaus (esim. Cardmarket-tyylinen erä) on tyypillisesti
 // kiinteähintaista tavaraa, ei huutokauppaa/live-lottia.
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -222,6 +224,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => 
         startPrice: roundCents(startPrice),
         quantity: isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1,
         condition: typeof p?.condition === 'string' && p.condition ? p.condition : null,
+        description: typeof p?.description === 'string' && p.description.trim() ? p.description.trim() : null,
         category: batchCategory, alakategoria: batchAlakategoria, tyyppi: batchTyyppi,
         sellerId: req.userId!,
       },

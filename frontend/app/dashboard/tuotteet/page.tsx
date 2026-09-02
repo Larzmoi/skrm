@@ -164,7 +164,14 @@ function TuotteetContent() {
   }
 
   // Jäsentää liitetyn/kirjoitetun tekstin tuotteiksi paikallisesti (ei tarvitse backendiä
-  // esikatseluun) — Cardmarket-tyylinen 4-rivin lohko per tuote: nimi / kunto / hinta / määrä.
+  // esikatseluun) — Cardmarket-tyylinen lohko per tuote: nimi / kunto / [valinnainen kommentti] /
+  // hinta / määrä. Rivimäärä per tuote VAIHTELEE (4 tai 5) koska myyjät kirjoittavat usein
+  // ylimääräisen kommenttirivin kunnon jälkeen (esim. sijaintitieto "Map T1", tai alaviite-
+  // kuntomerkintä kuten "EX+"/"GD-") — kiinteä i+=4 -askellus sekoaa heti tähän. Sen sijaan
+  // hintarivi tunnistetaan €-merkin perusteella: jos kunto-rivin jälkeinen rivi EI sisällä
+  // €-merkkiä, se on kommenttirivi (tallennetaan sellaisenaan product.description-kenttään,
+  // ei yritetä parsia siitä esim. alaviite-kuntoa erikseen) ja hinta/määrä luetaan sitä
+  // seuraavilta riveiltä (ks. CLAUDE.md "Bulkkiparserin kommenttirivi-puute 2026-09-02").
   // Kun erän tyyppi on 'irtokortit', kunto normalisoidaan (trim+isot kirjaimet) ja validoidaan
   // Cardmarket-lyhenteitä (CARDMARKET_KUNTOLUOKAT) vasten — sama koodaus kuin manuaalisen
   // lomakkeen pudotusvalikko tallentaa, jotta kahta eri koodausta samalle asialle ei pääse
@@ -175,25 +182,43 @@ function TuotteetContent() {
     const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l.length > 0)
     const validConditions = new Set(CARDMARKET_KUNTOLUOKAT.map(k => k.id))
     const items: any[] = []
-    for (let i = 0; i < lines.length; i += 4) {
-      const chunk = lines.slice(i, i + 4)
-      if (chunk.length < 4) {
-        items.push({ name: chunk[0] || '(tuntematon)', errors: 'Rivi puutteellinen — odotettiin 4 riviä (nimi, kunto, hinta, määrä)' })
+    let i = 0
+    while (i < lines.length) {
+      const rawName = lines[i]
+      const rawCondition = lines[i + 1]
+      if (rawCondition === undefined) {
+        items.push({ name: rawName || '(tuntematon)', errors: 'Rivi puutteellinen — odotettiin vähintään nimi, kunto, hinta ja määrä' })
+        break
+      }
+      let idx = i + 2
+      let comment = ''
+      if (lines[idx] !== undefined && !lines[idx].includes('€')) {
+        comment = lines[idx]
+        idx += 1
+      }
+      const rawPrice = lines[idx]
+      const rawQty = lines[idx + 1]
+      if (rawPrice === undefined || rawQty === undefined) {
+        items.push({ name: rawName, errors: 'Rivi puutteellinen — odotettiin hinta ja määrä kunnon/kommentin jälkeen' })
+        i = idx + 2
         continue
       }
-      const [rawName, rawCondition, rawPrice, rawQty] = chunk
       const price = parseFloat(rawPrice.replace(/[^\d,.-]/g, '').replace(',', '.'))
       const quantity = parseInt(rawQty.replace(/[^\d]/g, ''), 10)
       const condition = bulkTyyppi === 'irtokortit' ? rawCondition.trim().toUpperCase() : rawCondition
+      const description = comment || undefined
       if (!rawName || isNaN(price) || price <= 0) {
-        items.push({ name: rawName || '(tuntematon)', condition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, errors: 'Virheellinen hinta' })
+        items.push({ name: rawName || '(tuntematon)', condition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, description, errors: 'Virheellinen hinta' })
+        i = idx + 2
         continue
       }
       if (bulkTyyppi === 'irtokortit' && !validConditions.has(condition)) {
-        items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity, errors: `Tuntematon kunto "${rawCondition}" — odotettiin yksi: M/NM/EX/GD/LP/PL/PO` })
+        items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity, description, errors: `Tuntematon kunto "${rawCondition}" — odotettiin yksi: M/NM/EX/GD/LP/PL/PO` })
+        i = idx + 2
         continue
       }
-      items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity })
+      items.push({ name: rawName, condition, startPrice: price, quantity: isNaN(quantity) || quantity < 1 ? 1 : quantity, description })
+      i = idx + 2
     }
     if (items.length === 0) { setError('Ei tunnistettuja tuotteita'); return }
     setError('')
@@ -244,7 +269,7 @@ function TuotteetContent() {
     try {
       setUploading(true)
       const response = await api.bulkCreateProducts(
-        validItems.map(p => ({ name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined })),
+        validItems.map(p => ({ name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined, description: p.description || undefined })),
         { category: bulkCategory || undefined, alakategoria: bulkAlakategoria || undefined, tyyppi: bulkTyyppi || undefined },
       )
       setParsedPreview(response.results || [])
@@ -418,6 +443,11 @@ function TuotteetContent() {
                       {p.quantity && <span>· {p.quantity} kpl</span>}
                       {p.condition && <span>· {p.condition}</span>}
                     </div>
+                    {p.description && (
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>
+                        {p.description}
+                      </div>
+                    )}
                     {p.errors && (
                       <div style={{ fontSize: 10, color: '#CC0000', marginTop: 4, background: '#FFF0F0', padding: '4px 8px', borderRadius: 5 }}>
                         Virhe: {p.errors}

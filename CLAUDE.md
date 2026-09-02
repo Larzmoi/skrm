@@ -92,6 +92,69 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 
 4. **Koko sivusto käydään läpi järjestelmällisesti** — FAQ, käyttöehdot, tietosuoja, välityspalkkiot, etusivu, kaikki tekstisisältö. Lisää löydökset kirjataan tähän osioon sitä mukaa kun niitä tulee.
 
+## Bulkkiparserin kommenttirivi-puute 2026-09-02 — ✅ TEHTY JA DEPLOYATTU
+
+**Korjattu täsmälleen alla kuvatun suunnitelman mukaan.** `parseBulkText()` (`frontend/app/dashboard/tuotteet/page.tsx`) käyttää nyt dynaamista `while`-silmukkaa kiinteän `i += 4` sijaan — kunto-rivin jälkeinen rivi tulkitaan kommentiksi jos siinä EI ole €-merkkiä, muuten suoraan hintariviksi. Kommentti tallennetaan `description`-kenttään sellaisenaan. Testattu kaikilla kolmella annetulla esimerkillä (kaksi kommenttimuotoa + yksi ilman) erillisellä Node-skriptillä ennen deployta — kaikki kolme tuottivat oikean name/condition/startPrice/quantity/description-yhdistelmän.
+
+**Koko ketju kytketty description-kentälle, ei vain parseri:**
+- `saveBulk()` välittää nyt `description`-kentän `api.bulkCreateProducts()`-kutsussa (aiemmin pudotettiin pois vaikka parseri olisi sen tuottanutkin)
+- `frontend/lib/api.ts`: `bulkCreateProducts`-signatuuriin lisätty `description?: string`
+- `backend/src/routes/products.ts` `POST /products/bulk`: tarkistettu ettei siellä ollut erillistä kiinteän rivimäärän oletusta (ei ollut — reitti vain iteroi jo-jäsennettyä `products`-taulukkoa), mutta se ei ottanut `description`-kenttää vastaan ollenkaan — lisätty
+- Esikatselu-UI:hin lisätty kommenttirivin näyttö (kursivoituna, tuotekortin alla) jotta myyjä näkee heti mitä `description`-kenttään on tallentumassa
+
+**Sivuhuomio, ei korjausta vaatinut:** kaksi riviä näytti tarkistuksessa käyttävän `\`-merkkiä `//`:n sijaan (yksi tässä tiedostossa viitatussa `products.ts`:ssä, yksi `api.ts`:n `bulkCreateProducts`-polussa) — tarkistettu `sed`/`cat -A`:lla suoraan levyltä, molemmat osoittautuivat vain Read-työkalun näyttövirheeksi, ei todellinen ongelma tiedostossa.
+
+Typecheck + build vihreä molemmilla puolilla ennen deployta.
+
+Alkuperäinen tehtäväkuvaus säilytetty alla:
+
+## Bulkkiparserin kommenttirivi-puute 2026-09-02 — kriittinen, kaksi myyjää valmiina listaamaan
+
+Vahvistettu koodista: `frontend/app/dashboard/tuotteet/page.tsx`, `parseBulkText()`-funktio lukee **aina täsmälleen 4 riviä per tuote** (`for (let i = 0; i < lines.length; i += 4)`) — nimi/kunto/hinta/määrä. Tämä rikkoutuu täysin kun Cardmarketista kopioitu data sisältää ylimääräisen kommenttirivin (myyjät kirjoittavat usein esim. missä mapissa/kansiossa kortti fyysisesti on):
+
+```
+Unown [J] (WP 38)
+EX
+EX+ See scans and check my other cards! Map T1
+12,00 €
+1
+
+Clefairy (BS 5)
+GD
+GD- See scans and check my other cards! Map T1
+20,00 €
+1
+
+Kabuto (FO 50)
+EX
+See scans and check my other cards! Map T1
+20,00 €
+1
+```
+
+Rivimäärä per tuote vaihtelee (4 tai 5) riippuen onko kommenttia — kiinteä `i += 4` menee heti sekaisin.
+
+**Ratkaisu: tunnista hintarivi €-merkin perusteella, ei rivin sijainnin perusteella.** Jos kunto-rivin jälkeinen rivi EI sisällä €-merkkiä, se on kommentti/kuvausrivi (tallennetaan `description`-kenttään sellaisenaan, mukaan lukien mahdollinen alaviite-kuntomerkintä kuten "EX+"/"GD-" — ei yritetä parsia sitä erikseen, koko rivi kuvaukseksi), ja hinta/määrä luetaan sen jälkeisiltä riveiltä. Jos rivi SISÄLTÄÄ €-merkin, sitä käsitellään suoraan hintana kuten ennenkin (ei kommenttia tälle tuotteelle).
+
+**Uusi parserilogiikka (korvaa kiinteän 4-rivin oletuksen):**
+```
+i = 0
+while i < lines.length:
+  name = lines[i]
+  condition = lines[i+1]
+  idx = i + 2
+  comment = ''
+  if lines[idx] exists AND does NOT contain '€':
+    comment = lines[idx]
+    idx += 1
+  price = parse(lines[idx])
+  quantity = parse(lines[idx+1])
+  push item { name, condition, price, quantity, description: comment || undefined }
+  i = idx + 2
+```
+
+Sama korjaus koskee myös backendin `POST /products/bulk` -reittiä jos sielläkin oletetaan kiinteää rivimäärää — tarkista.
+
 ## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — ✅ TEHTY JA DEPLOYATTU
 
 **Kaikki kohdat 1-5 valmiit, myyjät voivat listata.** Toteutus:

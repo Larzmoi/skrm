@@ -32,7 +32,7 @@ export const api = {
   deleteProduct: (id: string) => request(`/products/${id}`, { method: 'DELETE' }),
   prebid: (id: string, amount: number) => request(`/products/${id}/prebid`, { method: 'POST', body: JSON.stringify({ amount }) }),
   bulkCreateProducts: (
-    products: { name: string; startPrice: number; quantity?: number; condition?: string }[],
+    products: { name: string; startPrice: number; quantity?: number; condition?: string; description?: string }[],
     batch?: { category?: string; alakategoria?: string; tyyppi?: string },
   ) =>
     request('/products/bulk', { method: 'POST', body: JSON.stringify({ products, ...batch }) }),
