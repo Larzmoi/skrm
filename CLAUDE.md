@@ -7,6 +7,37 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
+
+**Odottaa omistajan toimintaa (ei koodia):**
+- Cloudflare: aseta Minimum TLS Version → 1.2, kytke HSTS päälle (ks. "Turvallisuusauditointi"-osio, kohta A)
+- Sähköposti (Zoho tms.) rekisteröitävä uudelleen uudelle domainille (`support@habahub.com`), vanha `skrm.fi`-rekisteröinti ei siirry
+- Posti: odotetaan Tomin vastausta testiyhteyspyyntöön ennen kuin edetään Vaiheeseen 2 (lähetyksen luonti API v2:lla) — ks. "Lähetysintegraatio"-osio
+- Päätös: "Hyvitä"-napin liiketoimintalogiikka toimitetulle/vastaanotetulle tuotteelle — ks. "Iso testauskierros" kohta 14, liittyy myös luottamuspaneelin "ei peruutuksia" -tekstiin
+
+**Koodattavaa, ei vielä tehty (tarkistettu suoraan koodista 2026-09-02, lista päivitetty samana päivänä tehdyn työn jälkeen):**
+- Footerin siivous — uutiskirje-osio + palkkio/kielletyt-rivi + badge-rivi pitää kommentoida pois, jätä vain 4-kolumnin linkkiruudukko + copyright (ks. "Neljä uutta löydöstä 2026-09-02" kohta 1) — vahvistettu koodista: `Footer.tsx` sisältää yhä `t.footer.newsletter`-osion ja badge-rivin, ei kommentoitu pois
+- Etusivun hero-osion turha "Ryhdy myyjäksi" -nappi (kohta 4) — vahvistettu koodista: `t.home.heroBecomeSeller` yhä renderöitynä hero-osiossa "Selaa tuotteita" -napin vieressä
+- Kuntosuodattimen löydettävyys (näkyy vain kun tyyppi=irtokortit jo valittu) + monivalinta puuttuu (ks. "Kuntosuodattimen kaksi puutetta") — vahvistettu koodista: `CategorySidebar.tsx` `activeCondition` on yhä yksittäinen string (ei taulukko), `showConditionFilter` vaatii yhä `activeTyyppi === 'irtokortit'`
+- Käännökset (fi/en/sv) yhä osittain keskeneräiset, erityisesti tuotesivulla
+- Sending Code API (labelless-lähetys) -integraatio odottaa Postin dokumentaatiota + testiyhteyttä
+
+**✅ Tarkistettu koodista 2026-09-02 ja todettu jo TEHDYKSI — poistettu tästä listasta (oli aiemmin merkitty tekemättömäksi, mutta työ oli jo tehty aiemmin samana päivänä eikä listaa oltu päivitetty sen mukana):**
+- Etusivun "Habahub suosittelee" -mainosbanneri — `AdBanner` kirjoitettu kokonaan uusiksi, renderöityy nyt normaalissa dokumenttivirtauksessa `PromoBanner`:n alapuolella, ei enää `position:absolute`-päällekkäisyyttä minkään viereisen osion kanssa
+- Kielenvalitsin (SV) — `lib/i18n/index.ts`: `Lang`-tyyppi ja `LANGUAGES`-taulukko sisältävät nyt `sv`:n
+- OBS-asetukset-modaalia ei saanut suljettua — `lahetys/page.tsx`: sekä ✕-nappi (`aria-label="Sulje"`) että koko ruudun tausta joka sulkee klikkaamalla (rivi ~1279)
+- Banni-varoitus maksuajastimen yhteydessä — `ostot/page.tsx` näyttää nyt "Jos maksuaika ehtii loppua, tilisi estetään automaattisesti 30 päiväksi — myös ensimmäisellä kerralla."
+- Ajastettu lähetys ei käynnistynyt klikkaamalla — `dashboard/page.tsx`: koko tulevan lähetyksen rivi on nyt linkki suoraan `/lahetys`:aan
+- Bulkkilistauksen sijoittelu/ohjeistus — bulkkituonti on nyt vähemmän hallitseva tekstilinkki (ei omaa taustaväriä) päänapin ("Lisää tuote") vieressä, sisältää selittävän tekstin muodosta
+- Selkeä virheviesti liven aloitukselle ilman tuotteita — sekä esikatseluvaihe (`products.length === 0` → "Ei tuotteita — lisää tuotteita ensin" + linkki) että käynnissä olevan lähetyksen tyhjä jono ("Jono on tyhjä" -näkymä) käsitelty selkeästi, ei enää tyhjä/kaatuneen näköinen ruutu
+
+**Isommat, ei aikataulutetut:**
+- Visuaalinen tyylipäivitys (lime-väripaletti + Outfit/Plus Jakarta Sans + koko sivuston restailointi) — päätetty, ei aloitettu
+- Slabien (gradatut kortit) oma kuntojärjestelmä (PSA/BGS-numeroarvosana) — tietoisesti rajattu pois aiemmasta korjauksesta
+- "Tarjoa hintaa" -toiminto, Settilistaus/Variantit — molemmat suunniteltu, ei aikataulutettu
+
+Kaikki muu tässä tiedostossa alempana on joko ✅ valmista (historiallinen referenssi/konteksti) tai LUKITTU-sääntöjä jotka eivät muutu.
+
 ## Tech Stack
 - **Frontend:** Next.js 16.2.12 + TypeScript, App Router, inline styles, Turbopack
 - **Backend:** Node.js + Express + Prisma 5 + PostgreSQL
@@ -108,118 +139,7 @@ Typecheck + build vihreä molemmilla puolilla ennen deployta.
 
 **Lisäys 2026-09-02, sama päivä — erän myyntitapa valittavaksi kerralla.** Omistajan huomio: jos bulkkituonnilla listaa kerralla 1000 tuotetta, olisi työlästä karsia/muokata livetuotteet erikseen jälkikäteen yksi kerrallaan. Bulkkipaneeliin lisätty erän tasoinen myyntitapa-valitsin ("Suoramyynti" / "Molemmat" — sama koodaus ja samat käännösavaimet kuin manuaalisen lomakkeen `saleTypeOptions`), oletus `buy_now` (vastaa aiempaa kovakoodattua käytöstä). `POST /products/bulk` lukee nyt `saleType`-kentän pyynnöstä hardkoodatun `'buy_now'`:n sijaan, validoi arvoksi vain `'buy_now'`/`'both'` (mikä tahansa muu/puuttuva → `'buy_now'`-fallback, ei kaadu). Testattu tuotannossa neljällä skenaariolla (puuttuva, `buy_now`, `both`, virheellinen arvo) — kaikki neljä tallensivat oikean `saleType`-arvon, testituotteet siivottu pois.
 
-Alkuperäinen tehtäväkuvaus säilytetty alla:
-
-## Bulkkiparserin kommenttirivi-puute 2026-09-02 — kriittinen, kaksi myyjää valmiina listaamaan
-
-Vahvistettu koodista: `frontend/app/dashboard/tuotteet/page.tsx`, `parseBulkText()`-funktio lukee **aina täsmälleen 4 riviä per tuote** (`for (let i = 0; i < lines.length; i += 4)`) — nimi/kunto/hinta/määrä. Tämä rikkoutuu täysin kun Cardmarketista kopioitu data sisältää ylimääräisen kommenttirivin (myyjät kirjoittavat usein esim. missä mapissa/kansiossa kortti fyysisesti on):
-
-```
-Unown [J] (WP 38)
-EX
-EX+ See scans and check my other cards! Map T1
-12,00 €
-1
-
-Clefairy (BS 5)
-GD
-GD- See scans and check my other cards! Map T1
-20,00 €
-1
-
-Kabuto (FO 50)
-EX
-See scans and check my other cards! Map T1
-20,00 €
-1
-```
-
-Rivimäärä per tuote vaihtelee (4 tai 5) riippuen onko kommenttia — kiinteä `i += 4` menee heti sekaisin.
-
-**Ratkaisu: tunnista hintarivi €-merkin perusteella, ei rivin sijainnin perusteella.** Jos kunto-rivin jälkeinen rivi EI sisällä €-merkkiä, se on kommentti/kuvausrivi (tallennetaan `description`-kenttään sellaisenaan, mukaan lukien mahdollinen alaviite-kuntomerkintä kuten "EX+"/"GD-" — ei yritetä parsia sitä erikseen, koko rivi kuvaukseksi), ja hinta/määrä luetaan sen jälkeisiltä riveiltä. Jos rivi SISÄLTÄÄ €-merkin, sitä käsitellään suoraan hintana kuten ennenkin (ei kommenttia tälle tuotteelle).
-
-**Uusi parserilogiikka (korvaa kiinteän 4-rivin oletuksen):**
-```
-i = 0
-while i < lines.length:
-  name = lines[i]
-  condition = lines[i+1]
-  idx = i + 2
-  comment = ''
-  if lines[idx] exists AND does NOT contain '€':
-    comment = lines[idx]
-    idx += 1
-  price = parse(lines[idx])
-  quantity = parse(lines[idx+1])
-  push item { name, condition, price, quantity, description: comment || undefined }
-  i = idx + 2
-```
-
-Sama korjaus koskee myös backendin `POST /products/bulk` -reittiä jos sielläkin oletetaan kiinteää rivimäärää — tarkista.
-
-## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — ✅ TEHTY JA DEPLOYATTU
-
-**Kaikki kohdat 1-5 valmiit, myyjät voivat listata.** Toteutus:
-- `frontend/lib/conditions.ts` (uusi) — `CARDMARKET_KUNTOLUOKAT` jaettu lähde, käyttää sekä manuaalinen lomake (`dashboard/tuotteet/page.tsx`) että Selaa/Huutokaupat-suodattimet (`CategorySidebar.tsx`) — ei kahta eri koodausta.
-- Manuaalinen lomake: kuntokenttä vaihtuu Cardmarket-asteikkoon kun `tyyppi === 'irtokortit'`, piilotetaan kokonaan kun `tyyppi === 'sealed'`, geneerinen 5-portainen pysyy fallbackina kaikelle muulle (mm. `slabit`, koskematon kuten pyydetty).
-- **Bulkkituonti sai kokonaan puuttuneen kategoria/peli/tyyppi-valitsimen** (ei ollut ennen — bulkkituodut tuotteet eivät koskaan saaneet `tyyppi`-kenttää asetetuksi, mikä olisi tehnyt koko Cardmarket-erottelusta merkityksettömän niille). `parseBulkText()` normalisoi (trim+isot kirjaimet) ja validoi liitetyn kunto-rivin samoja seitsemää lyhennettä vasten kun erän tyyppi on irtokortit, merkitsee tuntemattoman arvon riville virheeksi esikatselussa. `POST /products/bulk` hyväksyy nyt `category`/`alakategoria`/`tyyppi` koko erälle.
-- Selaa/Huutokaupat: uusi kuntosuodatin `CategorySidebar`:ssa (ei ollut ennen ollenkaan), näkyy vain kun aktiivinen tyyppi-suodatin on 'irtokortit'.
-- Typecheck + build vihreä joka välivaiheen jälkeen, deployattu tuotantoon 2026-09-01.
-
-Alkuperäinen tehtäväkuvaus säilytetty alla:
-
-## Kuntoluokitus Cardmarket-muotoon irtokorteille 2026-09-01 — päätetty, kiireellinen (200k€ inventaario tulossa)
-
-Nykyinen `KUNTOLUOKAT` (`dashboard/tuotteet/page.tsx`) on geneerinen 5-portainen (uusi/erinomainen/hyvä/tyydyttävä/käytetty) — ei sovi kortteihin, koska ostajat/myyjät ajattelevat kuntoa Cardmarket-asteikolla. Vahvistettu koodista: `Product.condition` on pelkkä `String?`, ei enum — joustava, ei vaadi migraatiota, vain sovelluslogiikan muutosta.
-
-**Ratkaisu käyttää jo olemassa olevaa `Product.tyyppi`-kenttää** ("slabit"/"sealed"/"irtokortit", kolmas kategoriataso Keräilykortit-kategorian sisällä) erottamaan mikä kuntojärjestelmä pätee:
-
-1. **`tyyppi === 'irtokortit'` → Cardmarket-asteikko käyttöön, sekä manuaalisessa lomakkeessa että suodattimissa:**
-   - `Mint (M)`, `Near Mint (NM)`, `Excellent (EX)`, `Good (GD)`, `Light Played (LP)`, `Played (PL)`, `Poor (PO)`
-   - Tallennettava arvo = lyhenne (`M`/`NM`/`EX`/`GD`/`LP`/`PL`/`PO`), näytettävä teksti = täysi nimi
-   - **Bulkkilistauksen (CSV/TXT) parseri** (jo toteutettu aiemmin) käyttää jo näitä samoja lyhenteitä Cardmarket-liimauksesta — varmista että manuaalinen lomake ja bulkkituonti tallentavat IDENTTISET arvot samaan kenttään, ei kahta eri koodausta samalle asialle
-2. **`tyyppi === 'sealed'`** (esim. boosterirasiat) → **kuntokenttä piilotetaan kokonaan lomakkeesta ja suodattimista** tälle tyypille — sinetöity tuote ei tarvitse kuntoarviota, se on aina uusi/sinetöity oletuksena
-3. **`tyyppi === 'slabit'`** (gradatut kortit) → **EI kosketeta tässä korjauksessa.** Näillä on eri, oma järjestelmänsä (gradauspalvelu + numeroarvosana, esim. "PSA 9", "BGS 9.5") — tämä on rakenteellisesti eri ongelma kuin kuntoluokitus (tarvitsisi oman `gradingCompany`+`grade`-kenttäparin, ei yhtä `condition`-merkkijonoa). **Merkitään erilliseksi, myöhemmäksi tehtäväksi**, ei sekoiteta tähän kiireelliseen korjaukseen.
-4. **Muut tyypit/kategoriat** (jos kategoriafokus joskus laajenee Keräilykorttien ulkopuolelle) → vanha geneerinen 5-portainen asteikko säilyy fallbackina.
-
-**Suodattimet (Selaa/Huutokaupat-sivujen sivupaneeli):** kuntosuodatin näyttää Cardmarket-asteikon vaihtoehdot kun käyttäjä on suodattanut/selaa "irtokortit"-tyyppiä, ei geneeristä asteikkoa.
-
-**Kiireellisyys:** kaksi myyjää (veljekset) valmistautuvat listaamaan yli 200 000€ arvosta tavaraa heti kun sivu on valmis — väärä kuntojärjestelmä nyt tarkoittaisi kaiken datan uudelleenkäsittelyä myöhemmin, joten tämä kannattaa korjata ennen kuin he aloittavat.
-
-## Admin-käyttäjähallinta 2026-09-02 — 🟡 FRONTEND-POHJA VALMIS (toinen AI), INTEGROINTI + BACKEND TEKEMÄTTÄ
-
-**Päivitys 2026-09-02:** ChatGPT teki pyydetyn frontend-pohjan (`frontend/app/admin/AdminUserManagement.tsx` + `INTEGRATION.md` projektin juuressa) — **ei koskenut backendiin/Prismaan/git-historiaan**, pelkkä komponentti + integrointiohje, täsmälleen niin kuin pyydettiin. Tarkisti nykyisen admin-sivun/API:n/teeman/skeeman ensin, noudattaa jo olemassa olevia konventioita (C.xxx, t.xxx, `adminApi`-kutsutyyli, huomasi `PasswordResetToken`-mallin olevan jo olemassa).
-
-**Mitä INTEGRATION.md sisältää:** täydellinen kytkentäohje — stub-funktiot (`searchUsers`/`updateUser`/`banUser`/`removeBan`/`sendPasswordReset`) jotka pitää kytkeä oikeisiin `adminApi`-kutsuihin, tarkka backend-reittiodotus (`PATCH /admin/users/:id`, `DELETE /admin/users/:id/ban`, `POST /admin/users/:id/send-password-reset`), tarkka odotettu käyttäjäobjekti-muoto, tarvittavat i18n-avaimet (`admin.userManagementTitle` jne., n. 25 kpl), ja Prisma-/backend-suunnitelma joka täsmää jo aiemmin tänne kirjattuun spesifikaatioon.
-
-**Seuraava askel: VS Coden Claude integroi tämän + rakentaa backendin** (ks. kehote jonka omistaja lähettää seuraavaksi).
-
-## Admin-käyttäjähallinta 2026-09-02 — päätetty, ei vielä toteutettu
-
-Laajennetaan olemassa olevaa `/admin`-käyttäjälistaa (`backend/src/routes/admin.ts`: `GET /users`, `POST /users/:id/ban`) kunnolliseksi käyttäjähallintanäkymäksi — "kevyempi WP-hallintapaneeli" -tyylisesti, tarkoitettu sivuston adminien/ylläpitäjien käyttöön (ei tavallisille käyttäjille näkyvä).
-
-**✅ Vahvistettu omistajalta 2026-09-02: `canStream` oletuksena `false` KAIKILLE** (uusille ja nykyisille käyttäjille) — rajoitettu striimausoikeus alkuun, admin hyväksyy erikseen kunkin myyjän manuaalisesti. Striimausoikeus on yksinkertainen päällä/pois-kytkin, ei porrastettua tasoa.
-
-**Sivuvaikutus, hyvä huomata:** tämä sama kytkin toimii myös palvelinkapasiteetin hallintakeinona avauspäivänä — omistaja on huolissaan siitä riittääkö nykyinen Hetzner-palvelin (yksi CX23-VPS, ks. "Videostriimaus"-osio aiemmin) jos moni käyttäjä yrittäisi striimata yhtä aikaa heti julkaisussa. Koska `canStream` on manuaalisesti admin-hallittu, omistaja voi hyväksyä vain muutaman luotetun myyjän kerrallaan ensimmäisinä päivinä, seurata palvelimen kuormitusta (CPU/kaista LiveKitin puolelta), ja laajentaa hyväksyttyjen myyjien joukkoa asteittain sitä mukaa kun luottamus kapasiteettiin kasvaa — ei tarvitse päättää etukäteen tarkkaa "montako samanaikaista striimiä palvelin kestää" -lukua, koska pääsyä voi säädellä käytännössä yksi kerrallaan.
-
-**Uudet kentät `User`-malliin:**
-- `canStream` (boolean, oletus `false`) — saa aloittaa live-lähetyksen
-- `customCommissionRate` (valinnainen, esim. `3.0` = 3,0% oletuksen 3,5% sijaan)
-- `customCommissionCap` (valinnainen, esim. `25` = 25€ katto oletuksen 35€ sijaan)
-
-**"Superuser"-konsepti:** ei välttämättä oma tietokantakenttä — riittää admin-käyttöliittymän pikanappi **"Aseta superuser-arvot"** joka täyttää `customCommissionRate=3.0` ja `customCommissionCap=25` yhdellä klikkauksella (nopea preset kahden erillisen syöttökentän manuaalisen täytön sijaan). Harkitse erillistä `isSuperuser`-lippua vain jos myöhemmin tarvitaan suodattaa/raportoida "keitä superusereita on" erikseen komissioarvoista riippumatta.
-
-**Admin-käyttöliittymän toiminnot per käyttäjä:**
-1. Kytkin: "Saa striimata" (canStream päälle/pois)
-2. Kaksi syöttökenttää: mukautettu komissio-% ja -katto (tyhjä = käyttää oletusta 3,5%/35€) + "Aseta superuser-arvot" -pikanappi
-3. Banni-hallinta (laajenna olemassa olevaa `/ban`-reittiä): aseta/poista banni manuaalisesti, näytä nykyinen banni-tila ja historia
-4. **"Lähetä salasanan palautus"** -nappi — admin voi laukaista salasananpalautus-sähköpostin käyttäjän puolesta (käyttää samaa Resend-pohjaista `/auth/forgot-password`-mekanismia jo suunniteltu, ks. "KRIITTINEN LÖYDÖS — salasanan palautusta ei ole" -osio, jos se on jo toteutettu — muuten rakennetaan yhdessä)
-5. Haku/suodatus käyttäjälistassa (nimi/sähköposti/käyttäjätunnus)
-
-**Backend-muutokset:**
-- Show-luontireitti (`POST /shows`): tarkista `canStream === true` ennen sallimista, muuten 403
-- Komissiolaskenta (`orders.ts` tms.): tarkista ensin myyjän `customCommissionRate`/`customCommissionCap`, käytä oletusta (3,5%/35€) vain jos kumpikaan ei ole asetettu
-- Uusi admin-only reitti salasanan palautuksen laukaisemiseen käyttäjän puolesta
+Alkuperäiset tehtäväkuvaukset (bulkkiparseri, kuntoluokitus) ja kaksi vanhentunutta "ei vielä toteutettu" -otsikkoa admin-käyttäjähallinnasta poistettu siivouksessa 2026-09-02 — kaikki kolme ovat valmiita, ks. yksityiskohdat: bulkkiparseri edellä, kuntoluokitus edellä, admin-käyttäjähallinta kokonaisuudessaan alempana (hae "Laajennus 2026-09-02 — Käyttäjähallinta").
 
 ## Kuntosuodattimen kaksi puutetta 2026-09-02 (löydettävyys + monivalinta)
 
@@ -821,14 +741,6 @@ pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapaut
    - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
 4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
 
-### Eteneminen 2026-09-02 — Vaihe 1 (token-haku) testattu ja toimii, Vaihe 2 JÄÄDYTETTY odottamaan Postin vastausta testiympäristöstä
-
-**✅ OAuth2-tunnukset lisätty tuotannon `.env`:iin** (`POSTI_CLIENT_ID`/`POSTI_CLIENT_SECRET`), tili `enabled`, logistiikkasopimus 691317 valittuna organisaatioattribuuteista — kaikki kolme aiemmin listattua estettä (ks. alla "Päivitetty tarkistuslista") poistettu.
-
-**✅ Vaihe 1 testattu erillisellä, sovelluksen ulkopuolisella skriptillä palvelimella 2026-09-02** (ei koskettu `postiService.ts`:ään eikä muuhun koodiin, skripti poistettu testin jälkeen): `POST https://gateway-auth.posti.fi/api/v1/token` → HTTP 200, `token_type: Bearer`, `expires_in: 3600` (1h, täsmää dokumentoituun), `access_token` 2350 merkkiä pitkä opaakki token (alkaa `PostiExt.1.F...`, ei JWT-muotoinen). Token-haku siis toimii oikeilla tunnuksilla.
-
-**⏸️ Vaihe 2 (lähetyksen luonti, `POST /shippingapi/api/v2/shipping/order`) JÄÄDYTETTY omistajan päätöksellä 2026-09-02.** Syy: ei ole vahvistettua testiympäristöä v2:lle (ks. alla kohta 4, "EI TESTIYMPÄRISTÖÄ vielä ollenkaan v2:lle") — kaikki testaus tapahtuisi suoraan tuotannossa "näytelähettäjillä", ja riski on että jokin testikutsu loisi vahingossa oikean lähetyksen jonka joku sitten veisi fyysisesti Postiin (→ laskutus). **Omistaja odottaa Postin vastausta siitä onko/milloin testiympäristö saatavilla ennen kuin lähetyksen luontia testataan.** Älä etene Vaiheeseen 2 ilman omistajan eksplisiittistä lupaa, vaikka tunnukset ja koodi olisivat muuten valmiit. Kun lupa tulee, testaa edelleen selvästi merkityllä testidatalla ("TESTI" nimissä), pieni määrä kerrallaan, älä koskaan vie fyysistä pakettia Postiin testin aikana.
-
 ### ⚠️ PÄIVITYS 2026-09-02 — Postin oma tuki vahvisti: käytetään API v2:ta, ei v1:tä (ohje saatu suoraan Tomilta, Postin LogEDI-tiimistä)
 
 Tom kysyi sähköpostitse suoraan "Olihan kyseessä OmaPosti Pro API versio 2?" — vahvistettu omalla erillisellä ohjedokumentilla. **Tämä muuttaa useita asioita yllä olevasta v1-tutkimuksesta:**
@@ -848,11 +760,10 @@ Tom kysyi sähköpostitse suoraan "Olihan kyseessä OmaPosti Pro API versio 2?" 
 8. **Sending Code API ei edelleenkään mainita tässäkään v2-dokumentissa** — vahvistaa aiemman epäilyn että se on täysin erillinen, oma dokumenttinsa (Tomin linkkaama `sending-code-api-2026-04`), käytetään v2-shipping-order-API:n `parcelNo`:n päällä erikseen. Kysymys Postille pysyy samana kuin aiemmin.
 
 **Päivitetty tarkistuslista ennen koodausta:**
-- ✅ **OAuth2 clientId/clientSecret luotu `developer.posti.fi`:ssä 2026-09-02** (rooli `shippingapi`, tallennettu tuotannon `.env`:iin `POSTI_CLIENT_ID`/`POSTI_CLIENT_SECRET`, EI tähän tiedostoon) — **KÄYTTÖVALMIS 2026-09-02, kaikki kolme aiempaa estettä poistettu:**
-  1. ✅ Käyttäjätili kytketty `enabled: true`:ksi
-  2. ✅ Organisaatioattribuutit valittu (mm. logistiikkasopimus 691317)
+- 🟡 **OAuth2 clientId/clientSecret luotu `developer.posti.fi`:ssä 2026-09-02** (rooli `shippingapi`, tallennettu turvallisesti .env:ään, EI tähän tiedostoon) — **mutta EI VIELÄ KÄYTTÖVALMIS, kaksi asiaa puuttuu:**
+  1. Käyttäjätili on tilassa `enabled: false` — pitää kytkeä päälle `developer.posti.fi`:n hallintanäkymässä
+  2. Kaikki organisaatioattribuutit (asiakasnumero 956632, logistiikkasopimus 691317, laskutusosoitenumero 4176528, kumppaninumero 1043828) ovat tilassa `selected: false` — pitää käydä valitsemassa erikseen ainakin logistiikkasopimus 691317 samasta näkymästä ennen kuin kutsut toimivat
   3. Vahvistettu `businessId`-muoto Postin järjestelmässä: `FI34973476` (Y-tunnus FI-etuliitteellä, ei väliviivaa) — käytä tätä täsmällistä muotoa jos jokin kenttä vaatii sen
-  - **Token-haku testattu ja vahvistettu toimivaksi, ks. alla "Eteneminen 2026-09-02"-osio.**
 - ✅ Logistiikkasopimusnumero 691317 on jo tiedossa, käytetään samaa
 - ✅ Palvelukoodi todennäköisesti `PO2103` (vahvista silti Postilta lopullisesti)
 - ⬜ Lue Sending Code API v2:n oma dokumentaatio (`developer.posti.com/api-catalogue/2026-04/document/sending-code-api-2026-04`) ennen koodausta
