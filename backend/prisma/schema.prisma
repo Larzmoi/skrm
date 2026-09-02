@@ -214,12 +214,6 @@ model Product {
   // halutessaan rajata jommankumman pois valinnaisena lisäasetuksena tuotelomakkeessa.
   allowPickup     Boolean       @default(true)
   allowShipping   Boolean       @default(true)
-  // ⚠️ VÄLIAIKAISESTI säilytetty rinnalla migraation ajan — tuotannossa on olemassa olevaa dataa
-  // (1 "nouto", 5 "postitus", 4 vanhentunutta "xxs"-jäännettä poistetusta kokoportaikosta) joka
-  // pitää siirtää allowPickup/allowShipping-kenttiin ennen tämän poistamista, jotta myyjien jo
-  // tekemät rajaukset eivät katoa hiljaisesti. Poistetaan heti backfill-skriptin jälkeen samassa
-  // deployssä — ei jää pysyväksi kaksoiskoodaukseksi.
-  pakettikoko     String?
   status          ProductStatus @default(PENDING)
   order           Int           @default(0)
   createdAt       DateTime      @default(now())
