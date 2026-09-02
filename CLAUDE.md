@@ -21,6 +21,8 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 - Kuntosuodattimen löydettävyys (näkyy vain kun tyyppi=irtokortit jo valittu) + monivalinta puuttuu (ks. "Kuntosuodattimen kaksi puutetta") — vahvistettu koodista: `CategorySidebar.tsx` `activeCondition` on yhä yksittäinen string (ei taulukko), `showConditionFilter` vaatii yhä `activeTyyppi === 'irtokortit'`
 - Käännökset (fi/en/sv) yhä osittain keskeneräiset, erityisesti tuotesivulla
 - Sending Code API (labelless-lähetys) -integraatio odottaa Postin dokumentaatiota + testiyhteyttä
+- **UUSI 2026-09-02: "←"-paluunappi poistettava `/lahetys`-live-konsolista kokonaan** (ks. "Kaksi UX-löydöstä 2026-09-02" -osio) — omistaja pudonnut vahingossa pois streamista toistuvasti sitä painaessaan
+- **UUSI 2026-09-02: nouto/postitus-valinta tuotelomakkeessa muutettava pakollisesta valinnaiseksi** (ks. "Kaksi UX-löydöstä 2026-09-02" -osio) — ostajan pitäisi saada valita kumpi tahansa checkoutissa oletuksena
 
 **✅ Tarkistettu koodista 2026-09-02 ja todettu jo TEHDYKSI — poistettu tästä listasta (oli aiemmin merkitty tekemättömäksi, mutta työ oli jo tehty aiemmin samana päivänä eikä listaa oltu päivitetty sen mukana):**
 - Etusivun "Habahub suosittelee" -mainosbanneri — `AdBanner` kirjoitettu kokonaan uusiksi, renderöityy nyt normaalissa dokumenttivirtauksessa `PromoBanner`:n alapuolella, ei enää `position:absolute`-päällekkäisyyttä minkään viereisen osion kanssa
@@ -33,10 +35,46 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 
 **Isommat, ei aikataulutetut:**
 - Visuaalinen tyylipäivitys (lime-väripaletti + Outfit/Plus Jakarta Sans + koko sivuston restailointi) — päätetty, ei aloitettu
-- Slabien (gradatut kortit) oma kuntojärjestelmä (PSA/BGS-numeroarvosana) — tietoisesti rajattu pois aiemmasta korjauksesta
+- Slabien (gradatut kortit) oma kuntojärjestelmä (PSA/BGS-numeroarvosana) — tietoisesti rajattu pois aiemmasta korjauksesta, **priorisointi nousi 2026-09-02 WhatsApp-palautteen myötä, ks. alla oleva osio**
 - "Tarjoa hintaa" -toiminto, Settilistaus/Variantit — molemmat suunniteltu, ei aikataulutettu
+- Live-lähetysten pohjatuotteet/esiasetukset (nopeampi tuotteen syöttö kesken liven) — ks. "WhatsApp-palaute" -osio kohta 2
 
 Kaikki muu tässä tiedostossa alempana on joko ✅ valmista (historiallinen referenssi/konteksti) tai LUKITTU-sääntöjä jotka eivät muutu.
+
+## WhatsApp-palaute 2026-09-02 (koottu Geminillä, myyjien kommentteja) — priorisointi tekemättä, katso kolme tasoa alta
+
+Kommenttirivin parserikorjaus (osa kohdasta 1) on jo tehty — ei toisteta tässä. Kaikki muu alla on uutta.
+
+### 1. Cardmarket-tuonti — loput ongelmat
+- ~~**Määräkentän tuplaantuminen**~~ — **RATKAISTU 2026-09-02, ei koodikorjaus.** Syy löytyi: Chrome-selain kopioi ylimääräisen numeron Cardmarketin tuotteen muokkauskentästä, Firefox ei tee tätä. Ei ole meidän puolen bugi — omistaja suositteli myyjille Firefoxin käyttöä, ratkaisee asian kokonaan. Ei vaadi mitään toimenpiteitä.
+- **Kuvien tuonti ei ole mahdollista** — CM-kuvalinkkien suora kopiointi voi johtaa CM:n omaan bannnin, joten kuvat lisätään aina manuaalisesti. Ei koodikorjaus, hyväksyttävä rajoitus. Pitkän tähtäimen idea: automaattinen korttitietokanta joka hakisi setin peruskuvan jos myyjä ei lisää omaa.
+- **Kommenttikentästä pitäisi poimia enemmän kuin pelkkä vapaateksti** (nyt koko kommentti menee sellaisenaan `description`-kenttään, mikä on hyvä perusta mutta ei riitä rakenteelliseen hakuun/näyttöön):
+  - Fyysinen säilytyspaikka (esim. "Map W1") — pitäisi näkyä myös liven aikaisessa haussa (ks. kohta 2)
+  - **Gradattujen korttien tiedot (luokitusyhtiö, sertifikaattinumero, arvosana, subgradet)** — **tämä liittyy suoraan aiemmin tietoisesti sivuun jätettyyn "slabit"-kuntojärjestelmään** (ks. "Kuntoluokitus Cardmarket-muotoon"-osio, kohta 3: "EI kosketeta tässä korjauksessa... tarvitsisi oman gradingCompany+grade-kenttäparin"). Tämä palaute nostaa sen priorisointia — ei ole enää "joskus myöhemmin", vaan aidosti kysytty ominaisuus.
+  - Tarkemmat "puolikunnot" (esim. "NM-"/"EX+") — nykyinen Cardmarket-asteikko (M/NM/EX/GD/LP/PL/PO) ei tue plus/miinus-tarkennuksia
+  - Reverse Holo -tieto (ellei lisätä myöhemmin kuvan yhteydessä)
+
+### 2. Live-lähetykset / "Live Shop" — uusia ongelmia ja ideoita
+- **Suoramyyntituotteen lähtöhintaa ei voi muokata kun se nostetaan liveen huutokaupattavaksi** — varastosta poimitun "Direct sale" -tuotteen tallennettu hinta lukkiutuu automaattisesti huutokaupan lähtöhinnaksi, ei muokattavissa livessä. Pitäisi sallia hinnan muokkaus siinä kohtaa kun tuote nostetaan jonoon/huutoon.
+- **Tuplamyyntiriski CM:n ja Habahubin välillä** — sama tuote voi myydä molemmissa yhtä aikaa, koska CM lukitsee tuotteen ostajan koriin 4-6h ajaksi eikä sitä silloin voi ottaa pois myynnistä sieltä. Habahubin oma korilukitus on jo rajattu max 2h:iin (jo LUKITTU-sääntönä olemassa). **Ei ratkaistavissa koodilla ilman CM:n omaa API-integraatiota** (ei ole) — hyväksyttävä rajoitus, mahdollisesti helpotettavissa vain nopealla "poista myynnistä"-pikanapilla myyjälle.
+- **Tuotteen syöttäminen kesken liven on liian hidasta** (jopa 100 kertaa per striimi) — iso, konkreettinen kolmiosainen ehdotus:
+  1. **Pohjatuotteet/esiasetukset** ("Single Kortti", "Kortti Lot" -tyyppiset mallipohjat, myyjällä voi olla niitä ~1000). Livessä valitaan pohja, täytetään vain otsikko+huutoaika+lähtöhinta — ei koko lomaketta joka kerta.
+  2. **Suosikkimerkintä/pikanappi** eniten käytetyille pohjille, pitää ne aina listan kärjessä livessä.
+  3. **Haku + varastosijainti livessä** — hae kortti nimellä, näytä kommentista poimittu kansiosijainti (ks. kohta 1), siirrä suoraan huutoon.
+- **Automaattinen varastosaldon päivitys** — myydessä livessä poistuu automaattisesti sisäisestä varastosta, myyjä näkee striimin jälkeen listan myydyistä poistaakseen ne manuaalisesti CM:stä (ei automaattista CM-synkronointia, koska ei API-yhteyttä sinne).
+
+### 3. Ohjeistus & kumppanuudet — EI koodia, omistajan omia tehtäviä
+- Lyhyet opastusvideot myyjille (tuotteen lisäys, CM-varaston tuonti)
+- Yhteydenotto isompiin toimijoihin (esim. Korttistoppi, TCG Kauppa) kilpailukykyisellä 3,5%-provisiolla
+
+## Kaksi UX-löydöstä 2026-09-02 (paluunuoli livessä + nouto/postitus-valinnan tarpeellisuus)
+
+1. **✅ PÄÄTETTY: poista "←"-paluunappi kokonaan `/lahetys`-live-konsolista.** Sama nappi joka aiemmin tunnistettiin ongelmaksi (kohta #11, "katkaisee pääsyn käynnissä olevaan streamiin") — aiempi korjaus paransi TOIPUMISTA (`checkForActiveShow()` palatessa) mutta ei estänyt itse vahinkoklikkausta. Omistaja on toistuvasti painanut sitä vahingossa Jono-paneelia käyttäessään ja pudonnut pois streamista. **Poista nappi kokonaan** — "Lopeta"-nappi (yläpalkissa) on jo olemassa tarkoituksellista poistumista varten, ei tarvita kahta eri reittiä ulos.
+   - **Sivuhuomio, ei pakollinen nyt:** "Jono"-nimi/-nappi saattaisi olla selkeämpi nimettynä "Kauppa"/"Shop":ksi koska se avaa käytännössä myymälä-tyylisen paneelin, vaikka tekninen toiminto on tuotejono — harkittavissa, ei kiireellinen.
+
+2. **✅ PÄÄTETTY 2026-09-02: ostaja saa aina valita nouto TAI postitus checkoutissa, ellei myyjä ole erikseen rajannut.** Oletus: molemmat toimitustavat tarjolla ostajalle jokaiselle tuotteelle, ei mitään pakollista valintaa myyjälle listausvaiheessa. **Myyjä voi halutessaan rajata** (esim. ei halua tavata ketään henkilökohtaisesti → vain postitus sallittu, tai päinvastoin) — tämä on valinnainen, ei pakollinen kenttä tuotteen lisäyslomakkeessa.
+   - **Toteutus:** muuta pakollinen nouto/postitus-valinta tuotelomakkeessa valinnaiseksi rajoitukseksi (esim. `allowPickup`/`allowShipping`-tyyliset boolean-kentät `Product`-malliin, oletus `true` molemmille = ei rajoitusta). Checkoutissa ostaja näkee molemmat vaihtoehdot valittavaksi (paitsi jos jompikumpi on `false`, silloin vain sallittu vaihtoehto näytetään).
+   - Vaikuttaa: tuotteen lisäyslomake (poista pakollisuus, tee valinnaiseksi "lisäasetukseksi"), checkout-virta (näytä molemmat/rajattu vaihtoehto), `Order`-malli (tallenna ostajan valitsema toimitustapa kuten ennenkin, ei muutu itse tallennuslogiikassa).
 
 ## Tech Stack
 - **Frontend:** Next.js 16.2.12 + TypeScript, App Router, inline styles, Turbopack
