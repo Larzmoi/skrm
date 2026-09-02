@@ -89,6 +89,10 @@ function TuotteetContent() {
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkAlakategoria, setBulkAlakategoria] = useState('')
   const [bulkTyyppi, setBulkTyyppi] = useState('')
+  // Koko erälle yhteinen myyntitapa — oletus 'buy_now' (pelkkä suoramyynti) koska bulkkituonti on
+  // tyypillisesti kiinteähintaista varastoa. 'both' liittää kaikki erän tuotteet myös live-jonoon
+  // valittavaksi ilman että jokaista tarvitsee muokata erikseen jälkikäteen 1000 tuotteen erästä.
+  const [bulkSaleType, setBulkSaleType] = useState<'buy_now' | 'both'>('buy_now')
 
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -270,7 +274,7 @@ function TuotteetContent() {
       setUploading(true)
       const response = await api.bulkCreateProducts(
         validItems.map(p => ({ name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined, description: p.description || undefined })),
-        { category: bulkCategory || undefined, alakategoria: bulkAlakategoria || undefined, tyyppi: bulkTyyppi || undefined },
+        { category: bulkCategory || undefined, alakategoria: bulkAlakategoria || undefined, tyyppi: bulkTyyppi || undefined, saleType: bulkSaleType },
       )
       setParsedPreview(response.results || [])
       setBulkTab('success')
@@ -351,8 +355,23 @@ function TuotteetContent() {
               </div>
 
               <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.5, marginBottom: 12 }}>
-                Liitä tai kirjoita neljä riviä per tuote: <strong>nimi</strong>, <strong>kunto</strong>, <strong>hinta</strong>, <strong>määrä</strong> — samassa järjestyksessä joka tuotteelle peräkkäin. Kaikki tuotteet luodaan suoramyyntiin samalla kategorialla/tyypillä alla.
+                Liitä tai kirjoita neljä riviä per tuote: <strong>nimi</strong>, <strong>kunto</strong>, <strong>hinta</strong>, <strong>määrä</strong> — samassa järjestyksessä joka tuotteelle peräkkäin. Koko erä saa saman myyntitavan, kategorian/tyypin alla — säästää siltä että 1000 tuotteen erästä pitäisi jälkikäteen karsia/muokata livetuotteet erikseen.
               </p>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={lbl}>{tp.saleTypeLabel}</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([
+                    { id: 'buy_now' as const, label: tp.saleTypeBuyNow, desc: tp.saleTypeBuyNowDesc },
+                    { id: 'both' as const, label: tp.saleTypeBoth, desc: tp.saleTypeBothDesc },
+                  ]).map(opt => (
+                    <button key={opt.id} type="button" onClick={() => setBulkSaleType(opt.id)} style={{ flex: 1, minWidth: 140, padding: '10px 12px', borderRadius: 8, border: `2px solid ${bulkSaleType === opt.id ? C.accent : C.border}`, background: bulkSaleType === opt.id ? C.accentLight : C.surface, cursor: 'pointer', textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: bulkSaleType === opt.id ? C.accent : C.text, marginBottom: 2 }}>{opt.label}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
                 <div>

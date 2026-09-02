@@ -186,11 +186,13 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // POST /products/bulk — monimuu-tuonti (CSV/TXT-liite tai liitetty teksti, jäsennetty jo
 // frontendissä: nimi/kunto/[valinnainen kommentti]/hinta/määrä, rivimäärä per tuote vaihtelee
 // 4-5 riippuen onko kommenttia — ks. CLAUDE.md "Bulkkiparserin kommenttirivi-puute 2026-09-02").
-// Kaikki luodaan suoramyyntiin
-// ("buy_now"), koska bulk-listaus (esim. Cardmarket-tyylinen erä) on tyypillisesti
-// kiinteähintaista tavaraa, ei huutokauppaa/live-lottia.
+// Myyntitapa (saleType) koskee koko erää, ei ole per-rivi valittavissa — 'buy_now' (oletus, pelkkä
+// suoramyynti) tai 'both' (myös live-jonoon liitettävissä). Erän tasolla valittavaksi nimenomaan
+// siksi ettei 1000 tuotteen erästä tarvitse jälkikäteen karsia livetuotteita erikseen muokkaamalla
+// jokaista yksitellen — myyjä valitsee kerralla ennen tallennusta, muokkaus onnistuu silti
+// jälkikäteen per tuote jos yksittäinen rivi pitää vaihtaa myöhemmin.
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { products, category, alakategoria, tyyppi } = req.body
+  const { products, category, alakategoria, tyyppi, saleType } = req.body
   if (!Array.isArray(products) || products.length === 0) {
     return res.status(400).json({ error: 'Tuotteita ei annettu' })
   }
@@ -204,6 +206,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => 
   const batchCategory = typeof category === 'string' && category ? category : null
   const batchAlakategoria = typeof alakategoria === 'string' && alakategoria ? alakategoria : null
   const batchTyyppi = typeof tyyppi === 'string' && tyyppi ? tyyppi : null
+  const batchSaleType = saleType === 'both' ? 'both' : 'buy_now'
 
   let created = 0
   let skipped = 0
@@ -220,7 +223,7 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => 
     const quantity = Number(p?.quantity)
     const product = await prisma.product.create({
       data: {
-        name, saleType: 'buy_now',
+        name, saleType: batchSaleType,
         startPrice: roundCents(startPrice),
         quantity: isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1,
         condition: typeof p?.condition === 'string' && p.condition ? p.condition : null,
