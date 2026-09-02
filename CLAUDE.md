@@ -106,6 +106,8 @@ Omistaja aloitti koko sivuston sisällön (hinnat, FAQ, käyttöehdot) läpikäy
 
 Typecheck + build vihreä molemmilla puolilla ennen deployta.
 
+**Lisäys 2026-09-02, sama päivä — erän myyntitapa valittavaksi kerralla.** Omistajan huomio: jos bulkkituonnilla listaa kerralla 1000 tuotetta, olisi työlästä karsia/muokata livetuotteet erikseen jälkikäteen yksi kerrallaan. Bulkkipaneeliin lisätty erän tasoinen myyntitapa-valitsin ("Suoramyynti" / "Molemmat" — sama koodaus ja samat käännösavaimet kuin manuaalisen lomakkeen `saleTypeOptions`), oletus `buy_now` (vastaa aiempaa kovakoodattua käytöstä). `POST /products/bulk` lukee nyt `saleType`-kentän pyynnöstä hardkoodatun `'buy_now'`:n sijaan, validoi arvoksi vain `'buy_now'`/`'both'` (mikä tahansa muu/puuttuva → `'buy_now'`-fallback, ei kaadu). Testattu tuotannossa neljällä skenaariolla (puuttuva, `buy_now`, `both`, virheellinen arvo) — kaikki neljä tallensivat oikean `saleType`-arvon, testituotteet siivottu pois.
+
 Alkuperäinen tehtäväkuvaus säilytetty alla:
 
 ## Bulkkiparserin kommenttirivi-puute 2026-09-02 — kriittinen, kaksi myyjää valmiina listaamaan
