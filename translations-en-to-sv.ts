@@ -1,0 +1,253 @@
+# English → Swedish Translations (t.xxx System)
+# Complete mapping of ALL English keys to their Swedish translations
+# Use this as reference when implementing t.sv translations
+
+const svFromEn = {
+  // NAVIGATION
+  nav: {
+    home: 'Hem', browse: 'Mynts', search: 'Sök produkter eller säljare...',
+    login: 'Logga in', register: 'Skapa konto', dashboard: 'Dashboard', auctions: 'Auktioner',
+    liveAuctions: 'Live', logout: 'Logga ut', profile: 'Profil', purchases: 'Köp',
+    settings: 'Inställningar', notifications: 'Aviseringar', allCategories: 'Alla',
+    messages: 'Meddelanden', products: 'Produkter', broadcast: 'Ström', sales: 'Försäljningar', payouts: 'Utbetalningar', commission: 'Kommission',
+  },
+  
+  // HOME PAGE
+  home: {
+    liveNow: 'Live nu', showAll: 'Visa alla', upcoming: 'Kommande',
+    buyNow: 'Till salu', viewers: 'tittare',
+    heroTitleLine1: 'Ett ställe att köpa och sälja —', heroTitleLine2: 'precis som du vill ha det',
+    heroSubtitle: 'Liveauktioner och direktförsäljning. Svensk. Säker.',
+    heroBrowse: 'Bläddra produkter', heroBecomeSeller: 'Bli säljare',
+    heroTrustSecure: 'Säkert köpande', heroTrustFinnish: 'Svensk service',
+    heroTrustCommission: '3,5% provision, max 35€', heroTrustFreeSignup: 'Gratis att registrera sig',
+    heroHide: 'Dölj',
+  },
+
+  // LIVE PAGE
+  live: {
+    live: 'LIVE', follow: 'Följ', chat: 'Chatt',
+    writeMessage: 'Skriv ett meddelande...', products: 'Produkter',
+    currentBid: 'NUVARANDE', lotNumber: 'LOT', delivery: 'Leverans',
+    leading: 'Du är i ledningen', next: 'Nästa', sold: 'Såld', from: 'från',
+    bid: 'Anbud', bidPlaced: 'Anbud placerat!', timeLeft: 's kvar',
+    waitAuction: 'Väntar på auktion', viewers: 'tittare',
+    youWon: 'Du vann!', auctionEndedNoWinner: 'Auktionen avslutades — inga anbud',
+    leaveShow: '✕ Avbryt', connecting: 'Ansluter...',
+    waitingForStream: 'Väntar på att strömmen ska starta...', noProducts: 'Inga produkter i kö',
+    streamEnded: 'Strömmen avslutades', showsCount: 'strömmar',
+    share: 'Dela', linkCopied: 'Länk kopierad',
+  },
+
+  // AUCTION DETAILS
+  auction: {
+    endsIn: 'Avslutas om', startPrice: 'Startpris', highestBid: 'Högsta anbud',
+    reserveNotMet: 'Reservpriset har ännu inte uppnåtts',
+  },
+
+  // REPORT SYSTEM
+  report: {
+    button: 'Rapportera', title: 'Rapportera innehåll', titleUser: 'Rapportera användare',
+    reasonLabel: 'Anledning', reasonProhibited: 'Förbjuden vara', reasonCounterfeit: 'Afterlik',
+    reasonMisleading: 'Förljande', reasonHarassment: 'Härvling', reasonScam: 'Bedrägeri', reasonOther: 'Annan anledning',
+    descriptionLabel: 'Ytterligare detaljer (valfritt)', descriptionPlaceholder: 'Berätta mer...',
+    submit: 'Skicka rapport', sent: 'Rapporten skickades. Tack!', error: 'Rapporten misslyckades med att skickas',
+    cancel: 'Avbryt',
+  },
+
+  // ADMIN PANEL
+  admin: {
+    title: 'Admin', accessDenied: 'Ingen administratör tillgång',
+    tabReports: 'Rapporter', tabUsers: 'Användare',
+    filterAll: 'Alla', filterPending: 'Pågående', filterReviewed: 'Granskad',
+    noReports: 'Inga rapporter', reportedBy: 'Rapporterad av', reason: 'Anledning', description: 'Beskrivning',
+    target: 'Mål', targetMissing: 'Målet har redan tagits bort', viewTarget: 'Visa →',
+    targetProduct: 'Produkt', targetShow: 'Live', targetUser: 'Användare',
+    markReviewed: 'Markera som granskad', removeListing: 'Ta bort innehåll',
+    removeReasonLabel: 'Borttagningsanledning (visas till säljaren)', removeReasonPlaceholder: 'T.ex. förbjuden vara — ge mer detalj',
+    confirmRemove: 'Ta bort', cancel: 'Avbryt',
+    userSearchPlaceholder: 'Sök efter namn, användarnamn eller e-post...',
+    ban: 'Bann', banReasonLabel: 'Banors anledning', banReasonPlaceholder: 'T.ex. upprepade obetalda order',
+    banDaysLabel: 'Varaktighet (dagar)', banConfirm: 'Bekräfta bann', banSuccess: 'Användaren bannad', pending: 'pågående',
+  },
+
+  // TIME UTILITIES
+  time: {
+    today: 'Idag', tomorrow: 'Imorgon', at: 'kl.', justNow: ' precis nu', 
+    minutesAgo: 'min sedan', hoursAgo: 'h sedan', daysAgo: 'd sedan',
+  },
+
+  // AUTHENTICATION
+  auth: {
+    loginTitle: 'Logga in', loginSub: 'Välkommen tillbaka!',
+    registerTitle: 'Skapa konto', registerSub: 'Gratis — köp och sälj med ett konto.',
+    email: 'E-post', password: 'Lösenord', name: 'Namn', username: 'Användarnamn',
+    loginBtn: 'Logga in', registerBtn: 'Skapa gratis konto',
+    noAccount: 'Inget konto?', hasAccount: 'Har du redan ett konto?',
+    createAccount: 'Skapa konto', signIn: 'Logga in',
+    terms: 'Genom att registrera dig accepterar du tjänstets villkor.',
+    loading: 'Laddar...', minPassword: 'Lösenordet måste vara minst 8 tecken långt',
+    fillAll: 'Fyll i alla fält',
+    acceptTerms: 'Jag har läst och accepts', termsLink: 'tjänstens villkor',
+    acceptPrivacy: 'Jag har läst och accepts', privacyLink: 'integritetspolicy',
+    acceptPolicy: 'Jag förstår köpingspolitiken:',
+    policyPoint1: 'Alla köp och anbud är bindande — för direktförsäljning, liveauktioner och tidsbestämda auktioner',
+    policyPoint2: 'Du har 2 timmar att betala efter att ha vunnit ett anbud eller gjort ett köp',
+    policyPoint3: '3 obetalda order leder till en automatisk 30-dagars ban utan undantag',
+    policyPoint4: 'Kombinerad leverans: samma säljare inom 6h = ett val av fraktmetod',
+    acceptRequired: 'Vänligen acceptera tjänstets villkor, integritetspolicy och köpingspolitiken',
+  },
+
+  // SEARCH/BROWSE PAGE
+  selaa: {
+    search: 'Sök produkter...', filter: 'Filter', sort: 'Sortering',
+    newest: 'Nyaste först', priceAsc: 'Lägsta pris', priceDesc: 'Högsta pris',
+    price: 'Pris', minPrice: 'Min pris', maxPrice: 'Max pris', category: 'Kategori', results: 'produkter',
+    noResults: 'Inga produkter hittades', clearFilters: 'Rensa filter',
+    allCategories: 'Alla', viewProfile: 'Visa profil →', subcategory: 'Underskattning',
+    direct: 'Direktförsäljning', city: 'Läge', allCities: 'Alle lägenheter',
+  },
+
+  // PRODUCT DETAILS
+  product: {
+    addToCart: 'Lägg i varukorgen', askSeller: 'Fråga säljare', sendMessage: 'Skicka meddelande',
+    delivery: 'Leverans', condition: 'Tillstånd', total: 'Totalt',
+    addedToCart: 'Lagades i varukorgen!', goToCart: 'Gå till varukorgen →',
+    messageSent: 'Meddelandet skickades!',
+    sellerProfile: 'Profil →', shippingInfo: 'Frakt & skydd',
+    shipIn24: 'Säljaren åtar sig att leverera inom 48h',
+    binding: 'Alla försäljningar är bindande — inga avbokningar',
+    trackingCode: 'Spårningskod tillhandahålls för köparen',
+    category: 'Kategori', seller: 'Säljare', description: 'Beskrivning',
+    breadcrumbHome: 'Hem', breadcrumbBrowse: 'Bläddra',
+    soldLive: 'Denna produkt säljs under en live-stream',
+    preBidTitle: 'Förhandsanbud öppna',
+    preBidDesc: 'Denna produkt säljs i en kommande live-ström. Du kan lämna ett anbud nu — det högsta anbudet övertar direkt till starten av strömmen.',
+    currentBid: 'Högsta anbud', startingBid: 'Startpris', bidsCount: 'anbud',
+    yourBid: 'Ditt anbud (€)', placeBid: 'Lägg anbud', placingBid: 'Skickar...',
+    bidPlaced: 'Anbuden mottaget!', youAreLeading: 'Du är för närvarande den högsta anbuds',
+    minBid: 'Minsta anbud',
+  },
+
+  // USER PROFILE
+  profile: {
+    follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',
+    past: 'Tidigare strömmar', reviews: 'Recensioner', followers: 'Följare',
+    shows: 'Strömmar', rating: 'Betyg', trades: 'Transaktioner', ended: 'Avslutade',
+    bio: 'Specialiserad på Pokémon Base Set och PSA-graderade kort.',
+    noUpcoming: 'Inna kommande strömmar',
+    vacationActive: 'Säljaren är tillfälligt på semester', vacationUntil: 'Bakom',
+    upcomingSection: 'Kommande strömmar och auktioner', selling: 'Till salu',
+    noProducts: 'Inga produkter att köpa',
+  },
+
+  // PURCHASES PAGE
+  purchases: {
+    title: 'Köp', subtitle: 'Din beställningshistorik och spårning',
+    total: 'Totala köp', spent: 'Totalt spenderat', waiting: 'Väntar på leverans',
+    allTime: 'alla tider', inclShipping: 'inkl. frakt', shipments: 'leveranser',
+    trackingCode: 'Spårningskod', paid: 'Betald', shipped: 'Skickat',
+    delivered: 'Levererad', waitingShipment: 'Betald — väntar på leverans',
+    pickupCodeLabel: 'Hämtkoden', pickupCodeHint: 'Visa eller berätta denna kod till säljaren när du hämtar produkten. Betalningen frigörs till säljaren så fort de bekräftar koden.',
+    waitingPickup: 'Betald — väntar på hämtnings',
+  },
+
+  // DASHBOARD
+  dashboard: {
+    hello: 'Hej', subtitle: 'Här är en sammanfattning av din aktivitet',
+    productsQueued: 'Produkter i kö', upcomingShows: 'Kommande strömmar',
+    totalSales: 'Total försäljning', followers: 'Följare',
+    upcomingShowsTitle: 'Kommande strömmar', schedule: '+ Boka',
+    noShows: 'Inga bokade strömmar', goLive: 'Gå live',
+    addProduct: '+ Lägg till produkt', howToStart: 'Hur du påbörjar',
+    addProducts: 'Lägg till produkter', addProductsDesc: 'Bilder, tillstånd och priser',
+    scheduleShow: 'Boka en ström', scheduleShowDesc: 'Låt följare veta när du går live',
+    startLive: 'Gå live', startLiveDesc: 'Öppna kameran och starta auktionen',
+    showTitle: 'Strömmens titel', showDate: 'Datum', showTime: 'Tid',
+    save: 'Spara', cancel: 'Avbryt', remove: '✕', scheduled: 'Strömmen bokad!',
+    quickLiveTitle: 'Live-ström', quickLiveDesc: 'Starta stream och sälj produkter i realtid',
+    quickProductsTitle: 'Produkter', quickProductsDesc: 'Lägg till eller redigera produkter som du har att sälja',
+  },
+
+  // DASHBOARD PRODUCTS
+  dashboardProducts: {
+    title: 'Produkter', activeSuffix: 'aktiva produkter',
+    addProduct: '+ Lägg till produkt', addFirstProduct: '+ Lägg till din första produkt', noProductsYet: 'Inga produkter än',
+    loading: 'Laddar...', loadFailed: 'Misslyckades ladda produkter',
+    maxImages: 'Max 6 bilder', maxImagesHint: 'Max 6 bilder · 2MB var',
+    enterName: 'Ange en produkt namn', enterPrice: 'Ange ett pris',
+    acceptPickupTerms: 'Acceptera hämtvillkoren innan publicering',
+    editTitle: 'Redigera produkt', newTitle: 'Ny produkt',
+    saleTypeLabel: 'Säljtyp *',
+    saleTypeLive: 'Live-auktion', saleTypeLiveDesc: 'Såld under en live-ström',
+    saleTypeBuyNow: 'Direktförsäljning', saleTypeBuyNowDesc: 'Fixerat pris, köp när som helst',
+    saleTypeAuction: 'Auktion', saleTypeAuctionDesc: 'Tidsbestämd auktion, du väljer varaktigheten',
+    saleTypeBoth: 'Båda', saleTypeBothDesc: 'Direktförsäljning + liveauktion',
+    badgeLive: 'Live', badgeBuyNow: 'Direktförsäljning', badgeAuction: 'Auktion', badgeBoth: 'Live + Direkt',
+    imageLabel: 'Bild',
+    nameLabel: 'Produkt namn *', namePlaceholder: 't.ex. Charizard Holo PSA 9',
+    categoryLockedNotice: 'Kategori kan inte längre ändras — auktionen körs redan och har mottagit anbud.',
+    categoryLabel: 'Kategori', subcategoryLabel: 'Underskattning', typeLabel: 'Typ', selectPlaceholder: 'Välj...',
+    conditionLabel: 'Tillstånd', quantityLabel: 'Mängd',
+    conditionNew: 'Ny', conditionExcellent: 'Utmärkt', conditionGood: 'God', conditionFair: 'Tillfredsställande', conditionUsed: 'Använd',
+    pricingTitle: 'Prissättning',
+    salePriceLabel: 'Försäljningspris (€) *', startPriceLabel: 'Startpris (€) *',
+    fixedPriceHint: 'Fixerat försäljningspris', startingPriceHint: 'Auktionens startpris',
+    buyNowPriceLabel: 'Köp-nu-pris (€)', buyNowPricePlaceholder: 'Hoppa över auktionen',
+    reservePriceLabel: 'Reservpris (€)', reservePricePlaceholder: 'Dolt minimum', reservePriceHint: 'Visas inte för köpare',
+    bidIncrementLabel: 'Minimikorotus (€)', bidIncrementHint: 'Standard 1€ — t.ex. 0,10€ för billigare produkter',
+    liveDurationLabel: 'Auktionens varaktighet (i live-strömmen)', liveDurationPlaceholder: 'i sekunder',
+    auctionDurationLabel: 'Auktionens varaktighet', days: 'd', hours: 'h',
+    deliveryTitle: 'Leverans', buyerPays: 'Köparen betalar',
+    pickupTitle: 'Hämtning hos dig — hur det fungerar',
+    pickupBody: 'När en köpare köper produkten genom Habahub och väljer hämtning som leveransmetod, försäljningen ingår normalt i betalningsskyddet. Köparen får en hämtningskod, vilken du anger i systemet när du överlämnar produkten — betalningen frigörs till dig så fort koden bekräftas. Detta gäller inte för ordningar som görs helt utanför Habahub (t.ex. kontanter direkt utan Habahub-order) — där är Habahub inte en part och inte erbjuder betalningsskydd.',
+    pickupCheckbox: 'Jag förstår att köparen får en hämtningskod och betalningen frigörs till mig bara när jag bekräftar hämtningen',
+    descriptionLabel: 'Beskrivning', descriptionPlaceholder: 't.ex. Base Set 1st Edition, NM-tillstånd',
+    saving: 'Sparar...', saveChanges: 'Spara ändringar', addProductBtn: 'Lägg till produkt', cancel: 'Avbryt',
+    activeSectionTitle: 'Aktiva', edit: 'Redigera',
+    deleteLockedTitle: 'Kan inte raderas — reservpriset har uppnåtts, anbudet är bindande', reserveExceededNotice: 'Reservpriset nått — kan inte radera',
+    inLiveQueue: 'i livekö', inDirectSale: 'i direktförsäljning', inAuction: 'i auktion', goLive: 'Gå live',
+  },
+
+  // FOOTER
+  footer: {
+    company: 'Företag', about: 'Om oss', becomeSeller: 'Bli säljare',
+    contact: 'Kontakt', resources: 'Resurser', faq: 'FAQ',
+    fees: 'Avgifter', legal: 'Laglig', terms: 'Användarvillkor',
+    privacy: 'Integritetspolicy', follow: 'Följ', newsletter: 'Nyhetsbrev',
+    newsletterDesc: 'Säljtips och erbjudanden direkt i din inkorg.', subscribe: 'Prenumerera',
+    emailPlaceholder: 'E-postadress', copyright: '© 2026 Habahub · Organisationsnr 3497347-6',
+    feeNote: 'Kommission 3,5% (max 35€) + betalningshantering ~1,5% + 0,25€',
+    binding: 'Alla anbud är bindande',
+    prohibited: 'Inte tillåtet: vapen, alkohol/tobak, medicin/narkotika, djur, fakes & annan olaglig vara',
+    badgeSecure: '✓ Säker', badgeBinding: '✓ Bindande anbud', badgeVerified: '✓ Verifierade användare',
+  },
+
+  // FAQ
+  faq: {
+    title: 'Vanliga frågor och svar', subtitle: 'Hitta svar på vanligaste frågorna nedan.', general: 'Allmänt', buyer: 'Köpare guide', seller: 'Säljare guide', shipping: 'Leverans', contact: 'Frågor? Kontakta oss:',
+  },
+
+  // FEES PAGE
+  fees: {
+    title: 'Avgifter', subtitle: 'Tydlig och rättvis prissättning utan dolda avgifter.', commission: 'Kommission', skrmFee: 'Habahub kommission', paymentFee: 'Betalningshantering (Paytrail)', paymentFeeDesc: '+ 0,25€ per affär · inget tak · går till betalningsleverantör', noHidden: 'Inga dolda avgifter', salePrice: 'Försäljningspris', skrmCharge: 'Habahub-avgift', shipping: 'Leverans', shippingDesc: 'Köparen betalar fraktkostnader. Frakt är ett fast pris oavsett paketstorlek.', deliveryMethod: 'Leveransmetod', price: 'Pris för köparen', shippingPostal: 'Frakt', shippingPickup: 'Hämtning hos säljare', shippingFree: 'Gratis', protection: 'Betalningsskydd', protectionDesc: 'Köparens betalning hålls på Habahubs konto tills säljaren har skickat produkten och tillhandahållit en spårningskod.', protectionPoints: ['Betalningen frigörs till säljaren när spåringskoden är tillhandahållen', 'Köparen har 3 dagar att vändas efter mottagning', 'tvist hanteras av Habahub kundservice'], noFees: ['Inga listningsavgifter', 'Inga månadsavgifter', 'Inga avbokningsavgifter', 'Inga registreringsavgifter', 'Inga avgifter för osålda produkter', 'Ingen minimikommission'], ceilingReached: 'Taket nått',
+  },
+
+  // ABOUT PAGE
+  about: {
+    title: 'Om oss', subtitle: 'Svensk liveauktionsplattform', description1: 'Habahub är en svensk plattform för liveauktioner och direktförsäljning. Säljare kan sälja i realtidsvideostreaming eller listas för direktköp.', description2: 'Vår mission är att bygga Sveriges bästa och mest prisvärda marknadsplats. Vi erbjuder säljare låg kommission — bara 3,5% max 35€ per försäljning.', description3: 'För köparna erbjuder vi en säker och genomskinlig auktionserfarenhet. Alla anbud är bindande och säljare åtar sig att skicka inom 24 timmar.', cheapest: 'Lågsta kommission', cheapestSub: 'Max 35€ per försäljning', categories: 'Kategorier', categoriesSub: 'Från samlingskort till elektronik', shipping: 'Leveranstid', shippingSub: 'Säljaren åtar sig att skicka', binding: 'Bindande anbud', bindingSub: 'Säkert att sälja', contactTitle: 'Kontakt', email: 'E-post', support: 'Kundtjänst', sellerSupport: 'Säljarstöd', businessId: 'Org.nr', usefulLinks: 'Användbara länkar',
+  },
+
+  // TERMS & PRIVACY
+  terms: { title: 'Användarvillkor', effective: 'Giltig från 1 augusti 2026', notice: 'Habahub är en plattform för transaktioner mellan privatpersoner och företag. Habahub är inte en part i affären mellan köpare och säljare.', contactText: 'Frågor om villkoren? Kontakta oss:', },
+  privacy: { title: 'Integritetspolicy', effective: 'Uppdaterad 1 augusti 2026 · EU GDPR kompatibel', contactText: 'Frågor om integritet? Kontakta oss:', },
+
+  // CART
+  kori: { title: 'Varukorg', empty: 'Din varukorg är tom', browseProducts: 'Bläddra produkter', liveExpiredNotice: 'En eller flera liveköp togs bort från varukorgen när tiden tog slut.', payFailed: 'Betalning misslyckades', free: '(gratis)', liveTimeLeft: 'Live-köp — tid att betala', timeUp: 'Tiden är uppe', products: 'Produkter', shipping: 'leverans', pay: 'Betalning', processing: 'Behandlas...', total: 'Totalt', items: 'produkter', allSellers: 'alla säljare', },
+
+  // NOTIFICATIONS & MESSAGES
+  notificationsPage: { title: 'Aviseringar', subtitle: 'Alla dina viktiga uppdateringar på en plats', empty: 'Inga aviseringar än', markAllRead: 'Markera alla som lästa', enablePush: 'Aktivera aviseringar', enablingPush: 'Aktiveras...', pushEnabled: 'Aviseringar aktiverade ✓', },
+  messagesPage: { title: 'Meddelanden', subtitle: 'Dina samtal med köpare och säljare', empty: 'Inga meddelanden än', noConversation: 'Välj ett samtal', writeMessage: 'Skriv ett meddelande...', send: 'Skicka', back: '← Bakåt', },
+}
+
+export default svFromEn

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habahub — Osta, Myy, Huuda ja Katso Liveä</title>
+  <meta name="description" content="Habahub on uuden sukupolven markkinapaikka: osta, myy, osallistu huutokauppoihin ja katso live-lähetyksiä ilman kuukausimaksuja.">
+
+  <!-- Premium Typography: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Tailwind CSS v3 via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Outfit', 'sans-serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              bg: '#030303',
+              surface: '#0e1217',
+              accent: '#84cc16', /* Habahub Acid Lime */
+              accentDark: '#65a30d',
+              lightBg: '#f8fafc', 
+              lightSurface: '#ffffff',
+            }
+          },
+          transitionTimingFunction: {
+            'fluid': 'cubic-bezier(0.32, 0.72, 0, 1)',
+            'spring': 'cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Noise & Grain Overlay */
+    .bg-noise {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    /* --- OBSIDIAN AURA BACKGROUND (DARK MODE) --- */
+    .dark .aura-bg {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .dark .aura-layer-1 {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #030303 0%, #111111 42%, #1c1c1c 72%, #090909 100%);
+      mix-blend-mode: normal;
+      transform: translateZ(0);
+      will-change: transform;
+    }
+
+    .dark .aura-layer-2 {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 45% 55% at 68% 38%, rgba(161,161,170,0.16) 0%, transparent 65%);
+      mix-blend-mode: multiply;
+      filter: blur(18px);
+      transform: translateZ(0);
+      will-change: transform;
+    }
+
+    .dark .aura-lime-accent {
+      position: absolute;
+      top: -10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(132, 204, 22, 0.1) 0%, rgba(3, 3, 3, 0) 70%);
+      pointer-events: none;
+    }
+
+    /* --- WARM ALABASTER GRID & AURA BACKGROUND (LIGHT MODE) --- */
+    html:not(.dark) .light-aura-bg {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(at 18% 12%, rgba(132, 204, 22, 0.12) 0px, transparent 50%),
+        radial-gradient(at 80% 20%, rgba(59, 130, 246, 0.08) 0px, transparent 45%),
+        radial-gradient(at 50% 80%, rgba(244, 63, 94, 0.05) 0px, transparent 50%);
+    }
+
+    html:not(.dark) .light-grid-pattern {
+      position: absolute;
+      inset: 0;
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+      mask-image: radial-gradient(ellipse 60% 50% at 50% 30%, #000 70%, transparent 100%);
+    }
+
+    /* Scroll Reveal Dynamic State */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(32px) scale(0.98);
+      filter: blur(8px);
+      transition: all 0.9s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+
+    /* Precision Doppelrand Architecture */
+    .dark .doppelrand-core {
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), inset 0 -1px 1px rgba(0, 0, 0, 0.5);
+    }
+    
+    html:not(.dark) .doppelrand-core {
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 1);
+    }
+
+    /* Glass Panels */
+    html:not(.dark) .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .dark .glass-panel {
+      background: rgba(14, 18, 23, 0.75);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-brand-lightBg dark:bg-brand-bg text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-brand-accent selection:text-brand-bg relative overflow-x-hidden transition-colors duration-500">
+
+  <!-- Fixed Noise Overlay -->
+  <div class="bg-noise"></div>
+
+  <!-- OBSIDIAN AURA BACKGROUND LAYERS (DARK MODE) -->
+  <div class="aura-bg hidden dark:block">
+    <div class="aura-layer-1"></div>
+    <div class="aura-layer-2"></div>
+    <div class="aura-lime-accent"></div>
+  </div>
+
+  <!-- WARM ALABASTER GRID BACKGROUND LAYERS (LIGHT MODE) -->
+  <div class="light-aura-bg block dark:hidden">
+    <div class="light-grid-pattern"></div>
+  </div>
+
+  <!-- MAIN CONTENT WRAPPER -->
+  <div class="relative z-10">
+
+    <!-- 1. FLUID ISLAND NAVBAR -->
+    <div class="fixed top-0 left-0 right-0 z-40 flex justify-center px-4 pt-4 sm:pt-6 pointer-events-none">
+      <nav class="pointer-events-auto glass-panel rounded-full px-4 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between w-full max-w-6xl shadow-xl transition-all duration-500 ease-fluid">
+        
+        <!-- Logo & Search Input -->
+        <div class="flex items-center gap-4 sm:gap-6">
+          <a href="/" class="flex items-center gap-2 group">
+            <div class="w-8 h-8 rounded-full bg-brand-accent/20 border border-brand-accent/40 flex items-center justify-center text-brand-accent font-bold font-display group-hover:scale-110 transition-transform duration-300 ease-spring">
+              H
+            </div>
+            <span class="font-display font-extrabold text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-brand-accent transition-colors">Habahub</span>
+          </a>
+
+          <!-- Mini Search -->
+          <div class="hidden lg:flex items-center gap-2 bg-black/[0.04] dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 focus-within:border-brand-accent/50 transition-all">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            <input type="text" placeholder="Hae tuotteita, huutokauppoja..." class="bg-transparent border-none outline-none text-slate-900 dark:text-white text-xs w-44 placeholder-slate-400 dark:placeholder-slate-500">
+          </div>
+        </div>
+
+        <!-- Desktop Nav Links -->
+        <div class="hidden md:flex items-center gap-6 text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+          <a href="#selaa" class="hover:text-slate-900 dark:hover:text-white transition-colors">Selaa</a>
+          <a href="#huutokaupat" class="hover:text-slate-900 dark:hover:text-white transition-colors">Huutokaupat</a>
+          <a href="#live" class="hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            Live
+          </a>
+        </div>
+
+        <!-- Controls & Actions -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          
+          <button id="langToggleBtn" onclick="toggleLanguage()" class="px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/5 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:border-brand-accent transition-colors">
+            FI
+          </button>
+
+          <button id="themeToggleBtn" onclick="toggleTheme()" class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/5 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:border-brand-accent transition-colors" title="Vaihda teemaa">
+            <i id="themeIcon" data-lucide="moon" class="w-4 h-4"></i>
+          </button>
+
+          <a href="/profiili" class="hidden sm:flex w-8 h-8 rounded-full border border-black/10 dark:border-white/10 bg-black/[0.04] dark:bg-white/5 items-center justify-center text-slate-700 dark:text-slate-300 hover:border-brand-accent transition-colors" title="Oma profiili">
+            <i data-lucide="user" class="w-4 h-4"></i>
+          </a>
+
+          <a href="/profiili?action=uusi-kohde" class="group relative inline-flex items-center gap-2 sm:gap-3 pl-4 sm:pl-5 pr-1.5 py-1.5 bg-brand-accent text-brand-bg text-xs font-extrabold rounded-full overflow-hidden transition-all duration-300 ease-fluid hover:bg-lime-400 active:scale-[0.98] shadow-md">
+            <span class="whitespace-nowrap">Aloita Myynti</span>
+            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-black/10 flex items-center justify-center text-brand-bg transition-transform duration-300 ease-fluid group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+              <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+            </span>
+          </a>
+        </div>
+      </nav>
+    </div>
+
+    <!-- 2. HERO SECTION -->
+    <section class="relative pt-36 pb-16 md:pt-48 md:pb-24 overflow-hidden">
+      <div class="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
+        <div class="text-center max-w-4xl mx-auto space-y-8">
+          
+          <div class="reveal-on-scroll inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-accent/15 border border-brand-accent/40 text-slate-900 dark:text-brand-accent text-[11px] font-bold uppercase tracking-[0.2em] backdrop-blur-md">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-accent animate-ping"></span>
+            Osta · Myy · Huuda · Katso Liveä
+          </div>
+
+          <h1 class="reveal-on-scroll font-display font-extrabold text-4xl sm:text-6xl md:text-7xl lg:text-8xl tracking-tight leading-[0.95] text-slate-900 dark:text-white">
+            Löydä jotain. <br class="hidden sm:inline" />
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-brand-accentDark dark:from-white dark:via-slate-200 dark:to-brand-accent">
+              Huuda se itsellesi.
+            </span>
+          </h1>
+
+          <p class="reveal-on-scroll text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 font-normal max-w-2xl mx-auto leading-relaxed">
+            Habahub yhdistää perinteisen kaupankäynnin, reaaliaikaiset huutokaupat ja suorat live-lähetykset. Selaa aarteita tai laita omat tavarasi myyntiin heti.
+          </p>
+
+          <div class="reveal-on-scroll flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <a href="#selaa" class="group w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-4 pl-7 pr-2 py-2 bg-gradient-to-r from-brand-accent to-emerald-400 text-brand-bg font-extrabold text-sm rounded-full transition-all duration-300 ease-fluid hover:shadow-[0_10px_25px_rgba(132,204,22,0.35)] active:scale-[0.98]">
+              <span>Selaa Tuotteita</span>
+              <span class="w-9 h-9 rounded-full bg-brand-bg/10 flex items-center justify-center text-brand-bg transition-transform duration-300 ease-fluid group-hover:translate-x-1">
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              </span>
+            </a>
+
+            <a href="/profiili?action=rekisteröidy" class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-white/[0.02] text-sm font-bold text-slate-800 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-black/20 dark:hover:border-white/20 transition-all duration-200 shadow-sm">
+              Luo ilmainen tili
+            </a>
+          </div>
+
+          <div class="reveal-on-scroll pt-2 text-xs text-slate-500 font-medium">
+            Ei kuukausimaksuja • Ei listausmaksuja • Vain 3,5 % provisio (max 35 €)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MAINOSBANNEREITA -->
+    <section class="py-6 relative z-10">
+      <div class="max-w-7xl mx-auto px-6 lg:px-8">
+        <div class="reveal-on-scroll relative rounded-3xl overflow-hidden bg-slate-900 text-white p-6 sm:p-8 border border-slate-800 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div class="absolute top-3 right-4 text-[9px] font-bold uppercase tracking-widest text-slate-400 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+            SPONSOROITU MAINOS
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-brand-accent/20 border border-brand-accent/40 flex items-center justify-center text-brand-accent flex-shrink-0">
+              <i data-lucide="sparkles" class="w-7 h-7"></i>
+            </div>
+            <div>
+              <span class="text-xs font-bold text-brand-accent uppercase tracking-wider">Viikon Kohokohdat</span>
+              <h3 class="font-display font-bold text-xl text-white">Retro-Pelikonsolien Erikoishuutokauppa</h3>
+              <p class="text-xs text-slate-300 mt-1">Yli 50 harvinaista kohdetta avoinna huudoille tänä viikonloppuna.</p>
+            </div>
+          </div>
+          <a href="#huutokaupat" class="whitespace-nowrap px-6 py-2.5 rounded-full bg-brand-accent text-brand-bg font-extrabold text-xs hover:bg-lime-400 transition-colors shadow-md">
+            Tutustu kohteisiin &rarr;
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. MARKETPLACE PREVIEW GRID -->
+    <section id="selaa" class="py-16 md:py-24">
+      <div class="max-w-7xl mx-auto px-6 lg:px-8">
+        <div class="reveal-on-scroll max-w-5xl mx-auto">
+          <div class="p-2 sm:p-3 rounded-[2.5rem] bg-black/[0.03] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 shadow-xl backdrop-blur-xl">
+            <div class="doppelrand-core rounded-[calc(2.5rem-0.75rem)] bg-white dark:bg-brand-surface p-6 sm:p-8 border border-black/5 dark:border-white/5 relative overflow-hidden">
+              
+              <div class="flex items-center justify-between pb-6 border-b border-black/5 dark:border-white/5 text-xs">
+                <div class="flex items-center gap-3">
+                  <span class="px-3 py-1 rounded-full bg-brand-accent/20 text-slate-900 dark:text-brand-accent font-extrabold">Myynnissä Nyt</span>
+                  <span class="px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold cursor-pointer">Huutokaupat (12)</span>
+                  <span class="px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-semibold cursor-pointer flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Live (2)
+                  </span>
+                </div>
+                <span class="text-slate-400 font-mono hidden sm:inline">Reaaliaikainen syöte</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+                
+                <!-- Card 1 -->
+                <a href="/tuote/1" class="group p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-brand-accent/50 transition-all block shadow-sm hover:shadow-md">
+                  <div class="h-32 rounded-xl bg-slate-200 dark:bg-slate-800 border border-black/5 dark:border-white/5 flex items-center justify-center text-slate-400 mb-3 relative overflow-hidden">
+                    <i data-lucide="gamepad-2" class="w-10 h-10"></i>
+                    <span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[9px] font-bold text-white">SUORA MYYNTI</span>
+                  </div>
+                  <div class="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-brand-accentDark dark:group-hover:text-brand-accent transition-colors">Nintendo NES - Keräilysetit</div>
+                  <div class="flex justify-between items-center mt-2 text-xs">
+                    <span class="text-slate-500 font-medium">Kunto: A+</span>
+                    <span class="font-mono font-extrabold text-brand-accentDark dark:text-brand-accent">120,00 €</span>
+                  </div>
+                </a>
+
+                <!-- Card 2 -->
+                <a href="/tuote/2" class="group p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-brand-accent/50 transition-all block shadow-sm hover:shadow-md">
+                  <div class="h-32 rounded-xl bg-slate-200 dark:bg-slate-800 border border-black/5 dark:border-white/5 flex items-center justify-center text-slate-400 mb-3 relative overflow-hidden">
+                    <i data-lucide="gavel" class="w-10 h-10"></i>
+                    <span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[9px] font-bold">HUUTOKAUPPA</span>
+                  </div>
+                  <div class="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-brand-accentDark dark:group-hover:text-brand-accent transition-colors">Pokémon Charizard PSA 9</div>
+                  <div class="flex justify-between items-center mt-2 text-xs">
+                    <span class="text-slate-500 text-[10px]">Aikaa 12m</span>
+                    <span class="font-mono font-bold text-slate-900 dark:text-white">450,00 €</span>
+                  </div>
+                </a>
+
+                <!-- Card 3 -->
+                <a href="/live/1" class="group p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-red-500/50 transition-all block shadow-sm hover:shadow-md">
+                  <div class="h-32 rounded-xl bg-red-100 dark:bg-red-950/20 border border-red-500/20 flex items-center justify-center text-red-500 mb-3 relative overflow-hidden">
+                    <i data-lucide="tv" class="w-10 h-10 animate-pulse"></i>
+                    <span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-red-500 text-white text-[9px] font-bold tracking-wider uppercase">LIVE NYT</span>
+                  </div>
+                  <div class="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-red-500 transition-colors">RetroPelit Perjantai-Live</div>
+                  <div class="flex justify-between items-center mt-2 text-xs">
+                    <span class="text-slate-500 text-[10px]">142 katsojaa</span>
+                    <span class="text-red-500 font-bold text-[10px]">Katso &rarr;</span>
+                  </div>
+                </a>
+
+                <!-- Card 4 -->
+                <a href="/tuote/4" class="group p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-brand-accent/50 transition-all block shadow-sm hover:shadow-md">
+                  <div class="h-32 rounded-xl bg-slate-200 dark:bg-slate-800 border border-black/5 dark:border-white/5 flex items-center justify-center text-slate-400 mb-3 relative overflow-hidden">
+                    <i data-lucide="watch" class="w-10 h-10"></i>
+                    <span class="absolute top-2 left-2 px-2 py-0.5 rounded bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[9px] font-bold">TULOSSA</span>
+                  </div>
+                  <div class="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-brand-accentDark dark:group-hover:text-brand-accent transition-colors">Vintage Omega Seamaster</div>
+                  <div class="flex justify-between items-center mt-2 text-xs">
+                    <span class="text-slate-500 text-[10px]">Tänään 20:00</span>
+                    <span class="text-slate-700 dark:text-slate-300 font-medium text-[10px]">Ennakko &rarr;</span>
+                  </div>
+                </a>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. PRICING & SELLER VALUE -->
+    <section id="myy" class="py-20 border-y border-black/5 dark:border-white/5 bg-slate-100/70 dark:bg-brand-surface/40 backdrop-blur-md relative">
+      <div class="max-w-7xl mx-auto px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          
+          <div class="reveal-on-scroll lg:col-span-7 space-y-6">
+            <div class="text-brand-accentDark dark:text-brand-accent text-xs font-bold uppercase tracking-[0.2em]">Avoimet & Reilut Ehdot</div>
+            <h2 class="font-display font-bold text-3xl sm:text-5xl text-slate-900 dark:text-white tracking-tight">Myy ilman turhia kiinteitä kuluja.</h2>
+            <p class="text-slate-600 dark:text-slate-400 text-base leading-relaxed max-w-xl">
+              Habahubissa et maksa mitään tuotteiden listaamisesta tai tilin ylläpidosta. Maksat pienen komission vasta silloin, kun tuote oikeasti menee kaupaksi.
+            </p>
+
+            <div class="pt-4 grid grid-cols-2 gap-6 max-w-md">
+              <div class="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-black/5 dark:border-white/5 shadow-sm">
+                <div class="text-3xl font-display font-extrabold text-slate-900 dark:text-white">0 €</div>
+                <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">Kuukausi & Listaus</div>
+              </div>
+              <div class="p-5 rounded-2xl bg-white dark:bg-white/[0.02] border border-black/5 dark:border-white/5 shadow-sm">
+                <div class="text-3xl font-display font-extrabold text-brand-accentDark dark:text-brand-accent">3.5 %</div>
+                <div class="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-1">Myyntiprovisio</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="reveal-on-scroll lg:col-span-5 p-1.5 rounded-[2rem] bg-black/[0.03] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 shadow-lg">
+            <div class="doppelrand-core p-8 rounded-[calc(2rem-0.375rem)] bg-white dark:bg-brand-surface space-y-6">
+              <h3 class="font-display font-bold text-xl text-slate-900 dark:text-white">Hinnoittelun Katto</h3>
+              
+              <div class="space-y-4">
+                <div class="flex justify-between items-center text-xs border-b border-black/5 dark:border-white/5 pb-3">
+                  <span class="text-slate-500 dark:text-slate-400 font-medium">Listausmaksu</span>
+                  <span class="font-mono font-bold text-slate-900 dark:text-white">0,00 €</span>
+                </div>
+                <div class="flex justify-between items-center text-xs border-b border-black/5 dark:border-white/5 pb-3">
+                  <span class="text-slate-500 dark:text-slate-400 font-medium">Kuukausimaksu</span>
+                  <span class="font-mono font-bold text-slate-900 dark:text-white">0,00 €</span>
+                </div>
+                <div class="flex justify-between items-center text-xs border-b border-black/5 dark:border-white/5 pb-3">
+                  <span class="text-slate-500 dark:text-slate-400 font-medium">Provisio myynnistä</span>
+                  <span class="font-mono font-bold text-brand-accentDark dark:text-brand-accent">3,5 %</span>
+                </div>
+                <div class="flex justify-between items-center text-xs pt-2">
+                  <span class="text-slate-900 dark:text-white font-bold">Maksimiprovisio per myynti</span>
+                  <span class="font-mono font-extrabold text-lg text-brand-accentDark dark:text-brand-accent">Enintään 35 €</span>
+                </div>
+              </div>
+
+              <a href="/profiili?action=uusi-kohde" class="group w-full inline-flex items-center justify-between px-6 py-3.5 bg-slate-900 dark:bg-white text-white dark:text-brand-bg font-extrabold text-xs rounded-full transition-all duration-300 hover:bg-brand-accent dark:hover:bg-brand-accent hover:text-brand-bg shadow-md">
+                <span>Aloita Myynti Profiilissasi</span>
+                <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. FOOTER -->
+    <footer class="py-16 border-t border-black/10 dark:border-white/5 bg-slate-100/90 dark:bg-brand-surface/60 text-xs text-slate-600 dark:text-slate-400 relative">
+      <div class="max-w-7xl mx-auto px-6 lg:px-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-black/10 dark:border-white/5">
+          
+          <div class="lg:col-span-2 space-y-4">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-brand-accent/20 flex items-center justify-center text-brand-accent font-bold text-sm">
+                H
+              </div>
+              <span class="font-display font-extrabold text-lg text-slate-900 dark:text-white tracking-tight">Habahub</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-400 max-w-sm leading-relaxed">
+              Suomen modernein markkinapaikka. Osta suoraan, osallistu jännittäviin huutokauppoihin tai seuraa ja myy livenä.
+            </p>
+            <div class="flex items-center gap-3 pt-2">
+              <a href="#" class="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-brand-accent transition-colors"><i data-lucide="instagram" class="w-4 h-4"></i></a>
+              <a href="#" class="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-brand-accent transition-colors"><i data-lucide="facebook" class="w-4 h-4"></i></a>
+              <a href="#" class="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-brand-accent transition-colors"><i data-lucide="twitter" class="w-4 h-4"></i></a>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Kaupankäynti</div>
+            <ul class="space-y-2 font-medium">
+              <li><a href="#selaa" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Selaa tuotteita</a></li>
+              <li><a href="#huutokaupat" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Avoimet huutokaupat</a></li>
+              <li><a href="#live" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Live-lähetykset</a></li>
+              <li><a href="/profiili?action=uusi-kohde" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Laita kohde myyntiin</a></li>
+            </ul>
+          </div>
+
+          <div class="space-y-3">
+            <div class="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Käyttäjätili</div>
+            <ul class="space-y-2 font-medium">
+              <li><a href="/profiili" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Oma profiili</a></li>
+              <li><a href="/profiili?tab=kohteet" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Omat myynnit & huudot</a></li>
+              <li><a href="/profiili?tab=asetukset" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Tilin asetukset</a></li>
+              <li><a href="/kirjaudu" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Kirjaudu sisään / Rekisteröidy</a></li>
+            </ul>
+          </div>
+
+          <div class="space-y-3">
+            <div class="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">Tieto & Tuki</div>
+            <ul class="space-y-2 font-medium">
+              <li><a href="#myy" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Myyjän hinnasto (3,5 %)</a></li>
+              <li><a href="/ohjeet" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Käyttöohjeet & UKK</a></li>
+              <li><a href="/ehdot" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Käyttöehdot</a></li>
+              <li><a href="/tietosuoja" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors">Tietosuojaseloste</a></li>
+              <li><a href="/tuki" class="hover:text-brand-accentDark dark:hover:text-brand-accent transition-colors font-bold text-brand-accentDark dark:text-brand-accent">Ota yhteyttä tukeen</a></li>
+            </ul>
+          </div>
+
+        </div>
+
+        <div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 font-medium">
+          <div>
+            &copy; 2026 Habahub. Kaikki oikeudet pidätetään.
+          </div>
+          <div class="flex items-center gap-4 text-slate-500 dark:text-slate-400">
+            <span class="flex items-center gap-1.5"><i data-lucide="shield-check" class="w-4 h-4 text-brand-accentDark dark:text-brand-accent"></i> Turvalliset verkkomaksut</span>
+            <span>•</span>
+            <span>Stripe / Paytrail -integraatio</span>
+          </div>
+        </div>
+
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    function updateThemeIcon(isDark) {
+      const btn = document.getElementById('themeToggleBtn');
+      btn.innerHTML = isDark 
+        ? '<i data-lucide="sun" class="w-4 h-4"></i>' 
+        : '<i data-lucide="moon" class="w-4 h-4"></i>';
+      lucide.createIcons();
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      
+      if (isDark) {
+        html.classList.remove('dark');
+        localStorage.setItem('habahub-theme', 'light');
+        updateThemeIcon(false);
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('habahub-theme', 'dark');
+        updateThemeIcon(true);
+      }
+    }
+
+    if (localStorage.getItem('habahub-theme') === 'light') {
+      document.documentElement.classList.remove('dark');
+      updateThemeIcon(false);
+    } else {
+      updateThemeIcon(true);
+    }
+
+    let currentLang = 'FI';
+    function toggleLanguage() {
+      const btn = document.getElementById('langToggleBtn');
+      currentLang = currentLang === 'FI' ? 'EN' : 'FI';
+      btn.innerText = currentLang;
+    }
+
+    // Scroll Reveal Observer
+    document.addEventListener('DOMContentLoaded', () => {
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+          }
+        });
+      }, observerOptions);
+
+      document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+    });
+  </script>
+</body>
+</html>
