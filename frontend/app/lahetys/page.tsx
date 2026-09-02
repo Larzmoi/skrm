@@ -50,15 +50,21 @@ function QueueProductModal({ product, onClose }: { product: Product; onClose: ()
   )
 }
 
-function BackButton({ overlay }: { overlay?: boolean }) {
+// Vain esikatselu-/asetusnäkymässä (ei vielä livenä) — poistettu tarkoituksella itse
+// live-näkymästä 2026-09-02, ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02" kohta 1: omistaja
+// painoi tätä toistuvasti vahingossa Jono-paneelia käyttäessään ja putosi pois streamista.
+// "Lopeta"-nappi yläpalkissa on jo olemassa tarkoituksellista poistumista varten kun ollaan
+// livenä. Esikatselussa ei ole vielä käynnissä olevaa streamia jota vahingossa katkaista, ja
+// LUKITTU täysnäkymä-sääntö vaatii jonkin paluureitin koska dashboard-kehys on piilotettu.
+function BackButton() {
   return (
     <Link
       href="/dashboard"
       style={{
-        position: overlay ? 'absolute' : 'fixed', top: 14, left: 14, zIndex: 50,
+        position: 'fixed', top: 14, left: 14, zIndex: 50,
         width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: overlay ? 'rgba(0,0,0,0.55)' : DARK_PANEL_BG, border: overlay ? 'none' : `1px solid ${DARK_BORDER}`,
-        color: overlay ? '#fff' : DARK_TEXT, fontSize: 16, textDecoration: 'none', backdropFilter: overlay ? 'blur(8px)' : undefined,
+        background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`,
+        color: DARK_TEXT, fontSize: 16, textDecoration: 'none',
       }}
       title="Takaisin"
     >←</Link>
@@ -1229,10 +1235,9 @@ export default function LahetysPage() {
       {/* ===== VIDEO-ALUE: 100% mobiilissa, ~74% desktopilla ===== */}
       <div style={{ position: 'relative', flex: isMobile ? '1 1 auto' : '0 0 75%', minHeight: 0, background: '#080C16' }}>
         <HlsPreview wsUrl={previewWsUrl} token={previewToken} onStats={setPreviewStats} />
-        <BackButton overlay />
 
         {/* Yläpalkki-overlay: tila + kesto/katsojat/myynti + toiminnot, videon YLÄREUNAN päällä */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', padding: isMobile ? '10px 10px 26px 54px' : '12px 16px 30px 60px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', padding: isMobile ? '10px 10px 26px 10px' : '12px 16px 30px 16px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
             {showStatus === 'LIVE' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
