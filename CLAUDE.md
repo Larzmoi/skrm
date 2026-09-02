@@ -121,6 +121,62 @@ Nykyinen `KUNTOLUOKAT` (`dashboard/tuotteet/page.tsx`) on geneerinen 5-portainen
 
 **Kiireellisyys:** kaksi myyjää (veljekset) valmistautuvat listaamaan yli 200 000€ arvosta tavaraa heti kun sivu on valmis — väärä kuntojärjestelmä nyt tarkoittaisi kaiken datan uudelleenkäsittelyä myöhemmin, joten tämä kannattaa korjata ennen kuin he aloittavat.
 
+## Admin-käyttäjähallinta 2026-09-02 — 🟡 FRONTEND-POHJA VALMIS (toinen AI), INTEGROINTI + BACKEND TEKEMÄTTÄ
+
+**Päivitys 2026-09-02:** ChatGPT teki pyydetyn frontend-pohjan (`frontend/app/admin/AdminUserManagement.tsx` + `INTEGRATION.md` projektin juuressa) — **ei koskenut backendiin/Prismaan/git-historiaan**, pelkkä komponentti + integrointiohje, täsmälleen niin kuin pyydettiin. Tarkisti nykyisen admin-sivun/API:n/teeman/skeeman ensin, noudattaa jo olemassa olevia konventioita (C.xxx, t.xxx, `adminApi`-kutsutyyli, huomasi `PasswordResetToken`-mallin olevan jo olemassa).
+
+**Mitä INTEGRATION.md sisältää:** täydellinen kytkentäohje — stub-funktiot (`searchUsers`/`updateUser`/`banUser`/`removeBan`/`sendPasswordReset`) jotka pitää kytkeä oikeisiin `adminApi`-kutsuihin, tarkka backend-reittiodotus (`PATCH /admin/users/:id`, `DELETE /admin/users/:id/ban`, `POST /admin/users/:id/send-password-reset`), tarkka odotettu käyttäjäobjekti-muoto, tarvittavat i18n-avaimet (`admin.userManagementTitle` jne., n. 25 kpl), ja Prisma-/backend-suunnitelma joka täsmää jo aiemmin tänne kirjattuun spesifikaatioon.
+
+**Seuraava askel: VS Coden Claude integroi tämän + rakentaa backendin** (ks. kehote jonka omistaja lähettää seuraavaksi).
+
+## Admin-käyttäjähallinta 2026-09-02 — päätetty, ei vielä toteutettu
+
+Laajennetaan olemassa olevaa `/admin`-käyttäjälistaa (`backend/src/routes/admin.ts`: `GET /users`, `POST /users/:id/ban`) kunnolliseksi käyttäjähallintanäkymäksi — "kevyempi WP-hallintapaneeli" -tyylisesti, tarkoitettu sivuston adminien/ylläpitäjien käyttöön (ei tavallisille käyttäjille näkyvä).
+
+**✅ Vahvistettu omistajalta 2026-09-02: `canStream` oletuksena `false` KAIKILLE** (uusille ja nykyisille käyttäjille) — rajoitettu striimausoikeus alkuun, admin hyväksyy erikseen kunkin myyjän manuaalisesti. Striimausoikeus on yksinkertainen päällä/pois-kytkin, ei porrastettua tasoa.
+
+**Sivuvaikutus, hyvä huomata:** tämä sama kytkin toimii myös palvelinkapasiteetin hallintakeinona avauspäivänä — omistaja on huolissaan siitä riittääkö nykyinen Hetzner-palvelin (yksi CX23-VPS, ks. "Videostriimaus"-osio aiemmin) jos moni käyttäjä yrittäisi striimata yhtä aikaa heti julkaisussa. Koska `canStream` on manuaalisesti admin-hallittu, omistaja voi hyväksyä vain muutaman luotetun myyjän kerrallaan ensimmäisinä päivinä, seurata palvelimen kuormitusta (CPU/kaista LiveKitin puolelta), ja laajentaa hyväksyttyjen myyjien joukkoa asteittain sitä mukaa kun luottamus kapasiteettiin kasvaa — ei tarvitse päättää etukäteen tarkkaa "montako samanaikaista striimiä palvelin kestää" -lukua, koska pääsyä voi säädellä käytännössä yksi kerrallaan.
+
+**Uudet kentät `User`-malliin:**
+- `canStream` (boolean, oletus `false`) — saa aloittaa live-lähetyksen
+- `customCommissionRate` (valinnainen, esim. `3.0` = 3,0% oletuksen 3,5% sijaan)
+- `customCommissionCap` (valinnainen, esim. `25` = 25€ katto oletuksen 35€ sijaan)
+
+**"Superuser"-konsepti:** ei välttämättä oma tietokantakenttä — riittää admin-käyttöliittymän pikanappi **"Aseta superuser-arvot"** joka täyttää `customCommissionRate=3.0` ja `customCommissionCap=25` yhdellä klikkauksella (nopea preset kahden erillisen syöttökentän manuaalisen täytön sijaan). Harkitse erillistä `isSuperuser`-lippua vain jos myöhemmin tarvitaan suodattaa/raportoida "keitä superusereita on" erikseen komissioarvoista riippumatta.
+
+**Admin-käyttöliittymän toiminnot per käyttäjä:**
+1. Kytkin: "Saa striimata" (canStream päälle/pois)
+2. Kaksi syöttökenttää: mukautettu komissio-% ja -katto (tyhjä = käyttää oletusta 3,5%/35€) + "Aseta superuser-arvot" -pikanappi
+3. Banni-hallinta (laajenna olemassa olevaa `/ban`-reittiä): aseta/poista banni manuaalisesti, näytä nykyinen banni-tila ja historia
+4. **"Lähetä salasanan palautus"** -nappi — admin voi laukaista salasananpalautus-sähköpostin käyttäjän puolesta (käyttää samaa Resend-pohjaista `/auth/forgot-password`-mekanismia jo suunniteltu, ks. "KRIITTINEN LÖYDÖS — salasanan palautusta ei ole" -osio, jos se on jo toteutettu — muuten rakennetaan yhdessä)
+5. Haku/suodatus käyttäjälistassa (nimi/sähköposti/käyttäjätunnus)
+
+**Backend-muutokset:**
+- Show-luontireitti (`POST /shows`): tarkista `canStream === true` ennen sallimista, muuten 403
+- Komissiolaskenta (`orders.ts` tms.): tarkista ensin myyjän `customCommissionRate`/`customCommissionCap`, käytä oletusta (3,5%/35€) vain jos kumpikaan ei ole asetettu
+- Uusi admin-only reitti salasanan palautuksen laukaisemiseen käyttäjän puolesta
+
+## Kuntosuodattimen kaksi puutetta 2026-09-02 (löydettävyys + monivalinta)
+
+Vahvistettu koodista (`frontend/components/CategorySidebar.tsx`):
+
+1. **Kuntosuodatin näkyy vain kun `activeTyyppi === 'irtokortit'` on jo valittuna** (`showConditionFilter`-ehto, rivi 29). Selaa-sivun "Kaikki"-välilehdellä (ei syvemmällä tyyppi-tasolla) suodatinta ei näy ollenkaan — käyttäjä ei löydä sitä, koska ei tiedä että pitää ensin valita irtokortit-tyyppi jostain muualta. **Korjaus: paranna löydettävyyttä** — esim. näytä tyyppi-valitsin (slabit/sealed/irtokortit) selvästi Keräilykortit-kategorian alla aina kun kategoria on valittu, ei vasta kun on jo syvällä navigoinut sinne, jotta kuntosuodatin on helposti tavoitettavissa.
+
+2. **Kuntosuodatin sallii vain yhden valinnan kerrallaan** (rivi 75/132: `setActiveCondition!(activeCondition === k.id ? '' : k.id)` — yksittäinen string, ei taulukko). **Muutos: monivalinta** — käyttäjän pitää voida valita esim. M+NM+EX samaan aikaan (OR-suodatus, näytä tuotteet jotka täsmäävät MIHIN TAHANSA valituista kunnoista). Vaatii `activeCondition`-tilan muuttamisen taulukoksi (`string[]`) yksittäisen stringin sijaan, ja suodatuslogiikan (`selaa/page.tsx` rivi 85) päivittämisen `includes()`-tyyliseksi tarkistukseksi tasan-vertailun sijaan.
+
+3. **"Muiden tuotteiden" (ei-irtokortit) kuntoa ei voi suodattaa ollenkaan tällä hetkellä.** Tämä on tarkoituksenmukaista `sealed`-tyypille (ei kuntoa, ks. aiempi päätös), mutta jos on muita kategorioita/tyyppejä jotka käyttävät geneeristä 5-portaista asteikkoa (uusi/erinomainen/hyvä/tyydyttävä/käytetty), niillekin pitäisi näyttää OMA kuntosuodattimensa samalla periaatteella kuin irtokorteille — vain eri asteikolla. Laajenna `showConditionFilter`-logiikka kattamaan myös nämä, näyttäen oikean asteikon (`CARDMARKET_KUNTOLUOKAT` vs. geneerinen) sen mukaan mikä tyyppi/kategoria on kyseessä.
+
+## Neljä uutta löydöstä 2026-09-02 (footer, luottamuspaneeli, mainosbanneri, etusivun CTA)
+
+1. **Footer yhä liian täynnä — rajaa vain neljään kolumniin + copyright.** Vahvistettu koodista (`components/layout/Footer.tsx`): nykyinen footer sisältää 4-kolumnin linkkiruudukon (Yritys/Ohjeet/Lakitekstit/Seuraa) LISÄKSI uutiskirje-tilauslomakkeen, palkkio/sitovuus/kielletyt-tavarat-rivin, JA erillisen brändinimi+luottamusbadge-rivin (Habahub-ympyrä + "Turvallinen"/"Sitovat huudot"/"Todennetut käyttäjät"). **Päätös: jätä vain 4-kolumnin linkkiruudukko + copyright-rivi (`© 2026 Habahub · Y-tunnus...`).** Kommentoi pois (älä poista kokonaan koodista, kommentoi selvästi merkiten miksi): uutiskirje-osio, palkkio/sitovuus/kielletyt-rivi, brändinimi+badge-rivi.
+
+2. **Luottamuspaneelin "ei peruutuksia" -teksti poistetaan/muokataan.** Vahvistettu koodista (`frontend/lib/i18n/fi.ts` rivi 126, avain `binding`): "Kaikki kaupat sitovia — ei peruutuksia". **Muokkaa/poista "ei peruutuksia" -osa** — todennäköisesti ristiriidassa sen kanssa että "Hyvitä"-toiminto on oikeasti olemassa ja toimii (ks. aiempi kohta 14, "Iso testauskierros"-osiosta, joka on yhä auki omistajan päätöstä odottamassa). Jos hyvitys on mahdollinen tietyissä tilanteissa, "ei peruutuksia" on harhaanjohtava lupaus. **Odottaa samaa omistajan päätöstä kuin kohta 14** ("Hyvitä"-napin liiketoimintalogiikka) — käsittele nämä kaksi yhdessä, koska ne liittyvät samaan kysymykseen.
+
+3. **Etusivun mainosbanneri ("Habahub suosittelee") menee päällekkäin "Viikon kohokohta" -osion kanssa.** Vahvistettu koodista: `AdBanner`-komponentti (`frontend/app/page.tsx`, `t.home.adLabel`-badge oikeassa yläkulmassa, `position:absolute`) on äskettäin lisätty (commit 5a54451). Tarkista layoutin järjestys/marginaalit `AdBanner`:n ja "Viikon kohokohta" -elementin välillä, korjaa päällekkäisyys.
+   - **Lisätoive: helppo tapa asettaa/vaihtaa mainossisältöä ilman koodin kirjoittamista.** Nykyinen `AdBanner` on kovakoodattu (`t.home.ad*`-tekstit i18n-tiedostossa). Harkitse kevyttä ratkaisua — esim. yksinkertainen admin-lomake joka tallentaa mainoksen otsikon/tekstin/linkin tietokantaan (uusi pieni `Promo`/`AdSlot`-taulu), jota `AdBanner` lukee sen sijaan että teksti olisi kiinni i18n-tiedostoissa. Ei tarvitse rakentaa täyttä mainosmyyntijärjestelmää, riittää että omistaja voi itse vaihtaa sisällön ilman VS Coden Claudea joka kerta.
+
+4. **Etusivun hero-osion "Ryhdy myyjäksi" -nappi (`t.home.heroBecomeSeller`, rivi 240) on turha, poista.** Sama viesti toistuu heti alempana omana korostettuna korttinaan ("Ei listaus- eikä kuukausimaksuja... Ryhdy myyjäksi →"). Poista hero-osion nappi, jätä vain "Selaa tuotteita" hero-osioon — alempi kortti hoitaa myyjäksi-ryhtymisen kutsun paremmin, omalla kontekstillaan (3,5%/max35€, ei kuukausimaksuja).
+
 ## Iso testauskierros 2026-09-01 (mobiili, tuotanto) — ✅ kohdat 1,2,3,6,7,8,9,10,11,12,13 TEHTY, 15 aloitettu, 4/5/14 odottaa omistajaa
 
 **Tehty ja deployattu 2026-09-01:**
@@ -700,7 +756,37 @@ pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapaut
    - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
 4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
 
+### ⚠️ PÄIVITYS 2026-09-02 — Postin oma tuki vahvisti: käytetään API v2:ta, ei v1:tä (ohje saatu suoraan Tomilta, Postin LogEDI-tiimistä)
+
+Tom kysyi sähköpostitse suoraan "Olihan kyseessä OmaPosti Pro API versio 2?" — vahvistettu omalla erillisellä ohjedokumentilla. **Tämä muuttaa useita asioita yllä olevasta v1-tutkimuksesta:**
+
+1. **Autentikointi muuttuu OAuth2:ksi, EI enää yksinkertainen API-avain kuten v1:ssä.** Se `pro.posti.fi`:stä luotu API-avain (ks. "Eteneminen 2026-08-26" alla) oli v1:tä varten — **v2 vaatii uuden `clientId`/`clientSecret`-parin**, haetaan **`developer.posti.fi`:stä**, ei `pro.posti.fi`:stä:
+   - Kirjaudu kehittäjäportaaliin → "Application Account Users" → "Add new application account user"
+   - Ota "Enabled" käyttöön, anna kuvaava nimi
+   - **Valitse API-rooli `shippingapi`** (tärkeä, väärä rooli = ei toimi)
+   - Valitse organisaation attribuutit (kontrolloi mitä sopimuksia — todennäköisesti 691317/Muistikuva Oy)
+   - Tallenna `clientId`+`clientSecret` heti, näytetään vain kerran
+2. **Token-haku:** `POST https://gateway-auth.posti.fi/api/v1/token` (`grant_type=client_credentials`+`client_id`+`client_secret`, `x-www-form-urlencoded`) → `access_token` (Bearer, vanhenee 3600s/1h, hae uusi tarvittaessa)
+3. **Endpoint muuttuu v2:ksi:** `POST https://gateway.posti.fi/shippingapi/api/v2/shipping/order` (huomaa `/v2/` eikä `/v1/`), `Authorization: Bearer <access_token>` (ei enää suoraan API-avainta headerissa)
+4. **⚠️ TÄRKEÄ, KRIITTINEN LÖYDÖS: EI TESTIYMPÄRISTÖÄ vielä ollenkaan v2:lle.** Sama tilanne kuin aiemmin epäiltiin Sending Code API:sta, mutta nyt vahvistettu myös itse shipping-order-API:lle: *"Testiympäristö ei ole vielä saatavilla."* **Ratkaisu Postin oman ohjeen mukaan: testataan suoraan TUOTANNOSSA "näytelähettäjillä"** (demo senders) — nämä eivät aiheuta laskutusta ellei niitä fyysisesti viedä Postiin lähetettäväksi. **Vaatii erityistä varovaisuutta:** käytä oikeita sopimusnumeroita mutta selvästi merkittyjä testidata-arvoja (esim. sender/receiver-nimissä "TESTI"), tee ensin pieniä määriä, älä vahingossa käynnistä oikeaa fyysistä lähetystä ennen kuin ollaan varmoja että kaikki toimii.
+5. **Return Shipment -ero (tärkeä muistaa myöhemmin, ei kiireellinen nyt):** v1 pitää lähettäjän/vastaanottajan samana, **v2 VAIHTAA ne automaattisesti** SmartShip-tyyliin. Jos joskus rakennetaan palautuslähetys (esim. service-koodi PO2108), pitää asettaa lähettäjä=vastaanottaja=alkuperäisen lähetyksen mukaisesti, koska v2 kääntää ne itse.
+6. **Rajoitukset:** rate limit 50 pyyntöä/s per IP, PDF saatavilla 1h luomisesta, merkistötuki vain länsimainen+kyrillinen (ei aasialaisia merkkejä osoitetarroissa).
+7. **Hyödylliset palvelukoodit listattu suoraan:** `PO2103` (Postipaketti), `PO2102` (Express-paketti), `PO2104` (kotiinkuljetus), `PO2108` (palautuslähetys), `POF1` (rahti). Tämä nopeuttaa aiemmin auki ollutta "valitse palvelukoodi palvelumatriisista" -tehtävää — **PO2103 on todennäköisesti oikea valinta** tavalliselle pakettilähetykselle noutopisteeseen (vahvistaa myös PDF-esimerkki dokumentissa).
+8. **Sending Code API ei edelleenkään mainita tässäkään v2-dokumentissa** — vahvistaa aiemman epäilyn että se on täysin erillinen, oma dokumenttinsa (Tomin linkkaama `sending-code-api-2026-04`), käytetään v2-shipping-order-API:n `parcelNo`:n päällä erikseen. Kysymys Postille pysyy samana kuin aiemmin.
+
+**Päivitetty tarkistuslista ennen koodausta:**
+- 🟡 **OAuth2 clientId/clientSecret luotu `developer.posti.fi`:ssä 2026-09-02** (rooli `shippingapi`, tallennettu turvallisesti .env:ään, EI tähän tiedostoon) — **mutta EI VIELÄ KÄYTTÖVALMIS, kaksi asiaa puuttuu:**
+  1. Käyttäjätili on tilassa `enabled: false` — pitää kytkeä päälle `developer.posti.fi`:n hallintanäkymässä
+  2. Kaikki organisaatioattribuutit (asiakasnumero 956632, logistiikkasopimus 691317, laskutusosoitenumero 4176528, kumppaninumero 1043828) ovat tilassa `selected: false` — pitää käydä valitsemassa erikseen ainakin logistiikkasopimus 691317 samasta näkymästä ennen kuin kutsut toimivat
+  3. Vahvistettu `businessId`-muoto Postin järjestelmässä: `FI34973476` (Y-tunnus FI-etuliitteellä, ei väliviivaa) — käytä tätä täsmällistä muotoa jos jokin kenttä vaatii sen
+- ✅ Logistiikkasopimusnumero 691317 on jo tiedossa, käytetään samaa
+- ✅ Palvelukoodi todennäköisesti `PO2103` (vahvista silti Postilta lopullisesti)
+- ⬜ Lue Sending Code API v2:n oma dokumentaatio (`developer.posti.com/api-catalogue/2026-04/document/sending-code-api-2026-04`) ennen koodausta
+- ⬜ Suunnittele testausstrategia "näytelähettäjillä" tuotannossa, koska erillistä sandboxia ei ole
+
 ### ✅ VAHVISTUS 2026-08-26 — löytyi oikea API suoraan Postin virallisesta PDF-dokumentaatiosta ("OmaPosti Pro API", v1.0, 28.3.2024)
+
+**⚠️ HUOM: alla oleva koskee API v1:tä, joka EI OLE se versio jota käytetään — ks. yllä oleva "PÄIVITYS 2026-09-02" -osio v2:sta, joka on oikea. Säilytetty alla vain historiallisena referenssinä/vertailuna, älä koodaa tämän osion mukaan.**
 
 Tämä on todennäköisesti vastaus siihen avoimeen kysymykseen #1 (mikä API luo yksittäisen C2C-lähetyksen) — **OmaPosti Pro API**, uusi Postin tilauskanava paketti-/kirje-/rahtituotteille, EI GLUE/dropshipping-järjestelmä. Tallentaa tiedot suoraan Postin lähetysrekisteriin, palauttaa osoitetarrat PDF-muodossa.
 
@@ -1659,6 +1745,25 @@ Navbarissa on jo ylätason navigointi Selaa/Huutokaupat/Live. Selaa-sivun sisäl
 ### Tekemättä / rajattu pois tarkoituksella
 - Ei UI:ta admin-roolin myöntämiseen toiselle käyttäjälle — vain suora tietokantamuokkaus, koska ei vielä henkilökuntaa (alkuperäisen spesifikaation mukaista)
 - Telegram-hälytys ei lähde oikeasti ilman bot-tokenia — käyttäjän pitää luoda botti ja antaa `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` `.env`:iin
+
+### Laajennus 2026-09-02 — Käyttäjähallinta (canStream, mukautettu komissio, bannin poisto, salasanan palautus admin-toimesta)
+
+Frontend-pohja (`AdminUserManagement.tsx` + `INTEGRATION.md`) tuli valmiiksi rakennettuna toisesta kanavasta (ks. "Työskentelytapa"-osio) — kytketty oikeaan backendiin 8-vaiheisen INTEGRATION.md-suunnitelman mukaan, jokainen backend-reitti curl-testattu erikseen ennen frontend-kytkentää.
+
+**Tehty:**
+- `User`-malliin kolme uutta kenttää: `canStream Boolean @default(false)`, `customCommissionRate Float?`, `customCommissionCap Float?`
+- `GET /admin/users` laajennettu palauttamaan nämä + `activeBan` (uusin Ban jossa `endsAt > now`)
+- `PATCH /admin/users/:id` — osittainen päivitys (canStream/customCommissionRate/customCommissionCap), validoi numerot ei-negatiivisiksi/äärellisiksi tai null
+- `DELETE /admin/users/:id/ban` — asettaa aktiivisimman bannin `endsAt`:n menneisyyteen (poistaa bannin ennenaikaisesti)
+- `POST /admin/users/:id/send-password-reset` — käyttää samaa `createAndSendPasswordResetToken()`-apufunktiota (`backend/src/lib/passwordReset.ts`, eriytetty jaettavaksi) kuin käyttäjän oma `/auth/forgot-password`
+- **`POST /shows` tarkistaa nyt `User.canStream === true` ennen Show-luontia (403 muuten)** — striimausoikeus on siis oletuksena POIS PÄÄLTÄ kaikilta, admin myöntää sen käyttäjähallintapaneelista
+- `computeCommissionCents()` (`backend/src/lib/paytrail.ts`) ottaa valinnaiset `customRatePercent`/`customCapEuros`-parametrit — `POST /orders/:id/pay` hakee nämä myyjän `User`-riviltä juuri ennen Paytrail-maksupyynnön muodostamista (ei koskaan luoteta frontendiltä tulevaan arvoon), null → oletus 3,5%/35€
+- **Tietoinen rajaus: hyvitysreitti (`POST /orders/:id/refund`) EI käytä mukautettua komissiota** — alkuperäistä maksuhetken komissioprosenttia ei tallenneta per-tilaus, joten jos myyjän mukautettu komissio muuttuu maksun ja hyvityksen välissä, hyvitys laskisi eri komission kuin mitä oikeasti veloitettiin. Jätetty tietoisesti korjaamatta, ei arvattu — vaatisi `Order`-riville tallennetun toteutuneen komissioprosentin jos halutaan korjata oikein.
+- Frontend: `frontend/app/admin/page.tsx` — vanha `UsersTab` (pelkkä haku+bannaus) korvattu `AdminUserManagement`-komponentilla kokonaan (ei rinnakkain, ei kahta eri käyttäjähallintanäkymää)
+- ~19 uutta i18n-avainta `admin`-nimiavaruuteen kaikissa kolmessa kielessä (fi/en/sv)
+- Kaikki backend-reitit curl-testattu yksitellen ennen frontend-kytkentää, sitten typecheck+build+deploy molemmille puolille, `/admin` vahvistettu (307-auth-redirect, sama kuin muutkin suojatut sivut), `/api/products` vahvistettu ettei julkinen puoli rikkoutunut
+
+**⚠️ Migraation sivuvaikutus, korjattu heti käyttöönotossa 2026-09-02:** `canStream @default(false)` vei striimausoikeuden KAIKILTA olemassa olevilta käyttäjiltä, myös niiltä jotka jo striimasivat aktiivisesti. Tarkistettu tuotannosta migraation jälkeen: **michaelbacklund** (yksi CLAUDE.md:n "kaksi myyjää, 200k€ inventaario" -myyjistä, ks. Cardmarket-kuntoluokitus-osio) oli pitänyt kaksi lähetystä samana päivänä (2026-09-02, viimeisin klo 09:14) ennen migraatiota — ilman korjausta hän ei olisi voinut aloittaa seuraavaa lähetystä. **Korjattu heti:** `danielbacklund` + `michaelbacklund` (molemmat Wasadredging-sähköpostilla) myönnetty `canStream=true` oikean `PATCH /admin/users/:id`-reitin kautta (ei suoraa tietokantamuokkausta — testattiin samalla reittiä jota omistaja tulee käyttämään). Larzmoi (omistajan oma ADMIN-tili) oli jo `canStream=true` osana migraatiota, ei itselukitusriskiä. **Kaikki muut käyttäjät (testitilit) pysyvät `canStream=false`:na — oikea oletus, ei aktiivisia myyjiä.**
 
 ### Lisäys 2026-08-07 — käyttäjän ilmianto
 - Alkuperäinen spesifikaatio kattoi vain tuote/live-ilmiannon. Lisätty kolmas `targetType: "user"` — "Ilmianna käyttäjä" -nappi julkisella profiilisivulla (`/u/[username]`), näkyy vain kirjautuneelle käyttäjälle jonka profiili ei ole oma
