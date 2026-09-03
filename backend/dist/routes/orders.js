@@ -270,17 +270,31 @@ router.post('/:id/create-shipment', auth_1.authMiddleware, async (req, res) => {
     catch (e) {
         return res.status(400).json({ error: e.message ?? 'Posti-lähetyksen luonti epäonnistui' });
     }
+    // Sending Code API kytketty 2026-09-04 (uudet API-roolit lisätty tiliin, ks. CLAUDE.md) -
+    // ajetaan HETI lähetyksen luonnin jälkeen samalla trackingNumberilla. Alkuperäinen labelless-
+    // tavoite tarkoittaa että KOODI on ensisijainen tulos, PDF vain varapolku jos koodin haku
+    // epäonnistuu (esim. EDI-data ei ole vielä ehtinyt syntyä Postin puolella) - ei koskaan
+    // molempia yhtä aikaa, sama periaate kuin schema.prisman kommentti jo kuvasi. Ei kaadu koko
+    // reittiä jos koodin haku epäonnistuu - lähetys on jo oikeasti luotu, PDF toimii fallbackina.
+    let sendingCode = null;
+    try {
+        sendingCode = await postiClient.getSendingCode(result.trackingNumber, { testEnvironment: postiClient.POSTI_TEST_MODE });
+    }
+    catch (e) {
+        console.error('[posti] Sending Code -haku epäonnistui, käytetään PDF-tarraa fallbackina:', e.message);
+    }
     const updated = await prisma_1.prisma.order.update({
         where: { id: order.id },
         data: {
             trackingNumber: result.trackingNumber, postiShipmentId: result.shipmentId, pakettikoko,
-            sendingCode: null, // Sending Code API ei vielä kytketty (403, puuttuva tuoterekisteröinti) - aina PDF toistaiseksi
-            labelUrl: result.labelPdfHref ? `/orders/${order.id}/label-pdf` : null,
-            postiLabelHref: result.labelPdfHref,
+            sendingCode,
+            labelUrl: sendingCode ? null : (result.labelPdfHref ? `/orders/${order.id}/label-pdf` : null),
+            postiLabelHref: sendingCode ? null : result.labelPdfHref,
             postiStatus: 'RECEIVED', status: 'SHIPPED', shippedAt: new Date(),
         },
     });
-    await (0, notify_1.notifyUser)(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', 'Osoitetarra on valmis tulostettavaksi', '/ostot');
+    const shippedMessage = sendingCode ? `Lähetyskoodi: ${sendingCode}` : 'Osoitetarra on valmis tulostettavaksi';
+    await (0, notify_1.notifyUser)(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', shippedMessage, '/ostot');
     res.json(updated);
 });
 // GET /orders/:id/label-pdf — striimaa Postin osoitetarran PDF-tavuina. Ei voi olla suora

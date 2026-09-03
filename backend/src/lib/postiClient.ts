@@ -11,10 +11,10 @@
 // LÖYDÖS ohjeesta: OPP API v2 itsessään palauttaa AINA PRINTATTAVAN PDF-osoitetarran
 // (vastauksen prints[].pdf_type: "ADDRESSLABEL", shipment.status: "PRINTED") - EI koskaan
 // suoraan Vinted-tyylistä koodia. TARKENNETTU 2026-09-03 (luettu myös erillinen "Sending Code
-// API.txt" -dokumentti): labelless-tavoite ON silti saavutettavissa, mutta KAHDESSA erillisessä
-// API-kutsussa, ei yhdessä - ks. tiedoston loppuosan `getSendingCode()`, joka toimii tämän
-// luoman trackingNumberin päällä mutta on YHÄ oma, erillinen 403 (puuttuva tuoterekisteröinti,
-// ei sama este kuin gateway secret oli).
+// API.txt" -dokumentti): labelless-tavoite ON saavutettavissa, kahdessa erillisessä API-
+// kutsussa - ks. tiedoston loppuosan `getSendingCode()`. ✅ VAHVISTETTU TOIMIVAKSI 2026-09-04
+// (uudet API-roolit lisätty tiliin, ei enää 403) ja KYTKETTY create-shipment-reittiin - koodi
+// on nyt ensisijainen tulos, PDF vain varapolku jos koodin haku epäonnistuisi.
 
 const POSTI_TEST_MODE = process.env.POSTI_TEST_MODE !== 'false'
 
@@ -171,18 +171,21 @@ export async function fetchLabelPdf(href: string): Promise<Buffer> {
 // mutta kahdessa erillisessä askeleessa (1. luo lähetys OPP v2:lla, 2. hae koodi Sending Code
 // API:lla samalle trackingNumberille) - ei yhdellä kutsulla niin kuin alun perin toivottiin.
 //
-// EI VIELÄ TESTATTU PÄÄSTÄ PÄÄHÄN: nykyiset OAuth2-tunnukset (rooli "shippingapi") EIVÄT
-// sisällä pääsyä tähän - testattu suoraan tuotanto-hostia vasten `x-test-environment: true`
-// -otsikolla (Sending Code API:n oma, dokumentoitu turvallinen testimekanismi - API:lla ei ole
-// erillistä demo-hostia, ks. sen oma "Environments: Production only"), palautti puhtaan
-// `403 Unauthorized`:in suoraan Postin API-tasolta (EI CloudFront-estoa kuten OPP v2:n kanssa,
-// eli pyyntö tunnistettiin mutta hylättiin puuttuvan tuote-oikeuden takia). Sama tilannekuvio
-// kuin Pickup Point -API:lla - vaatii oman erillisen rekisteröinnin developer.posti.com:ssa,
-// ei sisälly automaattisesti "shippingapi"-rooliin.
+// ✅ VAHVISTETTU TOIMIVAKSI 2026-09-04 - omistaja lisäsi kaksi uutta API-roolia ("2026-04" ja
+// "2025-04") olemassa olevaan OAuth-tiliin developer.posti.com:ssa. Sama POSTI_CLIENT_ID/SECRET
+// joka jo oli .env:issä kattaa nyt tämänkin - ei uutta tunnusparia tarvittu. Token-vastauksen
+// posti_fi.targets sisältää nyt myös "2026-04"-kohteen (aiemmin vain "shippingapi"). Testattu
+// sekä `x-test-environment: true`:lla (mockattu koodi) että ilman (todellinen kutsu samalla
+// demo-ympäristössä luodulla trackingNumberilla, `validation:{noEdiCheck:true}` ohitti EDI-
+// tarkistuksen) - molemmat palauttivat 200:n ja kelvollisen koodin. KYTKETTY LIVE-REITTIIN
+// samana päivänä (`POST /orders/:id/create-shipment`, ks. routes/orders.ts) - ei enää käytä
+// `noEdiCheck`-ohitusta livenä, koska juuri luodulla lähetyksellä pitäisi jo olla oikea EDI-data.
 //
 // Käyttää AINA tuotannon POSTI_CLIENT_ID/SECRET:iä (ei POSTI_TEST_MODE-kytkintä), koska tällä
 // API:lla ei ole omaa demo-hostia - turvallinen testaus tehdään `x-test-environment`-otsikolla
 // tuotanto-hostia VASTEN (dokumentoidusti palauttaa mockattua dataa, ei oikeaa backend-dataa).
+// Live-reitti antaa `testEnvironment: POSTI_TEST_MODE` sisään, joten koodi on yhä mockattu niin
+// kauan kuin koko sovellus on testitilassa - vaihtuu oikeaksi vasta kun POSTI_TEST_MODE=false.
 
 const POSTI_SENDING_CODE_TOKEN_URL = 'https://gateway-auth.posti.fi/api/v1/token'
 const POSTI_SENDING_CODE_URL = 'https://gateway.posti.fi/2026-04/labelless'
@@ -212,8 +215,8 @@ interface SendingCodeResponse {
 }
 
 // testEnvironment: true lisää x-test-environment-otsikon (palauttaa mockattua dataa oikeasta
-// tuotanto-hostista käsin, ks. yllä) - käytä tähän AINA kunnes tuote-oikeus on vahvistettu,
-// älä koskaan kutsu ilman tätä ennen kuin joku on eksplisiittisesti testannut oikean vastauksen.
+// tuotanto-hostista käsin, ks. yllä) - live-reitti antaa tämän POSTI_TEST_MODE:n mukaan, joten
+// koodi pysyy mockattuna niin kauan kuin koko sovellus on testitilassa.
 export async function getSendingCode(trackingNumber: string, opts: { testEnvironment?: boolean; noEdiCheck?: boolean } = {}): Promise<string> {
   const token = await getSendingCodeAccessToken()
   const res = await fetch(POSTI_SENDING_CODE_URL, {
