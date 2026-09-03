@@ -7,6 +7,37 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Esiasetusten (pohjatuotteiden) kolme löydöstä 2026-09-02 — testattu ensi kertaa
+
+Vahvistettu koodista (`backend/prisma/schema.prisma`, `model ProductPreset`; `frontend/app/dashboard/esiasetukset/page.tsx`; `frontend/app/lahetys/page.tsx`; `backend/src/routes/presets.ts`):
+
+1. **✅ Bugi vahvistettu: `ProductPreset`-mallista puuttuu hintakenttä kokonaan.** Nykyiset kentät: `name`, `condition`, `category`, `alakategoria`, `tyyppi`, `imageUrl`, `description`, `favorite`, `lastUsedAt` — ei mitään hintaan liittyvää. Lisää esim. `startPrice Float?` (valinnainen, koska osa esiasetuksista voi olla tarkoituksella ilman kiinteää oletushintaa) sekä esiasetusten hallintasivulle (`/dashboard/esiasetukset`) syöttökenttä sille. Kun esiasetusta käytetään livessä pikalisäyksessä, `startPrice` esitäyttää lähtöhinnan (myyjä voi silti muuttaa sitä, ei lukittu).
+
+2. **⬜ Puuttuu: "Tallenna esiasetukseksi" -toiminto normaalista tuotteen lisäyslomakkeesta.** Vahvistettu koodista: `frontend/app/dashboard/tuotteet/page.tsx` ei sisällä mitään esiasetus-viittausta. Lisää lomakkeeseen valinnainen valintaruutu ("Tallenna tämä esiasetukseksi") joka luo `ProductPreset`-rivin samoilla arvoilla tuotteen tallennuksen yhteydessä — säästää myöhemmän manuaalisen kategoria/alakategoria/tyyppi-klikkailun kokonaan uudelleen tehtynä.
+
+3. **✅ VÄÄRINYMMÄRRYS KORJATTU 2026-09-02 — omistaja tarkoitti eri asiaa, ja löytyi todellinen, isompi bugi.** Ei puhuttu esiasetusten suosikeista, vaan **ostajan Shop-paneelin tuotejärjestyksestä livessä** (`frontend/app/live/[showId]/page.tsx`): myyjä haluaa pystyä määräämään mikä tuote näkyy ostajille ensimmäisenä Shop-listassa, ja pystyä vaihtamaan tuotteiden järjestystä siellä.
+   - **Löydös 1:** Shop-paneelin "Järjestys"-oletusvalinta (`sort === 'default'`) ei oikeasti järjestä mitään — näyttää tuotteet siinä järjestyksessä kuin backend palauttaa (todennäköisesti luontijärjestys), ei mitään myyjän hallitsemaa kenttää.
+   - **Löydös 2, ISOMPI: myyjän oma jonon raahaus-järjestely (`/lahetys`-sivun "Jono"-paneeli) EI TALLENNU PALVELIMELLE OLLENKAAN.** Vahvistettu koodista — `dragIndex`/`splice`-logiikka on puhtaasti paikallista React-tilaa, ei mitään backend-kutsua tallentamaan järjestystä. Sivun päivitys menettää järjestelyn, eikä ostajan Shop-paneeli voisi koskaan lukea sitä koska sitä ei ole tietokannassa.
+   - **Korjaus:** lisää `Product`-malliin `displayOrder Int? @default(0)` -kenttä. Muuta myyjän Jono-paneelin raahaus tallentamaan uusi järjestys backendiin (uusi endpoint, esim. `PATCH /shows/:id/reorder` joka ottaa tuote-ID-listan järjestyksessä ja päivittää `displayOrder`-arvot). Ostajan Shop-paneelin "Järjestys"-oletus käyttää `displayOrder`-kenttää nousevassa järjestyksessä. Tämä korjaa sekä myyjän oman järjestelyn pysyvyyden että antaa ostajalle näkyville juuri sen järjestyksen jonka myyjä on tarkoituksella asettanut.
+
+## Admin-käyttäjälistan kaksi puutetta 2026-09-02
+
+Vahvistettu koodista (`backend/src/routes/admin.ts`, `GET /users`):
+
+1. **✅ Bugi vahvistettu: käyttäjälista näyttää TYHJÄN listan ilman hakua.** `if (!search || String(search).trim().length < 2) return res.json([])` — ei koskaan näytä ketään ilman aktiivista hakusanaa. **Korjaus: näytä kaikki käyttäjät oletuksena**, käytä hakua vain suodattamaan jo näkyvää listaa, ei ehtona sille näytetäänkö mitään ollenkaan.
+2. **Lisää pagination, koska `take: 10` ei riitä kun kaikki käyttäjät näytetään oletuksena** — ilman hakua rajattua tulosjoukkoa, käyttäjämäärä voi kasvaa satoihin. Lisää sivutus (esim. `page`/`pageSize`-parametrit, oletus 20-50 per sivu) ettei yksi kysely yritä palauttaa kaikkea kerralla.
+3. **Lisää muutama hyödyllinen kenttä näkyviin listaan** nykyisten (`name/username/email/role/canStream/customCommissionRate/customCommissionCap/activeBan`) lisäksi: `createdAt` (liittynyt-päivämäärä), `verified`-tila. Harkitse myöhemmin (ei nyt): myydyt/ostetut tuotteet -laskurit jos halutaan syvempää käyttäjäprofiilia — ei pakollinen tässä korjauksessa.
+
+## Neljä sähköpostimallia — valmis integraatiopaketti (toinen AI) 2026-09-02, ei vielä integroitu
+
+ChatGPT teki pyydetyt neljä transaktionaalista sähköpostimallia (tervetulo/tilausvahvistus/lähetys/voitto), toimitettu ladattavana .zip-pakettina (`resend.additions.ts` + `MANUAL_PATCH.md` + `INTEGRATION.md` + `send-email-test.ts`), **ei koskenut GitHub-repoon**.
+
+**Tärkeä korjaus jonka se teki itsenäisesti tarkistamalla koodin:**
+- **Tilausvahvistus EI kuulu `POST /orders/:id/pay` -reittiin** (tämä vain käynnistää Paytrail-maksun, ei vahvista sitä) — **oikea paikka on `webhooks.ts`:n Paytrail-callback**, jossa maksu oikeasti vahvistuu.
+- **Huutokaupan voitto jakautuu kahteen eri tiedostoon eri maksuajoilla:** `closeAuctions.ts` (perinteinen/passiivinen huutokaupan päättyminen, 24h maksuaika) ja `auctions.ts` (Osta heti, 2h maksuaika) — molemmat pitää käsitellä erikseen.
+
+**Seuraava askel: siirrä paketin tiedostot VS Coden Claude-session saataville** (lataa zip, pura, liitä tiedostojen sisältö sinne tai lataa ne suoraan Claude Codeen jos mahdollista), anna sitten integrointikehote (ks. alla).
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**
