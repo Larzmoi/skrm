@@ -7,6 +7,19 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Mainosbannerin mobiiliylivuoto + uutiskirjeen Broadcast-segmentti 2026-09-03 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja raportoi että etusivun `AdBanner`-mainoslaatikon ("Habahub suosittelee" -badge) teksti menee muun tekstin päälle mobiilissa. Vahvistettu koodista: badge on `position:absolute, top:12` laatikon sisällä, mutta mobiilissa laatikon flex-column-sisältö alkoi heti 20px-paddingin reunasta ilman mitään varattua tilaa badgelle — badge peitti "Viikon kohokohdat" -yläotsikkotekstin. Korjattu kasvattamalla mobiilin yläpaddingia 20px:stä 40px:ään (`frontend/app/page.tsx`, `AdBanner`), muu layout ennallaan.
+
+**Samalla kysytty "miten lähetän markkinointisähköpostin" — vastaus: Resendin oma dashboard, ei sovelluksen sisäinen ominaisuus (päätetty jo 2026-08-26, ks. "Resend"-osio Tekemättä-listassa).** Tutkittaessa löytyi kuitenkin este joka olisi tehnyt tästä käytännössä mahdotonta: `syncNewsletterContact()` (`backend/src/lib/resend.ts`) loi/päivitti kontakteja Resendiin, mutta ei koskaan liittänyt niitä mihinkään segmenttiin — Resendin uudempi SDK (6.18.1, "Audiences" korvattu "Segments"illä) vaatii `CreateBroadcastOptions`:lta pakollisen `segmentId`:n, eli ilman segmenttiä Broadcast-lähetyksen vastaanottajavalinnassa ei olisi ollut ketään valittavaa.
+
+**Korjaus, vahvistettu suoraan Resendin API:a vasten palvelimella (kertakäyttöiset testiskriptit, poistettu käytön jälkeen):**
+- Tilillä on jo valmiiksi automaattisesti luotu oletussegmentti **"General"** (id `c00636db-a207-4c30-ab19-81c8a11ff47f`, luotu 2026-09-01 kontaktisynkronoinnin käyttöönoton yhteydessä) — ei tarvinnut luoda uutta.
+- `syncNewsletterContact()` kutsuu nyt `resend.contacts.segments.add({email, segmentId})`:tä jokaisen synkronoinnin yhteydessä (sekä uudelle että olemassa olevalle kontaktille), lisäksi `segments: [{id: ...}]` suoraan `contacts.create()`-varapolkuun. Kontakti liitetään segmenttiin riippumatta `subscribed`-arvosta — Resendin Broadcast-lähetys ohittaa automaattisesti `unsubscribed:true`-kontaktit segmentin sisällä, joten `unsubscribed`-lippu hoitaa sen ettei perunut tilaaja saa mitään, ei tarvitse itse poistaa/lisätä segmentistä tilan mukaan.
+- Testattu suoraan API:a vasten ennen koodimuutosta: `contacts.segments.list()` palautti tyhjän listan olemassa olevalle testikontaktille (`johan.risberg@outlook.com`) ennen korjausta, `contacts.segments.add()` lisäsi sen "General"-segmenttiin onnistuneesti, `contacts.segments.list()` vahvisti jälkikäteen.
+
+**Miten omistaja oikeasti lähettää markkinointisähköpostin nyt:** Resend-dashboard (resend.com) → Broadcasts-välilehti → New Broadcast → kirjoita sisältö → valitse vastaanottajaksi **"General"**-segmentti (nyt sisältää kaikki uutiskirjeen tilanneet käyttäjät, koska profiilisivun "Uutiskirje"-kytkin synkronoi sinne) → lähetä tai ajasta. Ei vaadi mitään koodia — tämä on täysin Resendin oman käyttöliittymän kautta, sovellus vain pitää huolen että oikeat vastaanottajat ovat siellä.
+
 ## Julkisen profiilin kaksi kriittistä bugia + seuraajalista 2026-09-03 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja raportoi kaksi kriittistä bugia julkisella profiilisivulla (`/u/[username]`), molemmat vahvistettu koodista ja korjattu heti:
