@@ -91,6 +91,13 @@ const en = {
     banRemoved: 'Ban removed',
     passwordResetSent: 'Reset link sent',
     passwordResetError: 'Failed to send reset link',
+    joined: 'Joined',
+    verifiedYes: 'Verified',
+    verifiedNo: 'Not verified',
+    totalUsers: '{count} users total',
+    prevPage: '← Previous',
+    nextPage: 'Next →',
+    pageInfo: 'Page {page} / {total}',
   },
   time: {
     today: 'Today', tomorrow: 'Tomorrow', at: 'at',

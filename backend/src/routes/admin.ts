@@ -103,20 +103,40 @@ async function findActiveBan(userId: string) {
   })
 }
 
-// GET /admin/users?search=nimi — hae käyttäjä bannausta/käyttäjähallintaa varten. Palauttaa
-// nyt myös canStream/customCommissionRate/customCommissionCap/activeBan (ks. INTEGRATION.md)
-// admin-käyttäjähallintapaneelia varten.
+// GET /admin/users?search=nimi&page=1&pageSize=30 — käyttäjähallintapaneelin lista.
+// Palauttaa canStream/customCommissionRate/customCommissionCap/activeBan (ks. INTEGRATION.md)
+// sekä createdAt/verified admin-käyttäjähallintapaneelia varten.
+// KORJATTU 2026-09-04 (ks. CLAUDE.md "Admin-käyttäjälistan kaksi puutetta"): search ei ole enää
+// ehto sille näytetäänkö mitään ollenkaan — ilman hakua näytetään kaikki käyttäjät sivutettuna,
+// hakua käytetään vain jo näkyvän listan suodattamiseen. Lisätty sivutus koska pelkkä `take: 10`
+// ei riitä kun käyttäjämäärä kasvaa satoihin.
 router.get('/users', async (req, res) => {
   const { search } = req.query
-  if (!search || String(search).trim().length < 2) return res.json([])
-  const q = String(search).trim()
-  const users = await prisma.user.findMany({
-    where: { OR: [{ username: { contains: q, mode: 'insensitive' } }, { email: { contains: q, mode: 'insensitive' } }, { name: { contains: q, mode: 'insensitive' } }] },
-    select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true },
-    take: 10,
-  })
+  const page = Math.max(1, Number(req.query.page) || 1)
+  const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30))
+
+  const where = search && String(search).trim().length >= 2
+    ? {
+        OR: [
+          { username: { contains: String(search).trim(), mode: 'insensitive' as const } },
+          { email: { contains: String(search).trim(), mode: 'insensitive' as const } },
+          { name: { contains: String(search).trim(), mode: 'insensitive' as const } },
+        ],
+      }
+    : {}
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, verified: true },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.user.count({ where }),
+  ])
   const enriched = await Promise.all(users.map(async u => ({ ...u, activeBan: await findActiveBan(u.id) })))
-  res.json(enriched)
+  res.json({ users: enriched, total, page, pageSize })
 })
 
 // PATCH /admin/users/:id — osittainen päivitys (canStream/customCommissionRate/

@@ -91,6 +91,13 @@ const sv = {
     banRemoved: 'Bannen borttagen',
     passwordResetSent: 'Återställningslänk skickad',
     passwordResetError: 'Det gick inte att skicka återställningslänken',
+    joined: 'Registrerad',
+    verifiedYes: 'Verifierad',
+    verifiedNo: 'Inte verifierad',
+    totalUsers: '{count} användare totalt',
+    prevPage: '← Föregående',
+    nextPage: 'Nästa →',
+    pageInfo: 'Sida {page} / {total}',
   },
   time: {
     today: 'Idag', tomorrow: 'Imorgon', at: 'kl.',

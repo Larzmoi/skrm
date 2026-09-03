@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { adminApi } from '@/lib/api'
@@ -22,7 +22,11 @@ type AdminUser = {
   customCommissionRate: number | null
   customCommissionCap: number | null
   activeBan: Ban | null
+  createdAt: string
+  verified: boolean
 }
+
+const PAGE_SIZE = 30
 
 // Kytketty INTEGRATION.md:n suunnitelman mukaisesti oikeisiin adminApi-kutsuihin 2026-09-02
 // (ks. CLAUDE.md) — searchUsers/banUser käyttävät jo olemassa olevia adminApi-metodeja
@@ -40,8 +44,8 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fi-FI')
 }
 
-async function searchUsers(search: string): Promise<AdminUser[]> {
-  return adminApi.searchUsers(search)
+async function listUsers(search: string, page: number): Promise<{ users: AdminUser[]; total: number }> {
+  return adminApi.listUsers({ search: search || undefined, page, pageSize: PAGE_SIZE })
 }
 
 async function updateUser(id: string, data: {
@@ -215,22 +219,39 @@ function UserRow({
           <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
             {user.email}
           </div>
-          {user.role === 'ADMIN' && (
+          <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+            {t.admin.joined} {formatDate(user.createdAt)}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            {user.role === 'ADMIN' && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  padding: '3px 7px',
+                  borderRadius: 6,
+                  background: C.accentLight,
+                  color: C.accent,
+                  fontSize: 10,
+                  fontWeight: 750,
+                }}
+              >
+                ADMIN
+              </div>
+            )}
             <div
               style={{
                 display: 'inline-block',
-                marginTop: 8,
                 padding: '3px 7px',
                 borderRadius: 6,
-                background: C.accentLight,
-                color: C.accent,
+                background: user.verified ? C.accentLight : C.surface2,
+                color: user.verified ? C.accent : C.muted,
                 fontSize: 10,
                 fontWeight: 750,
               }}
             >
-              ADMIN
+              {user.verified ? t.admin.verifiedYes : t.admin.verifiedNo}
             </div>
-          )}
+          </div>
         </div>
 
         <label style={{ color: C.textSub, fontSize: 12 }}>
@@ -435,30 +456,32 @@ export default function AdminUserManagement() {
   const { C } = useTheme()
   const { t } = useLang()
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  async function loadUsers() {
+  async function loadUsers(searchValue: string, pageValue: number) {
     setLoading(true)
     try {
-      setUsers(await searchUsers(search.trim()))
+      const result = await listUsers(searchValue.trim(), pageValue)
+      setUsers(result.users)
+      setTotal(result.total)
     } finally {
       setLoading(false)
     }
   }
 
+  // Näytä kaikki käyttäjät oletuksena (ei enää vaadi vähintään 2-merkkistä hakua) — hakua
+  // käytetään vain suodattamaan, ei ehtona sille näytetäänkö mitään ollenkaan. `search`-inputin
+  // onChange nollaa `page`:n samassa tapahtumakäsittelijässä (ks. alempana), jotta molemmat
+  // tilamuutokset batchautuvat yhteen renderiin eikä välissä ehdi hakea väärällä sivunumerolla.
   useEffect(() => {
-    const value = search.trim()
-    if (value.length < 2) {
-      setUsers([])
-      return
-    }
-
-    const timer = setTimeout(loadUsers, 300)
+    const timer = setTimeout(() => loadUsers(search, page), 300)
     return () => clearTimeout(timer)
-  }, [search])
+  }, [search, page])
 
-  const visibleUsers = useMemo(() => users.slice(0, 10), [users])
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <section>
@@ -473,7 +496,7 @@ export default function AdminUserManagement() {
 
       <input
         value={search}
-        onChange={e => setSearch(e.target.value)}
+        onChange={e => { setSearch(e.target.value); setPage(1) }}
         placeholder={t.admin.userSearchPlaceholder}
         style={{
           width: '100%',
@@ -488,29 +511,79 @@ export default function AdminUserManagement() {
         }}
       />
 
+      {!loading && (
+        <div style={{ color: C.muted, fontSize: 12, marginBottom: 10 }}>
+          {t.admin.totalUsers.replace('{count}', String(total))}
+        </div>
+      )}
+
       {loading && (
         <div style={{ color: C.muted, fontSize: 13, padding: '14px 0' }}>
           {t.admin.loadingUsers}
         </div>
       )}
 
-      {!loading && search.trim().length >= 2 && visibleUsers.length === 0 && (
+      {!loading && users.length === 0 && (
         <div style={{ color: C.muted, fontSize: 13, padding: '14px 0' }}>
           {t.admin.noUsersFound}
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {visibleUsers.map(user => (
+        {users.map(user => (
           <UserRow
             key={user.id}
             user={user}
             t={t}
             C={C}
-            onReload={loadUsers}
+            onReload={() => loadUsers(search, page)}
           />
         ))}
       </div>
+
+      {!loading && totalPages > 1 && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center', marginTop: 18 }}>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              color: C.textSub,
+              borderRadius: 7,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 650,
+              cursor: page <= 1 ? 'default' : 'pointer',
+              opacity: page <= 1 ? 0.5 : 1,
+            }}
+          >
+            {t.admin.prevPage}
+          </button>
+          <span style={{ color: C.muted, fontSize: 12 }}>
+            {t.admin.pageInfo.replace('{page}', String(page)).replace('{total}', String(totalPages))}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              color: C.textSub,
+              borderRadius: 7,
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: 650,
+              cursor: page >= totalPages ? 'default' : 'pointer',
+              opacity: page >= totalPages ? 0.5 : 1,
+            }}
+          >
+            {t.admin.nextPage}
+          </button>
+        </div>
+      )}
     </section>
   )
 }

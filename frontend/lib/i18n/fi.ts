@@ -91,6 +91,13 @@ const fi = {
     banRemoved: 'Banni poistettu',
     passwordResetSent: 'Palautuslinkki lähetetty',
     passwordResetError: 'Palautuslinkin lähetys epäonnistui',
+    joined: 'Liittynyt',
+    verifiedYes: 'Vahvistettu',
+    verifiedNo: 'Ei vahvistettu',
+    totalUsers: '{count} käyttäjää yhteensä',
+    prevPage: '← Edellinen',
+    nextPage: 'Seuraava →',
+    pageInfo: 'Sivu {page} / {total}',
   },
   time: {
     today: 'Tänään', tomorrow: 'Huomenna', at: 'klo',
