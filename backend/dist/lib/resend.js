@@ -34,13 +34,18 @@ async function sendEmail(params) {
 // update() ensin (idempotentti, olemassa olevalle kontaktille), create() varalla jos kontaktia
 // ei vielä ole — sama epäonnistu-hiljaa-periaate kuin sendEmail():ssä, ei koskaan kaada
 // profiilin päivitys-API-pyyntöä vaikka Resend-kutsu epäonnistuisi.
+// ⚠️ Vahvistettu tuotannossa 2026-09-03: update() EI palauta virhettä olemattomalle
+// sähköpostille - se luo kontaktin hiljaa itse (upsert-tyylinen käytös, ei dokumentoitu
+// selvästi). Tämän vuoksi firstName annetaan MYÖS update()-kutsussa, ei vain create()-
+// varapolussa - muuten nimi jäisi tyhjäksi aina kun kontakti syntyy tätä kautta (havaittu
+// juuri näin: ensimmäinen tilaus loi kontaktin update()-kautta ilman nimeä).
 async function syncNewsletterContact(email, name, subscribed) {
     if (!resend) {
         console.log(`[newsletter] RESEND_API_KEY ei asetettu — kontaktia EI synkronoitu. email=${email} subscribed=${subscribed}`);
         return;
     }
     try {
-        const { error } = await resend.contacts.update({ email, unsubscribed: !subscribed });
+        const { error } = await resend.contacts.update({ email, firstName: name, unsubscribed: !subscribed });
         if (error) {
             const { error: createError } = await resend.contacts.create({ email, firstName: name, unsubscribed: !subscribed });
             if (createError)
