@@ -69,6 +69,22 @@ export const orderApi = {
   dispute: (orderId: string, reason: string) => request(`/orders/${orderId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
   review: (orderId: string, rating: number, comment?: string) => request(`/orders/${orderId}/review`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
   refund: (orderId: string, itemIds?: string[]) => request(`/orders/${orderId}/refund`, { method: 'POST', body: JSON.stringify({ itemIds }) }),
+  // Postin osoitetarran PDF ei voi olla plain <a href> - reitti vaatii JWT:n Authorization-
+  // headerissa, jota selain ei lähetä pelkän linkin klikkauksella. Haetaan siis fetch+blob:na
+  // ja avataan uudessa välilehdessä object URL:na, ks. CLAUDE.md "Lähetysintegraatio" 2026-09-04.
+  openLabelPdf: async (orderId: string) => {
+    const token = getToken()
+    const res = await fetch(`${BACKEND}/orders/${orderId}/label-pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error ?? 'Osoitetarran haku epäonnistui')
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  },
 }
 
 export const showApi = {

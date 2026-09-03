@@ -1,28 +1,23 @@
 "use strict";
-// REAL OmaPosti Pro API v2 -integraatio, kirjoitettu suoraan Postin oman "How to test OmaPosti
-// Pro API v2 (UPDATED with Demo URLs)" -ohjedokumentin mukaan (toimitettu omistajalta
-// 2026-09-03, yhdessä testiympäristön tunnusten kanssa - ks. CLAUDE.md "Lähetysintegraatio").
-// Korvaa `postiService.ts`:n aiemman MOCK-toteutuksen, joka oli rakennettu vanhentuneen v1-API-
-// oletuksen mukaan.
+// OIKEA OmaPosti Pro API v2 -integraatio, kirjoitettu Postin oman "How to test OmaPosti Pro
+// API v2 (UPDATED with Demo URLs)" -ohjedokumentin mukaan (toimitettu omistajalta 2026-09-03,
+// yhdessä testiympäristön tunnusten kanssa - ks. CLAUDE.md "Lähetysintegraatio").
+//
+// ✅ VAHVISTETTU PÄÄSTÄ PÄÄHÄN 2026-09-04 demo-ympäristöä vasten (token + createShippingOrder()
+// + fetchLabelPdf(), kaikki HTTP 200, oikea PDF palautui) — KYTKETTY LIVE-REITTIIN samana
+// päivänä (`POST /orders/:id/create-shipment`, ks. routes/orders.ts), korvaa `postiService.ts`:n
+// aiemman MOCK-toteutuksen kokonaan sille reitille. `POSTI_TEST_MODE=true` (oletus) pitää tämän
+// yhä demo-ympäristössä - ei tuotannossa - kunnes joku eksplisiittisesti vaihtaa sen.
 //
 // LÖYDÖS ohjeesta: OPP API v2 itsessään palauttaa AINA PRINTATTAVAN PDF-osoitetarran
 // (vastauksen prints[].pdf_type: "ADDRESSLABEL", shipment.status: "PRINTED") - EI koskaan
-// suoraan Vinted-tyylistä koodia. TARKENNETTU 2026-09-03 (omistajan pyynnöstä luettu myös
-// erillinen "Sending Code API.txt" -dokumentti, ei vain tätä OPP v2 -opasta): labelless-
-// tavoite ON silti saavutettavissa, mutta KAHDESSA erillisessä API-kutsussa, ei yhdessä -
-// ks. tiedoston loppuosan `getSendingCode()` joka toimii tämän luoman trackingNumberin päällä.
-// PDF:ää ei tarvitse koskaan näyttää käyttäjälle jos toinen kutsu onnistuu.
-//
-// ⚠️ EI VIELÄ TESTATTU PÄÄSTÄ PÄÄHÄN: `x-gateway-secret`-otsikko (Postin ohjeen mukaan
-// "provided by Posti support team, starting with KBs7...") PUUTTUU - ilman sitä JOKAINEN
-// kutsu tälle gatewaylle (ei vain shipping/order - vahvistettu koskevan myös pickup-point-
-// tyyppisiä polkuja) torjutaan CloudFront-tasolla 403:lla ennen kuin pyyntö edes tavoittaa
-// Postin oman API:n. Token-haku ON vahvistettu toimivaksi suoraan demo-ympäristöä vasten
-// (ks. CLAUDE.md), mutta itse lähetyksen luontia ei ole voitu vahvistaa loppuun asti.
-// Kaikki tämän tiedoston funktiot (paitsi token-haku) heittävät selkeän virheen kunnes
-// POSTI_GATEWAY_SECRET on asetettu - ei koskaan hiljaa epäonnistu.
+// suoraan Vinted-tyylistä koodia. TARKENNETTU 2026-09-03 (luettu myös erillinen "Sending Code
+// API.txt" -dokumentti): labelless-tavoite ON silti saavutettavissa, mutta KAHDESSA erillisessä
+// API-kutsussa, ei yhdessä - ks. tiedoston loppuosan `getSendingCode()`, joka toimii tämän
+// luoman trackingNumberin päällä mutta on YHÄ oma, erillinen 403 (puuttuva tuoterekisteröinti,
+// ei sama este kuin gateway secret oli).
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.POSTI_CONTRACT_NUMBER = exports.POSTI_TEST_MODE = void 0;
+exports.POSTI_CONTRACT_NUMBER = exports.POSTI_TEST_MODE = exports.WEIGHT_KG_BY_PAKETTIKOKO = exports.PACKAGE_CODE_BY_PAKETTIKOKO = exports.SERVICE_ID_BY_PAKETTIKOKO = void 0;
 exports.createShippingOrder = createShippingOrder;
 exports.fetchLabelPdf = fetchLabelPdf;
 exports.getSendingCode = getSendingCode;
@@ -42,6 +37,18 @@ const POSTI_CONTRACT_NUMBER = POSTI_TEST_MODE ? (process.env.POSTI_TEST_CONTRACT
 exports.POSTI_CONTRACT_NUMBER = POSTI_CONTRACT_NUMBER;
 // Vaaditaan JOKAISEEN kutsuun paitsi token-hakuun - ei vielä vastaanotettu omistajalta.
 const POSTI_GATEWAY_SECRET = process.env.POSTI_GATEWAY_SECRET || '';
+exports.SERVICE_ID_BY_PAKETTIKOKO = {
+    PIENI: 'PO2102',
+    ISO: 'PO2103',
+};
+exports.PACKAGE_CODE_BY_PAKETTIKOKO = {
+    PIENI: 'PKT',
+    ISO: 'PKT',
+};
+exports.WEIGHT_KG_BY_PAKETTIKOKO = {
+    PIENI: 1,
+    ISO: 5,
+};
 let cachedToken = null;
 async function getAccessToken() {
     if (cachedToken && cachedToken.expiresAt > Date.now() + 30000)

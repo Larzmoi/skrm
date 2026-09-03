@@ -232,9 +232,9 @@ export default function OstotPage() {
                           )}
 
                           {section.key === 'SHIPPED' && (order.labelUrl ? (
-                            <a href={order.labelUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+                            <button onClick={() => orderApi.openLabelPdf(order.id).catch((e: any) => alert(e.message))} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: C.accent, fontWeight: 700, cursor: 'pointer' }}>
                               Osoitetarra (PDF) →
-                            </a>
+                            </button>
                           ) : (order.sendingCode || order.trackingCode) && (
                             <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.sendingCode ?? order.trackingCode}</span>
                           ))}

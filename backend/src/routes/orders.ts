@@ -5,6 +5,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getShippingPrice } from '../lib/shipping'
 import { createPayment, refundFull, refundItem, computeCommissionCents, getEffectiveCommissionOverride } from '../lib/paytrail'
 import * as postiService from '../lib/postiService'
+import * as postiClient from '../lib/postiClient'
 import { notifyUser } from '../lib/notify'
 import { sendShippingNotificationEmail } from '../lib/resend'
 
@@ -195,13 +196,14 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
   res.json(updated)
 })
 
-// POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle (MOCK,
-// ks. CLAUDE.md "Lähetysintegraatio" + lib/postiService.ts, OmaPosti Pro API -skeeman
-// mukainen 2026-08-26 alkaen). Myyjä valitsee pakettikoon (PIENI/ISO) vasta tässä vaiheessa
-// - ei vaikuta ostajalta jo veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto
-// Postin parcels[].packageCode-kenttää varten. Korvaa manuaalisen seurantakoodin syötön
-// automaattisesti luodulla trackingNumber + lähetyksen tuloksella (koodi TAI tarra, ks.
-// getShipmentOutput()).
+// POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle. OIKEA
+// OmaPosti Pro API v2 -kutsu 2026-09-04 alkaen (ks. CLAUDE.md "Lähetysintegraatio") - ei enää
+// postiService-mock. POSTI_TEST_MODE=true (oletus) pitää tämän demo-ympäristössä, ei tuotannossa.
+// Myyjä valitsee pakettikoon (PIENI/ISO) vasta tässä vaiheessa - ei vaikuta ostajalta jo
+// veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto Postin parcels[].packageCode-
+// kenttää varten. Korvaa manuaalisen seurantakoodin syötön automaattisesti luodulla
+// trackingNumber + PDF-osoitetarralla (ks. GET /:id/label-pdf alempana - Postin oma vastauksen
+// href vaatii Bearer+x-gateway-secret joita selain ei voi lähettää, siksi oma proxy-reitti).
 router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res: Response) => {
   const pakettikoko = req.body?.pakettikoko === 'ISO' ? 'ISO' : req.body?.pakettikoko === 'PIENI' ? 'PIENI' : null
   if (!pakettikoko) return res.status(400).json({ error: 'Pakettikoko (PIENI/ISO) vaaditaan' })
@@ -217,26 +219,52 @@ router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res
   if (order.shippingSize !== 'postitus') return res.status(400).json({ error: 'Tilaus ei ole postitus-toimitustavalla' })
   if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota lähetystä' })
 
-  const { shipmentId, trackingNumber } = postiService.createShipment({
-    sender: { name: order.seller.name, streetAddress: order.seller.address ?? '', postalCode: order.seller.postalCode ?? '', city: order.seller.city ?? '', phone: order.seller.phone ?? undefined, email: order.seller.email },
-    receiver: { name: order.buyer.name, streetAddress: order.buyer.address ?? '', postalCode: order.buyer.postalCode ?? '', city: order.buyer.city ?? '', phone: order.buyer.phone ?? undefined, email: order.buyer.email },
-    pakettikoko,
-    pickupPointQuickId: order.pickupPointId,
-  })
-  const output = postiService.getShipmentOutput(shipmentId, trackingNumber)
+  let result
+  try {
+    result = await postiClient.createShippingOrder({
+      sender: { name: order.seller.name, address1: order.seller.address ?? '', zipcode: order.seller.postalCode ?? '', city: order.seller.city ?? '', phone: order.seller.phone ?? undefined, email: order.seller.email },
+      receiver: { name: order.buyer.name, address1: order.buyer.address ?? '', zipcode: order.buyer.postalCode ?? '', city: order.buyer.city ?? '', phone: order.buyer.phone ?? undefined, email: order.buyer.email },
+      serviceId: postiClient.SERVICE_ID_BY_PAKETTIKOKO[pakettikoko],
+      packageCode: postiClient.PACKAGE_CODE_BY_PAKETTIKOKO[pakettikoko],
+      weightKg: postiClient.WEIGHT_KG_BY_PAKETTIKOKO[pakettikoko],
+      contents: 'Verkkokaupan tuote',
+      pickupPointQuickId: order.pickupPointId,
+    })
+  } catch (e: any) {
+    return res.status(400).json({ error: e.message ?? 'Posti-lähetyksen luonti epäonnistui' })
+  }
 
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: {
-      trackingNumber, postiShipmentId: shipmentId, pakettikoko,
-      sendingCode: output.type === 'code' ? output.value : null,
-      labelUrl: output.type === 'label_pdf' ? output.url : null,
+      trackingNumber: result.trackingNumber, postiShipmentId: result.shipmentId, pakettikoko,
+      sendingCode: null, // Sending Code API ei vielä kytketty (403, puuttuva tuoterekisteröinti) - aina PDF toistaiseksi
+      labelUrl: result.labelPdfHref ? `/orders/${order.id}/label-pdf` : null,
+      postiLabelHref: result.labelPdfHref,
       postiStatus: 'RECEIVED', status: 'SHIPPED', shippedAt: new Date(),
     },
   })
-  const outputMessage = output.type === 'code' ? `Lähetyskoodi: ${output.value}` : 'Osoitetarra on valmis tulostettavaksi'
-  await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', outputMessage, '/ostot')
+  await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', 'Osoitetarra on valmis tulostettavaksi', '/ostot')
   res.json(updated)
+})
+
+// GET /orders/:id/label-pdf — striimaa Postin osoitetarran PDF-tavuina. Ei voi olla suora
+// <a href> Postin omaan URLiin (order.postiLabelHref), koska se vaatii Bearer+x-gateway-secret
+// -headerit joita selain ei voi lähettää plain-linkin klikkauksella - tämä reitti hakee PDF:n
+// palvelinpuolella (postiClient.fetchLabelPdf()) ja striimaa sen ostajan/myyjän oman JWT:n
+// suojaamana. Frontend hakee tämän fetch+blob-kautta, ei <a href>:na, ks. lib/api.ts.
+router.get('/:id/label-pdf', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  if (!order || (order.sellerId !== req.userId && order.buyerId !== req.userId)) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (!order.postiLabelHref) return res.status(404).json({ error: 'Osoitetarraa ei ole vielä luotu' })
+
+  try {
+    const pdfBuffer = await postiClient.fetchLabelPdf(order.postiLabelHref)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.send(pdfBuffer)
+  } catch (e: any) {
+    res.status(400).json({ error: e.message ?? 'Osoitetarran haku epäonnistui' })
+  }
 })
 
 // POST /orders/:id/confirm-pickup — myyjä vahvistaa noutokoodin fyysisessä noudossa, vapauttaa maksun heti

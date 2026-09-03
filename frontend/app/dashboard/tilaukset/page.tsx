@@ -156,9 +156,9 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
         )}
         {order.shippingSize === 'postitus' && (order.labelUrl || order.sendingCode || order.trackingCode) && (
           order.labelUrl ? (
-            <a href={order.labelUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
+            <button onClick={() => orderApi.openLabelPdf(order.id).catch((e: any) => alert(e.message))} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: C.accent, fontWeight: 700, cursor: 'pointer' }}>
               Avaa osoitetarra (PDF) →
-            </a>
+            </button>
           ) : (
             <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>
               {order.sendingCode ? `Lähetyskoodi: ${order.sendingCode}` : `Seurantakoodi: ${order.trackingCode}`}

@@ -329,15 +329,19 @@ model Order {
   trackingCode      String?
   pickupCode        String?     // nouto-toimitustavan vahvistuskoodi — ostaja näyttää/kertoo tämän myyjälle fyysisessä noudossa
   pickupPointId     String?     // ostajan valitsema Postin noutopiste postitus-toimitustavalle (MOCK, ks. lib/postiService.ts)
-  trackingNumber    String?     // Postin lähetyksen seurantanumero / parcelNo (MOCK, ks. lib/postiService.ts)
-  postiShipmentId   String?     // OmaPosti Pro API:n lähetystunniste (MOCK) - eri asia kuin trackingNumber,
+  trackingNumber    String?     // Postin lähetyksen seurantanumero / parcels[].parcelNo — ks. CLAUDE.md "Posti"-osio,
+                                 // 2026-09-04 alkaen OIKEA arvo OmaPosti Pro API v2:sta, ei enää mock
+  postiShipmentId   String?     // OmaPosti Pro API:n lähetystunniste - eri asia kuin trackingNumber,
                                  // joka on yksittäisen paketin (parcels[]) oma numero
   pakettikoko       Pakettikoko? // myyjän lähetysvaiheessa valitsema fyysinen koko (ks. yllä enum-kommentti)
-  sendingCode       String?     // ShipmentOutput{type:"code"} - kirjoitetaan pakettiin ilman tulostettavaa osoitekorttia (MOCK)
-  labelUrl          String?     // ShipmentOutput{type:"label_pdf"} - vaihtoehtoinen tulos jos Posti palauttaakin
-                                 // vain tulostettavan osoitetarran koodin sijaan (ks. CLAUDE.md "AVOIN KYSYMYS
-                                 // labelless/Sending Code -yhteensopivuus") - täsmälleen yksi näistä kahdesta on
-                                 // asetettu kerrallaan, ei koskaan molemmat
+  sendingCode       String?     // Sending Code API:n koodi - EI VIELÄ KÄYTÖSSÄ (tuote-/roolirekisteröinti puuttuu
+                                 // Postin puolelta, ks. CLAUDE.md), jää aina nulliksi kunnes se on kytketty
+  labelUrl          String?     // MEIDÄN OMA proxy-URL (/api/orders/:id/label-pdf), EI Postin oma href - Postin
+                                 // href vaatii Bearer+x-gateway-secret-headerit joita selain ei voi lähettää,
+                                 // ks. CLAUDE.md "Posti"-osio 2026-09-04. Täsmälleen yksi sendingCode/labelUrl on
+                                 // asetettu kerrallaan, ei koskaan molemmat.
+  postiLabelHref    String?     // Postin OMA raaka prints[].href - EI KOSKAAN näytetä frontendille sellaisenaan,
+                                 // vain backendin oma /label-pdf-proxy lukee tätä fetchLabelPdf()-kutsuun
   postiStatus       String?     // Postin toimitusseurannan tila: RECEIVED/IN_TRANSIT/AT_PICKUP_POINT/PICKED_UP (MOCK)
   shippedAt         DateTime?   // toimitusaikataulun (5/10/14pv) laskennan lähtöpiste
   stalledNotifiedAt DateTime?   // päivä 5 -ilmoitus lähetetty
