@@ -115,6 +115,14 @@ Omistajan kysymyksestä ("connect the footer subscribe newsletter, also profile-
 - **Bugi löytyi ja korjattiin heti tuotantotestissä:** `resend.contacts.update()` EI palauta virhettä olemattomalle sähköpostille — se luo kontaktin hiljaa itse (dokumentoimaton upsert-käytös). Alkuperäinen koodi antoi `firstName`:n vain `create()`-varapolussa, joka ei koskaan lauennut tämän vuoksi — ensimmäinen tilaaja olisi aina syntynyt Resendiin ilman nimeä. Korjattu antamalla `firstName` myös `update()`-kutsussa. Vahvistettu ennen/jälkeen: ensimmäinen testi tuotti `first_name: null`, korjauksen jälkeen `first_name: "Larzmoi"`.
 - **Testattu tuotannossa päästä-päähän oikealla `PATCH /users/me`-kutsulla ja `resend.contacts.get()`-tarkistuksella:** tilaus → Resend `unsubscribed:false` + oikea `first_name`; perutus → Resend `unsubscribed:true`. Omistajan oma tili palautettu testin jälkeen alkuperäiseen `false`-tilaan.
 
+## Tilauksen yhdistämisen näkyvyys kassalla 2026-09-04 — vaatii tarkistuksen, ei vielä bugi
+
+Omistaja testasi kassaa (checkout) ja huomasi: kun ostaa tuotteen esim. livestä ja mahdollisesti ostaa toisen tuotteen samalta myyjältä, kassalla ei näy mitään merkkiä siitä että olemassa oleva 6h-yhdistämisikkuna (ks. "Kaksi UX-löydöstä 2026-09-02", jo toteutettu ja testattu `cart.ts`:ssä + `createOrderForAuctionWin()`:ssa) tunnistaisi/yhdistäisi tilauksen aiempaan maksamattomaan tilaukseen samalta myyjältä.
+
+**Kaksi asiaa selvitettävä, järjestyksessä:**
+1. **Toimiiko yhdistäminen oikeasti tässä konkreettisessa skenaariossa** (osta livestä, osta sitten toinen tuote samalta myyjältä 6h sisällä) — testaa uudelleen tarkasti tuotannossa, tarkista tietokannasta syntyykö yksi `Order`-rivi kahdella tuotteella vai kaksi erillistä. Jos ei yhdisty, tämä on todellinen bugi jonka juurisyy pitää löytää (esim. live-ostopolku ei kutsu samaa merge-logiikkaa kuin tavallinen kori).
+2. **Jos yhdistäminen TOIMII backendissä mutta ei näy käyttäjälle mitenkään** — lisää selkeä UI-viesti kassalle/ostoskoriin, esim. "Tämä tilaus yhdistetään aiempaan maksamattomaan tilaukseesi myyjältä [nimi] — yksi postikulut" kun yhdistäminen tapahtuu. Ostajan pitää voida NÄHDÄ ja luottaa siihen että yhdistäminen tapahtuu, ei vain toivoa että se toimii taustalla huomaamatta.
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**
@@ -952,7 +960,22 @@ Omistaja toimitti kaksi tiedostoa repon juureen: `useradmin-dmz.tst.account.post
 - **Itse lähetyksen luonti testattu Postin oman esimerkkipyynnön kanssa — torjuttu CloudFront-tasolla 403:lla**, koska `x-gateway-secret` puuttuu. Sama 403 toistui myös pickup-point-tyyppisillä poluilla samalla gatewaylla — vahvistaa että `x-gateway-secret` on koko `shippingapi`-perheen vaatimus, ei vain shipping/order-endpointin oma.
 - **Uusi `backend/src/lib/postiClient.ts`** — OIKEA (ei mock) integraatio kirjoitettu Postin ohjeen tarkan muodon mukaan: token-haku (muistivarainen välimuisti, kunnioittaa `expires_in`:iä), `createShippingOrder()`/`fetchLabelPdf()` oikealla request/response-muodolla. **Ei vielä kytketty mihinkään reittiin** — jokainen funktio heittää selkeän virheen niin kauan kuin `POSTI_GATEWAY_SECRET` on tyhjä, ei koskaan hiljaa epäonnistu tai palauta mock-dataa livenä.
 - **`backend/src/lib/postiService.ts`** (mock, yhä se mitä `POST /orders/:id/create-shipment` oikeasti käyttää) päivitetty vastaamaan nyt vahvistettuja faktoja: `packageCode` → "PKT", `POSTI_PROD_URL` → v2-muotoon, ja **`MOCK_OUTPUT_TYPE` vaihdettu `'code'`:sta `'label_pdf'`:ksi** — UI (`dashboard/tilaukset`, `ostot`) tukee jo molempia haarautumia (`labelUrl`/`sendingCode`) valmiiksi, joten tämä oli yksi rivi, ei UI-muutosta.
-- **Palvelimen `.env`:iin lisätty:** `POSTI_TEST_MODE=true`, `POSTI_TEST_CLIENT_ID`, `POSTI_TEST_CLIENT_SECRET`, `POSTI_TEST_CONTRACT_NUMBER=677503`, `POSTI_GATEWAY_SECRET=` (tyhjä, odottaa Postin toimitusta).
+- **Palvelimen `.env`:iin lisätty:** `POSTI_TEST_MODE=true`, `POSTI_TEST_CLIENT_ID`, `POSTI_TEST_CLIENT_SECRET`, `POSTI_TEST_CONTRACT_NUMBER=677503`. **`POSTI_GATEWAY_SECRET` VASTAANOTETTU JA LISÄTTY 2026-09-04** (Tom lähetti arvon sähköpostitse, alkaa "KBs7..." — ei tallenneta tähän tiedostoon, sama turvallisuuskäytäntö kuin muidenkin salaisuuksien kanssa).
+
+### ✅ PÄÄSTÄ-PÄÄHÄN TESTATTU JA VAHVISTETTU TOIMIVAKSI 2026-09-04 — koko demo-virta onnistui
+
+Omistajan pyynnöstä ajettu täysi kolmivaiheinen testi demo-ympäristöä vasten kertakäyttöisellä skriptillä (poistettu käytön jälkeen), kaikki kolme onnistuivat:
+
+1. **Token-haku** `https://gateway-auth.demo.posti.fi/api/v1/token` testitunnuksilla → **HTTP 200**, oikea `access_token` saatu.
+2. **Lähetyksen luonti** `https://gateway.demo.posti.fi/shippingapi/api/v2/shipping/order`, `senderPartners.custNo: "677503"` (testisopimusnumero, ei tuotannon 691317), `x-gateway-secret`-otsikolla → **HTTP 200**. Oikea vastaus (taulukkomuoto, kuten aiemmin dokumentoitu): `status:"PRINTED"`, `shipmentNo`, `parcels[0].parcelNo: "JJFI67750398911973959"` (trackingNumber), `prints[0].href` osoitteeseen `.../shipments/677503/pdfs/6c4a6ffe-...`.
+3. **PDF-haku** samalla `href`:llä, samoilla Bearer+`x-gateway-secret`-headereilla → **HTTP 200**, `Content-Type: application/pdf`, 88 778 tavua, tiedosto alkaa oikein `%PDF-1.7`:lla — aidosti kelvollinen PDF-tiedosto, ei tyhjä/virheellinen vastaus.
+
+**Koko OmaPosti Pro API v2 -integraatio on siis nyt vahvistettu toimivaksi demo-ympäristössä päästä päähän** — `backend/src/lib/postiClient.ts`:n `createShippingOrder()`/`fetchLabelPdf()` on kirjoitettu täsmälleen tähän vahvistettuun muotoon, ei enää arvaus.
+
+**Testi/tuotanto-erottelu vahvistettu jo olemassa olevaksi, ei vaatinut koodimuutosta:** `postiClient.ts`:n `POSTI_TEST_MODE`-kytkin (oletus `true`, sama periaate kuin `PAYTRAIL_TEST_MODE`) vaihtaa URL:t, tunnukset JA sopimusnumeron **yhtenä yhtenäisenä parina** — ei ole mahdollista että testi-URL yhdistyisi tuotannon sopimusnumeroon tai päinvastoin, koska kaikki kolme luetaan saman `if`-haaran sisältä. Tuotantoon siirryttäessä ainoa tarvittava muutos on `POSTI_TEST_MODE=false` palvelimen `.env`:ssä (+ oikeat tuotanto-arvot `POSTI_CLIENT_ID`/`SECRET`/`CONTRACT_NUMBER`-muuttujiin, jotka ovat jo paikoillaan `.env`:ssä production-tarkoitukseen) — ei koodimuutosta.
+
+**⬜ Ei vielä tehty, tietoinen rajaus:** `getSendingCode()` (Sending Code API) on YHÄ oma, erillinen 403 — tämä EI liittynyt puuttuvaan gateway secretiin ollenkaan (eri este: puuttuva tuote-/roolirekisteröinti `developer.posti.com`:ssa, ks. edellinen osio) eikä testattu uudestaan nyt, koska mikään ei muuttunut sen suhteen. Kysy Postilta samassa yhteydessä kun/jos vielä tarpeen.
+**⬜ Ei vielä kytketty live-reittiin** — `POST /orders/:id/create-shipment` käyttää yhä `postiService.ts`-mockia. Seuraava askel omistajan päätettäväksi: milloin `postiClient.createShippingOrder()` kytketään tuon reitin tilalle (ja päätetään näytetäänkö myyjälle PDF-tarra sellaisenaan vai odotetaanko myös Sending Code -pääsyä ennen UI:n rakentamista).
 
 ### Sending Code API luettu ja tarkennettu 2026-09-03 — labelless ON mahdollinen, mutta kahdessa kutsussa, ei yhdessä
 
