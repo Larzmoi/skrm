@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendEmail = sendEmail;
+exports.syncNewsletterContact = syncNewsletterContact;
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
 exports.sendBanNotificationEmail = sendBanNotificationEmail;
 exports.sendWelcomeEmail = sendWelcomeEmail;
@@ -24,6 +25,30 @@ async function sendEmail(params) {
     }
     catch (e) {
         console.error('[email] Lähetys epäonnistui:', e);
+    }
+}
+// Synkronoi käyttäjän uutiskirjetilaus Resendin Contacts-API:in (ks. CLAUDE.md 2026-09-03) —
+// paikallinen User.newsletterOptIn on nopea kopio näyttöä varten, Resendin puoli on se mistä
+// varsinainen uutiskirje joskus lähetettäisiin (Resend Broadcasts). Ei vaadi audienceId:tä —
+// asennetun SDK:n (6.18.1) mukaan kontaktit voivat elää ilman erillistä Audiencea.
+// update() ensin (idempotentti, olemassa olevalle kontaktille), create() varalla jos kontaktia
+// ei vielä ole — sama epäonnistu-hiljaa-periaate kuin sendEmail():ssä, ei koskaan kaada
+// profiilin päivitys-API-pyyntöä vaikka Resend-kutsu epäonnistuisi.
+async function syncNewsletterContact(email, name, subscribed) {
+    if (!resend) {
+        console.log(`[newsletter] RESEND_API_KEY ei asetettu — kontaktia EI synkronoitu. email=${email} subscribed=${subscribed}`);
+        return;
+    }
+    try {
+        const { error } = await resend.contacts.update({ email, unsubscribed: !subscribed });
+        if (error) {
+            const { error: createError } = await resend.contacts.create({ email, firstName: name, unsubscribed: !subscribed });
+            if (createError)
+                console.error('[newsletter] Resend contacts.create palautti virheen:', createError);
+        }
+    }
+    catch (e) {
+        console.error('[newsletter] Kontaktin synkronointi epäonnistui:', e);
     }
 }
 function wrapper(bodyHtml) {

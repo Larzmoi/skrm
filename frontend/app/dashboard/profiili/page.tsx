@@ -35,6 +35,8 @@ export default function ProfiiliPage() {
   const [showVacForm, setShowVacForm] = useState(false)
   const [vacationBusy, setVacationBusy] = useState(false)
   const [vacationError, setVacationError] = useState('')
+  const [newsletterBusy, setNewsletterBusy] = useState(false)
+  const [newsletterError, setNewsletterError] = useState('')
 
   useEffect(() => {
     setName(user?.name ?? '')
@@ -77,6 +79,17 @@ export default function ProfiiliPage() {
       setVacationError(e.message ?? 'Poisto epäonnistui')
     }
     setVacationBusy(false)
+  }
+
+  async function toggleNewsletter() {
+    setNewsletterBusy(true); setNewsletterError('')
+    try {
+      const updated = await userApi.updateProfile({ newsletterOptIn: !user?.newsletterOptIn })
+      updateUser({ newsletterOptIn: updated.newsletterOptIn })
+    } catch (e: any) {
+      setNewsletterError(e.message ?? 'Tallennus epäonnistui')
+    }
+    setNewsletterBusy(false)
   }
 
   function handleAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -232,6 +245,21 @@ export default function ProfiiliPage() {
             </div>
           </div>
         )}
+      </div>
+
+      <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+              Uutiskirje
+            </h2>
+            <p style={{ fontSize: 13, color: C.muted }}>Myyntivinkkejä ja päivityksiä suoraan sähköpostiisi.</p>
+          </div>
+          <button onClick={toggleNewsletter} disabled={newsletterBusy} style={{ background: user?.newsletterOptIn ? C.surface2 : C.accentSolid, color: user?.newsletterOptIn ? C.muted : C.accentText, border: `1px solid ${user?.newsletterOptIn ? C.border : C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: newsletterBusy ? 'default' : 'pointer', opacity: newsletterBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
+            {user?.newsletterOptIn ? 'Peru tilaus' : 'Tilaa uutiskirje'}
+          </button>
+        </div>
+        {newsletterError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginTop: 12, color: '#EF4444', fontSize: 13 }}>{newsletterError}</div>}
       </div>
     </div>
   )

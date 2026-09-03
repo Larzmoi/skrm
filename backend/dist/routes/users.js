@@ -9,6 +9,7 @@ const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const livekit_1 = require("../lib/livekit");
 const notify_1 = require("../lib/notify");
+const resend_1 = require("../lib/resend");
 const router = (0, express_1.Router)();
 // GET /users/me/stream-info — myyjän pysyvät OBS-asetukset (RTMP-palvelin + stream key) PLUS
 // oma esikatselutoken (LiveKit-migraatio 2026-08-09, ks. CLAUDE.md "PÄÄTÖS 2026-08-09").
@@ -138,7 +139,7 @@ router.post('/:username/follow', auth_1.authMiddleware, async (req, res) => {
 const USERNAME_CHANGE_COOLDOWN_DAYS = 365;
 // PATCH /users/me — päivitä oma profiili
 router.patch('/me', auth_1.authMiddleware, async (req, res) => {
-    const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl, vacationUntil, vacationMessage } = req.body;
+    const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl, vacationUntil, vacationMessage, newsletterOptIn } = req.body;
     const current = await prisma_1.prisma.user.findUnique({ where: { id: req.userId } });
     if (!current)
         return res.status(404).json({ error: 'Käyttäjää ei löydy' });
@@ -155,6 +156,8 @@ router.patch('/me', auth_1.authMiddleware, async (req, res) => {
         data.vacationUntil = vacationUntil ? new Date(vacationUntil) : null;
     if ('vacationMessage' in req.body)
         data.vacationMessage = vacationMessage || null;
+    if (typeof newsletterOptIn === 'boolean')
+        data.newsletterOptIn = newsletterOptIn;
     if (typeof email === 'string' && email.trim() && email.trim() !== current.email) {
         data.email = email.trim();
     }
@@ -179,9 +182,15 @@ router.patch('/me', auth_1.authMiddleware, async (req, res) => {
             select: {
                 id: true, name: true, username: true, email: true, bio: true, avatarUrl: true,
                 phone: true, address: true, postalCode: true, city: true, businessId: true,
-                usernameChangedAt: true, vacationUntil: true, vacationMessage: true,
+                usernameChangedAt: true, vacationUntil: true, vacationMessage: true, newsletterOptIn: true,
             },
         });
+        // Fire-and-forget, ei blokkaa profiilipäivityksen vastausta - jos Resend-kutsu myöhästyy
+        // tai epäonnistuu, käyttäjän oma tilailmoitus on jo tallennettu paikallisesti (ks.
+        // syncNewsletterContact:n oma virheenkäsittely, sama epäonnistu-hiljaa-periaate kuin
+        // sähköposteilla). Synkronoidaan vain jos tila oikeasti muuttui tässä pyynnössä.
+        if ('newsletterOptIn' in data)
+            void (0, resend_1.syncNewsletterContact)(user.email, user.name, user.newsletterOptIn);
         res.json(user);
     }
     catch (e) {

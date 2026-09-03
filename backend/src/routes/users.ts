@@ -4,6 +4,7 @@ import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, createPublisherToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 import { notifyUser } from '../lib/notify'
+import { syncNewsletterContact } from '../lib/resend'
 
 const router = Router()
 
@@ -146,7 +147,7 @@ const USERNAME_CHANGE_COOLDOWN_DAYS = 365
 
 // PATCH /users/me — päivitä oma profiili
 router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl, vacationUntil, vacationMessage } = req.body
+  const { name, bio, phone, address, postalCode, city, businessId, email, username, avatarUrl, vacationUntil, vacationMessage, newsletterOptIn } = req.body
 
   const current = await prisma.user.findUnique({ where: { id: req.userId! } })
   if (!current) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
@@ -163,6 +164,7 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   // toisin kuin muut kentät joissa ?? undefined riittää (ne eivät tarvitse "tyhjennä"-tilaa erikseen)
   if ('vacationUntil' in req.body) data.vacationUntil = vacationUntil ? new Date(vacationUntil) : null
   if ('vacationMessage' in req.body) data.vacationMessage = vacationMessage || null
+  if (typeof newsletterOptIn === 'boolean') data.newsletterOptIn = newsletterOptIn
 
   if (typeof email === 'string' && email.trim() && email.trim() !== current.email) {
     data.email = email.trim()
@@ -190,9 +192,14 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       select: {
         id: true, name: true, username: true, email: true, bio: true, avatarUrl: true,
         phone: true, address: true, postalCode: true, city: true, businessId: true,
-        usernameChangedAt: true, vacationUntil: true, vacationMessage: true,
+        usernameChangedAt: true, vacationUntil: true, vacationMessage: true, newsletterOptIn: true,
       },
     })
+    // Fire-and-forget, ei blokkaa profiilipäivityksen vastausta - jos Resend-kutsu myöhästyy
+    // tai epäonnistuu, käyttäjän oma tilailmoitus on jo tallennettu paikallisesti (ks.
+    // syncNewsletterContact:n oma virheenkäsittely, sama epäonnistu-hiljaa-periaate kuin
+    // sähköposteilla). Synkronoidaan vain jos tila oikeasti muuttui tässä pyynnössä.
+    if ('newsletterOptIn' in data) void syncNewsletterContact(user.email, user.name, user.newsletterOptIn)
     res.json(user)
   } catch (e: any) {
     if (e.code === 'P2002') {

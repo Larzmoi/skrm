@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
     // Idempotentti käyttäjän luonnin kautta: sähköposti/käyttäjänimi on uniikki (P2002 alla
     // hoitaa duplikaatit), joten tämä koodipolku ajetaan enintään kerran per käyttäjä.
     void sendWelcomeEmail(user.email, user.name, user.username)
-    res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role} })
+    res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role, newsletterOptIn: user.newsletterOptIn} })
   } catch (e: any) {
     if (e.code === 'P2002') return res.status(400).json({ error: 'Sähköposti tai käyttäjänimi on jo käytössä' })
     res.status(500).json({ error: 'Palvelinvirhe' })
@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.passwordHash)
     if (!ok) return res.status(401).json({ error: 'Väärä sähköposti tai salasana' })
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '30d' })
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role} })
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role, newsletterOptIn: user.newsletterOptIn} })
   } catch {
     res.status(500).json({ error: 'Palvelinvirhe' })
   }

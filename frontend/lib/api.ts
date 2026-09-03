@@ -39,7 +39,7 @@ export const api = {
 }
 
 export const userApi = {
-  updateProfile: (data: { name?: string; bio?: string; phone?: string; address?: string; postalCode?: string; city?: string; businessId?: string; email?: string; username?: string; avatarUrl?: string; vacationUntil?: string | null; vacationMessage?: string | null }) =>
+  updateProfile: (data: { name?: string; bio?: string; phone?: string; address?: string; postalCode?: string; city?: string; businessId?: string; email?: string; username?: string; avatarUrl?: string; vacationUntil?: string | null; vacationMessage?: string | null; newsletterOptIn?: boolean }) =>
     request('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
   getPublic: (username: string) => request(`/users/${encodeURIComponent(username)}`),
   follow: (username: string) => request(`/users/${encodeURIComponent(username)}/follow`, { method: 'POST' }),

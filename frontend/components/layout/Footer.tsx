@@ -58,16 +58,10 @@ export default function Footer() {
           ))}
         </div>
 
-        <div style={{ marginBottom: 24, paddingBottom: 24, borderBottom: `1px solid ${C.border}`, maxWidth: 380 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>{t.footer.newsletter}</div>
-          <p style={{ fontSize: 12, color: C.muted, marginBottom: 8, lineHeight: 1.5 }}>{t.footer.newsletterDesc}</p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input placeholder={t.footer.emailPlaceholder} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '9px 14px', fontSize: 12, color: C.text, minWidth: 0, outline: 'none', fontFamily: 'var(--font-body), sans-serif' }} />
-            <button className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, border: 'none', borderRadius: 999, padding: '9px 16px', fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-display), sans-serif' }}>
-              {t.footer.subscribe}
-            </button>
-          </div>
-        </div>
+        {/* Uutiskirjelaatikko poistettu 2026-09-03 (ks. CLAUDE.md) - oli täysin toimimaton UI
+            (ei value/onChange/onClick, ei backendiä) eikä anonyymille kirjautumattomalle
+            kävijälle ole edes selvää syytä liittyä ennen tiliä. Toiminto siirretty
+            profiilisivulle kirjautuneille käyttäjille, ks. dashboard/profiili/page.tsx. */}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
           <span style={{ fontSize: 12, color: C.muted }}>{t.footer.copyright}</span>

@@ -18,6 +18,29 @@ export async function sendEmail(params: { to: string; subject: string; html: str
   }
 }
 
+// Synkronoi käyttäjän uutiskirjetilaus Resendin Contacts-API:in (ks. CLAUDE.md 2026-09-03) —
+// paikallinen User.newsletterOptIn on nopea kopio näyttöä varten, Resendin puoli on se mistä
+// varsinainen uutiskirje joskus lähetettäisiin (Resend Broadcasts). Ei vaadi audienceId:tä —
+// asennetun SDK:n (6.18.1) mukaan kontaktit voivat elää ilman erillistä Audiencea.
+// update() ensin (idempotentti, olemassa olevalle kontaktille), create() varalla jos kontaktia
+// ei vielä ole — sama epäonnistu-hiljaa-periaate kuin sendEmail():ssä, ei koskaan kaada
+// profiilin päivitys-API-pyyntöä vaikka Resend-kutsu epäonnistuisi.
+export async function syncNewsletterContact(email: string, name: string, subscribed: boolean) {
+  if (!resend) {
+    console.log(`[newsletter] RESEND_API_KEY ei asetettu — kontaktia EI synkronoitu. email=${email} subscribed=${subscribed}`)
+    return
+  }
+  try {
+    const { error } = await resend.contacts.update({ email, unsubscribed: !subscribed })
+    if (error) {
+      const { error: createError } = await resend.contacts.create({ email, firstName: name, unsubscribed: !subscribed })
+      if (createError) console.error('[newsletter] Resend contacts.create palautti virheen:', createError)
+    }
+  } catch (e) {
+    console.error('[newsletter] Kontaktin synkronointi epäonnistui:', e)
+  }
+}
+
 function wrapper(bodyHtml: string) {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#1a1a1a">
     <div style="font-weight:900;font-size:22px;letter-spacing:-0.5px;margin-bottom:24px">Habahub</div>

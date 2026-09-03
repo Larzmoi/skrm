@@ -19,6 +19,7 @@ interface User {
   role?: 'USER' | 'ADMIN'
   vacationUntil?: string | null
   vacationMessage?: string | null
+  newsletterOptIn?: boolean
 }
 
 interface AuthCtx {

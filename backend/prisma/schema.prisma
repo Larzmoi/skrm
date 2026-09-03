@@ -93,6 +93,11 @@ model User {
   policyAcceptedAt  DateTime?
   vacationUntil    DateTime?
   vacationMessage  String?
+  // Uutiskirjetilaus, ks. CLAUDE.md 2026-09-03 — profiilisivun kytkin, EI footerin (poistettu,
+  // koska tilaajat ovat aina jo rekisteröityneitä käyttäjiä). Paikallinen kopio nopeaa lukua
+  // varten, synkronoidaan Resendin Contacts-API:in joka muutoksella (ks. lib/resend.ts
+  // syncNewsletterContact) — Resendin puoli on totuuden lähde varsinaista lähetystä varten.
+  newsletterOptIn  Boolean  @default(false)
   streamKey        String?  @unique // pysyvä RTMP stream key — sama kaikissa myyjän lähetyksissä, ei per-Show
   livekitIngressId String?  // LiveKit Ingress-objektin ID (2026-08-09 migraatio MediaMTX:sta) — tarvitaan avaimen regeneroinnissa/poistossa. Huone on kiinteä "seller-{userId}", ei tallenneta erikseen koska on suoraan johdettavissa.
   // Admin-käyttäjähallinta (ks. CLAUDE.md/INTEGRATION.md 2026-09-02) — canStream oletuksena
