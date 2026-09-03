@@ -130,8 +130,9 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
             items: { include: { product: { select: { name: true } } } },
             buyer: { select: { email: true } },
             // Myyjän mahdolliset admin-asettamat komissiopoikkeukset (ks. CLAUDE.md/INTEGRATION.md
-            // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon.
-            seller: { select: { customCommissionRate: true, customCommissionCap: true } },
+            // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon. createdAt
+            // tarvitaan 14 päivän 0%-tutustumisjakson laskentaan (ks. getEffectiveCommissionOverride).
+            seller: { select: { customCommissionRate: true, customCommissionCap: true, createdAt: true } },
         },
     });
     if (!order || order.buyerId !== req.userId)
@@ -144,10 +145,11 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
     // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
     // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
     try {
+        const { rate: effectiveRate, cap: effectiveCap } = (0, paytrail_1.getEffectiveCommissionOverride)(order.seller);
         const items = order.items.map(i => ({
             itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
             sellerId: order.sellerId, chargeCommission: true,
-            customCommissionRate: order.seller.customCommissionRate, customCommissionCap: order.seller.customCommissionCap,
+            customCommissionRate: effectiveRate, customCommissionCap: effectiveCap,
         }));
         // Toimitus omana rivinään samassa maksussa - ei komissiota postista, SKRM ottaa
         // osuutensa vain myyntihinnasta (LUKITTU-sääntö).

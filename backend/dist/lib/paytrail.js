@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PAYTRAIL_TEST_MODE = void 0;
 exports.getSubmerchantId = getSubmerchantId;
 exports.computeCommissionCents = computeCommissionCents;
+exports.getEffectiveCommissionOverride = getEffectiveCommissionOverride;
 exports.parseStamp = parseStamp;
 exports.createPayment = createPayment;
 exports.verifyCallbackSignature = verifyCallbackSignature;
@@ -59,6 +60,26 @@ function computeCommissionCents(priceEuros, customRatePercent, customCapEuros) {
     const rate = (customRatePercent != null && isFinite(customRatePercent) && customRatePercent >= 0) ? customRatePercent : 3.5;
     const cap = (customCapEuros != null && isFinite(customCapEuros) && customCapEuros >= 0) ? customCapEuros : 35;
     return Math.round(Math.min(priceEuros * (rate / 100), cap) * 100);
+}
+// Rekisteröitymisen jälkeinen 0%-tutustumisjakso (päätetty 2026-09-03, omistajan pyynnöstä) —
+// KAIKKI uudet myyjät kauppaavat provisiovapaasti ensimmäiset 14 vuorokautta rekisteröitymisestä.
+// TIETOINEN SUUNNITTELUPÄÄTÖS: ei tallenneta 0€/0%:a User-riville rekisteröitymishetkellä,
+// koska se vaatisi manuaalisen/ajastetun massapäivityksen 14 päivän jälkeen palauttamaan kaikki
+// takaisin 3,5%/35€:oon (juuri se työläs ongelma jonka omistaja halusi välttää) — sen sijaan
+// tämä LASKETAAN joka maksuhetkellä suoraan User.createdAt:sta, jolloin promojakso päättyy
+// itsestään eikä mitään tarvitse koskaan palauttaa manuaalisesti.
+// Admin-paneelista asetettu eksplisiittinen customCommissionRate/Cap (ks. PATCH /admin/users/:id)
+// menee AINA tämän edelle riippumatta rekisteröitymisajasta - admin-yliajo on tarkoituksella
+// pysyvä, ei promojakson piirissä.
+const SIGNUP_PROMO_DAYS = 14;
+function getEffectiveCommissionOverride(seller) {
+    if (seller.customCommissionRate != null || seller.customCommissionCap != null) {
+        return { rate: seller.customCommissionRate, cap: seller.customCommissionCap };
+    }
+    const promoEndsAt = seller.createdAt.getTime() + SIGNUP_PROMO_DAYS * 24 * 60 * 60 * 1000;
+    if (Date.now() < promoEndsAt)
+        return { rate: 0, cap: 0 };
+    return { rate: null, cap: null };
 }
 function eurosToCents(euros) {
     return Math.round(euros * 100);

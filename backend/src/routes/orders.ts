@@ -3,7 +3,7 @@ import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getShippingPrice } from '../lib/shipping'
-import { createPayment, refundFull, refundItem, computeCommissionCents } from '../lib/paytrail'
+import { createPayment, refundFull, refundItem, computeCommissionCents, getEffectiveCommissionOverride } from '../lib/paytrail'
 import * as postiService from '../lib/postiService'
 import { notifyUser } from '../lib/notify'
 import { sendShippingNotificationEmail } from '../lib/resend'
@@ -100,8 +100,9 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
       items: { include: { product: { select: { name: true } } } },
       buyer: { select: { email: true } },
       // Myyjän mahdolliset admin-asettamat komissiopoikkeukset (ks. CLAUDE.md/INTEGRATION.md
-      // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon.
-      seller: { select: { customCommissionRate: true, customCommissionCap: true } },
+      // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon. createdAt
+      // tarvitaan 14 päivän 0%-tutustumisjakson laskentaan (ks. getEffectiveCommissionOverride).
+      seller: { select: { customCommissionRate: true, customCommissionCap: true, createdAt: true } },
     },
   })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
@@ -112,10 +113,11 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
   // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
   // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
   try {
+    const { rate: effectiveRate, cap: effectiveCap } = getEffectiveCommissionOverride(order.seller)
     const items = order.items.map(i => ({
       itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
       sellerId: order.sellerId, chargeCommission: true,
-      customCommissionRate: order.seller.customCommissionRate, customCommissionCap: order.seller.customCommissionCap,
+      customCommissionRate: effectiveRate, customCommissionCap: effectiveCap,
     }))
     // Toimitus omana rivinään samassa maksussa - ei komissiota postista, SKRM ottaa
     // osuutensa vain myyntihinnasta (LUKITTU-sääntö).
