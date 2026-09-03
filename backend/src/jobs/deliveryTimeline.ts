@@ -4,9 +4,10 @@ import { notifyUser } from '../lib/notify'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // Toimituksen aikataulu SHIPPED-tilauksille — kaksi erillistä polkua (LUKITTU, ks. CLAUDE.md
-// "Toimituksen aikataulu ja maksuturva", täsmennetty 2026-08-25):
+// "Toimituksen aikataulu ja maksuturva", tiukennettu 24h:iin 2026-09-01, vahvistettu uudelleen
+// omistajalta 2026-09-03 — koodi oli tätä ennen jäänyt vahingossa 48h:hon):
 //
-// 1. Ostaja kuittaa vastaanoton (deliveryConfirmedAt asetettu) → 48h tarkastusikkuna, sitten
+// 1. Ostaja kuittaa vastaanoton (deliveryConfirmedAt asetettu) → 24h tarkastusikkuna, sitten
 //    automaattinen vapautus, ellei ostaja reklamoi sinä aikana (reklamointi siirtää tilauksen
 //    DISPUTED-tilaan, jolloin se ei enää täsmää `status: 'SHIPPED'`-hakuun eikä tätä polkua
 //    enää käydä sille läpi).
@@ -20,10 +21,10 @@ export async function checkDeliveryTimeline() {
   for (const order of shipped) {
     if (order.deliveryConfirmedAt) {
       const confirmedAge = now - order.deliveryConfirmedAt.getTime()
-      if (confirmedAge >= 2 * DAY_MS) {
+      if (confirmedAge >= DAY_MS) {
         // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
         await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
-        await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi vastaanoton eikä reklamoinut 48 tunnin kuluessa — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
+        await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi vastaanoton eikä reklamoinut 24 tunnin kuluessa — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
         await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Kauppa suoritettu', 'Reklamointiaikasi on päättynyt — kauppa on nyt suoritettu.', '/ostot')
       }
       continue

@@ -100,7 +100,7 @@ Ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa ilmoittaa mahdollis
 
 7. MAKSUTURVA
 
-HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Kun toimitus vahvistuu (Postin seurantatieto tai Ostajan oma kuittaus), Ostajalla on 48 tuntia aikaa hyväksyä tai reklamoida toimitus. Jos Ostaja ei reagoi 48 tunnin kuluessa, maksu vapautetaan Myyjälle automaattisesti. Jos toimitus ei koskaan vahvistu, maksu vapautetaan Myyjälle viimeistään 14 vuorokauden kuluttua lähetyksestä.
+HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Kun toimitus vahvistuu (Postin seurantatieto tai Ostajan oma kuittaus), Ostajalla on 24 tuntia aikaa hyväksyä tai reklamoida toimitus. Jos Ostaja ei reagoi 24 tunnin kuluessa, maksu vapautetaan Myyjälle automaattisesti. Jos toimitus ei koskaan vahvistu, maksu vapautetaan Myyjälle viimeistään 14 vuorokauden kuluttua lähetyksestä.
 
 Maksuturva ei kata tilanteita, joissa Ostaja on antanut virheellisen toimitusosoitteen tai muutoin omalla toiminnallaan estänyt toimituksen.
 
@@ -268,7 +268,7 @@ Köparen har 3 dygn från mottagandet av produkten på sig att anmäla eventuell
 
 7. BETALNINGSSKYDD
 
-HABAHUB håller inne Köparens betalning tills Säljaren har lämnat en spårningskod. När leveransen bekräftas (via Postis spårningsuppgifter eller Köparens egen kvittering) har Köparen 48 timmar på sig att godkänna eller reklamera leveransen. Om Köparen inte reagerar inom 48 timmar frigörs betalningen automatiskt till Säljaren. Om leveransen aldrig bekräftas frigörs betalningen till Säljaren senast 14 dygn efter att produkten skickades.
+HABAHUB håller inne Köparens betalning tills Säljaren har lämnat en spårningskod. När leveransen bekräftas (via Postis spårningsuppgifter eller Köparens egen kvittering) har Köparen 24 timmar på sig att godkänna eller reklamera leveransen. Om Köparen inte reagerar inom 24 timmar frigörs betalningen automatiskt till Säljaren. Om leveransen aldrig bekräftas frigörs betalningen till Säljaren senast 14 dygn efter att produkten skickades.
 
 Betalningsskyddet täcker inte situationer där Köparen har lämnat en felaktig leveransadress eller på annat sätt genom eget agerande förhindrat leveransen.
 
@@ -425,7 +425,7 @@ The Buyer has 3 days from receiving the product to report any defects or discrep
 
 7. PAYMENT PROTECTION
 
-HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. Once delivery is confirmed (via Posti tracking or the Buyer's own confirmation), the Buyer has 48 hours to accept or dispute the delivery. If the Buyer does not respond within 48 hours, payment is released to the Seller automatically. If delivery is never confirmed, payment is released to the Seller no later than 14 days after shipment.
+HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. Once delivery is confirmed (via Posti tracking or the Buyer's own confirmation), the Buyer has 24 hours to accept or dispute the delivery. If the Buyer does not respond within 24 hours, payment is released to the Seller automatically. If delivery is never confirmed, payment is released to the Seller no later than 14 days after shipment.
 
 8. DISPUTES
 
