@@ -1,28 +1,32 @@
 import crypto from 'crypto'
 
-// MOCK-toteutus, rakennettu OmaPosti Pro API:n VAHVISTETUN skeeman mukaan (ks. CLAUDE.md
-// "Lähetysintegraatio" -osion "✅ VAHVISTUS 2026-08-26" ja "Eteneminen 2026-08-26"). Pyyntö
-// rakennetaan tarkalleen oikeaan JSON-muotoon (sender/receiver/senderPartners/service/
-// parcels/agent.quickId) mutta ei vielä lähetetä minnekään - kun oikea API-avain/
-// testiympäristö saadaan Postilta (LogEDI@posti.com), ainoa muutos on HTTP-kutsun
-// lisääminen näiden funktioiden sisään, ei kutsujan koodi eikä datan muoto.
+// MOCK-toteutus - ei enää käytä v1-oletusta (ks. `postiClient.ts`, kirjoitettu 2026-09-03
+// Postin oman "How to test OmaPosti Pro API v2" -ohjeen ja testitunnusten mukaan, joka on
+// OIKEA, testattu (token-taso) integraatio v2:een). Tämä tiedosto pysyy mockina siihen asti
+// kunnes `POSTI_GATEWAY_SECRET` saadaan Postilta ja `postiClient.createShippingOrder()` on
+// vahvistettu toimivaksi päästä päähän demo-ympäristössä - vasta sen jälkeen tämä korvataan.
+//
+// ✅ PÄIVITETTY 2026-09-03 Postin oman v2-ohjeen mukaan (ks. CLAUDE.md): service PO2103,
+// packageCode "PKT" ja MOCK_OUTPUT_TYPE='label_pdf' ovat nyt VAHVISTETTUJA oikeita arvoja,
+// eivät enää arvauksia - poimittu suoraan Postin dokumentoidusta curl-esimerkistä.
 
-export const POSTI_CUST_NO = '691317' // logistiikkasopimusnumero (Muistikuva Oy), ks. CLAUDE.md
-export const POSTI_PROD_URL = 'https://gateway.posti.fi/shippingapi/api/v1/shipping/order' // EI vielä käytössä, vain rakenteen malli
+export const POSTI_CUST_NO = '691317' // tuotannon logistiikkasopimusnumero (Muistikuva Oy), ks. CLAUDE.md - testiympäristön oma on 677503, ks. postiClient.ts
+export const POSTI_PROD_URL = 'https://gateway.posti.fi/shippingapi/api/v2/shipping/order' // EI vielä käytössä tässä mockissa, vain rakenteen malli - oikea kutsu on postiClient.ts:ssä
 
 export type Pakettikoko = 'PIENI' | 'ISO'
 
-// Postin palvelumatriisista (posti.fi/en/for-businesses/service-channels/service-matrix)
-// pitäisi valita oikeat palvelukoodit - ei vielä tehty (ks. CLAUDE.md "Eteneminen
-// 2026-08-26", avoin kohta). Nämä ovat PAIKKAMERKKEJÄ jotka näyttävät oikealta muodolta,
-// eivät vahvistettuja oikeita koodeja - päivitä kun palvelukoodi on valittu.
+// PO2103 VAHVISTETTU 2026-09-03 suoraan Postin omasta curl-esimerkistä (ISO-pakettikoolle).
+// PO2102 on yhä vahvistamaton arvaus PIENI-koolle - Postin esimerkki käytti vain yhtä kokoa.
 const SERVICE_ID_BY_PAKETTIKOKO: Record<Pakettikoko, string> = {
   PIENI: 'PO2102',
   ISO: 'PO2103',
 }
+// "PKT" VAHVISTETTU 2026-09-03 Postin omasta esimerkistä - korvaa aiemmat arvatut
+// "PIKKUPAKETTI"/"PAKETTI"-arvot. Esimerkissä sama koodi käytössä painosta riippumatta,
+// joten käytetään samaa molemmille kokoluokille kunnes toisin vahvistetaan.
 const PACKAGE_CODE_BY_PAKETTIKOKO: Record<Pakettikoko, string> = {
-  PIENI: 'PIKKUPAKETTI',
-  ISO: 'PAKETTI',
+  PIENI: 'PKT',
+  ISO: 'PKT',
 }
 const WEIGHT_KG_BY_PAKETTIKOKO: Record<Pakettikoko, number> = {
   PIENI: 1,
@@ -137,13 +141,15 @@ export type ShipmentOutput =
   | { type: 'code'; value: string }
   | { type: 'label_pdf'; url: string }
 
-// ⚠️ Vaihda tämä kun Posti vastaa avoimeen kysymykseen (ks. CLAUDE.md "AVOIN KYSYMYS,
-// selvitettävä Postilta ennen koodausta") - kumpaa muotoa lähetys oikeasti näytetään
-// myyjälle/ostajalle. 'code' vastaa tavoiteltua Vinted-tyylistä labelless-virtaa,
-// 'label_pdf' sitä että OmaPosti Pro API on puhtaasti tarrapohjainen. Koko UI
-// (dashboard/tilaukset, ostot) tukee jo molempia yhtä hyvin - tämän arvon vaihtaminen on
-// AINOA koodimuutos joka tarvitaan kumpaan tahansa vastaukseen.
-const MOCK_OUTPUT_TYPE: 'code' | 'label_pdf' = 'code'
+// ✅ RATKAISTU 2026-09-03 - Postin oma "How to test OmaPosti Pro API v2" -ohje vahvistaa
+// vastauksen sisältävän prints[]-taulukon jossa pdf_type:"ADDRESSLABEL" ja shipment.status:
+// "PRINTED" - OmaPosti Pro API v2 on siis PUHTAASTI TARRAPOHJAINEN, ei koskaan palauta
+// Vinted-tyylistä labelless-koodia. "Sending Code API" (jos sitä ylipäätään tarvitaan) olisi
+// eri, erillinen Postin tuote - ei tämän saman kutsun sivutuote. TÄMÄ ON TUOTEPÄÄTÖS, EI VAIN
+// TEKNINEN YKSITYISKOHTA: myyjä joutuu tulostamaan ja kiinnittämään fyysisen osoitetarran,
+// ei voi enää kirjoittaa koodia käsin pakettiin - kerrottu omistajalle, ei toteutettu UI:hin
+// vielä koska POSTI_GATEWAY_SECRET puuttuu eikä oikeaa vastausta ole nähty käytännössä.
+const MOCK_OUTPUT_TYPE: 'code' | 'label_pdf' = 'label_pdf'
 
 // Erillinen kutsu createShipment():sta, koska emme vielä tiedä palauttaako Posti koodin/
 // tarran suoraan luontivastauksessa vai vaatiiko se oman hakukutsun (esim. Sending Code
