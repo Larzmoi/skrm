@@ -17,7 +17,7 @@ async function isUserBanned(userId) {
 }
 // GET /products
 router.get('/', async (req, res) => {
-    const { category, alakategoria, tyyppi, sort, search, limit } = req.query;
+    const { category, alakategoria, tyyppi, sort, search, limit, seller } = req.query;
     const where = { status: 'PENDING', saleType: { in: ['buy_now', 'both'] } };
     if (category && category !== 'kaikki')
         where.category = String(category);
@@ -27,6 +27,16 @@ router.get('/', async (req, res) => {
         where.tyyppi = String(tyyppi);
     if (search)
         where.name = { contains: String(search), mode: 'insensitive' };
+    // ⚠️ KRIITTINEN KORJAUS 2026-09-04: `seller`-parametri (käyttäjätunnus) oli täysin luettu
+    // frontendissä (u/[username]-sivu kutsuu /products?seller=...) mutta EI KOSKAAN käsitelty
+    // täällä - jokainen julkinen profiilisivu näytti siis koko sivuston tuotteet, ei vain
+    // kyseisen myyjän. `sellerId` asetetaan '__none__':ksi jos käyttäjänimeä ei löydy, jotta
+    // virheellinen/poistettu käyttäjänimi palauttaa tyhjän listan sen sijaan että hiljaa
+    // näyttäisi kaiken (mikä olisi juuri tämä sama bugi uudestaan).
+    if (seller) {
+        const sellerUser = await prisma_1.prisma.user.findFirst({ where: { username: String(seller) }, select: { id: true } });
+        where.sellerId = sellerUser?.id ?? '__none__';
+    }
     let orderBy = { createdAt: 'desc' };
     if (sort === 'price_asc')
         orderBy = { startPrice: 'asc' };

@@ -163,11 +163,11 @@ const sv = {
     follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',
     past: 'Tidigare strömmar', reviews: 'Recensioner', followers: 'Följare',
     shows: 'Strömmar', rating: 'Betyg', trades: 'Transaktioner', ended: 'Avslutade',
-    bio: 'Specialiserad på Pokémon Base Set och PSA-graderade kort.',
     noUpcoming: 'Inna kommande strömmar',
     vacationActive: 'Säljaren är tillfälligt på semester', vacationUntil: 'Bakom',
     upcomingSection: 'Kommande strömmar och auktioner', selling: 'Till salu',
     noProducts: 'Inga produkter att köpa',
+    followersListTitle: 'Följare', noFollowers: 'Inga följare ännu',
   },
   purchases: {
     title: 'Köp', subtitle: 'Din beställningshistorik och spårning',

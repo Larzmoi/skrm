@@ -53,7 +53,7 @@ function getOptionalUserId(req: Request): string | null {
 router.get('/:username', async (req, res) => {
   const user = await prisma.user.findFirst({
     where: { username: decodeURIComponent(String(req.params.username)) },
-    select: { id: true, name: true, username: true, avatarUrl: true, createdAt: true, vacationUntil: true, vacationMessage: true },
+    select: { id: true, name: true, username: true, avatarUrl: true, bio: true, createdAt: true, vacationUntil: true, vacationMessage: true },
   })
   if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
 
@@ -112,6 +112,24 @@ router.get('/:username/reviews', async (req, res) => {
     include: { reviewer: { select: { name: true, username: true, avatarUrl: true } } },
   })
   res.json(reviews)
+})
+
+// GET /users/:username/followers — julkinen lista käyttäjän seuraajista (ks. CLAUDE.md
+// 2026-09-04, omistajan pyyntö "olisi mukava nähdä seuraajat" — pelkkä lukumäärä oli jo
+// olemassa, tämä lisää oikean listan sen taakse).
+router.get('/:username/followers', async (req, res) => {
+  const user = await prisma.user.findFirst({
+    where: { username: decodeURIComponent(String(req.params.username)) },
+    select: { id: true },
+  })
+  if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
+
+  const followers = await prisma.follower.findMany({
+    where: { sellerId: user.id },
+    orderBy: { createdAt: 'desc' },
+    include: { follower: { select: { name: true, username: true, avatarUrl: true } } },
+  })
+  res.json(followers.map(f => f.follower))
 })
 
 // POST /users/:username/follow — seuraa/lopeta seuraaminen (toggle)

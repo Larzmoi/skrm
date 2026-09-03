@@ -44,6 +44,7 @@ export const userApi = {
   getPublic: (username: string) => request(`/users/${encodeURIComponent(username)}`),
   follow: (username: string) => request(`/users/${encodeURIComponent(username)}/follow`, { method: 'POST' }),
   getReviews: (username: string) => request(`/users/${encodeURIComponent(username)}/reviews`),
+  getFollowers: (username: string) => request(`/users/${encodeURIComponent(username)}/followers`),
   getStreamInfo: () => request('/users/me/stream-info'),
   regenerateStreamKey: () => request('/users/me/stream-key/regenerate', { method: 'POST' }),
   getPublishToken: () => request('/users/me/publish-token', { method: 'POST' }),

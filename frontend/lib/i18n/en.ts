@@ -163,11 +163,11 @@ const en = {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',
     past: 'Past shows', reviews: 'Reviews', followers: 'Followers',
     shows: 'Shows', rating: 'Rating', trades: 'Sales', ended: 'Ended',
-    bio: 'Specialized in Pokémon Base Set and PSA-graded cards.',
     noUpcoming: 'No upcoming shows',
     vacationActive: 'Seller is temporarily on vacation', vacationUntil: 'Back',
     upcomingSection: 'Upcoming shows and auctions', selling: 'For sale',
     noProducts: 'No products for sale',
+    followersListTitle: 'Followers', noFollowers: 'No followers yet',
   },
   purchases: {
     title: 'Purchases', subtitle: 'Your order history and tracking',

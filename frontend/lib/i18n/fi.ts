@@ -163,11 +163,11 @@ const fi = {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',
     past: 'Menneet lähetykset', reviews: 'Arvostelut', followers: 'Seuraajaa',
     shows: 'Lähetystä', rating: 'Arvosana', trades: 'Kauppaa', ended: 'Päättynyt',
-    bio: 'Erikoistunut Pokémon Base Set ja PSA-gradattuihin kortteihin.',
     noUpcoming: 'Ei tulevia lähetyksiä',
     vacationActive: 'Myyjä on tilapäisesti lomalla', vacationUntil: 'Palaa',
     upcomingSection: 'Tulevat lähetykset ja huutokaupat', selling: 'Myynnissä',
     noProducts: 'Ei tuotteita myynnissä',
+    followersListTitle: 'Seuraajat', noFollowers: 'Ei vielä seuraajia',
   },
   purchases: {
     title: 'Ostot', subtitle: 'Ostohistoriasi ja tilausten seuranta',

@@ -30,6 +30,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [followerCount, setFollowerCount] = useState(0)
   const [followBusy, setFollowBusy] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [showFollowers, setShowFollowers] = useState(false)
+  const [followersList, setFollowersList] = useState<any[]>([])
+  const [followersLoading, setFollowersLoading] = useState(false)
 
   useEffect(() => {
     // Haetaan käyttäjä, hänen tuotteensa ja arvostelunsa
@@ -46,6 +49,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }).finally(() => setLoading(false))
   }, [username])
 
+  function openFollowers() {
+    setShowFollowers(true)
+    if (followersList.length === 0) {
+      setFollowersLoading(true)
+      userApi.getFollowers(username).then(data => setFollowersList(Array.isArray(data) ? data : [])).catch(() => setFollowersList([])).finally(() => setFollowersLoading(false))
+    }
+  }
+
   async function toggleFollow() {
     if (!currentUser) {
       router.push('/login')
@@ -56,6 +67,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       const data = await userApi.follow(username)
       setFollowing(data.following)
       setFollowerCount(data.followerCount)
+      setFollowersList([]) // pakottaa uudelleenhaun jos seuraajalista avataan seuraavaksi
       // Kysytään push-ilmoituslupa juuri tässä (käyttäjän eleen sisällä, ks. lib/push.ts)
       // vain kun seuraaminen aloitettiin, ei kun se lopetettiin - näin käyttäjä saa
       // ilmoituksen kun tämä myyjä menee liveen (ks. CLAUDE.md "Push-ilmoitukset").
@@ -103,6 +115,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
                 <div style={{ fontSize: 14, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
+                {profile?.bio && <p style={{ fontSize: 13, color: C.textSub, marginTop: 8, lineHeight: 1.5 }}>{profile.bio}</p>}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -135,8 +148,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </div>
 
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            <button onClick={openFollowers} style={{ textAlign: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: C.text }}>{followerCount}</div>
+              <div style={{ fontSize: 12, color: C.accent, textDecoration: 'underline', textUnderlineOffset: 2 }}>{t.profile.followers}</div>
+            </button>
             {[
-              { label: t.profile.followers, value: followerCount.toString() },
               { label: t.profile.trades, value: products.length.toString() },
               { label: t.profile.rating, value: profile?.avgRating ? `${profile.avgRating.toFixed(1)} (${profile.reviewCount})` : '—' },
             ].map(s => (
@@ -244,6 +260,33 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       </div>
       <Footer />
       {showReport && profile?.id && <ReportModal targetType="user" targetId={profile.id} onClose={() => setShowReport(false)} />}
+      {showFollowers && (
+        <div onClick={() => setShowFollowers(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '20px 20px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexShrink: 0 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{t.profile.followersListTitle} ({followerCount})</h2>
+              <button onClick={() => setShowFollowers(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 18 }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 }}>
+              {followersLoading ? (
+                <div style={{ textAlign: 'center', padding: 20, color: C.muted, fontSize: 13 }}>{t.auth.loading}</div>
+              ) : followersList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 20, color: C.muted, fontSize: 13 }}>{t.profile.noFollowers}</div>
+              ) : followersList.map((f: any) => (
+                <Link key={f.username} href={`/u/${f.username}`} onClick={() => setShowFollowers(false)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', textDecoration: 'none', borderRadius: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: C.accentSolid, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: C.accentText, flexShrink: 0 }}>
+                    {f.avatarUrl ? <img src={f.avatarUrl} alt={f.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : f.name?.[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                    <div style={{ fontSize: 12, color: C.muted }}>@{f.username}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
