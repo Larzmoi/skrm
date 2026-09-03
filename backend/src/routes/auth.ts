@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 import { createAndSendPasswordResetToken } from '../lib/passwordReset'
+import { sendWelcomeEmail } from '../lib/resend'
 
 const router = Router()
 
@@ -22,6 +23,9 @@ router.post('/register', async (req, res) => {
       data: { email, passwordHash: hash, name, username, termsAcceptedAt: now, privacyAcceptedAt: now, policyAcceptedAt: now },
     })
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '30d' })
+    // Idempotentti käyttäjän luonnin kautta: sähköposti/käyttäjänimi on uniikki (P2002 alla
+    // hoitaa duplikaatit), joten tämä koodipolku ajetaan enintään kerran per käyttäjä.
+    void sendWelcomeEmail(user.email, user.name, user.username)
     res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role} })
   } catch (e: any) {
     if (e.code === 'P2002') return res.status(400).json({ error: 'Sähköposti tai käyttäjänimi on jo käytössä' })

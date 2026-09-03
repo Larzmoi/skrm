@@ -140,16 +140,26 @@ router.get('/paytrail', async (req, res) => {
     const parsed = stamp ? (0, paytrail_1.parseStamp)(stamp) : null;
     if (!parsed)
         return res.status(200).send('ok'); // tuntematon stamp - ei voida käsitellä, mutta kuitataan ettei Paytrail yritä uudelleen loputtomiin
-    const order = await prisma_1.prisma.order.findUnique({ where: { id: parsed.orderId } });
+    const order = await prisma_1.prisma.order.findUnique({
+        where: { id: parsed.orderId },
+        include: {
+            buyer: { select: { email: true, name: true } },
+            items: { include: { product: { select: { name: true } } } },
+        },
+    });
     if (!order)
         return res.status(200).send('ok');
     // Idempotenssi: Paytrail voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
     // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/ilmoitetaan.
     // Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut webhook riittää.
+    // Sama ehto suojaa myös tilausvahvistussähköpostia (ks. CLAUDE.md, sähköpostit-integraatio
+    // 2026-09-03) - toistokutsu näkee order.status:in jo PENDING_SHIPPING:nä eikä lähetä uudestaan.
     if (status === 'ok' && order.status === 'PENDING_PAYMENT') {
         const total = order.productTotal + (order.shippingPrice ?? 0);
         await prisma_1.prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING', paymentDeadline: null } });
         await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset');
+        const productNames = order.items.map(i => i.product.name).join(', ');
+        void (0, resend_1.sendOrderConfirmationEmail)(order.buyer.email, order.buyer.name, order.id, productNames, total);
     }
     // status 'fail'/'pending'/'delayed', tai jo käsitelty tila: ei toimenpiteitä - ostaja
     // voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-cron siivoaa myöhemmin.

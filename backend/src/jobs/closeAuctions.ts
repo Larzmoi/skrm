@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma'
 import { notifyUser } from '../lib/notify'
 import { createOrderForAuctionWin } from '../lib/auctionOrder'
+import { sendAuctionWonEmail } from '../lib/resend'
 
 // Perinteinen huutokauppa voi päättyä milloin vain kellonajasta riippumatta (esim. yöllä) —
 // voittaja ei ole aktiivisesti läsnä kuten live-huudossa tai osta heti -ostoksessa, joten
@@ -28,6 +29,12 @@ export async function closeExpiredAuctions() {
         await createOrderForAuctionWin(product.currentBidderId, product.sellerId, product.id, product.currentBid, AUCTION_PAYMENT_WINDOW_MS)
         await notifyUser(product.currentBidderId, 'ORDER_WON', 'Voitit huutokaupan!', `Voitit tuotteen ${product.name} hinnalla ${product.currentBid}€. Sinulla on 24h aikaa maksaa.`, '/ostot')
         await notifyUser(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} myytiin hinnalla ${product.currentBid}€`, '/dashboard/tilaukset')
+        // Sähköposti push-ilmoituksen rinnalle (ks. CLAUDE.md, sähköpostit-integraatio 2026-09-03).
+        // Idempotentti tämän jobin oman kannalta: closeExpiredAuctions() poimii tuotteet
+        // where status:'PENDING' - tämä tuote on jo asetettu SOLD:ksi rivillä yllä, joten
+        // job ei koskaan poimi samaa tuotetta uudestaan seuraavalla ajokerralla.
+        const winner = await prisma.user.findUnique({ where: { id: product.currentBidderId }, select: { email: true, name: true } })
+        if (winner) void sendAuctionWonEmail(winner.email, winner.name, product.name, product.currentBid, 24)
       } else {
         await prisma.product.update({
           where: { id: product.id },

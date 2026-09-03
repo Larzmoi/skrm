@@ -5,6 +5,7 @@ const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const notify_1 = require("../lib/notify");
 const auctionOrder_1 = require("../lib/auctionOrder");
+const resend_1 = require("../lib/resend");
 const BUY_NOW_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000; // ostaja aktiivisesti läsnä klikatessaan — normaali 2h maksuaika
 const router = (0, express_1.Router)();
 const SNIPE_EXTENSION_MS = 2 * 60 * 1000; // viime hetken pidennys
@@ -174,6 +175,14 @@ router.post('/:id/buy-now', auth_1.authMiddleware, async (req, res) => {
     await (0, auctionOrder_1.createOrderForAuctionWin)(req.userId, product.sellerId, productId, product.buyNowPrice, BUY_NOW_PAYMENT_WINDOW_MS);
     await (0, notify_1.notifyUser)(req.userId, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 2h aikaa maksaa.`, '/ostot');
     await (0, notify_1.notifyUser)(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} ostettiin heti hintaan ${product.buyNowPrice}€`, '/dashboard/tilaukset');
+    // Sähköposti push-ilmoituksen rinnalle (ks. CLAUDE.md, sähköpostit-integraatio 2026-09-03).
+    // Idempotentti: yllä oleva update asettaa auctionEndsAt:n menneisyyteen (nyt-hetkeen), joten
+    // toinen /buy-now-kutsu samalle tuotteelle kaatuu heti "Huutokauppa on päättynyt" -tarkistukseen
+    // (ks. `if (product.auctionEndsAt && product.auctionEndsAt <= new Date())` yllä) ennen kuin
+    // pääsee tänne asti.
+    const buyer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { email: true, name: true } });
+    if (buyer)
+        void (0, resend_1.sendAuctionWonEmail)(buyer.email, buyer.name, product.name, product.buyNowPrice, 2);
     res.json({ ok: true, price: product.buyNowPrice });
 });
 // Automaattihuutojen käsittely — ratkaisee koko huutosodan yhdellä laskennalla:

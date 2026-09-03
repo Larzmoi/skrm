@@ -44,6 +44,7 @@ const shipping_1 = require("../lib/shipping");
 const paytrail_1 = require("../lib/paytrail");
 const postiService = __importStar(require("../lib/postiService"));
 const notify_1 = require("../lib/notify");
+const resend_1 = require("../lib/resend");
 const router = (0, express_1.Router)();
 // Nouto-tilauksen vahvistuskoodi — 6 numeroa, helppo lukea/sanoa ääneen fyysisessä noudossa
 function generatePickupCode() {
@@ -204,7 +205,10 @@ router.post('/:id/refund', auth_1.authMiddleware, async (req, res) => {
 });
 // POST /orders/:id/tracking — myyjä lisää seurantakoodin
 router.post('/:id/tracking', auth_1.authMiddleware, async (req, res) => {
-    const order = await prisma_1.prisma.order.findUnique({ where: { id: String(req.params.id) } });
+    const order = await prisma_1.prisma.order.findUnique({
+        where: { id: String(req.params.id) },
+        include: { buyer: { select: { email: true, name: true } }, items: { include: { product: { select: { name: true } } } } },
+    });
     if (!order || order.sellerId !== req.userId)
         return res.status(403).json({ error: 'Ei oikeutta' });
     if (order.status !== 'PENDING_SHIPPING')
@@ -218,6 +222,9 @@ router.post('/:id/tracking', auth_1.authMiddleware, async (req, res) => {
         data: { trackingCode, status: 'SHIPPED', shippedAt: new Date() },
     });
     await (0, notify_1.notifyUser)(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Seurantakoodi: ${trackingCode}`, '/ostot');
+    // Idempotentti yllä olevan status-vahdin ansiosta - reitti hyväksyy vain PENDING_SHIPPING:in,
+    // joten toistokutsu jo SHIPPED-tilaan olevalle tilaukselle palauttaa 400:n eikä pääse tänne asti.
+    void (0, resend_1.sendShippingNotificationEmail)(order.buyer.email, order.buyer.name, order.items.map(i => i.product.name).join(', '), trackingCode);
     res.json(updated);
 });
 // POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle (MOCK,

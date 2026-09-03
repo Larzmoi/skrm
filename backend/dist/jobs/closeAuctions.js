@@ -4,6 +4,7 @@ exports.closeExpiredAuctions = closeExpiredAuctions;
 const prisma_1 = require("../db/prisma");
 const notify_1 = require("../lib/notify");
 const auctionOrder_1 = require("../lib/auctionOrder");
+const resend_1 = require("../lib/resend");
 // Perinteinen huutokauppa voi päättyä milloin vain kellonajasta riippumatta (esim. yöllä) —
 // voittaja ei ole aktiivisesti läsnä kuten live-huudossa tai osta heti -ostoksessa, joten
 // maksuaika on tavallista 2h pidempi. Päätetty tietoisesti LUKITTU-säännöstä poiketen.
@@ -26,6 +27,13 @@ async function closeExpiredAuctions() {
                 await (0, auctionOrder_1.createOrderForAuctionWin)(product.currentBidderId, product.sellerId, product.id, product.currentBid, AUCTION_PAYMENT_WINDOW_MS);
                 await (0, notify_1.notifyUser)(product.currentBidderId, 'ORDER_WON', 'Voitit huutokaupan!', `Voitit tuotteen ${product.name} hinnalla ${product.currentBid}€. Sinulla on 24h aikaa maksaa.`, '/ostot');
                 await (0, notify_1.notifyUser)(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} myytiin hinnalla ${product.currentBid}€`, '/dashboard/tilaukset');
+                // Sähköposti push-ilmoituksen rinnalle (ks. CLAUDE.md, sähköpostit-integraatio 2026-09-03).
+                // Idempotentti tämän jobin oman kannalta: closeExpiredAuctions() poimii tuotteet
+                // where status:'PENDING' - tämä tuote on jo asetettu SOLD:ksi rivillä yllä, joten
+                // job ei koskaan poimi samaa tuotetta uudestaan seuraavalla ajokerralla.
+                const winner = await prisma_1.prisma.user.findUnique({ where: { id: product.currentBidderId }, select: { email: true, name: true } });
+                if (winner)
+                    void (0, resend_1.sendAuctionWonEmail)(winner.email, winner.name, product.name, product.currentBid, 24);
             }
             else {
                 await prisma_1.prisma.product.update({

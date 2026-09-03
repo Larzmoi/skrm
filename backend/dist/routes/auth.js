@@ -9,6 +9,7 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = require("../db/prisma");
 const passwordReset_1 = require("../lib/passwordReset");
+const resend_1 = require("../lib/resend");
 const router = (0, express_1.Router)();
 router.post('/register', async (req, res) => {
     const { email, password, name, username, termsAccepted, privacyAccepted, policyAccepted } = req.body;
@@ -25,6 +26,9 @@ router.post('/register', async (req, res) => {
             data: { email, passwordHash: hash, name, username, termsAcceptedAt: now, privacyAcceptedAt: now, policyAcceptedAt: now },
         });
         const token = jsonwebtoken_1.default.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+        // Idempotentti käyttäjän luonnin kautta: sähköposti/käyttäjänimi on uniikki (P2002 alla
+        // hoitaa duplikaatit), joten tämä koodipolku ajetaan enintään kerran per käyttäjä.
+        void (0, resend_1.sendWelcomeEmail)(user.email, user.name, user.username);
         res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name, username: user.username, bio: user.bio, avatarUrl: user.avatarUrl, phone: user.phone, address: user.address, postalCode: user.postalCode, city: user.city, businessId: user.businessId, usernameChangedAt: user.usernameChangedAt, role: user.role } });
     }
     catch (e) {

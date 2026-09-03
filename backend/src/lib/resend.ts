@@ -53,3 +53,75 @@ export async function sendBanNotificationEmail(to: string, name: string, endsAtI
     `),
   })
 }
+
+export function sendWelcomeEmail(to: string, name: string, username: string) {
+  return sendEmail({
+    to,
+    subject: 'Tervetuloa Habahubiin!',
+    html: wrapper(`
+      <p style="font-size:15px;line-height:1.5">Hei ${name},</p>
+      <p style="font-size:15px;line-height:1.5">Tervetuloa Habahubiin, ${username}!</p>
+      <p style="font-size:15px;line-height:1.5">Habahub on live-huutokauppa- ja suoramyyntipalvelu keräilykorteille. Löydä kiinnostavia kortteja, seuraa live-huutokauppoja ja tee ostoksia helposti.</p>
+      <a href="https://habahub.com" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 24px;border-radius:8px;margin:16px 0">Siirry Habahubiin</a>
+    `),
+  })
+}
+
+export function sendOrderConfirmationEmail(
+  to: string,
+  name: string,
+  orderNumber: string,
+  productName: string,
+  totalPrice: number,
+) {
+  return sendEmail({
+    to,
+    subject: `Tilausvahvistus ${orderNumber} — Habahub`,
+    html: wrapper(`
+      <p style="font-size:15px;line-height:1.5">Hei ${name},</p>
+      <p style="font-size:15px;line-height:1.5">Maksusi onnistui ja tilauksesi on vastaanotettu.</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Tilausnumero:</strong> ${orderNumber}</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Tuote:</strong> ${productName}</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Kokonaishinta:</strong> ${totalPrice.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+      <p style="font-size:15px;line-height:1.5">Myyjä lähettää tilauksesi pian.</p>
+    `),
+  })
+}
+
+export function sendShippingNotificationEmail(
+  to: string,
+  name: string,
+  productName: string,
+  trackingCode: string,
+) {
+  return sendEmail({
+    to,
+    subject: 'Tilauksesi on lähetetty — Habahub',
+    html: wrapper(`
+      <p style="font-size:15px;line-height:1.5">Hei ${name},</p>
+      <p style="font-size:15px;line-height:1.5">Tuotteesi <strong>${productName}</strong> on lähetetty.</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Seurantakoodi:</strong> ${trackingCode}</p>
+      <p style="font-size:13px;line-height:1.5;color:#666">Muistathan, että toimituksen jälkeen sinulla on 24 tuntia aikaa hyväksyä vastaanotto tai ilmoittaa ongelmasta.</p>
+    `),
+  })
+}
+
+export function sendAuctionWonEmail(
+  to: string,
+  name: string,
+  productName: string,
+  winningPrice: number,
+  paymentDeadlineHours: number,
+) {
+  return sendEmail({
+    to,
+    subject: 'Voitit huutokaupan! — Habahub',
+    html: wrapper(`
+      <p style="font-size:15px;line-height:1.5">Hei ${name},</p>
+      <p style="font-size:15px;line-height:1.5">Onneksi olkoon — voitit huutokaupan!</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Tuote:</strong> ${productName}</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Voittosumma:</strong> ${winningPrice.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+      <p style="font-size:15px;line-height:1.5">Sinulla on ${paymentDeadlineHours} tuntia aikaa maksaa tilaus.</p>
+    `),
+  })
+}

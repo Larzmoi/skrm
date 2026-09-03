@@ -6,6 +6,7 @@ import { getShippingPrice } from '../lib/shipping'
 import { createPayment, refundFull, refundItem, computeCommissionCents } from '../lib/paytrail'
 import * as postiService from '../lib/postiService'
 import { notifyUser } from '../lib/notify'
+import { sendShippingNotificationEmail } from '../lib/resend'
 
 const router = Router()
 
@@ -170,7 +171,10 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
 
 // POST /orders/:id/tracking — myyjä lisää seurantakoodin
 router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  const order = await prisma.order.findUnique({
+    where: { id: String(req.params.id) },
+    include: { buyer: { select: { email: true, name: true } }, items: { include: { product: { select: { name: true } } } } },
+  })
   if (!order || order.sellerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota lähetystä' })
 
@@ -183,6 +187,9 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
     data: { trackingCode, status: 'SHIPPED', shippedAt: new Date() },
   })
   await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', `Seurantakoodi: ${trackingCode}`, '/ostot')
+  // Idempotentti yllä olevan status-vahdin ansiosta - reitti hyväksyy vain PENDING_SHIPPING:in,
+  // joten toistokutsu jo SHIPPED-tilaan olevalle tilaukselle palauttaa 400:n eikä pääse tänne asti.
+  void sendShippingNotificationEmail(order.buyer.email, order.buyer.name, order.items.map(i => i.product.name).join(', '), trackingCode)
   res.json(updated)
 })
 
