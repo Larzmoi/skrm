@@ -1,0 +1,183 @@
+Sending Code API
+Overview
+
+The Sending Code API lets you generate a short code that replaces a printed shipping label.
+
+    The code is 6-10 characters long, using numbers (0–9) and letters (A,C,D,E,F,G,H,J,K,L,M,N,P,Q,R,T,U,W,X,Y,Z).
+    You can write this code directly on the parcel instead of attaching a label.
+
+You can:
+
+    Create a new sending code for a shipment
+    Retrieve a sending code if it already exists
+    Look up shipment details by sending code
+
+Authentication
+
+Posti APIs use OAuth 2.0 client credentials. The access credentials can be created in the developer portal. See the page Creating API Credentials.
+Requesting the token
+
+    Method: POST
+    Headers: Content-Type: application/x-www-form-urlencoded
+    Body:
+        grant_type=client_credentials
+        client_id=<USER_ID>
+        client_secret=<USER_SECRET>
+
+Token endpoint: https://gateway-auth.posti.fi/api/v1/token
+
+cURL:
+
+curl -X POST https://gateway-auth.posti.fi/api/v1/token   --header "Content-Type: application/x-www-form-urlencoded"   --data-urlencode "grant_type=client_credentials"   --data-urlencode "client_id=<DEMO-USER-ID>"   --data-urlencode "client_secret=<DEMO-SECRET-ID>"
+
+Receiving the access token
+
+Response example:
+
+{
+  "access_token": "abcd1234...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "posti_fi": {
+    "targets": {
+      "2026-04": {
+        "url": "https://gateway.posti.fi/2026-04",
+        "tier": 0
+      }
+    }
+  }
+}
+
+Using the access token
+
+Include header: Authorization: Bearer <token_value>
+
+Sample request:
+
+curl -X POST https://gateway.posti.fi/2026-04/labelless   --header "Content-Type: application/json"   --header "Authorization: Bearer <token_value>"   --data '{'searchCriteria': {'trackingNumber': 'JJFI65432100000000224'}}'
+
+Token expiration
+
+    Access tokens expire in 3600 seconds (1 hour).
+
+Instructions
+
+    OpenAPI specification: (see the Try Out section)
+
+Versioning / General conventions
+
+    Versioning is long-term, visible in the path as yyyy-mm (e.g., 2026-04).
+    Yearly releases; each version supported for three years.
+
+Environments
+
+    Production only
+
+Endpoints (2026-04):
+
+    Create a sending code for a shipment (body search):
+    POST https://gateway.posti.fi/2026-04/labelless
+    Retrieve sending code by tracking number:
+    GET https://gateway.posti.fi/2026-04/labelless/{trackingNumber}
+    Get shipment details by sending code:
+    GET https://gateway.posti.fi/2026-04/labelless/shipment/{sendingCode}
+
+Testing
+
+Testing can be done by adding an X-Test-Environment header into the request. When the header is present in your request, the API returns mocked values instead of real backend data.
+
+    The API inspects the tracking code and, based on its structure (e.g., last digit), returns different mocked responses.
+    Returned sending code is generated using provided tracking code as seed.
+    Sending codes and shipment data are generated using internal mock logic, not real data sources.
+
+If last digit of tracking code is:
+
+    0 or 1 : Endpoint returns error that parcel is not found
+    2 or 3 : Endpoint returns error that EDI check does not succeed (only if EDI check is enabled)
+    all other digits: returns generated mock sending code
+
+Example request, a mock sending code generated:
+
+With header "x-test-environment: true"
+
+{
+  "searchCriteria": {
+    "trackingNumber": "JJFI12345678"
+  }
+}
+
+cURL:
+
+curl -X POST https://gateway.posti.fi/2026-04/labelless   --header "Content-Type: application/json" --header "x-test-environment: true"   --header "Authorization: Bearer <token_value>"   --data '{'searchCriteria': {'trackingNumber': 'JJFI12345678'}}'
+
+Example response with a mock sending code generated:
+
+{
+  "shipments": [
+    {
+      "trackingNumber": "JJFI12345678",
+      "sendingCode": "123456"
+    }
+  ]
+}
+
+Example request, shipment not found:
+
+With header "x-test-environment: true"
+
+{
+  "searchCriteria": {
+    "trackingNumber": "JJFI12345670"
+  }
+}
+
+cURL:
+
+curl -X POST https://gateway.posti.fi/2026-04/labelless   --header "Content-Type: application/json" --header "x-test-environment: true"   --header "Authorization: Bearer <token_value>"   --data '{'searchCriteria': {'trackingNumber': 'JJFI12345670'}}'
+
+Example response with shipment not found error:
+
+{"error": "Shipment not found"}
+
+Request format
+
+    Provide the trackingNumber of the shipment you want a code for.
+    (Optional) Add "validation": {"noEdiCheck": true} if you want to bypass the EDI check. Normally, the system ensures the shipment has EDI data before creating a code.
+
+Example:
+
+{
+  "searchCriteria": {
+    "trackingNumber": "JJFI65432100000000224"
+  },
+  "validation": {
+    "noEdiCheck": true
+  }
+}
+
+Response format
+
+    Standard REST JSON.
+    You’ll get a list of shipments with their sending codes.
+    See API spec for full response models.
+
+Example:
+
+{
+  "shipments": [
+    {
+      "trackingNumber": "JJFI65432100000000224",
+      "sendingCode": "654321"
+    }
+  ]
+} 
+
+Quick Start Checklist
+
+    Obtain OAuth 2.0 client credentials.
+    Request a token from https://gateway-auth.posti.fi/api/v1/token.
+    Call POST /{version}/labelless with validation.noEdiCheck.
+
+Changelog / Notes
+
+    Version path example: 2026-04 (yearly releases, 3-year support window).
