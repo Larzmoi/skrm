@@ -16,6 +16,7 @@ import auctionsRouter from './routes/auctions'
 import reportsRouter from './routes/reports'
 import adminRouter from './routes/admin'
 import pushRouter from './routes/push'
+import presetsRouter from './routes/presets'
 import { setupSocket } from './socket'
 import { setSocketServer } from './lib/notify'
 import { checkDeliveryTimeline } from './jobs/deliveryTimeline'
@@ -58,6 +59,7 @@ app.use('/auctions', auctionsRouter)
 app.use('/reports', reportsRouter)
 app.use('/admin', adminRouter)
 app.use('/push', pushRouter)
+app.use('/presets', presetsRouter)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

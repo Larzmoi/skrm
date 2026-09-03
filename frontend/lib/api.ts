@@ -120,6 +120,25 @@ export const adminApi = {
   sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
 }
 
+export interface ProductPreset {
+  id: string; name: string; condition?: string | null
+  category?: string | null; alakategoria?: string | null; tyyppi?: string | null
+  imageUrl?: string | null; description?: string | null
+  favorite: boolean; lastUsedAt?: string | null; createdAt: string
+}
+
+export const presetApi = {
+  list: (search?: string) => request(`/presets${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  create: (data: { name: string; condition?: string; category?: string; alakategoria?: string; tyyppi?: string; imageUrl?: string; description?: string }) =>
+    request('/presets', { method: 'POST', body: JSON.stringify(data) }),
+  bulkCreate: (text: string, batch?: { category?: string; alakategoria?: string; tyyppi?: string }) =>
+    request('/presets/bulk', { method: 'POST', body: JSON.stringify({ text, ...batch }) }),
+  update: (id: string, data: Partial<{ name: string; condition: string | null; category: string | null; alakategoria: string | null; tyyppi: string | null; imageUrl: string | null; description: string | null; favorite: boolean }>) =>
+    request(`/presets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  markUsed: (id: string) => request(`/presets/${id}/use`, { method: 'POST' }),
+  remove: (id: string) => request(`/presets/${id}`, { method: 'DELETE' }),
+}
+
 export const messageApi = {
   conversations: () => request('/messages'),
   thread: (userId: string) => request(`/messages/${userId}`),

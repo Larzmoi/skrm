@@ -114,6 +114,7 @@ model User {
 
   shows    Show[]
   products Product[]  @relation("SellerProducts")
+  productPresets ProductPreset[]
   bids      Bid[]
   orders    Order[]    @relation("BuyerOrders")
   sales     Order[]    @relation("SellerOrders")
@@ -229,6 +230,28 @@ model Product {
   orderItems OrderItem[]
   messages   Message[]
   autoBids   AutoBid[]
+}
+
+// Myyjän omat pohjatuotteet livekäyttöön — ei itsessään myytävä Product, vain mallipohja
+// (nimi/kunto/kategoria/kuva/kuvaus) josta live-konsolissa voi nopeasti luoda oikean Product-
+// rivin täyttämällä vain otsikon+lähtöhinnan (kesto tulee jo olemassa olevasta huutokaupan
+// aloitusnäkymästä, ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2, "Tuotteen syöttäminen
+// kesken liven on liian hidasta"). Myyjällä voi olla satoja/tuhansia näitä (esim. koko
+// korttivarasto ennakkoon luetteloituna) — siksi haku ja suosikkimerkintä listan kärkeen.
+model ProductPreset {
+  id           String    @id @default(cuid())
+  sellerId     String
+  seller       User      @relation(fields: [sellerId], references: [id])
+  name         String
+  condition    String?
+  category     String?
+  alakategoria String?
+  tyyppi       String?
+  imageUrl     String?
+  description  String? // esim. Cardmarket-kommentista poimittu fyysinen sijainti ("Map T1")
+  favorite     Boolean   @default(false)
+  lastUsedAt   DateTime? // päivittyy kun pohjasta luodaan Product livessä - nostaa listan kärkeen
+  createdAt    DateTime  @default(now())
 }
 
 model AutoBid {

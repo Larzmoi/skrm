@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { resizeImage } from '@/lib/imageUtils'
 import { getNakyvatKategoriat, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
+import { presetApi, ProductPreset } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
@@ -312,6 +313,46 @@ export default function LahetysPage() {
   const [qaSaving, setQaSaving] = useState(false)
   const [qaError, setQaError] = useState('')
   const qaImageRef = useRef<HTMLInputElement>(null)
+  // Esiasetuksesta täytetyt kentät, näkymättömät quick-add-lomakkeessa (myyjä muokkaa vain
+  // nimeä/hintaa siellä, ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2) - kulkevat mukana
+  // createProduct-kutsussa jos tuote luotiin pohjan pohjalta. qaPresetId nollataan aina kun
+  // nimeä muokataan käsin quick-add-lomakkeessa, ettei vahingossa periytetä väärän pohjan tietoja.
+  const [qaPresetId, setQaPresetId] = useState<string | null>(null)
+  const [qaCondition, setQaCondition] = useState<string | undefined>()
+  const [qaCategory, setQaCategory] = useState<string | undefined>()
+  const [qaAlakategoria, setQaAlakategoria] = useState<string | undefined>()
+  const [qaTyyppi, setQaTyyppi] = useState<string | undefined>()
+  const [qaDescription, setQaDescription] = useState<string | undefined>()
+
+  // Esiasetuspoiminta livessä — haku pohjien joukosta (ei kaikista tuotteista, ks. omistajan
+  // päätös), suosikit+viimeksi käytetyt ensin (backendin oma järjestys, ei uudelleenjärjestetä
+  // täällä). Haetaan vasta kun poimintapaneeli avataan, ei heti sivun latautuessa.
+  const [showPresetPicker, setShowPresetPicker] = useState(false)
+  const [presets, setPresets] = useState<ProductPreset[]>([])
+  const [presetSearch, setPresetSearch] = useState('')
+  const [presetsLoading, setPresetsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!showPresetPicker) return
+    setPresetsLoading(true)
+    const h = setTimeout(() => {
+      presetApi.list(presetSearch || undefined).then(setPresets).catch(() => setPresets([])).finally(() => setPresetsLoading(false))
+    }, 250)
+    return () => clearTimeout(h)
+  }, [showPresetPicker, presetSearch])
+
+  function pickPreset(p: ProductPreset) {
+    setQaPresetId(p.id)
+    setQaName(p.name)
+    setQaImage(p.imageUrl ?? null)
+    setQaCondition(p.condition ?? undefined)
+    setQaCategory(p.category ?? undefined)
+    setQaAlakategoria(p.alakategoria ?? undefined)
+    setQaTyyppi(p.tyyppi ?? undefined)
+    setQaDescription(p.description ?? undefined)
+    setShowPresetPicker(false)
+    setShowQuickAdd(true)
+  }
 
   // Chat + pikatoimintojen "tulossa pian" -ilmoitus
   const [feed, setFeed] = useState<FeedItem[]>([])
@@ -832,6 +873,11 @@ export default function LahetysPage() {
     connectSocket().emit('mute_user', { showId: show.id, userId, token })
   }
 
+  function clearQuickAdd() {
+    setQaName(''); setQaPrice(''); setQaBidIncrement(''); setQaImage(null); setShowQuickAdd(false)
+    setQaPresetId(null); setQaCondition(undefined); setQaCategory(undefined); setQaAlakategoria(undefined); setQaTyyppi(undefined); setQaDescription(undefined)
+  }
+
   async function quickAddProduct() {
     if (!qaName.trim() || !qaPrice) return
     const price = Number(qaPrice.replace(',', '.'))
@@ -843,9 +889,15 @@ export default function LahetysPage() {
     setQaSaving(true); setQaError('')
     try {
       const { api } = await import('@/lib/api')
-      const created = await api.createProduct({ name: qaName.trim(), saleType: 'live', startPrice: price, bidIncrement, imageUrl: qaImage ?? undefined, showId: show?.id })
+      const created = await api.createProduct({
+        name: qaName.trim(), saleType: 'live', startPrice: price, bidIncrement, imageUrl: qaImage ?? undefined, showId: show?.id,
+        condition: qaCondition, category: qaCategory, alakategoria: qaAlakategoria, tyyppi: qaTyyppi, description: qaDescription,
+      })
       setProducts(p => [...p, created])
-      setQaName(''); setQaPrice(''); setQaBidIncrement(''); setQaImage(null); setShowQuickAdd(false)
+      // Nostaa pohjan listan kärkeen seuraavalla haulla - ei odoteta vastausta, ei kriittinen
+      // jos epäonnistuu (pelkkä järjestysvihje, ei vaikuta itse tuotteen luontiin).
+      if (qaPresetId) presetApi.markUsed(qaPresetId).catch(() => {})
+      clearQuickAdd()
     } catch (e: any) {
       setQaError(e.message ?? 'Lisäys epäonnistui')
     }
@@ -968,9 +1020,37 @@ export default function LahetysPage() {
       </div>
 
       <div style={{ flexShrink: 0 }}>
-        {showQuickAdd ? (
+        {showPresetPicker ? (
           <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
-            <input value={qaName} onChange={e => setQaName(e.target.value)} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <input value={presetSearch} onChange={e => setPresetSearch(e.target.value)} placeholder="Hae esiasetuksista..." autoFocus style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+              <button onClick={() => { setShowPresetPicker(false); setPresetSearch('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {presetsLoading ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>Haetaan...</div>
+              ) : presets.length === 0 ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>
+                  Ei esiasetuksia — luo niitä <a href="/dashboard/esiasetukset" target="_blank" style={{ color: GREEN }}>Esiasetukset-sivulla</a>
+                </div>
+              ) : presets.map(p => (
+                <button key={p.id} onClick={() => pickPreset(p)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                  {p.imageUrl ? <img src={p.imageUrl} style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 24, height: 24, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#eee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  {p.favorite && <span style={{ color: '#F59E0B', fontSize: 11, flexShrink: 0 }}>★</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : showQuickAdd ? (
+          <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
+            {qaPresetId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.12)', border: `1px solid ${GREEN_DIM}`, borderRadius: 6, padding: '5px 8px', marginBottom: 6, fontSize: 11, color: GREEN }}>
+                <span style={{ flex: 1 }}>Esiasetuksesta täytetty</span>
+                <button onClick={() => { setQaPresetId(null); setQaCondition(undefined); setQaCategory(undefined); setQaAlakategoria(undefined); setQaTyyppi(undefined); setQaDescription(undefined) }} style={{ background: 'none', border: 'none', color: GREEN, cursor: 'pointer', fontSize: 13 }}>✕</button>
+              </div>
+            )}
+            <input value={qaName} onChange={e => { setQaName(e.target.value); setQaPresetId(null) }} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder="Minimikorotus € (oletus 1€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: '1px dashed rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
@@ -979,12 +1059,15 @@ export default function LahetysPage() {
             <input ref={qaImageRef} type="file" accept="image/*" onChange={handleQaImage} style={{ display: 'none' }} />
             {qaError && <div style={{ fontSize: 11, color: '#FCA5A5', marginBottom: 6 }}>{qaError}</div>}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => { setShowQuickAdd(false); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
+              <button onClick={() => { clearQuickAdd(); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
               <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowQuickAdd(true)} style={{ width: '100%', marginTop: 10, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Lisää tuote</button>
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            <button onClick={() => setShowQuickAdd(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Lisää tuote</button>
+            <button onClick={() => setShowPresetPicker(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>⌗ Esiasetuksista</button>
+          </div>
         )}
       </div>
     </>
