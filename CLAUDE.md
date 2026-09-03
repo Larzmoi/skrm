@@ -37,7 +37,6 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 - Visuaalinen tyylipäivitys (lime-väripaletti + Outfit/Plus Jakarta Sans + koko sivuston restailointi) — päätetty, ei aloitettu
 - Slabien (gradatut kortit) oma kuntojärjestelmä (PSA/BGS-numeroarvosana) — tietoisesti rajattu pois aiemmasta korjauksesta, **priorisointi nousi 2026-09-02 WhatsApp-palautteen myötä, ks. alla oleva osio**
 - "Tarjoa hintaa" -toiminto, Settilistaus/Variantit — molemmat suunniteltu, ei aikataulutettu
-- Live-lähetysten pohjatuotteet/esiasetukset (nopeampi tuotteen syöttö kesken liven) — ks. "WhatsApp-palaute" -osio kohta 2
 
 Kaikki muu tässä tiedostossa alempana on joko ✅ valmista (historiallinen referenssi/konteksti) tai LUKITTU-sääntöjä jotka eivät muutu.
 
@@ -55,13 +54,23 @@ Kommenttirivin parserikorjaus (osa kohdasta 1) on jo tehty — ei toisteta täss
   - Reverse Holo -tieto (ellei lisätä myöhemmin kuvan yhteydessä)
 
 ### 2. Live-lähetykset / "Live Shop" — uusia ongelmia ja ideoita
-- **Suoramyyntituotteen lähtöhintaa ei voi muokata kun se nostetaan liveen huutokaupattavaksi** — varastosta poimitun "Direct sale" -tuotteen tallennettu hinta lukkiutuu automaattisesti huutokaupan lähtöhinnaksi, ei muokattavissa livessä. Pitäisi sallia hinnan muokkaus siinä kohtaa kun tuote nostetaan jonoon/huutoon.
-- **Tuplamyyntiriski CM:n ja Habahubin välillä** — sama tuote voi myydä molemmissa yhtä aikaa, koska CM lukitsee tuotteen ostajan koriin 4-6h ajaksi eikä sitä silloin voi ottaa pois myynnistä sieltä. Habahubin oma korilukitus on jo rajattu max 2h:iin (jo LUKITTU-sääntönä olemassa). **Ei ratkaistavissa koodilla ilman CM:n omaa API-integraatiota** (ei ole) — hyväksyttävä rajoitus, mahdollisesti helpotettavissa vain nopealla "poista myynnistä"-pikanapilla myyjälle.
-- **Tuotteen syöttäminen kesken liven on liian hidasta** (jopa 100 kertaa per striimi) — iso, konkreettinen kolmiosainen ehdotus:
-  1. **Pohjatuotteet/esiasetukset** ("Single Kortti", "Kortti Lot" -tyyppiset mallipohjat, myyjällä voi olla niitä ~1000). Livessä valitaan pohja, täytetään vain otsikko+huutoaika+lähtöhinta — ei koko lomaketta joka kerta.
-  2. **Suosikkimerkintä/pikanappi** eniten käytetyille pohjille, pitää ne aina listan kärjessä livessä.
-  3. **Haku + varastosijainti livessä** — hae kortti nimellä, näytä kommentista poimittu kansiosijainti (ks. kohta 1), siirrä suoraan huutoon.
-- **Automaattinen varastosaldon päivitys** — myydessä livessä poistuu automaattisesti sisäisestä varastosta, myyjä näkee striimin jälkeen listan myydyistä poistaakseen ne manuaalisesti CM:stä (ei automaattista CM-synkronointia, koska ei API-yhteyttä sinne).
+
+**✅ TEHTY 2026-09-03 — lähtöhinnan muokkaus + esiasetukset/suosikit/haku.** Omistajan valitsemat kaksi kohtaa neljästä (kysytty erikseen ennen toteutusta, ks. alla tarkat toteutuspäätökset). Loput kaksi (tuplamyyntiriski, automaattinen varastosaldon päivitys) ovat yhä auki, ks. niiden omat kohdat alempana — ei kosketettu.
+
+- **✅ TEHTY — Suoramyyntituotteen lähtöhintaa voi nyt muokata kun se nostetaan liveen.** Aiemmin varastosta poimitun tuotteen tallennettu hinta lukkiutui automaattisesti huutokaupan lähtöhinnaksi. `frontend/app/lahetys/page.tsx`: uusi `startPriceOverride`-kenttä alapalkin "Lähtöhinta"-syötteessä juuri ennen "Aloita huutokauppa" -nappia — session-kohtainen ylikirjoitus, sama periaate kuin jo olemassa olevalla kesto-ylikirjoituksella (`durationOverride`, nollautuu kun `currentProductId` vaihtuu, ei muuta `Product.startPrice`-tietuetta pysyvästi). `backend/src/socket.ts`:n `start_auction`-käsittelijä validoi nyt syötteen (aiemmin luotti suoraan tuotteen omaan tallennettuun hintaan, nyt käyttäjän syöte — virheellinen/negatiivinen arvo putoaa takaisin tuotteen tallennettuun `startPrice`:en). Testattu tuotannossa oikealla socket-yhteydellä (`socket.io-client`): ylikirjoitettu hinta meni läpi oikein, virheellinen syöte (`'not-a-number'`) putosi oikein takaisin tallennettuun hintaan.
+
+- **✅ TEHTY — Esiasetukset/suosikit/haku livessä.** Kolme design-päätöstä kysytty ja vahvistettu ennen toteutusta:
+  1. **Pohjien lähde: manuaalinen hallintanäkymä** (ei automaattinen generointi aiemmista tuotteista).
+  2. **Livesyöttö: otsikko + lähtöhinta täytetään joka kerta**, loput (kunto/kategoria/kuva/kuvaus) peräisin pohjasta — kesto tulee jo olemassa olevasta huutokaupan aloitusnäkymästä (ks. yllä), ei tarvinnut omaa kenttää.
+  3. **Haku: vain esiasetusten sisällä** (ei laajennettu kattamaan kaikkia myyjän tuotteita).
+
+  **Toteutus:**
+  - Uusi `ProductPreset`-malli (`sellerId`, `name`, `condition`, `category`/`alakategoria`/`tyyppi`, `imageUrl`, `description` — kuvaus/sijainti kuten "Map T1", `favorite Boolean @default(false)`, `lastUsedAt DateTime?`). Puhdas lisäys tuotantoon, ei datamigraatiota (uusi taulu).
+  - `backend/src/routes/presets.ts`: `GET /presets?search=` (hakee nimestä JA descriptionista — sijaintihaku toimii samalla haulla), `POST /presets`, `POST /presets/bulk` (oma tuontimuoto, EI sama kuin tuotteiden bulkkituonti: tyhjä rivi erottaa pohjat eksplisiittisesti, 1. rivi nimi/2. rivi kunto/loput kuvaus — ei tarvitse €-merkki-tunnistusta koska ei hintaa/määrää), `PUT /presets/:id` (myös suosikin vaihto), `POST /presets/:id/use` (merkitsee `lastUsedAt`, nostaa listan kärkeen), `DELETE /presets/:id`.
+  - Lajittelu: `favorite DESC → lastUsedAt DESC NULLS LAST → name ASC` — suosikit aina kärjessä, sitten viimeksi käytetyt, muuten aakkosjärjestys.
+  - Uusi hallintasivu `frontend/app/dashboard/esiasetukset/page.tsx` (linkki dashboard-sivupalkkiin) — manuaalinen lomake (samat kategoria/alakategoria/tyyppi/kunto-valitsimet kuin tuotelomakkeella, Cardmarket-asteikko kun tyyppi=irtokortit) + bulkkituontipaneeli, hakukenttä, suosikkitähti/muokkaa/poista per rivi.
+  - `/lahetys`-integraatio: Jono-paneelin "+ Lisää tuote" -napin viereen uusi "⌗ Esiasetuksista" -nappi, avaa hakupaneelin (debounced haku, suosikit tähdellä merkitty). Pohjan valinta esitäyttää quick-add-lomakkeen näkymättömät kentät (kunto/kategoria/kuva/kuvaus) + näkyvän nimen, jättää hinnan tyhjäksi täytettäväksi. Onnistunut lisäys kutsuu `POST /presets/:id/use`:a taustalla (ei blokkaa tuotteen lisäystä jos epäonnistuu).
+  - Testattu tuotannossa curlilla end-to-end: yksittäisluonti, bulkkituonti (3 pohjaa, kaikki kentät oikein parsittu — nimi/kunto/kuvaus-vain, kunto+kuvaus, pelkkä nimi), suosikin+käytön merkintä, lajittelujärjestys vahvistettu oikeaksi. Testidata siivottu pois.
 
 ### 3. Ohjeistus & kumppanuudet — EI koodia, omistajan omia tehtäviä
 - Lyhyet opastusvideot myyjille (tuotteen lisäys, CM-varaston tuonti)
