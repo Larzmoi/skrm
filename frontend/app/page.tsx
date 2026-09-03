@@ -85,7 +85,7 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
 // väitetä tarkkoja lukuja kuten "50 kohdetta" koska se ei perustu oikeaan dataan).
 function AdBanner({ C, isMobile, t }: { C: Record<string, string>; isMobile: boolean; t: any }) {
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '40px 20px 20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
       <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
         {t.home.adLabel}
       </div>

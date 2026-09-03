@@ -18,10 +18,23 @@ export async function sendEmail(params: { to: string; subject: string; html: str
   }
 }
 
+// Segmentti johon kaikki uutiskirjetilaajat liitetään, jotta Resendin Broadcasts-lähetyksellä
+// on ylipäätään joku kenelle lähettää — ilman tätä contacts.create()/update() loi kontakteja
+// jotka eivät kuuluneet mihinkään segmenttiin, jolloin Broadcast-lähetyksen vastaanottajavalinnassa
+// (joka VAATII segmentId:n, ks. Resendin CreateBroadcastOptions) ei olisi ollut mitään valittavaa.
+// "General" on tilin oma automaattisesti luotu oletussegmentti (luotu 2026-09-01 kontaktien
+// synkronoinnin käyttöönoton yhteydessä, vahvistettu suoraan API:sta 2026-09-03 — ei kovakoodattu
+// arvaus). Broadcast-lähetys ohittaa automaattisesti unsubscribed:true-kontaktit segmentin sisällä,
+// joten kontakti lisätään segmenttiin riippumatta subscribed-arvosta — unsubscribed-lippu hoitaa
+// sen ettei perunut tilaaja saa mitään.
+const NEWSLETTER_SEGMENT_ID = 'c00636db-a207-4c30-ab19-81c8a11ff47f'
+
 // Synkronoi käyttäjän uutiskirjetilaus Resendin Contacts-API:in (ks. CLAUDE.md 2026-09-03) —
 // paikallinen User.newsletterOptIn on nopea kopio näyttöä varten, Resendin puoli on se mistä
 // varsinainen uutiskirje joskus lähetettäisiin (Resend Broadcasts). Ei vaadi audienceId:tä —
-// asennetun SDK:n (6.18.1) mukaan kontaktit voivat elää ilman erillistä Audiencea.
+// asennetun SDK:n (6.18.1) mukaan kontaktit voivat elää ilman erillistä Audiencea, mutta
+// Broadcast-lähetys silti tarvitsee segmentId:n kohdistuakseen johonkin — siksi contacts.segments.add()
+// alla siitä huolimatta.
 // update() ensin (idempotentti, olemassa olevalle kontaktille), create() varalla jos kontaktia
 // ei vielä ole — sama epäonnistu-hiljaa-periaate kuin sendEmail():ssä, ei koskaan kaada
 // profiilin päivitys-API-pyyntöä vaikka Resend-kutsu epäonnistuisi.
@@ -38,9 +51,11 @@ export async function syncNewsletterContact(email: string, name: string, subscri
   try {
     const { error } = await resend.contacts.update({ email, firstName: name, unsubscribed: !subscribed })
     if (error) {
-      const { error: createError } = await resend.contacts.create({ email, firstName: name, unsubscribed: !subscribed })
+      const { error: createError } = await resend.contacts.create({ email, firstName: name, unsubscribed: !subscribed, segments: [{ id: NEWSLETTER_SEGMENT_ID }] })
       if (createError) console.error('[newsletter] Resend contacts.create palautti virheen:', createError)
     }
+    const { error: segmentError } = await resend.contacts.segments.add({ email, segmentId: NEWSLETTER_SEGMENT_ID })
+    if (segmentError) console.error('[newsletter] Resend contacts.segments.add palautti virheen:', segmentError)
   } catch (e) {
     console.error('[newsletter] Kontaktin synkronointi epäonnistui:', e)
   }
