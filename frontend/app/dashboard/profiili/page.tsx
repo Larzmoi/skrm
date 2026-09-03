@@ -219,7 +219,7 @@ export default function ProfiiliPage() {
         {vacationOn && !showVacForm && (
           <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B33', borderRadius: 8, padding: '12px 14px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>Lomamoodi on päällä</div>
-            <div style={{ fontSize: 13, color: C.textSub }}>Lähetysaika on tällä hetkellä 7 päivää normaalin 48h sijaan. Näkyy myös julkisessa profiilissasi.</div>
+            <div style={{ fontSize: 13, color: C.textSub }}>Lähetysaika on tällä hetkellä 7 päivää normaalin 4 vuorokauden sijaan. Näkyy myös julkisessa profiilissasi.</div>
             {vacationUntil && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Päättyy: {vacationUntil}</div>}
             {vacationMsg && <div style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>"{vacationMsg}"</div>}
           </div>

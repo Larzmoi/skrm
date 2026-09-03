@@ -171,6 +171,179 @@ Habahub
 Sähköposti: support@habahub.fi
 `
 
+export const PRIVACY_SV = `
+Integritetspolicy
+Uppdaterad: 3 augusti 2026
+
+PERSONUPPGIFTSANSVARIG
+
+Habahub
+Org.nr: 3497347-6
+E-post: support@habahub.fi
+
+Denna integritetspolicy beskriver hur Habahub samlar in, använder, lagrar och skyddar dina personuppgifter i enlighet med EU:s allmänna dataskyddsförordning (GDPR) och finsk dataskyddslagstiftning.
+
+1. KONTAKTPERSON I INTEGRITETSFRÅGOR
+
+I frågor som rör integritet kan du kontakta: support@habahub.fi
+
+2. VILKA PERSONUPPGIFTER VI BEHANDLAR
+
+Vi behandlar endast sådana personuppgifter som är nödvändiga för att tillhandahålla Habahub-tjänsten, uppfylla lagstadgade skyldigheter och sköta kundrelationen.
+
+2.1 Uppgifter som lämnas av användarna
+
+Konto och profil:
+- E-postadress
+- Lösenord (krypterat — vi lagrar aldrig lösenord i klartext)
+- Namn och användarnamn
+- Profilbild och biografi (valfritt)
+
+Säljaruppgifter:
+- Produktinformation: namn, beskrivning, pris, bilder, lagerinformation, leveranssätt
+- Order- och leveransspårningsinformation
+- Bankkontouppgifter för utbetalningar (behandlas via betaltjänstleverantören)
+
+Köp:
+- Leveransadress och kontaktuppgifter för beställningar
+- Betalningstransaktionsdata (behandlas via Paytrail — Habahub lagrar inga kortuppgifter)
+- Orderhistorik
+
+Live- och communityfunktioner:
+- Chattmeddelanden i livesändningar
+- Privata meddelanden
+- Uppgifter om följare och vem du följer
+- Anbud och bud
+
+Formulär:
+- Kontaktformulär: namn, e-post, meddelande
+- Nyhetsbrev: e-postadress
+
+2.2 Uppgifter som uppstår vid användning av tjänsten
+
+- Inloggnings- och sessionsdata
+- Orderhistorik och köptransaktioner
+- Produktvisningar och sökhistorik
+- IP-adress och teknisk enhetsidentifierare
+- Loggar relaterade till säkerhet och förebyggande av missbruk
+
+2.3 Mobilapp (kommande)
+
+När Habahubs mobilapp lanseras kan den komma att be om behörighet för:
+- Kamera och mikrofon för livesändningar
+- Bildgalleri för produktbilder
+- Notiser
+
+Syftet med varje behörighet förklaras tydligt innan förfrågan görs, och alla behörigheter är valfria för grundläggande användning av tjänsten.
+
+3. RÄTTSLIG GRUND FÖR BEHANDLINGEN
+
+Vi behandlar personuppgifter på följande grunder:
+
+- Fullgörande av avtal: hantering av beställningar, betalningsförmedling, leveranser
+- Berättigat intresse: tjänstens säkerhet, förebyggande av missbruk, utveckling av tjänsten
+- Rättslig förpliktelse: bokföring, beskattning, förebyggande av penningtvätt
+- Samtycke: nyhetsbrev, marknadsföringskommunikation (kan återkallas när som helst)
+
+4. VAD VI ANVÄNDER DINA UPPGIFTER TILL
+
+Vi använder personuppgifter för att:
+- Tillhandahålla och underhålla tjänsten
+- Hantera beställningar och förmedla betalningar
+- Besvara kundtjänst- och supportförfrågningar
+- Förebygga missbruk och upprätthålla säkerheten
+- Utveckla och förbättra tjänsten
+- Uppfylla lagstadgade skyldigheter
+- Skicka nyhetsbrev (med samtycke)
+
+Vi säljer inte dina personuppgifter till tredje part.
+
+5. TILL VEM VI LÄMNAR UT UPPGIFTER
+
+Vi kan lämna ut personuppgifter till:
+
+- Paytrail Oyj: betalningshantering
+- Resend Inc.: e-postkommunikation
+- Hetzner Online GmbH: serverinfrastruktur
+- Myndigheter: i fall som lagen kräver eller vid misstanke om brott
+
+Alla tredje parter är skyldiga att behandla uppgifterna i enlighet med GDPR. Vi överför inte uppgifter utanför EU eller EES utan lämpliga skyddsåtgärder.
+
+6. LAGRING AV UPPGIFTER
+
+Vi lagrar personuppgifter så länge kontot är aktivt eller så länge det är nödvändigt för att tillhandahålla tjänsten och uppfylla lagstadgade skyldigheter:
+
+- Kontouppgifter: så länge kontot är aktivt + 1 år efter att kontot stängts
+- Order- och betalningsuppgifter: 7 år (bokföringslagen)
+- Chattmeddelanden: 2 år
+- Säkerhetsloggar: 1 år
+
+7. DEN REGISTRERADES RÄTTIGHETER
+
+Enligt GDPR har du följande rättigheter:
+
+Rätt till tillgång: du kan begära en sammanställning av alla personuppgifter som lagrats om dig.
+
+Rätt till rättelse: du kan begära att felaktiga uppgifter korrigeras.
+
+Rätt till radering ("rätten att bli bortglömd"): du kan begära att dina uppgifter raderas, om inte en lagstadgad skyldighet kräver att de bevaras.
+
+Rätt till begränsning av behandling: du kan begära att behandlingen begränsas i vissa situationer.
+
+Rätt till dataportabilitet: du kan begära att dina uppgifter lämnas ut i ett maskinläsbart format.
+
+Rätt att invända: du kan invända mot behandling som grundar sig på berättigat intresse.
+
+Rätt att återkalla samtycke: du kan när som helst återkalla ett lämnat samtycke, till exempel en prenumeration på nyhetsbrevet.
+
+Vi besvarar förfrågningar inom 30 dagar. Kontakta: support@habahub.fi
+
+8. AUTOMATISERAT BESLUTSFATTANDE
+
+Habahub fattar inga automatiserade beslut som har betydande rättsliga effekter för användarna.
+
+9. KAKOR OCH SPÅRNING
+
+Habahub använder kakor (cookies) för att:
+- Upprätthålla inloggningsstatus (nödvändigt)
+- Komma ihåg språkval och inställningar (funktionellt)
+- Utveckla tjänsten med hjälp av statistik (analys, med samtycke)
+
+Vi använder inte tredjeparts reklamkakor.
+
+10. DATASÄKERHET
+
+Vi skyddar personuppgifter med lämpliga tekniska och organisatoriska åtgärder:
+- Dataöverföring krypteras med SSL/TLS
+- Lösenord lagras krypterade (bcrypt)
+- Åtkomsten till personuppgifter är begränsad enligt behovsprincipen
+- Servrarna finns inom EU
+
+Vid en eventuell dataincident meddelar vi berörda myndigheter och användare på det sätt lagen kräver.
+
+11. MINDERÅRIGA
+
+Användning av tjänsten kräver en ålder på minst 15 år. Vi samlar inte medvetet in personuppgifter från personer under 15 år. Om vi får kännedom om att vi har samlat in uppgifter från en minderårig raderar vi uppgifterna utan dröjsmål.
+
+12. ÄNDRINGAR I INTEGRITETSPOLICYN
+
+Vi kan komma att uppdatera denna integritetspolicy. Väsentliga ändringar meddelas via e-post eller i tjänsten minst 14 dygn innan ändringarna träder i kraft.
+
+13. RÄTT ATT KLAGA
+
+Du har rätt att lämna in ett klagomål till dataskyddsmyndigheten om du anser att behandlingen av dina personuppgifter strider mot GDPR.
+
+Dataombudsmannens byrå i Finland:
+www.tietosuoja.fi
+tel. 029 566 6700
+
+14. KONTAKTUPPGIFTER
+
+I alla frågor som rör integritet:
+Habahub
+E-post: support@habahub.fi
+`
+
 export const PRIVACY_EN = `
 Privacy Policy
 Updated: August 3, 2026

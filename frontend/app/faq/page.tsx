@@ -23,7 +23,7 @@ const FAQ_DATA = {
         { q: 'Miten perinteinen (ajastettu) huutokauppa toimii?', a: 'Myyjä asettaa tuotteelle lähtöhinnan ja keston (1-7 päivää) — videolähetystä ei tarvita. Voit huutaa milloin tahansa huutokauppa on käynnissä. Korkein huuto kun aika loppuu voittaa tuotteen.' },
         { q: 'Ovatko huudot sitovia?', a: 'Kyllä. Kaikki huudot ovat sitovia eikä niitä voi peruuttaa. Huutamalla sitoudut ostamaan tuotteen jos voitat.' },
         { q: 'Miten maksan ostokseni?', a: 'Maksu tapahtuu Paytrailin kautta — tuetaan kaikkia suomalaisia pankkeja, MobilePay, korttimaksut, Google Pay ja Apple Pay.' },
-        { q: 'Milloin saan tilaukseni?', a: 'Myyjä sitoutuu lähettämään tuotteen 48 tunnin sisällä huutokaupan päättymisestä. Saat seurantakoodin heti kun myyjä on lähettänyt paketin.' },
+        { q: 'Milloin saan tilaukseni?', a: 'Myyjä sitoutuu lähettämään tuotteen 4 vuorokauden sisällä huutokaupan päättymisestä. Saat seurantakoodin heti kun myyjä on lähettänyt paketin.' },
         { q: 'Mitä jos tuote ei saavu tai on erilainen kuin kuvattu?', a: 'Ota yhteyttä asiakastukeen välittömästi. Tutkimme jokaisen tapauksen ja autamme ratkaisemaan tilanteen.' },
       ],
     },
@@ -41,8 +41,8 @@ const FAQ_DATA = {
       id: 'toimitus', title: 'Toimitus',
       items: [
         { q: 'Kuka maksaa toimituskulut?', a: 'Ostaja maksaa toimituskulut. Postitus on kiinteä 6,90€ riippumatta tuotteen koosta.' },
-        { q: 'Kuinka nopeasti myyjän pitää lähettää?', a: 'Myyjä sitoutuu lähettämään tuotteen 48 tunnin sisällä huutokaupan päättymisestä.' },
-        { q: 'Mitä tapahtuu jos myyjä ei lähetä?', a: 'Jos myyjä ei lähetä tuotetta 48 tunnin sisällä, Habahub puuttuu tilanteeseen ja ostaja saa täyden hyvityksen.' },
+        { q: 'Kuinka nopeasti myyjän pitää lähettää?', a: 'Myyjä sitoutuu lähettämään tuotteen 4 vuorokauden sisällä huutokaupan päättymisestä.' },
+        { q: 'Mitä tapahtuu jos myyjä ei lähetä?', a: 'Jos myyjä ei lähetä tuotetta 4 vuorokauden sisällä, Habahub puuttuu tilanteeseen ja ostaja saa täyden hyvityksen.' },
       ],
     },
   ],
@@ -63,7 +63,7 @@ const FAQ_DATA = {
         { q: 'How does a traditional (scheduled) auction work?', a: 'The seller sets a starting price and a duration (1-7 days) - no video stream needed. You can bid any time while the auction is running. The highest bid when time runs out wins the item.' },
         { q: 'Are bids binding?', a: 'Yes. All bids are binding and cannot be cancelled. By bidding you commit to buying the item if you win.' },
         { q: 'How do I pay?', a: 'Payment is made through Paytrail — supporting all Finnish banks, MobilePay, card payments, Google Pay and Apple Pay.' },
-        { q: 'When will I receive my order?', a: 'The seller commits to shipping within 48 hours of the auction ending. You receive a tracking code as soon as the seller has shipped the package.' },
+        { q: 'When will I receive my order?', a: 'The seller commits to shipping within 4 days of the auction ending. You receive a tracking code as soon as the seller has shipped the package.' },
         { q: "What if the item doesn't arrive or differs from description?", a: 'Contact customer support immediately. We investigate each case and help resolve the situation.' },
       ],
     },
@@ -81,8 +81,48 @@ const FAQ_DATA = {
       id: 'shipping', title: 'Shipping',
       items: [
         { q: 'Who pays for shipping?', a: 'The buyer pays shipping costs. Shipping is a fixed €6.90 regardless of item size.' },
-        { q: 'How quickly must the seller ship?', a: 'The seller commits to shipping within 48 hours of the auction ending.' },
-        { q: "What happens if the seller doesn't ship?", a: "If the seller doesn't ship within 48 hours, Habahub intervenes and the buyer receives a full refund." },
+        { q: 'How quickly must the seller ship?', a: 'The seller commits to shipping within 4 days of the auction ending.' },
+        { q: "What happens if the seller doesn't ship?", a: "If the seller doesn't ship within 4 days, Habahub intervenes and the buyer receives a full refund." },
+      ],
+    },
+  ],
+  sv: [
+    {
+      id: 'allmant', title: 'Allmänt',
+      items: [
+        { q: 'Vad är Habahub?', a: 'Habahub är en finländsk auktions- och direktförsäljningsplattform. Säljare kan sälja sina produkter i realtidsvideosändningar (liveauktioner), i schemalagda tidsbegränsade auktioner eller direkt till ett fast pris (direktförsäljning). Köpare kan lägga bud under en livesändning eller en tidsbegränsad auktion, eller köpa direkt.' },
+        { q: 'Är registrering gratis?', a: 'Ja. Det är helt gratis att skapa ett konto. Du betalar bara för de produkter du köper och fraktkostnaderna.' },
+        { q: 'Kan jag både köpa och sälja med samma konto?', a: 'Ja. Med ett konto kan du både delta i auktioner som köpare och sälja dina egna produkter.' },
+        { q: 'Var verkar Habahub?', a: 'Habahub riktar sig i första hand till finländska användare. Leveranser sker huvudsakligen inom Finland.' },
+      ],
+    },
+    {
+      id: 'kopare', title: 'Köparguide',
+      items: [
+        { q: 'Hur fungerar en liveauktion?', a: 'Säljaren öppnar en videosändning och presenterar produkterna live. Du kan buda genom att ange önskat belopp. Det högsta budet när sändningen avslutas vinner produkten.' },
+        { q: 'Hur fungerar en traditionell (schemalagd) auktion?', a: 'Säljaren anger ett utropspris och en varaktighet (1–7 dagar) — ingen videosändning behövs. Du kan buda när som helst medan auktionen pågår. Det högsta budet när tiden går ut vinner produkten.' },
+        { q: 'Är bud bindande?', a: 'Ja. Alla bud är bindande och kan inte återkallas. Genom att buda förbinder du dig att köpa produkten om du vinner.' },
+        { q: 'Hur betalar jag?', a: 'Betalning sker via Paytrail — stöder alla finländska banker, MobilePay, kortbetalningar, Google Pay och Apple Pay.' },
+        { q: 'När får jag min beställning?', a: 'Säljaren förbinder sig att skicka produkten inom 4 dygn efter att auktionen avslutats. Du får en spårningskod så snart säljaren har skickat paketet.' },
+        { q: 'Vad händer om varan inte kommer fram eller skiljer sig från beskrivningen?', a: 'Kontakta kundtjänsten omedelbart. Vi utreder varje fall och hjälper till att lösa situationen.' },
+      ],
+    },
+    {
+      id: 'saljare', title: 'Säljarguide',
+      items: [
+        { q: 'Hur börjar jag sälja?', a: 'Skapa ett konto och lägg till produkter i din dashboard. Du kan sälja på tre sätt: starta en livesändning och auktionera ut produkter direkt, lägg upp en produkt som en schemalagd tidsbegränsad auktion, eller lista den för direktförsäljning till ett fast pris — valet görs när du lägger till produkten.' },
+        { q: 'Vad kan jag sälja?', a: 'Du kan sälja nästan alla lagliga begagnade eller nya varor. Förbjudna varor är bland annat vapen och ammunition, alkohol, tobak och nikotinprodukter, läkemedel, narkotika och andra psykoaktiva ämnen, levande djur, förfalskade eller upphovsrättsintrångande produkter, stulen egendom samt annan olaglig egendom. Se hela listan i användarvillkoren.' },
+        { q: 'När får jag mina pengar?', a: 'När köparen tar emot och godkänner produkten, eller när 24 timmar har gått sedan leveransen bekräftades utan att en reklamation gjorts — beroende på vilket som inträffar först. Om leveransen aldrig bekräftas (t.ex. paketet försvinner) frigörs betalningen senast efter 14 dagar.' },
+        { q: 'Vad är förmedlingsavgiften?', a: 'Habahub tar ut en förmedlingsavgift på 3,5% av försäljningspriset, högst 35€ per affär. Dessutom tillkommer betalningshanteringsavgifter (ca 1,5% + 0,25€).' },
+        { q: 'Hur strömmar jag med OBS?', a: 'Du kan strömma med OBS Studio (gratis program): 1) Ladda ner och installera OBS Studio. 2) Öppna Inställningar → Stream. 3) Välj Tjänst: Anpassad (Custom). 4) Kopiera Server och Stream Key från "Starta sändning"-vyn i din dashboard till motsvarande fält i OBS. 5) Klicka på "Start Streaming" i OBS. Sändningen visas för tittarna med några sekunders fördröjning.' },
+      ],
+    },
+    {
+      id: 'leverans', title: 'Leverans',
+      items: [
+        { q: 'Vem betalar fraktkostnaderna?', a: 'Köparen betalar fraktkostnaderna. Frakten är en fast avgift på 6,90€ oavsett produktens storlek.' },
+        { q: 'Hur snabbt måste säljaren skicka?', a: 'Säljaren förbinder sig att skicka produkten inom 4 dygn efter att auktionen avslutats.' },
+        { q: 'Vad händer om säljaren inte skickar?', a: 'Om säljaren inte skickar produkten inom 4 dygn ingriper Habahub och köparen får full återbetalning.' },
       ],
     },
   ],
@@ -106,7 +146,7 @@ export default function FAQPage() {
   const { C } = useTheme()
   const { t: tRaw, lang } = useLang()
   const t = tRaw ?? {}
-  const sections = FAQ_DATA[lang as 'fi' | 'en'] ?? FAQ_DATA.fi
+  const sections = FAQ_DATA[lang as 'fi' | 'en' | 'sv'] ?? FAQ_DATA.fi
 
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>

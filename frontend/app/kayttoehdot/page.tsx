@@ -3,12 +3,12 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
-import { TERMS_FI, TERMS_EN } from './content'
+import { TERMS_FI, TERMS_EN, TERMS_SV } from './content'
 
 export default function KayttoehdotPage() {
   const { C } = useTheme()
   const { lang } = useLang()
-  const content = lang === 'en' ? TERMS_EN : TERMS_FI
+  const content = lang === 'en' ? TERMS_EN : lang === 'sv' ? TERMS_SV : TERMS_FI
 
   const sections = content.trim().split('\n\n').filter(Boolean)
 
@@ -58,7 +58,7 @@ export default function KayttoehdotPage() {
           })}
         </div>
         <p style={{ fontSize: 13, color: C.muted, marginTop: 32 }}>
-          {lang === 'en' ? 'Questions about the terms? Contact us:' : 'Kysymyksiä käyttöehdoista? Ota yhteyttä:'}{' '}
+          {lang === 'en' ? 'Questions about the terms? Contact us:' : lang === 'sv' ? 'Frågor om villkoren? Kontakta oss:' : 'Kysymyksiä käyttöehdoista? Ota yhteyttä:'}{' '}
           <a href="mailto:support@habahub.fi" style={{ color: C.accent }}>support@habahub.fi</a>
         </p>
       </div>

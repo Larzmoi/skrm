@@ -72,7 +72,7 @@ Palvelussa ei saa myydä:
 HABAHUB pidättää oikeuden poistaa kielletyksi epäilemänsä tuotteet välittömästi ja tarvittaessa ilmoittaa asiasta viranomaisille.
 
 5.3 Toimitusvelvollisuus
-Myyjä sitoutuu lähettämään myytyyn tuotteen 48 tunnin kuluessa kaupan syntymisestä ja toimittamaan seurantakoodin HABAHUB:lle ja Ostajalle. Jos Myyjä on aktivoinut lomamoodin, lähetysaika on 7 vuorokautta.
+Myyjä sitoutuu lähettämään myytyyn tuotteen 4 vuorokauden kuluessa kaupan syntymisestä ja toimittamaan seurantakoodin HABAHUB:lle ja Ostajalle. Jos Myyjä on aktivoinut lomamoodin, lähetysaika on 7 vuorokautta.
 
 5.4 Tuotekuvaukset
 Myyjä vastaa siitä, että tuotteen kuvaus, kuvat ja muut tiedot vastaavat todellisuutta. Harhaanjohtavat kuvaukset voivat johtaa tilin sulkemiseen ja korvausvelvollisuuteen.
@@ -167,6 +167,174 @@ Kysymyksissä ja yhteydenotoissa:
 Sähköposti: support@habahub.fi
 `
 
+export const TERMS_SV = `
+Användarvillkor
+Uppdaterad: 3 augusti 2026
+Gäller från: 3 augusti 2026
+
+1. ALLMÄNT
+
+Dessa användarvillkor ("Villkoren") gäller användningen av tjänsten HABAHUB ("Tjänsten", "HABAHUB", "vi"). HABAHUB är en finländsk plattform för liveauktioner och direktförsäljning, där registrerade säljare kan sälja produkter genom livesändningar och direktförsäljning, och där köpare kan följa sändningar, kommunicera och köpa produkter.
+
+Genom att använda Tjänsten godkänner du dessa Villkor i sin helhet. Om du inte godkänner Villkoren ska du inte använda Tjänsten.
+
+Finsk lag tillämpas på Tjänsten.
+
+2. DEFINITIONER
+
+Användare: en person som använder Tjänsten som tittare, säljare eller i båda rollerna.
+Säljare: en Användare som erbjuder produkter till försäljning i Tjänsten.
+Köpare: en Användare som köper produkter av en Säljare genom Tjänsten.
+Innehåll: livesändningar, meddelanden, bilder, produktbeskrivningar och annat material som Användare publicerar i Tjänsten.
+Order: avtalet mellan en Köpare och en Säljare om köp av en produkt.
+Anbud: ett bindande bud som en Köpare lägger i en liveauktion.
+
+3. TJÄNSTENS KARAKTÄR OCH HABAHUBS ROLL
+
+HABAHUB är en förmedlingsplattform som möjliggör handel mellan Säljare och Köpare. HABAHUB säljer inte själv några produkter — affären uppstår alltid direkt mellan Säljaren och Köparen.
+
+HABAHUB ÄR INTE PART I KÖPEAVTALET MELLAN KÖPAREN OCH SÄLJAREN.
+
+HABAHUB ansvarar inte för Säljares produkters kvalitet, laglighet, leverans, beskrivningens riktighet eller andra omständigheter kring affären, förutom vad lagstiftningen särskilt ålägger tjänsteleverantören.
+
+HABAHUB förmedlar betalningar från Köpare till Säljare via en tredjeparts betaltjänst (Paytrail). Betalningsförmedlingen gör inte HABAHUB till part i köpeavtalet.
+
+4. REGISTRERING OCH ANVÄNDARKONTO
+
+4.1 Registrering
+Full användning av Tjänsten kräver att ett användarkonto skapas. Vid registrering intygar Användaren att de uppgifter som lämnas är korrekta och aktuella.
+
+4.2 Åldersgräns
+Tjänsten får användas av myndiga personer samt av minderåriga som fyllt 15 år med vårdnadshavares samtycke. Personer under 15 år får inte använda Tjänsten.
+
+Vid registrering intygar Användaren att åldersvillkoret är uppfyllt. HABAHUB kan begära åldersverifiering och stänga kontot om uppgifterna visar sig vara felaktiga.
+
+Den som vill bli säljare måste vara myndig eller minst 15 år med vårdnadshavares samtycke. HABAHUB kan begära ytterligare klargöranden innan säljarrättigheter beviljas.
+
+4.3 Kontosäkerhet
+Användaren ansvarar för att hålla sina inloggningsuppgifter hemliga samt för alla åtgärder som utförs från kontot. Misstänkt missbruk av kontot ska omedelbart anmälas till: support@habahub.fi
+
+4.4 Avslutande av konto
+HABAHUB kan stänga eller stänga av ett användarkonto om Användaren bryter mot dessa Villkor eller mot lag, eller på annat sätt agerar i strid med Tjänstens, andra Användares eller HABAHUBs intressen. I allvarliga fall kan kontot stängas utan förvarning.
+
+Användaren kan själv avsluta sitt konto genom att kontakta kundtjänsten.
+
+5. SÄLJARENS SKYLDIGHETER
+
+5.1 Laglighet
+Säljaren ansvarar för att de produkter som säljs är lagliga, säkra och motsvarar den lämnade beskrivningen. Säljaren intygar att denne äger eller på annat sätt har rätt att sälja de produkter som listas.
+
+5.2 Förbjudna produkter
+Följande får inte säljas i Tjänsten:
+- Vapen, ammunition eller farliga föremål
+- Alkohol, tobak eller nikotinprodukter
+- Läkemedel, narkotika eller andra psykoaktiva ämnen
+- Levande djur
+- Förfalskade eller upphovsrättsintrångande varor
+- Stulen eller på annat sätt olagligt anskaffad egendom
+- Sexuellt innehåll eller material
+- Personuppgifter eller privat information
+- Virtuella valutor eller finansiella instrument
+- Övriga olagliga varor eller tjänster
+
+HABAHUB förbehåller sig rätten att omedelbart ta bort produkter som misstänks vara förbjudna och att vid behov anmäla ärendet till myndigheter.
+
+5.3 Leveransskyldighet
+Säljaren åtar sig att skicka den sålda produkten inom 4 dygn från det att affären ingicks och att lämna en spårningskod till HABAHUB och Köparen. Om Säljaren har aktiverat semesterläge är leveranstiden 7 dygn.
+
+5.4 Produktbeskrivningar
+Säljaren ansvarar för att produktens beskrivning, bilder och andra uppgifter motsvarar verkligheten. Vilseledande beskrivningar kan leda till att kontot stängs och till ersättningsskyldighet.
+
+5.5 Förmedlingsavgift
+HABAHUB tar ut en förmedlingsavgift på 3,5 % av försäljningspriset för en genomförd affär, dock högst 35 euro per affär. Dessutom tillkommer betaltjänstleverantörens (Paytrail) transaktionsavgift (cirka 1,5 % + 0,25 €), som inte har något tak. Mer information finns på sidan om förmedlingsavgifter.
+
+5.6 Hämtningsprodukter
+Säljaren kan erbjuda produkter för avhämtning. Vid hämtningsaffärer erbjuder HABAHUB inget betalningsskydd och ansvarar inte för att affären genomförs. Affären sker direkt mellan köpare och säljare, som själva kommer överens om tid, plats och betalning för hämtningen.
+
+HABAHUB rekommenderar kontant betalning eller ett annat säkert betalsätt vid hämtningsaffärer.
+
+6. KÖPARENS SKYLDIGHETER
+
+6.1 Bindande anbud och köp
+Alla anbud som läggs i en liveauktion är bindande. Genom att lägga ett anbud förbinder sig Köparen att köpa produkten om denne vinner auktionen. Ett anbud kan inte återkallas.
+
+Köp i direktförsäljning är också bindande så snart betalningen har bekräftats.
+
+6.2 Betalningsskyldighet
+Köparen är skyldig att betala för ett vunnet anbud eller köp inom 2 timmar. Utebliven betalning kan leda till att kontot stängs av.
+
+6.3 Reklamationer
+Köparen har 3 dygn från mottagandet av produkten på sig att anmäla eventuella fel eller brister. Reklamationen ska göras skriftligen till support@habahub.fi.
+
+7. BETALNINGSSKYDD
+
+HABAHUB håller inne Köparens betalning tills Säljaren har lämnat en spårningskod. När leveransen bekräftas (via Postis spårningsuppgifter eller Köparens egen kvittering) har Köparen 48 timmar på sig att godkänna eller reklamera leveransen. Om Köparen inte reagerar inom 48 timmar frigörs betalningen automatiskt till Säljaren. Om leveransen aldrig bekräftas frigörs betalningen till Säljaren senast 14 dygn efter att produkten skickades.
+
+Betalningsskyddet täcker inte situationer där Köparen har lämnat en felaktig leveransadress eller på annat sätt genom eget agerande förhindrat leveransen.
+
+8. TVISTER
+
+8.1 Tvister mellan Säljare och Köpare
+Tvister är i första hand en fråga mellan Köparen och Säljaren. HABAHUB kan agera medlare men är inte skyldigt att lösa tvister.
+
+I allvarliga fall — till exempel när Säljaren inte levererar produkten eller produkten väsentligt avviker från beskrivningen — kan HABAHUB efter eget gottfinnande hålla inne betalningen till Säljaren och återbetala den till Köparen.
+
+8.2 HABAHUBs ansvarsbegränsning i tvister
+HABAHUBs ansvar som part i en tvist är alltid begränsat till högst den förmedlingsavgift som tagits ut för den aktuella affären.
+
+9. ANSVARSBEGRÄNSNING
+
+HABAHUB ansvarar inte för:
+- Säljares produkters kvalitet, skick eller äkthet
+- Säljarens eller Köparens agerande eller försummelser
+- Skador eller förseningar som uppstår vid leverans
+- Indirekta skador, uteblivna intäkter eller förlorad affärsverksamhet
+- Tillfälliga driftsavbrott eller tekniska störningar i Tjänsten
+- Tredjepartstjänsters (betaltjänst, videotjänst osv.) funktion
+
+HABAHUBs totala ansvar gentemot en Användare är alltid begränsat till högst det belopp som Användaren har betalat till HABAHUB under de senaste 12 månaderna, dock högst 100 euro.
+
+10. INNEHÅLL OCH IMMATERIELLA RÄTTIGHETER
+
+10.1 Användarens innehåll
+Användaren ansvarar för det innehåll denne publicerar och intygar att denne har rätt att publicera det. Användaren beviljar HABAHUB en begränsad, icke-exklusiv licens att använda innehållet för att tillhandahålla Tjänsten.
+
+10.2 HABAHUBs immateriella rättigheter
+Tjänstens utseende, teknik och varumärke tillhör HABAHUB. Det är förbjudet att kopiera eller använda dem utan tillstånd.
+
+10.3 Förbjudet innehåll
+Det är inte tillåtet att publicera olagligt, kränkande, vilseledande innehåll eller innehåll som kränker tredje parts rättigheter i Tjänsten. HABAHUB kan ta bort sådant innehåll utan förvarning.
+
+11. INTEGRITET OCH PERSONUPPGIFTER
+
+Behandlingen av personuppgifter beskrivs närmare i integritetspolicyn, som finns tillgänglig i Tjänsten på habahub.com/tietosuoja.
+
+12. SEMESTERLÄGE
+
+Säljaren kan aktivera semesterläge, varvid leveranstiden förlängs från 4 dygn till 7 dygn. Semesterläget måste aktiveras i förväg och kan inte användas för att i efterhand förlänga leveranstiden för order som redan uppstått.
+
+13. ÄNDRINGAR OCH AVBROTT I TJÄNSTEN
+
+HABAHUB förbehåller sig rätten att ändra, uppdatera eller avbryta Tjänsten eller delar av den utan förvarning. HABAHUB strävar dock efter att informera i förväg om väsentliga förändringar.
+
+14. ÄNDRING AV VILLKOREN
+
+HABAHUB förbehåller sig rätten att ändra dessa Villkor. Väsentliga ändringar meddelas Användarna via e-post eller i Tjänsten minst 14 dygn innan ändringarna träder i kraft. Fortsatt användning av Tjänsten efter ändringarna anses som godkännande av dem.
+
+15. TILLÄMPLIG LAG OCH TVISTLÖSNING
+
+Finsk lag tillämpas på dessa Villkor, med undantag för lagvalsregler.
+
+Tvister ska i första hand försöka lösas genom förhandling. Konsumenter kan hänskjuta en tvist till Konsumenttvistenämnden (www.kuluttajariitalautakunta.fi). Behörig domstol är Helsingfors tingsrätt.
+
+16. KONTAKTUPPGIFTER
+
+HABAHUB, org.nr: 3497347-6
+
+Frågor och kontakt:
+E-post: support@habahub.fi
+`
+
 export const TERMS_EN = `
 Terms of Service
 Updated: August 3, 2026
@@ -234,7 +402,7 @@ The following may not be sold on the Service:
 - Any other unlawful goods or services
 
 5.3 Shipping obligation
-The Seller commits to shipping the sold product within 48 hours of the transaction and providing a tracking code to HABAHUB and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
+The Seller commits to shipping the sold product within 4 days of the transaction and providing a tracking code to HABAHUB and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
 
 5.4 Commission
 HABAHUB charges a commission of 3.5% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.

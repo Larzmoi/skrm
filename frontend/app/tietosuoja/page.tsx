@@ -3,12 +3,12 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
-import { PRIVACY_FI, PRIVACY_EN } from './content'
+import { PRIVACY_FI, PRIVACY_EN, PRIVACY_SV } from './content'
 
 export default function TietosuojaPage() {
   const { C } = useTheme()
   const { lang } = useLang()
-  const content = lang === 'en' ? PRIVACY_EN : PRIVACY_FI
+  const content = lang === 'en' ? PRIVACY_EN : lang === 'sv' ? PRIVACY_SV : PRIVACY_FI
 
   const sections = content.trim().split('\n\n').filter(Boolean)
 
@@ -57,7 +57,7 @@ export default function TietosuojaPage() {
           })}
         </div>
         <p style={{ fontSize: 13, color: C.muted, marginTop: 32 }}>
-          {lang === 'en' ? 'Questions about privacy? Contact us:' : 'Kysymyksiä tietosuojasta? Ota yhteyttä:'}{' '}
+          {lang === 'en' ? 'Questions about privacy? Contact us:' : lang === 'sv' ? 'Frågor om integritet? Kontakta oss:' : 'Kysymyksiä tietosuojasta? Ota yhteyttä:'}{' '}
           <a href="mailto:support@habahub.fi" style={{ color: C.accent }}>support@habahub.fi</a>
         </p>
       </div>

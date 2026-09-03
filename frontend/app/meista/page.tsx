@@ -8,8 +8,11 @@ import { AKTIIVISET_KATEGORIAT } from '@/lib/config'
 
 export default function MeistaPage() {
   const { C } = useTheme()
-  const { t: tRaw } = useLang()
+  const { t: tRaw, lang } = useLang()
   const t = tRaw ?? {}
+  // "vrk" on suomenkielinen lyhenne — "48h" oli kielineutraali, "4 vrk" ei ole, joten arvo
+  // pitää nyt eriyttää kielen mukaan (ei ollut aiemmin tarpeen kun yksikkö oli "h").
+  const shippingValue = lang === 'fi' ? '4 vrk' : lang === 'sv' ? '4 dygn' : '4 days'
 
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
@@ -32,7 +35,7 @@ export default function MeistaPage() {
               // Piilotettu kategoriafokuksen ajaksi — "14 kategoriaa" olisi harhaanjohtava kun vain Keräilykortit on näkyvissä.
               // 14 on yhä tekninen totuus taustalla (ei muutettu lukuun 1), palautuu automaattisesti kun AKTIIVISET_KATEGORIAT tyhjennetään.
               ...(AKTIIVISET_KATEGORIAT.length === 0 ? [{ value: '14', label: t.about.categories, sub: t.about.categoriesSub }] : []),
-              { value: '48h', label: t.about.shipping, sub: t.about.shippingSub },
+              { value: shippingValue, label: t.about.shipping, sub: t.about.shippingSub },
               { value: '100%', label: t.about.binding, sub: t.about.bindingSub },
             ].map(s => (
               <div key={s.label} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: '18px', textAlign: 'center' }}>
