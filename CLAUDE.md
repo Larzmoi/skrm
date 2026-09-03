@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Rekisteröitymisen 14 päivän 0%-tutustumisjakso 2026-09-03 — ✅ TEHTY JA DEPLOYATTU
+
+Selvisi miksi kolmella myyjätilillä (`habacardsoy`/`michaelbacklund`/`danielbacklund`) oli manuaalisesti asetettu `customCommissionRate:0`/`customCommissionCap:1` (ks. edellinen admin-käyttäjälista-osio): omistajan päätös — **kaikki uudet myyjät kauppaavat provisiovapaasti ensimmäiset 2 viikkoa rekisteröitymisestä.**
+
+Omistaja tunnisti itse ongelman etukäteen: jos 0%/0€ tallennetaan `User`-riville rekisteröitymishetkellä (kuten manuaalisesti tehtiin näille kolmelle), joku joutuu 2 viikon kuluttua käymään palauttamassa jokaisen tilin käsin takaisin 3,5%/35€:oon — työlästä ja unohtuu helposti.
+
+**Ratkaisu: ei tallenneta mitään, lasketaan joka maksuhetkellä `User.createdAt`:sta.** `backend/src/lib/paytrail.ts`: uusi `getEffectiveCommissionOverride(seller)` — jos `seller.createdAt` on alle 14 vrk vanha JA admin ei ole asettanut eksplisiittistä `customCommissionRate`/`customCommissionCap`-arvoa, palauttaa `{rate:0, cap:0}`; muuten `{rate:null, cap:null}` (→ `computeCommissionCents()`:n oma 3,5%/35€-oletus). Admin-paneelista asetettu eksplisiittinen arvo (`PATCH /admin/users/:id`) menee AINA promojakson edelle — pysyvä yliajo, ei koskaan promon piirissä. `backend/src/routes/orders.ts`:n `POST /:id/pay` (ainoa paikka missä komissio oikeasti veloitetaan) hakee nyt myyjän `createdAt`:n samassa kyselyssä kuin `customCommissionRate`/`Cap`:n ja kutsuu uutta funktiota ennen Paytrail-maksupyynnön muodostamista.
+
+**Kolmen tilin siivous:** koska eksplisiittinen `customCommissionRate`/`Cap`-arvo menee promon edelle pysyvästi, niiden jättäminen `0`/`1`:een olisi jäädyttänyt ne SIIHEN ikuisesti (ei olisi koskaan siirtynyt promon kautta takaisin 3,5%/35€:oon). Tyhjennetty `PATCH /admin/users/:id`:llä takaisin `null`:iksi — kaikki kolme olivat rekisteröitymishetkellä (2026-09-01/03) yhä alle 14 vrk vanhoja, joten ne putoavat oikein promo-logiikan piiriin ja siirtyvät automaattisesti normaalihintaan 14 vrk:n täytyttyä ilman että kukaan koskee niihin uudestaan.
+
 ## Mainosbannerin mobiiliylivuoto + uutiskirjeen Broadcast-segmentti 2026-09-03 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja raportoi että etusivun `AdBanner`-mainoslaatikon ("Habahub suosittelee" -badge) teksti menee muun tekstin päälle mobiilissa. Vahvistettu koodista: badge on `position:absolute, top:12` laatikon sisällä, mutta mobiilissa laatikon flex-column-sisältö alkoi heti 20px-paddingin reunasta ilman mitään varattua tilaa badgelle — badge peitti "Viikon kohokohdat" -yläotsikkotekstin. Korjattu kasvattamalla mobiilin yläpaddingia 20px:stä 40px:ään (`frontend/app/page.tsx`, `AdBanner`), muu layout ennallaan.
@@ -925,6 +935,17 @@ pakettiin, vie Postille → SKRM seuraa Tracking API:lla → "toimitettu" vapaut
    - Pyyntö: `{"searchCriteria": {"trackingNumber": "JJFI65432100000000224"}}` — kehitysaikana voi lisätä `"validation": {"noEdiCheck": true}` ohittaakseen EDI-tarkistuksen
    - Vastaus: `{"shipments": [{"trackingNumber": "...", "sendingCode": "654321"}]}`
 4. **Tracking API** — kaksi tasoa: *Public* (rajoitettu, pelkällä koodilla) ja *Normal/External* (laajempi, sopimusasiakkaille)
+
+### Tarkistus 2026-09-03 — omistaja luuli testiympäristön jo vahvistetuksi, EI löytynyt mistään, Pickup Point -haku myös vahvistettu estetyksi (403)
+
+Omistaja kysyi suoraan onko testiympäristö "nyt käytössä" ja pyysi viimeistelemään postitusjärjestelmän, koska checkoutissa näkyy yhä pelkkä mock-noutopistelista (`frontend/lib/postiPickupPoints.ts`, 5 kovakoodattua esimerkkipistettä). **Tarkistettu ennen mihinkään koskemista:** koko CLAUDE.md ja git-historia käyty läpi (`git log --oneline -- CLAUDE.md`) — mitään uutta ei löytynyt 2026-09-02 jälkeen, Vaihe 2 on yhä samassa JÄÄDYTETTY-tilassa kuin silloin kirjattiin. **Ei siis löytynyt vahvistusta jota omistaja luuli olevan olemassa** — joko omistajalla on tuoretta tietoa (esim. sähköposti Postin Tomilta) jota ei ole vielä kirjoitettu tänne, tai kyseessä on muistivirhe. Ei arvattu kumpi, kysytty suoraan.
+
+**Samalla testattu turvallisesti se osa joka EI kanna taloudellista/fyysistä riskiä:** Pickup Point -haku (`GET/POST .../2025-04/pickuppoints`) on puhdas hakukysely, ei koskaan luo mitään Postin puolella — testattiin suoraan oikeaa API:a vasten olemassa olevilla OAuth2-tunnuksilla (kertakäyttöinen skripti palvelimella, poistettu käytön jälkeen). **Tulos: `403 Unauthorized`** sekä `GET /pickuppoints/FI`:llä että `POST /pickuppoints`:lla, molemmilla token-haku itsessään onnistui normaalisti (sama toimiva OAuth2-virta kuin Vaihe 1:ssä). **Tämä vahvistaa aiemman avoimen kysymyksen vastauksen:** nykyiset `POSTI_CLIENT_ID`/`SECRET` (rekisteröity roolilla `shippingapi`, ks. "PÄIVITYS 2026-09-02") EIVÄT kata Pickup Point -API:a — se vaatii oman, erillisen tuotteen/rekisteröinnin `developer.posti.fi`:ssä, ei ole automaattisesti mukana `shippingapi`-roolissa. `403`+selkeä `"Unauthorized"`-viesti (ei `404`) viittaa vahvasti siihen että pyyntö tavoitti oikean palvelun mutta tililtä puuttuu oikeus, ei että URL/muoto olisi väärin.
+
+**Tila juuri nyt, ei koodimuutosta tehty koska ei ole turvallista arvata:**
+- **Pickup Point -haku:** tekninen syy nyt tiedossa (puuttuva API-tuote-rekisteröinti) — omistajan pitää joko rekisteröidä Pickup Point -API `developer.posti.fi`:ssä (samalla tavalla kuin `shippingapi`-rooli aikanaan) tai vahvistaa löytyykö se jo jostain muualta organisaation asetuksista. Kun oikeus on kunnossa, koodimuutos on pieni — `postiPickupPoints.ts`:n mock-lista korvataan backend-reitillä joka kutsuu samaa OAuth2-tokenia käyttäen tätä endpointia.
+- **Lähetyksen luonti (Vaihe 2, `postiService.ts`:n mock):** yhä LUKITTU-jäädytyksen alla, ei kosketettu — vaatii omistajan eksplisiittisen vahvistuksen testiympäristöstä/näytelähettäjä-lähestymistavasta ennen kuin tätä aletaan viedä oikeaan API:in, koska väärä testikutsu voi luoda oikean, laskutettavan lähetyksen jos joku veisi sen fyysisesti Postiin.
+- **Sivuhuomio:** `postiService.ts` on rakennettu VANHAN v1-API-muodon mukaan (`POSTI_PROD_URL` osoittaa `.../api/v1/shipping/order`:iin, `senderPartners`/`agent.quickId`-rakenne) — kun Vaihe 2:een joskus edetään, koko mock pitää kirjoittaa uudelleen v2:n OAuth2+`/api/v2/`-muotoon (ks. "PÄIVITYS 2026-09-02"), ei vain kytkeä olemassa olevaa mockia oikeaan URLiin.
 
 ### Eteneminen 2026-09-02 — Vaihe 1 (token-haku) testattu ja toimii, Vaihe 2 JÄÄDYTETTY odottamaan Postin vastausta testiympäristöstä
 
