@@ -5,11 +5,13 @@
 // Korvaa `postiService.ts`:n aiemman MOCK-toteutuksen, joka oli rakennettu vanhentuneen v1-API-
 // oletuksen mukaan.
 //
-// KRIITTINEN LÖYDÖS ohjeesta: OPP API v2 palauttaa PRINTATTAVAN PDF-osoitetarran
-// (vastauksen prints[].pdf_type: "ADDRESSLABEL", shipment.status: "PRINTED") - EI Vinted-
-// tyylistä koodia jonka voisi kirjoittaa käsin pakettiin. "Sending Code API" on siis eri,
-// erillinen Postin tuote jota TÄTÄ endpointia käyttäen ei saada. Tämä muuttaa alkuperäistä
-// "labelless"-tavoitetta - ks. CLAUDE.md, kerrottava omistajalle ennen UI:n rakentamista.
+// LÖYDÖS ohjeesta: OPP API v2 itsessään palauttaa AINA PRINTATTAVAN PDF-osoitetarran
+// (vastauksen prints[].pdf_type: "ADDRESSLABEL", shipment.status: "PRINTED") - EI koskaan
+// suoraan Vinted-tyylistä koodia. TARKENNETTU 2026-09-03 (omistajan pyynnöstä luettu myös
+// erillinen "Sending Code API.txt" -dokumentti, ei vain tätä OPP v2 -opasta): labelless-
+// tavoite ON silti saavutettavissa, mutta KAHDESSA erillisessä API-kutsussa, ei yhdessä -
+// ks. tiedoston loppuosan `getSendingCode()` joka toimii tämän luoman trackingNumberin päällä.
+// PDF:ää ei tarvitse koskaan näyttää käyttäjälle jos toinen kutsu onnistuu.
 //
 // ⚠️ EI VIELÄ TESTATTU PÄÄSTÄ PÄÄHÄN: `x-gateway-secret`-otsikko (Postin ohjeen mukaan
 // "provided by Posti support team, starting with KBs7...") PUUTTUU - ilman sitä JOKAINEN
@@ -23,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.POSTI_CONTRACT_NUMBER = exports.POSTI_TEST_MODE = void 0;
 exports.createShippingOrder = createShippingOrder;
 exports.fetchLabelPdf = fetchLabelPdf;
+exports.getSendingCode = getSendingCode;
 const POSTI_TEST_MODE = process.env.POSTI_TEST_MODE !== 'false';
 exports.POSTI_TEST_MODE = POSTI_TEST_MODE;
 const POSTI_TOKEN_URL = POSTI_TEST_MODE
@@ -113,4 +116,73 @@ async function fetchLabelPdf(href) {
         throw new Error(`Osoitetarran haku epäonnistui: ${res.status}`);
     const arrayBuffer = await res.arrayBuffer();
     return Buffer.from(arrayBuffer);
+}
+// ---------------------------------------------------------------------------------------
+// Sending Code API - ERI, ERILLINEN Posti-tuote kuin OmaPosti Pro API v2 yllä (vahvistettu
+// 2026-09-03, ks. CLAUDE.md "Lähetysintegraatio" + omistajan toimittama "Sending Code API.txt").
+// Toimii OLEMASSA OLEVAN trackingNumberin päällä (esim. createShippingOrder():n palauttama
+// parcelNo) - palauttaa lyhyen aakkosnumeerisen koodin (6-10 merkkiä) jonka voi kirjoittaa
+// käsin pakettiin PDF-tarran SIJAAN. Tämä VAHVISTAA että labelless-tavoite ON saavutettavissa,
+// mutta kahdessa erillisessä askeleessa (1. luo lähetys OPP v2:lla, 2. hae koodi Sending Code
+// API:lla samalle trackingNumberille) - ei yhdellä kutsulla niin kuin alun perin toivottiin.
+//
+// EI VIELÄ TESTATTU PÄÄSTÄ PÄÄHÄN: nykyiset OAuth2-tunnukset (rooli "shippingapi") EIVÄT
+// sisällä pääsyä tähän - testattu suoraan tuotanto-hostia vasten `x-test-environment: true`
+// -otsikolla (Sending Code API:n oma, dokumentoitu turvallinen testimekanismi - API:lla ei ole
+// erillistä demo-hostia, ks. sen oma "Environments: Production only"), palautti puhtaan
+// `403 Unauthorized`:in suoraan Postin API-tasolta (EI CloudFront-estoa kuten OPP v2:n kanssa,
+// eli pyyntö tunnistettiin mutta hylättiin puuttuvan tuote-oikeuden takia). Sama tilannekuvio
+// kuin Pickup Point -API:lla - vaatii oman erillisen rekisteröinnin developer.posti.com:ssa,
+// ei sisälly automaattisesti "shippingapi"-rooliin.
+//
+// Käyttää AINA tuotannon POSTI_CLIENT_ID/SECRET:iä (ei POSTI_TEST_MODE-kytkintä), koska tällä
+// API:lla ei ole omaa demo-hostia - turvallinen testaus tehdään `x-test-environment`-otsikolla
+// tuotanto-hostia VASTEN (dokumentoidusti palauttaa mockattua dataa, ei oikeaa backend-dataa).
+const POSTI_SENDING_CODE_TOKEN_URL = 'https://gateway-auth.posti.fi/api/v1/token';
+const POSTI_SENDING_CODE_URL = 'https://gateway.posti.fi/2026-04/labelless';
+const POSTI_SENDING_CODE_CLIENT_ID = process.env.POSTI_CLIENT_ID || '';
+const POSTI_SENDING_CODE_CLIENT_SECRET = process.env.POSTI_CLIENT_SECRET || '';
+let cachedSendingCodeToken = null;
+async function getSendingCodeAccessToken() {
+    if (cachedSendingCodeToken && cachedSendingCodeToken.expiresAt > Date.now() + 30000)
+        return cachedSendingCodeToken.value;
+    if (!POSTI_SENDING_CODE_CLIENT_ID || !POSTI_SENDING_CODE_CLIENT_SECRET) {
+        throw new Error('POSTI_CLIENT_ID/SECRET puuttuu (Sending Code API käyttää aina tuotantotunnuksia, ei testitunnuksia)');
+    }
+    const res = await fetch(POSTI_SENDING_CODE_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: POSTI_SENDING_CODE_CLIENT_ID, client_secret: POSTI_SENDING_CODE_CLIENT_SECRET }),
+    });
+    if (!res.ok)
+        throw new Error(`Sending Code -tokenin haku epäonnistui: ${res.status}`);
+    const json = await res.json();
+    cachedSendingCodeToken = { value: json.access_token, expiresAt: Date.now() + (json.expires_in ?? 3600) * 1000 };
+    return cachedSendingCodeToken.value;
+}
+// testEnvironment: true lisää x-test-environment-otsikon (palauttaa mockattua dataa oikeasta
+// tuotanto-hostista käsin, ks. yllä) - käytä tähän AINA kunnes tuote-oikeus on vahvistettu,
+// älä koskaan kutsu ilman tätä ennen kuin joku on eksplisiittisesti testannut oikean vastauksen.
+async function getSendingCode(trackingNumber, opts = {}) {
+    const token = await getSendingCodeAccessToken();
+    const res = await fetch(POSTI_SENDING_CODE_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(opts.testEnvironment ? { 'x-test-environment': 'true' } : {}),
+        },
+        body: JSON.stringify({
+            searchCriteria: { trackingNumber },
+            ...(opts.noEdiCheck ? { validation: { noEdiCheck: true } } : {}),
+        }),
+    });
+    const text = await res.text();
+    if (!res.ok)
+        throw new Error(`Sending Code API epäonnistui: ${res.status} ${text.slice(0, 300)}`);
+    const json = JSON.parse(text);
+    const code = json.shipments?.[0]?.sendingCode;
+    if (!code)
+        throw new Error('Sending Code API ei palauttanut koodia');
+    return code;
 }
