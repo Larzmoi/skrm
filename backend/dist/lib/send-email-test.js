@@ -1,5 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// Ajettu standalonena (ei index.ts:n kautta), joten .env ei lataudu automaattisesti - ilman
+// tätä resend.ts:n moduulitason `process.env.RESEND_API_KEY ? ... : null` -tarkistus näkee
+// aina undefined ja jokainen lähetys vain lokittuu konsoliin oikeasti lähtemättä.
+require("dotenv/config");
 const resend_1 = require("./resend");
 const to = process.env.TEST_EMAIL;
 if (!to)

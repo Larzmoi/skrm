@@ -1,3 +1,7 @@
+// Ajettu standalonena (ei index.ts:n kautta), joten .env ei lataudu automaattisesti - ilman
+// tätä resend.ts:n moduulitason `process.env.RESEND_API_KEY ? ... : null` -tarkistus näkee
+// aina undefined ja jokainen lähetys vain lokittuu konsoliin oikeasti lähtemättä.
+import 'dotenv/config'
 import {
   sendWelcomeEmail,
   sendOrderConfirmationEmail,
