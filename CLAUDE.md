@@ -148,6 +148,40 @@ Sama uusi rooli kattoi myös Pickup Point -haun, joka oli aiemmin 403 (ks. "PÄI
 - **`POST https://gateway.posti.fi/2025-04/pickuppoints`** → **400 VALIDATION_ERROR** kahdella eri kokeillulla body-muodolla (`{postalCode,countryCode}` suoraan JA `{searchCriteria:{postalCode,countryCode}}`) — molemmat hylättiin "Extra inputs are not permitted" -virheellä, oikea kenttänimi postinumerolle ei ole kumpikaan näistä. Ei arvattu pidemmälle.
 - **Ei kytketty mihinkään** — omistajan pyyntö oli vain testata, ei kytkeä. `frontend/lib/postiPickupPoints.ts`:n 5 mock-noutopistettä ovat yhä käytössä checkoutissa. GET-reitti riittäisi jo sellaisenaan (250 oikeaa pistettä koko maalle, suodatettavissa omalla koodilla postinumeron/kaupungin perusteella ilman että POST:in tarkkaa hakumuotoa tarvitsee ratkaista ensin) jos/kun tämä halutaan kytkeä — oma erillinen tehtävänsä, ei tehty nyt.
 
+## ⏰ 48H JULKAISUPAINE 2026-09-04 — ensimmäinen teststriimi tavoitteena, priorisointi lukittu
+
+Omistaja ilmoitti kovan aikarajan: **48 tunnin sisällä pitäisi pystyä pitämään ensimmäinen teststriimi.** Ei enää lykätä/siirretä mitään — vain kriittinen polku etenee, loput odottavat tietoisesti.
+
+**✅ Vahvistettu: Paytrail-sopimus EI ole vielä valmis, pysytään testitilassa (`PAYTRAIL_TEST_MODE=true`) tälle ensimmäiselle striimille — ei oikeaa rahaa, ei tuotantopainetta Paytrailin osalta.**
+
+**Kriittinen polku ennen striimiä:**
+1. **✅ Tarkistettu 2026-09-04: `canStream=true` kaikilla kolmella** (michaelbacklund, danielbacklund, Larzmoi) — vahvistettu suoraan tietokannasta, ei muuttunut tänään tehdyissä admin-paneelin muutoksissa.
+2. Live-striimaus/chat/huutokauppa/osta heti — jo vahvistettu toimivaksi, ei koskettu tänään.
+3. **✅ Maksu testitilassa vahvistettu uudelleen 2026-09-04 täydellä päästä-päähän-testillä** (ks. kohta 3 alla, "Iso testauskierros") — mukaan lukien tänään lisätty 14 vrk:n komissiopromo-logiikka, ei rikkonut maksun aloitusta.
+4. Postitus PDF-tarralla (turvallinen fallback) — riittää, Sending Code -koodi EI ole este.
+5. Tuotteiden lisäys (manuaalinen + bulkki) — jo toimii, vahvistettu myös tämän testikierroksen tuotteenluontiaskeleessa.
+6. **✅ TEHTY 2026-09-04 — salasanan palautus -bugi LÖYDETTY JA KORJATTU, ks. oma osio alla.** Ei ollut varsinaista "vanhentunut"-bugia token-logiikassa itsessään (kolme oikeaa tiliä onnistui tänään, yksi 21 sekunnissa) — todellinen syy oli että uuden palautuslinkin pyytäminen mitätöi hiljaa KAIKKI käyttäjän aiemmat käyttämättömät linkit. Korjattu, testattu uudelleen tuotannossa.
+7. **✅ TEHTY 2026-09-04 — checkoutin 5 mock-noutopistettä korvattu oikealla Pickup Point API GET -haulla.** Uusi `GET /posti/pickup-points` (backend, 6h muistivälimuisti) palauttaa 250 oikeaa suomalaista noutopistettä, kytketty sekä `/kori`- että `/ostot`-sivun toimitustapavalintaan. Vahvistettu tuotannossa curlilla: palauttaa oikeaa dataa (nimi/osoite/kaupunki). `lib/postiPickupPoints.ts`-mock poistettu kokonaan, ei enää käytössä missään.
+
+### ✅ Iso testauskierros 2026-09-04 — kohdat 1-3 käyty läpi, ei löytynyt muita esteitä
+
+**1. Salasanan palautus — juurisyy löydetty ja korjattu.** `backend/src/lib/passwordReset.ts`:n `createAndSendPasswordResetToken()` teki `deleteMany({userId, usedAt:null})` ENNEN uuden tokenin luontia — eli JOKAINEN uusi palautuspyyntö mitätöi hiljaa kaikki käyttäjän aiemmat, käyttämättömät linkit. Vahvistettu kahdella tavalla: (a) tuotannon tietokannasta — kolme oikeaa tiliä (michaelbacklund, danielbacklund, Larzmoi) käytti palautuslinkkiään onnistuneesti tänään, Larzmoi vain 21 sekunnissa luonnista, eli itse token/expiry-mekanismi EI ollut rikki; (b) suoralla toistotestillä — pyydettiin sama käyttäjä palautuslinkkiä kahdesti peräkkäin, ensimmäinen token katosi tietokannasta heti toisen pyynnön jälkeen. **Tämä täsmää täsmälleen kuvattuun oireeseen:** testimyyjä joka klikkaa "Unohditko salasanan" kahdesti (esim. luullen ettei ensimmäinen sähköposti saapunut) ja avaa sitten VANHEMMAN sähköpostin, näkee "linkki on vanhentunut tai jo käytetty" vaikka linkki on hänen näkökulmastaan tuore. **Korjaus:** `deleteMany`-kutsu poistettu — useampi token voi nyt olla samanaikaisesti voimassa, kukin edelleen itsenäisesti 1h ja kertakäyttöinen. Testattu uudelleen tuotannossa: toinen pyyntö EI enää mitätöi ensimmäistä, molemmat pysyvät käyttökelpoisina.
+
+**2. Checkoutin noutopisteet — korvattu oikealla API:lla.** Ks. kohta 7 yllä, ei toisteta.
+
+**3. Täysi päästä-päähän-ostotesti oikeiden reittien kautta** (ei UI:n läpi — video/OBS-osuutta ei voi automatisoida tästä ympäristöstä, mutta koko taustalogiikka kylläkin): kertakäyttöinen testi loi tuotteen (testiuser=myyjä), lisäsi ostoskoriin (testi2user=ostaja, `POST /cart/add`), teki checkoutin (`POST /cart/checkout` → Order syntyi oikein, `productTotal:9.5`), valitsi toimitustavan (`POST /orders/:id/select-shipping` → `shippingPrice:6.9`/`shippingSize:"postitus"` laskettu oikein), aloitti maksun (`POST /orders/:id/pay` → 200, `redirectUrl` palautui — **vahvistaa ettei tänään lisätty 14 vrk:n komissiopromo-logiikka (`getEffectiveCommissionOverride`) rikkonut maksun aloitusta**), ja vahvisti tilauksen näkyvän oikein sekä `GET /orders/mine`:ssä (ostaja) että `GET /orders/selling`:ssä (myyjä), molemmissa oikea `status:"PENDING_PAYMENT"`. Kaikki 7 askelta onnistuivat. Testidata (tuote/tilaus/tilausrivi) siivottu pois, vahvistettu tyhjällä hakutuloksella jälkikäteen. **Ei testattu: Paytrailin oman maksusivun klikkaus-läpi-testipankin -osuus** (sama, jo aiemmin dokumentoitu rajoitus — ei automatisoitavissa tästä ympäristöstä) eikä itse live-striimauksen video/chat-osuus (CLAUDE.md:n oma ohje: "jo vahvistettu toimivaksi, ei koskea").
+
+**Ei löytynyt muita esteitä ensimmäiselle teststriimille tämän tutkinnan aikana.**
+
+**Tietoisesti jätetty myöhemmäksi, EI kosketa seuraavan 48h aikana:**
+- Visuaalinen tyylipäivitys (lime-väripaletti, fontit, koko sivuston restailointi)
+- Footerin siivous
+- SV-käännösten viimeistely
+- Sending Code API:n hienosäätö (PDF-fallback riittää)
+- Pickup Point API:n POST-korjaus (postinumerosuodatus) — GET-pohjainen koko listaus riittää nyt, ks. kohta 7 yllä
+- Admin-paneelin lisäominaisuudet striimausoikeuden hallinnan ulkopuolella
+- Kaikki tulevaisuuden ominaisuudet (Tarjoa hintaa, Settilistaus, live-esiasetukset, tilausten yhdistämisen näkyvyys kassalla, jne.)
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**
