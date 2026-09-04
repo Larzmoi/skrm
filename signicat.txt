@@ -1,0 +1,36 @@
+Nyt kun Sandbox-asetukset ovat valmiina, seuraava vaihe on koodata tunnistautumisvuo HabaHubin sovellukseen.
+
+Tässä ovat välittömät seuraavat askeleet:
+1. Tallenna ympäristömuuttujat (.env.local)
+
+Lisää luodut avaimet HabaHub-projektin ympäristömuuttujiin:
+Koodinpätkä
+
+SIGNICAT_CLIENT_ID=sinun_client_id_tähän
+SIGNICAT_CLIENT_SECRET=sinun_client_secret_tähän
+SIGNICAT_ISSUER=https://<your-tenant>.signicat.dev/auth/open
+NEXTAUTH_URL=https://habahub.com
+
+2. Koodaa OIDC-kirjautumisreitti (API Endpoint)
+
+Rakennetaan taustajärjestelmään reitti, joka ohjaa käyttäjän Signicatin FTN-pankkivalikkoon:
+TypeScript
+
+// /api/auth/signicat/route.ts
+export async function GET() {
+  const params = new URLSearchParams({
+    client_id: process.env.SIGNICAT_CLIENT_ID!,
+    response_type: 'code',
+    scope: 'openid profile',
+    redirect_uri: 'https://habahub.com/api/auth/callback/signicat',
+    acr_values: 'idp:ftn', // Ohjaa suoraan suomalaisten pankkien FTN-valikkoon
+  });
+
+  return Response.redirect(`${process.env.SIGNICAT_ISSUER}/connect/authorize?${params}`);
+}
+
+3. Koodaa Callback-reitti (Paluuosoite)
+
+Luodaan reitti [https://habahub.com/api/auth/callback/signicat](https://habahub.com/api/auth/callback/signicat), joka vastaanottaa koodin Signicatilta, vaihtaa sen ID Tokeniin ja poimii sieltä käyttäjän anonymisoidun sub-tunnisteen sekä nimen.
+
+Haluatko, että kirjoitan valmiin koodin tälle Callback-reitille (esim. Next.js / Node.js -ympäristöön), vai siirrytäänkö pyytämään Signicatilta virallinen tarjous tuotantoavaimia varten?

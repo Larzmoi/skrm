@@ -72,7 +72,7 @@ export default function Navbar() {
               {currentLang?.code.toUpperCase()}
             </button>
             {showLangMenu && (
-              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 34, borderRadius: 12, padding: '6px', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 200 }}>
+              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 60, borderRadius: 12, padding: '6px', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
                 {languages.map(l => (
                   <button key={l.code} onClick={() => { setLang(l.code); setShowLangMenu(false) }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, background: lang === l.code ? C.accentLight : 'transparent', color: lang === l.code ? C.accent : C.textSub, fontWeight: lang === l.code ? 700 : 400 }}>
                     {l.label}
@@ -95,7 +95,8 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Selaa / Huutokaupat / Live + haku — omalla rivillä ettei ylin rivi ahdas */}
+        {/* Selaa / Huutokaupat / Live + haku — omalla rivillä ettei ylin rivi ahdas */
+          {/* Fix: z-index 9999 ensures dropdown is always visible above scrollable content */}}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px 10px' }}>
           <input
             placeholder={t.nav.search}
@@ -157,7 +158,7 @@ export default function Navbar() {
               {currentLang?.code.toUpperCase()}
             </button>
             {showLangMenu && (
-              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 42, borderRadius: 14, padding: '6px', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 200 }}>
+              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 60, borderRadius: 14, padding: '6px', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
                 {languages.map(l => (
                   <button key={l.code} onClick={() => { setLang(l.code); setShowLangMenu(false) }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, background: lang === l.code ? C.accentLight : 'transparent', color: lang === l.code ? C.accent : C.textSub, fontWeight: lang === l.code ? 700 : 400 }}>
                     {l.label}
