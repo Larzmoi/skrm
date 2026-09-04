@@ -14,7 +14,7 @@ const en = {
     buyNow: 'For Sale', viewers: 'viewers',
     heroTitleLine1: 'One place to buy and sell —', heroTitleLine2: 'exactly how you want',
     heroSubtitle: 'Live auctions and direct sales. Finnish. Secure.',
-    heroBrowse: 'Browse products', heroBecomeSeller: 'Become a seller',
+    heroBrowse: 'Browse products',
     heroTrustSecure: 'Secure trading', heroTrustFinnish: 'Finnish service',
     heroTrustCommission: '3.5% fee, max €35', heroTrustFreeSignup: 'Free to sign up',
     heroHide: 'Hide',

@@ -14,7 +14,7 @@ const fi = {
     buyNow: 'Myynnissä', viewers: 'katsojaa',
     heroTitleLine1: 'Yksi paikka ostaa ja myydä —', heroTitleLine2: 'juuri niin kuin haluat',
     heroSubtitle: 'Live-huutokauppa ja suoramyynti. Suomalainen. Turvallinen.',
-    heroBrowse: 'Selaa tuotteita', heroBecomeSeller: 'Ryhdy myyjäksi',
+    heroBrowse: 'Selaa tuotteita',
     heroTrustSecure: 'Turvallinen kaupankäynti', heroTrustFinnish: 'Suomalainen palvelu',
     heroTrustCommission: '3,5% provisio, max 35€', heroTrustFreeSignup: 'Ilmainen rekisteröityminen',
     heroHide: 'Piilota',

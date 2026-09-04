@@ -236,9 +236,6 @@ export default function Home() {
                 <Link href="/selaa" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: isMobile ? '12px 26px' : '14px 34px', borderRadius: 999, fontWeight: 800, fontSize: isMobile ? 14 : 15, textDecoration: 'none', fontFamily: 'var(--font-display), sans-serif' }}>
                   {t.home.heroBrowse}
                 </Link>
-                <Link href="/register" className="hb-btn" style={{ background: C.surface, color: C.text, border: `1px solid ${C.border}`, padding: isMobile ? '12px 26px' : '14px 34px', borderRadius: 999, fontWeight: 700, fontSize: isMobile ? 14 : 15, textDecoration: 'none', fontFamily: 'var(--font-display), sans-serif' }}>
-                  {t.home.heroBecomeSeller}
-                </Link>
               </div>
             </ScrollReveal>
 

@@ -37,7 +37,7 @@ export default function HuutokaupatPage() {
   const [activeKat, setActiveKat] = useState('kaikki')
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
-  const [activeCondition, setActiveCondition] = useState('')
+  const [activeCondition, setActiveCondition] = useState<string[]>([])
   const [city, setCity] = useState('')
   const [isMobile, setIsMobile] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
@@ -75,7 +75,7 @@ export default function HuutokaupatPage() {
   const filtered = useMemo(() => {
     let a = auctions
     if (city) a = a.filter(x => auctionCity(x) === city)
-    if (activeCondition) a = a.filter(x => x.condition === activeCondition)
+    if (activeCondition.length > 0) a = a.filter(x => activeCondition.includes(x.condition ?? ''))
     return a
   }, [auctions, city, activeCondition])
 

@@ -27,7 +27,7 @@ function SelaaContent() {
   const [activeKat, setActiveKat] = useState(urlKat)
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
-  const [activeCondition, setActiveCondition] = useState('')
+  const [activeCondition, setActiveCondition] = useState<string[]>([])
   const [search, setSearch] = useState(urlHaku)
   const [sort, setSort] = useState('newest')
   const [minPrice, setMinPrice] = useState('')
@@ -82,14 +82,14 @@ function SelaaContent() {
     if (minPrice) p = p.filter(x => x.startPrice >= Number(minPrice))
     if (maxPrice) p = p.filter(x => x.startPrice <= Number(maxPrice))
     if (city) p = p.filter(x => productCity(x) === city)
-    if (activeCondition) p = p.filter(x => x.condition === activeCondition)
+    if (activeCondition.length > 0) p = p.filter(x => activeCondition.includes(x.condition ?? ''))
     return p
   }, [products, search, minPrice, maxPrice, city, activeCondition])
 
-  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!activeTyyppi || !!activeCondition || !!search.trim() || !!minPrice || !!maxPrice || !!city
+  const filtersActive = activeKat !== 'kaikki' || !!activeAla || !!activeTyyppi || activeCondition.length > 0 || !!search.trim() || !!minPrice || !!maxPrice || !!city
 
   function clearFilters() {
-    setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi(''); setActiveCondition(''); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
+    setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi(''); setActiveCondition([]); setSearch(''); setMinPrice(''); setMaxPrice(''); setCity('')
   }
 
   // Suora käyttäjähaku — löytää myyjän tililtä vaikka hänellä ei olisi juuri nyt tuotteita myynnissä

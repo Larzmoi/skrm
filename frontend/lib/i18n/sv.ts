@@ -14,7 +14,7 @@ const sv = {
     buyNow: 'Till salu', viewers: 'tittare',
     heroTitleLine1: 'Ett ställe att köpa och sälja —', heroTitleLine2: 'precis som du vill ha det',
     heroSubtitle: 'Liveauktioner och direktförsäljning. Svensk. Säker.',
-    heroBrowse: 'Bläddra produkter', heroBecomeSeller: 'Bli säljare',
+    heroBrowse: 'Bläddra produkter',
     heroTrustSecure: 'Säkert köpande', heroTrustFinnish: 'Svensk service',
     heroTrustCommission: '3,5% provision, max 35€', heroTrustFreeSignup: 'Gratis att registrera sig',
     heroHide: 'Dölj',

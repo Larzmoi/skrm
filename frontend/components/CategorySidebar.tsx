@@ -15,9 +15,23 @@ interface CategorySidebarProps {
   // Kuntosuodatin — vain irtokortit-tyypille toistaiseksi (ks. CLAUDE.md "Kuntoluokitus
   // Cardmarket-muotoon irtokorteille"). Valinnainen kuten muutkin kolmannen tason propsit,
   // kutsuja joka ei anna näitä ei näe kuntosuodatinta ollenkaan (esim. live-kaikki).
-  activeCondition?: string
-  setActiveCondition?: (id: string) => void
+  // MONIVALINTA lisätty 2026-09-04 (ks. CLAUDE.md "Kuntosuodattimen kaksi puutetta") - taulukko
+  // yksittäisen stringin sijaan, käyttäjä voi valita esim. M+NM+EX samaan aikaan (OR-suodatus).
+  activeCondition?: string[]
+  setActiveCondition?: (ids: string[]) => void
   isMobile: boolean
+}
+
+// Pelien (alakategoriat) jaettu tyyppisetti (slabit/sealed/irtokortit/tarvikkeet) on identtinen
+// joka pelillä paitsi viimeinen "Muu {peli}" -kohta, joka on pelikohtainen eikä siksi kuulu
+// tähän pikavalitsimeen (ks. kategoriat.ts:n keraiLykorttiTyypit()). Käytetään näyttämään
+// tyyppi-valinta HETI kategorian alla ilman että käyttäjän pitää ensin valita peli - ks.
+// CLAUDE.md "Kuntosuodattimen kaksi puutetta", löydettävyys-korjaus 2026-09-04.
+function getSharedTyypit(katId: string): { id: string; nimi: { fi: string; en: string } }[] {
+  const kat = KATEGORIAT.find(k => k.id === katId)
+  const first = (kat?.alakategoriat as any[] | undefined)?.[0]
+  if (!first?.tyypit) return []
+  return first.tyypit.filter((ty: any) => !String(ty.id).startsWith('muu-'))
 }
 
 // Sama kategoriasuodatus kuin /selaa-sivulla — jaettu komponentti /huutokaupat ja /live-kaikki -sivuille.
@@ -27,12 +41,19 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
   const { C } = useTheme()
   const { lang, t } = useLang()
   const showConditionFilter = !!setActiveCondition && activeTyyppi === 'irtokortit'
+  const selectedConditions = activeCondition ?? []
   const allKats = [{ id: 'kaikki', nimi: { fi: t.selaa.allCategories, en: t.selaa.allCategories } }, ...getNakyvatKategoriat()]
+  const sharedTyypit = setActiveTyyppi && activeKat !== 'kaikki' ? getSharedTyypit(activeKat) : []
 
   function selectKat(id: string) {
     setActiveKat(id)
     setActiveAla?.('')
     setActiveTyyppi?.('')
+  }
+
+  function toggleCondition(id: string) {
+    if (!setActiveCondition) return
+    setActiveCondition(selectedConditions.includes(id) ? selectedConditions.filter(c => c !== id) : [...selectedConditions, id])
   }
 
   if (isMobile) {
@@ -46,6 +67,15 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
             </button>
           ))}
         </div>
+        {sharedTyypit.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, background: C.surface, borderRadius: 10, padding: 8 }}>
+            {sharedTyypit.map(ty => (
+              <button key={ty.id} onClick={() => { setActiveTyyppi!(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.([]) }} style={{ padding: '5px 10px', borderRadius: 20, border: `1px solid ${activeTyyppi === ty.id ? C.accent : C.border}`, background: activeTyyppi === ty.id ? C.accentLight : C.surface2, color: activeTyyppi === ty.id ? C.accent : C.textSub, fontSize: 12, fontWeight: activeTyyppi === ty.id ? 700 : 400, cursor: 'pointer' }}>
+                {getTyyppiNimi(ty, lang as any)}
+              </button>
+            ))}
+          </div>
+        )}
         {setActiveAla && activeAlakategoriat.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, background: C.surface, borderRadius: 10, padding: 8 }}>
             {activeAlakategoriat.map((ala: any) => (
@@ -60,7 +90,7 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
           return tyypit.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, background: C.surface2, borderRadius: 10, padding: 8 }}>
               {tyypit.map((ty: any) => (
-                <button key={ty.id} onClick={() => { setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.('') }} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${activeTyyppi === ty.id ? C.accent : C.border}`, background: activeTyyppi === ty.id ? C.accentLight : C.cardBg, color: activeTyyppi === ty.id ? C.accent : C.muted, fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, cursor: 'pointer' }}>
+                <button key={ty.id} onClick={() => { setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.([]) }} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${activeTyyppi === ty.id ? C.accent : C.border}`, background: activeTyyppi === ty.id ? C.accentLight : C.cardBg, color: activeTyyppi === ty.id ? C.accent : C.muted, fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, cursor: 'pointer' }}>
                   {getTyyppiNimi(ty, lang as any)}
                 </button>
               ))}
@@ -72,7 +102,7 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
             <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, margin: '6px 0 4px' }}>{t.product.condition}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {CARDMARKET_KUNTOLUOKAT.map(k => (
-                <button key={k.id} onClick={() => setActiveCondition!(activeCondition === k.id ? '' : k.id)} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${activeCondition === k.id ? C.accent : C.border}`, background: activeCondition === k.id ? C.accentLight : C.cardBg, color: activeCondition === k.id ? C.accent : C.muted, fontSize: 11, fontWeight: activeCondition === k.id ? 700 : 400, cursor: 'pointer' }}>
+                <button key={k.id} onClick={() => toggleCondition(k.id)} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${selectedConditions.includes(k.id) ? C.accent : C.border}`, background: selectedConditions.includes(k.id) ? C.accentLight : C.cardBg, color: selectedConditions.includes(k.id) ? C.accent : C.muted, fontSize: 11, fontWeight: selectedConditions.includes(k.id) ? 700 : 400, cursor: 'pointer' }}>
                   {k.id}
                 </button>
               ))}
@@ -94,6 +124,18 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
               <span>{getKatNimi(kat as any, lang as any)}</span>
               {count > 0 && <span style={{ fontSize: 11, color: C.muted }}>{count}</span>}
             </button>
+            {activeKat === kat.id && kat.id !== 'kaikki' && (() => {
+              const katSharedTyypit = setActiveTyyppi ? getSharedTyypit(kat.id) : []
+              return katSharedTyypit.length > 0 ? (
+                <div style={{ marginLeft: 8, marginBottom: 4, display: 'flex', flexWrap: 'wrap', gap: 4, padding: '2px 0 6px' }}>
+                  {katSharedTyypit.map(ty => (
+                    <button key={ty.id} onClick={() => { setActiveTyyppi!(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.([]) }} style={{ padding: '4px 9px', borderRadius: 20, border: `1px solid ${activeTyyppi === ty.id ? C.accent : C.border}`, background: activeTyyppi === ty.id ? C.accentLight : C.surface, color: activeTyyppi === ty.id ? C.accent : C.muted, fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, cursor: 'pointer' }}>
+                      {getTyyppiNimi(ty, lang as any)}
+                    </button>
+                  ))}
+                </div>
+              ) : null
+            })()}
             {setActiveAla && activeKat === kat.id && kat.id !== 'kaikki' && (KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).length > 0 && (
               <div style={{ marginLeft: 8, marginBottom: 4, background: C.surface, borderRadius: 8, padding: '4px', borderLeft: `2px solid ${C.border}` }}>
                 {(KATEGORIAT.find(k => k.id === kat.id)?.alakategoriat ?? []).map((ala: any) => {
@@ -109,7 +151,7 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
                           {ala.tyypit.map((ty: any) => {
                             const tyCount = items.filter(p => p.tyyppi === ty.id).length
                             return (
-                              <button key={ty.id} onClick={() => { setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.('') }} style={{ width: '100%', textAlign: 'left', padding: '4px 10px 4px 16px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, color: activeTyyppi === ty.id ? C.accent : C.muted, background: activeTyyppi === ty.id ? C.accentLight : 'transparent', display: 'flex', justifyContent: 'space-between' }}>
+                              <button key={ty.id} onClick={() => { setActiveTyyppi(activeTyyppi === ty.id ? '' : ty.id); setActiveCondition?.([]) }} style={{ width: '100%', textAlign: 'left', padding: '4px 10px 4px 16px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: activeTyyppi === ty.id ? 700 : 400, color: activeTyyppi === ty.id ? C.accent : C.muted, background: activeTyyppi === ty.id ? C.accentLight : 'transparent', display: 'flex', justifyContent: 'space-between' }}>
                                 <span>{getTyyppiNimi(ty, lang as any)}</span>
                                 {tyCount > 0 && <span style={{ fontSize: 10 }}>{tyCount}</span>}
                               </button>
@@ -129,7 +171,8 @@ export default function CategorySidebar({ items, activeKat, setActiveKat, active
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.product.condition}</div>
           {CARDMARKET_KUNTOLUOKAT.map(k => (
-            <button key={k.id} onClick={() => setActiveCondition!(activeCondition === k.id ? '' : k.id)} style={{ width: '100%', textAlign: 'left', padding: '6px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: activeCondition === k.id ? 700 : 400, color: activeCondition === k.id ? C.accent : C.textSub, background: activeCondition === k.id ? C.accentLight : 'transparent', marginBottom: 1 }}>
+            <button key={k.id} onClick={() => toggleCondition(k.id)} style={{ width: '100%', textAlign: 'left', padding: '6px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: selectedConditions.includes(k.id) ? 700 : 400, color: selectedConditions.includes(k.id) ? C.accent : C.textSub, background: selectedConditions.includes(k.id) ? C.accentLight : 'transparent', marginBottom: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 14, height: 14, borderRadius: 4, border: `1px solid ${selectedConditions.includes(k.id) ? C.accent : C.border}`, background: selectedConditions.includes(k.id) ? C.accent : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10 }}>{selectedConditions.includes(k.id) ? '✓' : ''}</span>
               {k.nimi}
             </button>
           ))}
