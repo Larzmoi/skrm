@@ -7,8 +7,7 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useCart } from '@/lib/cart-context'
-import { cartApi, orderApi } from '@/lib/api'
-import { POSTI_PICKUP_POINTS } from '@/lib/postiPickupPoints'
+import { cartApi, orderApi, postiApi, PickupPoint } from '@/lib/api'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -30,10 +29,16 @@ export default function KoriPage() {
   const [selectedPickupPoint, setSelectedPickupPoint] = useState<Record<string, string>>({})
   const [paying, setPaying] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
+  }, [])
+
+  // Haetaan kerran, jaettu kaikille myyjäryhmille - ks. CLAUDE.md "48H JULKAISUPAINE" 2026-09-04
+  useEffect(() => {
+    postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
   }, [])
 
   // Jos jokin live-tuote vanhenee, päivitetään kori (backend siivoaa lennossa)
@@ -174,13 +179,14 @@ export default function KoriPage() {
                   )}
 
                   {size === 'postitus' && (
-                    // Noutopiste (MOCK-esimerkkilista, ks. lib/postiPickupPoints.ts) - vastaa
+                    // Noutopiste - oikea Postin Pickup Point -lista (250 pistettä, ks. lib/api.ts
+                    // postiApi.pickupPoints, CLAUDE.md "48H JULKAISUPAINE" 2026-09-04). p.id vastaa
                     // OmaPosti Pro API:n shipment.agent.quickId-kenttää lähetystä luotaessa.
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                       <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>Noutopiste</label>
                       <select value={selectedPickupPoint[group.sellerId] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
                         <option value="">Valitse noutopiste...</option>
-                        {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                        {pickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
                       </select>
                     </div>
                   )}

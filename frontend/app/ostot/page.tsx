@@ -6,9 +6,8 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
-import { orderApi } from '@/lib/api'
+import { orderApi, postiApi, PickupPoint } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
-import { POSTI_PICKUP_POINTS } from '@/lib/postiPickupPoints'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 
 interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string; allowPickup?: boolean; allowShipping?: boolean } }
@@ -50,6 +49,11 @@ export default function OstotPage() {
   const [reviewOpenFor, setReviewOpenFor] = useState<string | null>(null)
   const [reviewRating, setReviewRating] = useState<Record<string, number>>({})
   const [reviewComment, setReviewComment] = useState<Record<string, string>>({})
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
+
+  useEffect(() => {
+    postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -283,7 +287,7 @@ export default function OstotPage() {
                                   {selectedSize[order.id] === 'postitus' && (
                                     <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
                                       <option value="">Valitse noutopiste...</option>
-                                      {POSTI_PICKUP_POINTS.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                                      {pickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
                                     </select>
                                   )}
                                   <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>

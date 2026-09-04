@@ -87,6 +87,14 @@ export const orderApi = {
   },
 }
 
+export interface PickupPoint { id: string; name: string; address: string; city: string }
+
+export const postiApi = {
+  // Korvaa lib/postiPickupPoints.ts:n 5 mock-pistettä 250 oikealla noutopisteellä,
+  // ks. CLAUDE.md "48H JULKAISUPAINE" 2026-09-04.
+  pickupPoints: (): Promise<PickupPoint[]> => request('/posti/pickup-points'),
+}
+
 export const showApi = {
   create: (data: { title: string; category?: string; alakategoria?: string; city?: string; scheduledAt?: string; thumbnailUrl?: string }) => request('/shows', { method: 'POST', body: JSON.stringify(data) }),
   mine: () => request('/shows/mine'),
