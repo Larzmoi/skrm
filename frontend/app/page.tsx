@@ -181,7 +181,7 @@ export default function Home() {
     const thumbnail = p.imageUrl ? p.imageUrl.split('|||')[0] : ''
     return {
       id: p.id, name: p.name, price: p.startPrice,
-      condition: p.condition ?? '', seller: p.seller?.username ?? '',
+      condition: p.condition ?? '', seller: p.seller?.username ?? '', sellerBusinessId: p.seller?.businessId ?? null,
       category: p.category ?? 'muu', alakategoria: p.alakategoria ?? '', tyyppi: p.tyyppi ?? '', thumbnail,
     }
   })
@@ -350,7 +350,7 @@ export default function Home() {
                 {filteredProducts.map(p => (
                   <ProductCard
                     key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.thumbnail}
-                    price={p.price} condition={p.condition} sellerUsername={p.seller} isMobile={isMobile}
+                    price={p.price} condition={p.condition} sellerUsername={p.seller} sellerBusinessId={p.sellerBusinessId} isMobile={isMobile}
                   />
                 ))}
               </div>
@@ -373,7 +373,7 @@ export default function Home() {
                   return (
                     <ProductCard
                       key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
-                      price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} isMobile={isMobile}
+                      price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} isMobile={isMobile}
                       timeBadge={{ text: auctionTimeLeft(remaining), urgent: remaining < 60 * 60 * 1000 }}
                     />
                   )

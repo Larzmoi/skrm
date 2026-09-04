@@ -188,6 +188,10 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
               <div style={{ fontSize: 36, fontWeight: 900, color: isWinning ? C.accent : C.text }}>
                 {(product.currentBid ?? product.startPrice).toLocaleString('fi-FI')}€
               </div>
+              {/* ALV-läpinäkyvyysmerkintä yritysmyyjille - ks. CLAUDE.md "ALV yritysmyyjille" */}
+              {product.seller?.businessId && (
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{t.product.vatIncluded}</div>
+              )}
               {isWinning && <div style={{ fontSize: 13, color: C.accent, fontWeight: 600, marginTop: 4 }}>Sinä johdossa</div>}
               {!isWinning && product.currentBidderId && <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>Joku muu johdossa</div>}
             </div>

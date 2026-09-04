@@ -179,6 +179,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div style={{ fontSize: 32, fontWeight: 900, color: C.text, marginBottom: 4 }}>
                 {(product.buyNowPrice ?? product.startPrice).toLocaleString('fi-FI')}€
               </div>
+              {/* ALV-läpinäkyvyysmerkintä yritysmyyjille (User.businessId asetettu) - puhdas
+                  tekstilisäys, ei vaikuta hintaan. Ks. CLAUDE.md "ALV yritysmyyjille". */}
+              {product.seller?.businessId && (
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>{t.product.vatIncluded}</div>
+              )}
               {/* Toimitustapa-hinta/nouto-vihje — ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02"
                   kohta 2. allowPickup/allowShipping puuttuvat kentästä tulkitaan sallituksi
                   (`!== false`), sama oletus kuin koko toimitustapa-logiikassa muuallakin. */}

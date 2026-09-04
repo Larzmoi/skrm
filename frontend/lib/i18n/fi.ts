@@ -152,6 +152,10 @@ const fi = {
     messageSent: 'Viesti lähetetty!',
     sellerProfile: 'Profiili →', shippingInfo: 'Toimitus & turvaaminen',
     shipIn24: 'Myyjä sitoutuu lähettämään 4 vrk sisällä',
+    // 25,5% = Suomen yleinen ALV-kanta, vahvistettu suoraan vero.fi:stä 2026-09-04
+    // (voimassa 1.9.2024 alkaen) - näytetään VAIN yritysmyyjille (User.businessId asetettu),
+    // ks. CLAUDE.md "ALV yritysmyyjille". Puhdas tekstimerkintä, ei vaikuta hintalaskentaan.
+    vatIncluded: 'Hinta sisältää alv 25,5%',
     binding: 'Kaikki kaupat sitovia — ei peruutuksia',
     trackingCode: 'Seurantakoodi toimitetaan ostajalle',
     category: 'Kategoria', seller: 'Myyjä', description: 'Kuvaus',

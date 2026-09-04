@@ -152,6 +152,7 @@ const en = {
     messageSent: 'Message sent!',
     sellerProfile: 'Profile →', shippingInfo: 'Shipping & protection',
     shipIn24: 'Seller commits to ship within 4 days',
+    vatIncluded: 'Price includes VAT 25.5%',
     binding: 'All sales are final — no cancellations',
     trackingCode: 'Tracking code provided to buyer',
     category: 'Category', seller: 'Seller', description: 'Description',

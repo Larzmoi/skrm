@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
+import { useLang } from '@/lib/lang-context'
 
 export interface ProductCardProps {
   id: string
@@ -10,6 +11,9 @@ export interface ProductCardProps {
   price: number
   condition?: string
   sellerUsername?: string
+  // Ei-tyhjä = yritysmyyjä, näytetään ALV-läpinäkyvyysmerkintä hinnan alla (ks. CLAUDE.md
+  // "ALV yritysmyyjille") — puhtaasti tekstillinen lisäys, ei muuta price-proppia mihinkään.
+  sellerBusinessId?: string | null
   city?: string | null
   isMobile?: boolean
   // Aikaraja-badge (esim. huutokaupan jäljellä oleva aika) - kuvan vasempaan alakulmaan.
@@ -23,8 +27,9 @@ export interface ProductCardProps {
 // visuaalinen uudistus 2026-08-31). hb-card/hb-card-img -luokat (globals.css) tuovat
 // kohonnan ja kuvan zoomauksen hoverilla; loput tyylistä pysyy C.xxx-teemajärjestelmässä
 // kuten muukin sivusto.
-export default function ProductCard({ id, href, name, imageUrl, price, condition, sellerUsername, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
+export default function ProductCard({ id, href, name, imageUrl, price, condition, sellerUsername, sellerBusinessId, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
   const { C } = useTheme()
+  const { t } = useLang()
   return (
     <Link
       href={href}
@@ -64,6 +69,11 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
           }}>
             {price.toLocaleString('fi-FI')}€
           </div>
+          {sellerBusinessId && (
+            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+              {t.product.vatIncluded}
+            </div>
+          )}
           {condition && (
             <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
               {condition}

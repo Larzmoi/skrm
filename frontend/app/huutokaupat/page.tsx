@@ -11,7 +11,7 @@ import { auctionApi } from '@/lib/api'
 interface Auction {
   id: string; name: string; startPrice: number; currentBid: number | null; auctionEndsAt: string
   imageUrl?: string; category?: string; alakategoria?: string; tyyppi?: string; condition?: string; city?: string | null
-  seller: { username: string; city?: string | null }; _count?: { bids: number }
+  seller: { username: string; city?: string | null; businessId?: string | null }; _count?: { bids: number }
 }
 
 function auctionCity(a: Auction) { return a.city ?? a.seller?.city ?? null }
@@ -153,8 +153,8 @@ export default function HuutokaupatPage() {
                 return (
                   <ProductCard
                     key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
-                    price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} city={auctionCity(a)}
-                    timeBadge={{ text: timeLeftLabel(remaining), urgent }} bidCount={a._count?.bids ?? 0}
+                    price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId}
+                    city={auctionCity(a)} timeBadge={{ text: timeLeftLabel(remaining), urgent }} bidCount={a._count?.bids ?? 0}
                   />
                 )
               })}

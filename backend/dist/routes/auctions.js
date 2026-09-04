@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
     const auctions = await prisma_1.prisma.product.findMany({
         where, orderBy, take: limit ? Number(limit) : 50,
         include: {
-            seller: { select: { id: true, name: true, username: true, city: true } },
+            seller: { select: { id: true, name: true, username: true, city: true, businessId: true } }, // ALV-merkintä, ks. CLAUDE.md "ALV yritysmyyjille"
             _count: { select: { bids: true } },
         },
     });
@@ -54,7 +54,7 @@ router.get('/:id', async (req, res) => {
     const product = await prisma_1.prisma.product.findUnique({
         where: { id: String(req.params.id) },
         include: {
-            seller: { select: { id: true, name: true, username: true, city: true } },
+            seller: { select: { id: true, name: true, username: true, city: true, businessId: true } }, // ALV-merkintä, ks. CLAUDE.md "ALV yritysmyyjille"
             bids: {
                 orderBy: { amount: 'desc' },
                 take: 20,

@@ -40,7 +40,9 @@ router.get('/', async (req, res) => {
   if (sort === 'price_desc') orderBy = { startPrice: 'desc' }
   const products = await prisma.product.findMany({
     where, orderBy, take: limit ? Number(limit) : 50,
-    include: { seller: { select: { id: true, name: true, username: true, city: true } } },
+    // businessId mukana ALV-läpinäkyvyysmerkintää varten (ks. CLAUDE.md "ALV yritysmyyjille") -
+    // ei-tyhjä businessId = yritysmyyjä, frontend näyttää "Hinta sisältää alv 25,5%" -tekstin.
+    include: { seller: { select: { id: true, name: true, username: true, city: true, businessId: true } } },
   })
   res.json(products)
 })
@@ -60,7 +62,7 @@ router.get('/:id', async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
-      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } },
+      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true } }, // ALV-merkintä, ks. yllä
       // show.status kertoo frontendille onko tuote ennakkotarjottavissa (Show SCHEDULED,
       // ei vielä LIVE) - ks. POST /:id/prebid. bids/​_count samalla periaatteella kuin
       // auctions.ts:n GET /auctions/:id, näyttää tarjoushistorian läpinäkyvästi.
@@ -133,7 +135,7 @@ router.post('/:id/prebid', authMiddleware, async (req: AuthRequest, res: Respons
   const updated = await prisma.product.findUnique({
     where: { id: productId },
     include: {
-      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true } },
+      seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true } }, // ALV-merkintä, ks. yllä
       show: { select: { id: true, status: true, scheduledAt: true, title: true } },
       bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
       _count: { select: { bids: true } },

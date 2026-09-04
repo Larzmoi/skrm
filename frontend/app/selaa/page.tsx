@@ -11,7 +11,7 @@ import { useLang } from '@/lib/lang-context'
 import { api, userApi } from '@/lib/api'
 
 interface Product {
-  id: string; name: string; seller: { username: string; city?: string | null }
+  id: string; name: string; seller: { username: string; city?: string | null; businessId?: string | null }
   category?: string; alakategoria?: string; tyyppi?: string; condition?: string; startPrice: number; city?: string | null
   imageUrl?: string; createdAt: string
 }
@@ -207,7 +207,7 @@ function SelaaContent() {
                 <ProductCard
                   key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
                   price={p.startPrice} condition={p.condition} sellerUsername={p.seller?.username}
-                  city={productCity(p)} isMobile={isMobile}
+                  sellerBusinessId={p.seller?.businessId} city={productCity(p)} isMobile={isMobile}
                 />
               ))}
             </div>
