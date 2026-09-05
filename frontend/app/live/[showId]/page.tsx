@@ -23,7 +23,13 @@ interface AuctionState {
   active: boolean
 }
 
-interface ShowProduct { id: string; name: string; condition?: string; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
+interface ShowProduct { id: string; name: string; condition?: string; gradingCompany?: string | null; grade?: string | null; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
+
+// "PSA 9" gradatulle kortille, muuten geneerinen/Cardmarket-kunto sellaisenaan (ks. CLAUDE.md
+// "WhatsApp-palaute 2026-09-02" kohta 1, Product.gradingCompany/grade).
+function conditionLabel(p: Pick<ShowProduct, 'condition' | 'gradingCompany' | 'grade'>) {
+  return p.gradingCompany && p.grade ? `${p.gradingCompany} ${p.grade}` : p.condition
+}
 interface ShowData { id: string; title: string; status: string; viewerCount: number; seller: { id: string; username: string }; products: ShowProduct[] }
 
 // LiveKit-migraatio 2026-08-09 (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX -> LiveKit").
@@ -122,7 +128,7 @@ function ProductDetailModal({ product, onClose }: { product: ShowProduct; onClos
             <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{product.name}</div>
             <button onClick={onClose} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 28, height: 28, color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0 }}>✕</button>
           </div>
-          {product.condition && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 10 }}>{product.condition}</div>}
+          {conditionLabel(product) && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 10 }}>{conditionLabel(product)}</div>}
           {product.description && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</p>}
           <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 12 }}>{product.startPrice}€</div>
         </div>
@@ -181,7 +187,7 @@ function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeadi
           <div style={{ fontSize: 11, color: '#555', marginBottom: 1 }}>{t.live.lotNumber} #{currentLot}</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
           <div style={{ fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {currentProduct.condition}{nextProductName && <span> · Seuraavaksi: {nextProductName}</span>}
+            {conditionLabel(currentProduct)}{nextProductName && <span> · Seuraavaksi: {nextProductName}</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -926,7 +932,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 3 }}>{t.live.lotNumber} #{currentLot}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{currentProduct.name}</div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                {currentProduct.condition}{nextProduct && <span> · Seuraavaksi: {nextProduct.name}</span>}
+                {conditionLabel(currentProduct)}{nextProduct && <span> · Seuraavaksi: {nextProduct.name}</span>}
               </div>
             </div>
             <div style={{ position: 'absolute', bottom: 16, right: 16, textAlign: 'right' }}>

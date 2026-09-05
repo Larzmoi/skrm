@@ -245,6 +245,7 @@ const fi = {
     inLiveQueue: 'live-jonossa', inDirectSale: 'suoramyynnissä', inAuction: 'huutokaupassa',
     goLive: 'Mene liveen',
     saveAsPreset: 'Tallenna tämä esiasetukseksi (nopeuttaa saman tuotteen lisäystä jatkossa)',
+    gradingCompanyLabel: 'Luokitusyhtiö', gradeLabel: 'Arvosana',
   },
   presetsPage: {
     title: 'Esiasetukset', subtitle: 'Omat pohjatuotteet nopeaan syöttöön livessä',

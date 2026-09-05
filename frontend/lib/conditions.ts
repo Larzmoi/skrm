@@ -10,3 +10,8 @@ export const CARDMARKET_KUNTOLUOKAT = [
   { id: 'PL', nimi: 'Played (PL)' },
   { id: 'PO', nimi: 'Poor (PO)' },
 ]
+
+// Gradattujen korttien (tyyppi === "slabit") luokitusyhtiöt — ei tarvitse kääntää, kaikki
+// ovat vakiintuneita kansainvälisiä lyhenteitä. Ks. CLAUDE.md "WhatsApp-palaute 2026-09-02"
+// kohta 1 (Product.gradingCompany/grade, eri asia kuin yllä oleva geneerinen/Cardmarket-asteikko).
+export const GRADING_COMPANIES = ['PSA', 'BGS', 'CGC', 'SGC', 'Muu']

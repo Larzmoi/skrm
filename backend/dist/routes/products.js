@@ -147,7 +147,7 @@ router.post('/:id/prebid', auth_1.authMiddleware, async (req, res) => {
 });
 // POST /products
 router.post('/', auth_1.authMiddleware, async (req, res) => {
-    const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body;
+    const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body;
     if (!name || !startPrice)
         return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' });
     // showId tuli suoraan pyynnön bodystä ilman omistajuustarkistusta - kuka tahansa kirjautunut
@@ -178,7 +178,9 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
             auctionDuration: auctionDuration ? Number(auctionDuration) : null,
             auctionEndsAt,
             quantity: Number(quantity ?? 1),
-            condition: condition ?? null, description: description ?? null,
+            condition: condition ?? null,
+            gradingCompany: gradingCompany ?? null, grade: grade ?? null,
+            description: description ?? null,
             imageUrl: imageUrl ?? null, category: category ?? null,
             alakategoria: alakategoria ?? null, tyyppi: tyyppi ?? null, city: city ?? null,
             allowPickup: allowPickup !== false, allowShipping: allowShipping !== false,
@@ -268,7 +270,9 @@ router.put('/:id', auth_1.authMiddleware, async (req, res) => {
             bidIncrement: req.body.bidIncrement ? Number(req.body.bidIncrement) : null,
             auctionDuration: req.body.auctionDuration ? Number(req.body.auctionDuration) : null,
             quantity: req.body.quantity ? Number(req.body.quantity) : undefined,
-            condition: req.body.condition ?? null, description: req.body.description ?? null,
+            condition: req.body.condition ?? null,
+            gradingCompany: req.body.gradingCompany ?? null, grade: req.body.grade ?? null,
+            description: req.body.description ?? null,
             imageUrl: req.body.imageUrl ?? undefined, category: newCategory,
             alakategoria: newAlakategoria, tyyppi: newTyyppi, city: req.body.city ?? null,
             allowPickup: req.body.allowPickup !== false, allowShipping: req.body.allowShipping !== false,

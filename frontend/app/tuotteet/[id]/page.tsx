@@ -169,7 +169,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {kat && <span style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, padding: '3px 10px', borderRadius: 6 }}>{getKatNimi(kat, lang as any)}</span>}
-              {product.condition && <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.condition}</span>}
+              {product.gradingCompany && product.grade ? (
+                <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.gradingCompany} {product.grade}</span>
+              ) : product.condition && (
+                <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.condition}</span>
+              )}
               {product.saleType === 'live' && <span style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', color: '#CC0000', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>Live-huutokauppa</span>}
             </div>
 

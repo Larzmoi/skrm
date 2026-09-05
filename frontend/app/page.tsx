@@ -193,7 +193,8 @@ export default function Home() {
     const thumbnail = p.imageUrl ? p.imageUrl.split('|||')[0] : ''
     return {
       id: p.id, name: p.name, price: p.startPrice,
-      condition: p.condition ?? '', seller: p.seller?.username ?? '', sellerBusinessId: p.seller?.businessId ?? null,
+      condition: p.condition ?? '', gradingCompany: p.gradingCompany ?? null, grade: p.grade ?? null,
+      seller: p.seller?.username ?? '', sellerBusinessId: p.seller?.businessId ?? null,
       category: p.category ?? 'muu', alakategoria: p.alakategoria ?? '', tyyppi: p.tyyppi ?? '', thumbnail,
     }
   })
@@ -370,7 +371,7 @@ export default function Home() {
                 {filteredProducts.map(p => (
                   <ProductCard
                     key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.thumbnail}
-                    price={p.price} condition={p.condition} sellerUsername={p.seller} sellerBusinessId={p.sellerBusinessId} isMobile={isMobile}
+                    price={p.price} condition={p.condition} gradingCompany={p.gradingCompany} grade={p.grade} sellerUsername={p.seller} sellerBusinessId={p.sellerBusinessId} isMobile={isMobile}
                   />
                 ))}
               </div>

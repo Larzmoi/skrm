@@ -10,6 +10,10 @@ export interface ProductCardProps {
   imageUrl?: string
   price: number
   condition?: string
+  // Gradatun kortin luokitus (tyyppi === "slabit") - näytetään "PSA 9" -muodossa condition-
+  // badgen sijaan kun molemmat on asetettu. Ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 1.
+  gradingCompany?: string | null
+  grade?: string | null
   sellerUsername?: string
   // Ei-tyhjä = yritysmyyjä, näytetään ALV-läpinäkyvyysmerkintä hinnan alla (ks. CLAUDE.md
   // "ALV yritysmyyjille") — puhtaasti tekstillinen lisäys, ei muuta price-proppia mihinkään.
@@ -27,7 +31,7 @@ export interface ProductCardProps {
 // visuaalinen uudistus 2026-08-31). hb-card/hb-card-img -luokat (globals.css) tuovat
 // kohonnan ja kuvan zoomauksen hoverilla; loput tyylistä pysyy C.xxx-teemajärjestelmässä
 // kuten muukin sivusto.
-export default function ProductCard({ id, href, name, imageUrl, price, condition, sellerUsername, sellerBusinessId, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
+export default function ProductCard({ id, href, name, imageUrl, price, condition, gradingCompany, grade, sellerUsername, sellerBusinessId, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
   const { C } = useTheme()
   const { t } = useLang()
   return (
@@ -74,7 +78,11 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
               {t.product.vatIncluded}
             </div>
           )}
-          {condition && (
+          {gradingCompany && grade ? (
+            <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
+              {gradingCompany} {grade}
+            </span>
+          ) : condition && (
             <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
               {condition}
             </span>

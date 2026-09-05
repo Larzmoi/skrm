@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
-import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
+import { CARDMARKET_KUNTOLUOKAT, GRADING_COMPANIES } from '@/lib/conditions'
 import { api, presetApi, ProductPreset, showApi } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
@@ -17,6 +17,7 @@ interface Product {
   id: string; name: string; saleType: SaleType
   startPrice: number; buyNowPrice?: number; reservePrice?: number; bidIncrement?: number
   auctionDuration?: number; quantity: number; condition?: string
+  gradingCompany?: string; grade?: string
   description?: string; imageUrl?: string; category?: string
   alakategoria?: string; tyyppi?: string; city?: string; allowPickup?: boolean; allowShipping?: boolean; status: string
   currentBid?: number
@@ -59,6 +60,8 @@ function TuotteetContent() {
   const [tyyppi, setTyyppi] = useState('')
   const [city, setCity] = useState('')
   const [condition, setCondition] = useState('')
+  const [gradingCompany, setGradingCompany] = useState('')
+  const [grade, setGrade] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<string[]>([])
@@ -149,7 +152,7 @@ function TuotteetContent() {
   function reset() {
     setSaleType('live'); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
     setCity('')
-    setCondition(''); setQuantity('1'); setDescription(''); setImages([])
+    setCondition(''); setGradingCompany(''); setGrade(''); setQuantity('1'); setDescription(''); setImages([])
     setAllowPickupState(true); setAllowShipping(true); setShowDeliveryAdvanced(false); setNoutoPolicyAccepted(false)
     setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
@@ -164,7 +167,7 @@ function TuotteetContent() {
     setEditId(p.id); setSaleType(p.saleType); setName(p.name)
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
     setCity(p.city ?? '')
-    setCondition(p.condition ?? ''); setQuantity(String(p.quantity ?? 1))
+    setCondition(p.condition ?? ''); setGradingCompany(p.gradingCompany ?? ''); setGrade(p.grade ?? ''); setQuantity(String(p.quantity ?? 1))
     setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
     // Muokattaessa jo julkaistua tuotetta: tuotteen NYKYINEN tila katsotaan jo hyväksytyksi (ei
     // pakoteta uutta noutokoodi-hyväksyntää pelkän hinnan tms. muokkauksen yhteydessä) — tuore
@@ -295,7 +298,10 @@ function TuotteetContent() {
       auctionDurationDays: saleType === 'auction' ? auctionDurationDays : undefined,
       auctionDurationHours: saleType === 'auction' ? auctionDurationHours : undefined,
       quantity: Number(quantity) || 1,
-      condition: condition || undefined, category: category || undefined,
+      condition: tyyppi === 'slabit' ? undefined : (condition || undefined),
+      gradingCompany: tyyppi === 'slabit' ? (gradingCompany || undefined) : undefined,
+      grade: tyyppi === 'slabit' ? (grade.trim() || undefined) : undefined,
+      category: category || undefined,
       alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined,
       allowPickup, allowShipping,
       description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
@@ -687,18 +693,35 @@ function TuotteetContent() {
                       </select>
                     </div>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: tyyppi === 'sealed' ? '1fr' : '1fr 1fr', gap: 8 }}>
-                    {tyyppi !== 'sealed' && (
+                  {tyyppi === 'slabit' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                       <div>
-                        <label style={lbl}>{tp.conditionLabel}</label>
-                        <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
+                        <label style={lbl}>{tp.gradingCompanyLabel}</label>
+                        <select value={gradingCompany} onChange={e => setGradingCompany(e.target.value)} style={inp}>
                           <option value="">{tp.selectPlaceholder}</option>
-                          {(tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
+                          {GRADING_COMPANIES.map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
                       </div>
-                    )}
-                    <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
-                  </div>
+                      <div>
+                        <label style={lbl}>{tp.gradeLabel}</label>
+                        <input value={grade} onChange={e => setGrade(e.target.value)} placeholder="9.5" style={inp} />
+                      </div>
+                      <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: tyyppi === 'sealed' ? '1fr' : '1fr 1fr', gap: 8 }}>
+                      {tyyppi !== 'sealed' && (
+                        <div>
+                          <label style={lbl}>{tp.conditionLabel}</label>
+                          <select value={condition} onChange={e => setCondition(e.target.value)} style={inp}>
+                            <option value="">{tp.selectPlaceholder}</option>
+                            {(tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).map(k => <option key={k.id} value={k.id}>{k.nimi}</option>)}
+                          </select>
+                        </div>
+                      )}
+                      <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
+                    </div>
+                  )}
                   <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
                 </div>
               </div>
@@ -861,7 +884,8 @@ function TuotteetContent() {
                   const priceLine = (
                     <div style={{ fontSize: 12, color: C.muted, marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <span>{p.startPrice}€</span>
-                      {p.condition && <span>· {(p.tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).find(k => k.id === p.condition)?.nimi ?? p.condition}</span>}
+                      {p.gradingCompany && p.grade && <span>· {p.gradingCompany} {p.grade}</span>}
+                      {!p.gradingCompany && p.condition && <span>· {(p.tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).find(k => k.id === p.condition)?.nimi ?? p.condition}</span>}
                       {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
                     </div>
                   )
