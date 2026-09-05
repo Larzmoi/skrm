@@ -1,13 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
+import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
-import { cartApi, orderApi, postiApi, PickupPoint } from '@/lib/api'
+import { cartApi, orderApi, postiApi, PickupPoint, sortPickupPointsByProximity } from '@/lib/api'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -22,6 +23,7 @@ function timeLeftLabel(ms: number) {
 export default function KoriPage() {
   const { C } = useTheme()
   const { t } = useLang()
+  const { user } = useAuth()
   const router = useRouter()
   const { groups, pakettikoot, loading, refresh } = useCart()
   const [now, setNow] = useState(Date.now())
@@ -30,6 +32,7 @@ export default function KoriPage() {
   const [paying, setPaying] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
+  const [pickupSearch, setPickupSearch] = useState('')
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -40,6 +43,16 @@ export default function KoriPage() {
   useEffect(() => {
     postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
   }, [])
+
+  // Lähimmät ensin (ostajan oman postinumeron mukaan) + hakusuodatus - ks. CLAUDE.md
+  // "Iso testauskierros" kohta 2 (koko maan noutopistelista on nyt ~3300 pistettä, ei enää
+  // pelkkä pääkaupunkiseutu, joten haku/järjestys on tarpeen että lista on käytännössä käytettävä).
+  const sortedPickupPoints = useMemo(() => sortPickupPointsByProximity(pickupPoints, user?.postalCode), [pickupPoints, user?.postalCode])
+  const filteredPickupPoints = useMemo(() => {
+    const q = pickupSearch.trim().toLowerCase()
+    if (!q) return sortedPickupPoints
+    return sortedPickupPoints.filter(p => p.name.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.address.toLowerCase().includes(q) || p.postalCode.includes(q))
+  }, [sortedPickupPoints, pickupSearch])
 
   // Jos jokin live-tuote vanhenee, päivitetään kori (backend siivoaa lennossa)
   useEffect(() => {
@@ -172,22 +185,35 @@ export default function KoriPage() {
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: size === 'postitus' ? 8 : 12 }}>
                       <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>{t.product.delivery}</label>
-                      <select value={size} onChange={e => setSelectedSize(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
+                      <select value={size} onChange={e => setSelectedSize(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, boxSizing: 'border-box' as const }}>
                         {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : t.kori.free}</option>)}
                       </select>
                     </div>
                   )}
 
                   {size === 'postitus' && (
-                    // Noutopiste - oikea Postin Pickup Point -lista (250 pistettä, ks. lib/api.ts
-                    // postiApi.pickupPoints, CLAUDE.md "48H JULKAISUPAINE" 2026-09-04). p.id vastaa
-                    // OmaPosti Pro API:n shipment.agent.quickId-kenttää lähetystä luotaessa.
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                      <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>Noutopiste</label>
-                      <select value={selectedPickupPoint[group.sellerId] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text }}>
-                        <option value="">Valitse noutopiste...</option>
-                        {pickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
-                      </select>
+                    // Noutopiste - oikea Postin Pickup Point -lista, koko maa (~3300 pistettä,
+                    // ks. lib/api.ts postiApi.pickupPoints, CLAUDE.md "Iso testauskierros" kohta 2).
+                    // p.id vastaa OmaPosti Pro API:n shipment.agent.quickId-kenttää lähetystä
+                    // luotaessa. minWidth:0 flex-lapsessa - ilman sitä <select> ei suostu
+                    // kutistumaan flex:1-tilaansa pitkien noutopistenimien takia ja laatikko
+                    // jatkuu näytön ulkopuolelle mobiilissa (sama laatikko kuin yllä, mutta
+                    // yläpuolisen postitus/nouto-valinnan lyhyt teksti ei koskaan paljastanut
+                    // samaa flexbox-bugia).
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                        <label style={{ fontSize: 12, color: C.muted, flexShrink: 0 }}>Noutopiste</label>
+                        <select value={selectedPickupPoint[group.sellerId] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [group.sellerId]: e.target.value }))} style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, boxSizing: 'border-box' as const }}>
+                          <option value="">Valitse noutopiste...</option>
+                          {filteredPickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                        </select>
+                      </div>
+                      <input
+                        value={pickupSearch}
+                        onChange={e => setPickupSearch(e.target.value)}
+                        placeholder="Hae noutopistettä (kaupunki, postinumero, nimi)..."
+                        style={{ width: '100%', boxSizing: 'border-box' as const, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: C.text }}
+                      />
                     </div>
                   )}
 

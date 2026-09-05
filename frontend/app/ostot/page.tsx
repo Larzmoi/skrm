@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import DashboardLayoutClient from '@/components/dashboard/DashboardLayoutClient'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
-import { orderApi, postiApi, PickupPoint } from '@/lib/api'
+import { orderApi, postiApi, PickupPoint, sortPickupPointsByProximity } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 
@@ -50,10 +50,20 @@ export default function OstotPage() {
   const [reviewRating, setReviewRating] = useState<Record<string, number>>({})
   const [reviewComment, setReviewComment] = useState<Record<string, string>>({})
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
+  const [pickupSearch, setPickupSearch] = useState('')
 
   useEffect(() => {
     postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
   }, [])
+
+  // Lähimmät ensin + hakusuodatus, ks. CLAUDE.md "Iso testauskierros" kohta 2 (koko maan
+  // noutopistelista on ~3300 pistettä, ei enää pelkkä pääkaupunkiseutu).
+  const sortedPickupPoints = useMemo(() => sortPickupPointsByProximity(pickupPoints, user?.postalCode), [pickupPoints, user?.postalCode])
+  const filteredPickupPoints = useMemo(() => {
+    const q = pickupSearch.trim().toLowerCase()
+    if (!q) return sortedPickupPoints
+    return sortedPickupPoints.filter(p => p.name.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.address.toLowerCase().includes(q) || p.postalCode.includes(q))
+  }, [sortedPickupPoints, pickupSearch])
 
   const load = useCallback(async () => {
     try {
@@ -279,20 +289,30 @@ export default function OstotPage() {
                                 return <div style={{ fontSize: 12, color: '#EF4444' }}>{t.kori.deliveryConflict}</div>
                               }
                               return (
+                                <div>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                   <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
                                     <option value="">Valitse pakettikoko...</option>
                                     {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
                                   </select>
                                   {selectedSize[order.id] === 'postitus' && (
-                                    <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 200, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
+                                    <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, boxSizing: 'border-box' as const }}>
                                       <option value="">Valitse noutopiste...</option>
-                                      {pickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                                      {filteredPickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
                                     </select>
                                   )}
                                   <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                                     {busy === order.id ? '...' : 'Vahvista ja maksa'}
                                   </button>
+                                </div>
+                                {selectedSize[order.id] === 'postitus' && (
+                                  <input
+                                    value={pickupSearch}
+                                    onChange={e => setPickupSearch(e.target.value)}
+                                    placeholder="Hae noutopistettä (kaupunki, postinumero, nimi)..."
+                                    style={{ width: '100%', boxSizing: 'border-box' as const, marginTop: 6, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: C.text }}
+                                  />
+                                )}
                                 </div>
                               )
                             })()}

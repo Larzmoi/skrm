@@ -255,6 +255,7 @@ export interface PickupPoint {
   name: string
   address: string
   city: string
+  postalCode: string
 }
 
 interface PickupPointsApiResponse {
@@ -263,27 +264,44 @@ interface PickupPointsApiResponse {
     publicName: string
     location: { street: string; postcode: string; city: string }
   }[]
+  pagingContinuationToken?: string
 }
 
-// Muistivarainen välimuisti - 250 pistettä ei muutu tunneittain, ei ole syytä hakea Postilta
+// Muistivarainen välimuisti - koko maan lista ei muutu tunneittain, ei ole syytä hakea Postilta
 // joka kerta kun joku avaa checkoutin. 6h TTL riittää tälle mittakaavalle.
 let cachedPickupPoints: { value: PickupPoint[]; expiresAt: number } | null = null
 const PICKUP_POINTS_CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
+// KORJATTU 2026-09-05 (ks. CLAUDE.md "Iso testauskierros" kohta 2, KRIITTINEN): vastaus on
+// sivutettu (`pagingContinuationToken`), jota EI seurattu aiemmin - yksi kutsu palautti vain
+// ENSIMMÄISEN sivun (250 pistettä, postinumerot 00104-10305 = pääkaupunkiseutu/Uusimaa),
+// koska pisteet tulevat postinumerojärjestyksessä ja pienimmät numerot ovat siellä. Käyttäjälle
+// näytti siis siltä että vain Helsingin seutu on katettu, vaikka Postilla on pisteitä koko
+// maassa. Vahvistettu suoraan API:a vasten: koko maan lista on 3285 pistettä 14 sivulla,
+// mukaan lukien Oulu/Rovaniemi/Ivalo - haetaan nyt kaikki sivut loopissa ennen välimuistiin
+// tallennusta. `postalCode` lisätty palautettuun muotoon - frontend tarvitsee sen näyttääkseen
+// ostajan omaa aluetta lähimmät pisteet ensin.
 export async function getPickupPoints(countryCode: string = 'FI'): Promise<PickupPoint[]> {
   if (cachedPickupPoints && cachedPickupPoints.expiresAt > Date.now()) return cachedPickupPoints.value
   const token = await getSendingCodeAccessToken()
-  const res = await fetch(`${POSTI_PICKUP_POINTS_URL}/${countryCode}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error(`Pickup Point -haku epäonnistui: ${res.status}`)
-  const json: PickupPointsApiResponse = await res.json()
-  const points = json.pickupPoints.map(p => ({
-    id: p.id,
-    name: p.publicName,
-    address: p.location.street,
-    city: p.location.city,
-  }))
+
+  const points: PickupPoint[] = []
+  let continuationToken: string | undefined
+  let pageCount = 0
+  do {
+    pageCount++
+    const url = continuationToken
+      ? `${POSTI_PICKUP_POINTS_URL}/${countryCode}?pagingContinuationToken=${encodeURIComponent(continuationToken)}`
+      : `${POSTI_PICKUP_POINTS_URL}/${countryCode}`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) throw new Error(`Pickup Point -haku epäonnistui: ${res.status} (sivu ${pageCount})`)
+    const json: PickupPointsApiResponse = await res.json()
+    for (const p of json.pickupPoints) {
+      points.push({ id: p.id, name: p.publicName, address: p.location.street, city: p.location.city, postalCode: p.location.postcode })
+    }
+    continuationToken = json.pagingContinuationToken || undefined
+  } while (continuationToken && pageCount < 30) // 30 = turvaraja, oikea data loppuu 14 sivuun
+
   cachedPickupPoints = { value: points, expiresAt: Date.now() + PICKUP_POINTS_CACHE_TTL_MS }
   return points
 }

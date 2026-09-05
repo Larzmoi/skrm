@@ -87,12 +87,28 @@ export const orderApi = {
   },
 }
 
-export interface PickupPoint { id: string; name: string; address: string; city: string }
+export interface PickupPoint { id: string; name: string; address: string; city: string; postalCode: string }
 
 export const postiApi = {
-  // Korvaa lib/postiPickupPoints.ts:n 5 mock-pistettä 250 oikealla noutopisteellä,
-  // ks. CLAUDE.md "48H JULKAISUPAINE" 2026-09-04.
+  // Korvaa lib/postiPickupPoints.ts:n 5 mock-pistettä oikealla noutopistelistalla,
+  // ks. CLAUDE.md "48H JULKAISUPAINE" 2026-09-04 + "Iso testauskierros" kohta 2 (koko maan
+  // kattava sivutuskorjaus 2026-09-05, oli aiemmin vain pääkaupunkiseutu).
   pickupPoints: (): Promise<PickupPoint[]> => request('/posti/pickup-points'),
+}
+
+// Järjestää noutopisteet ostajan oman postinumeron mukaan lähimmät ensin - yksinkertainen,
+// riippuvuudeton "läheisyys"-arvio (yhteisten alkunumeroiden määrä postinumeroissa) ilman
+// koordinaatteja/geokoodausta, koska Suomen postinumerot on jaettu hierarkkisesti alueittain
+// (esim. 00xxx=Helsinki, 90xxx=Oulu) - toimii hyvin "sama kaupunki/seutu ensin" -tarkoitukseen.
+export function sortPickupPointsByProximity(points: PickupPoint[], buyerPostalCode?: string | null): PickupPoint[] {
+  const buyer = (buyerPostalCode ?? '').trim()
+  if (!buyer) return points
+  function matchLen(pc: string) {
+    let n = 0
+    while (n < buyer.length && n < pc.length && buyer[n] === pc[n]) n++
+    return n
+  }
+  return [...points].sort((a, b) => matchLen(b.postalCode) - matchLen(a.postalCode) || a.city.localeCompare(b.city))
 }
 
 export const showApi = {
