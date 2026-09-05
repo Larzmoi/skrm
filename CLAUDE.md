@@ -204,6 +204,27 @@ Omistaja kävi näitä läpi ChatGPT:n kanssa muistin pidentämiseksi. Tarkistin
 
 **5. Myyntimäärä ja myyjästatukset — TIETOISESTI TULEVAISUUTEEN, EI NYT.** Ideoita roadmapille: näytä myyntimäärä profiilissa, mahdollinen taso/status-järjestelmä ("Tehomyyjä" tms.) myyntimäärän perusteella. Ei päätöksiä siitä lasketaanko kappaleita/kauppoja/euroja, vaikuttavatko palautukset, näytetäänkö julkisesti — kaikki avoinna, ei kiireellinen.
 
+## Iso testauskierros 2026-09-04 (mobiili — checkout, profiili, etusivu, esiasetukset)
+
+Omistaja testasi laajasti mobiililla, kokosi seitsemän löydöstä yhteen erään.
+
+1. **Checkoutin noutopistelaatikon tyylittely rikki mobiilissa.** "Valitse noutopiste" -laatikko jatkuu näytön ulkopuolelle — pitäisi olla samanlevyinen kuin sen yläpuolella oleva postitus/nouto-valintalaatikko.
+
+2. **⚠️ KRIITTINEN: noutopistelista näyttää vain Helsingin/Etelä-Suomen pisteitä.** Pickup Point API GET on kytketty (ks. aiempi kytkentä), mutta näyttää vain rajatun alueen koko Suomen sijaan. **Pitää suodattaa ostajan profiilin osoitteen mukaan** (lähimmät pisteet ensin) **ja lisätä hakutoiminto** käsin etsimiseen. Tarkista onko API-kutsu itsessään rajattu johonkin oletusalueeseen, vai suodattaako frontend väärin.
+
+3. **✅ TEHTY JA DEPLOYATTU 2026-09-05.** `POST /orders/:id/confirm-delivery` (`backend/src/routes/orders.ts`) siirtää nyt tilauksen suoraan `SHIPPED` → `DELIVERED` samassa pyynnössä, ei enää vain aseta `deliveryConfirmedAt`:tä ja jää odottamaan. `backend/src/jobs/deliveryTimeline.ts`:n cron-jobista poistettu koko `deliveryConfirmedAt`-pohjainen 24h-haara — se oli muuttunut kuolleeksi koodiksi, koska tilaus ei koskaan enää ehdi olla `SHIPPED`-tilassa `deliveryConfirmedAt` asetettuna (molemmat tapahtuvat aina yhdessä, samassa transaktiossa). Jäljelle jäi vain shippedAt-pohjainen päivä 5/10/14-eskalaatio passiiviselle "ostaja ei reagoi ollenkaan" -tapaukselle, joka on aina ollut ennallaan. Jätetty kommentti muistuttamaan että kun Postin oikea Tracking API joskus integroidaan, "Posti sanoo toimitettu, ostaja ei ole vielä reagoinut" -tapaukselle pitää lisätä OMA 24h-ikkunansa tuonne — sitä ei ole vielä olemassa ollenkaan (Postin tracking on yhä `getTrackingStatus()`:n aikapohjainen simulaatio, ei oikea webhook).
+   - `frontend/app/ostot/page.tsx`: poistettu SHIPPED-osion "maksu vapautuu Xh kuluttua" -laskuri kokonaan (käytti muuten vanhentunutta `2 * DAY_MS` eli 48h-pohjaa — sama bugikuvio kuin aiemmin `deliveryTimeline.ts`:ssä) — kuollutta UI:ta, koska kuitattu tilaus ei enää koskaan jää SHIPPED-osioon näkymään, se siirtyy suoraan olemassa olevaan DELIVERED-osioon.
+   - **Testattu tuotannossa oikealla HTTP-reitillä** (kertakäyttöinen testitilaus, SHIPPED-tilassa): ensimmäinen `confirm-delivery`-kutsu → `200`, `status:"DELIVERED"` heti samassa vastauksessa. Toinen kutsu samalle tilaukselle → `400 "Tilaus ei odota vastaanottokuittausta"` (tilaus ei enää SHIPPED-tilassa, esti tuplakuittauksen luonnostaan ilman erillistä tarkistusta). Testidata siivottu.
+   - **Sivulöydös:** `frontend/components/layout/Navbar.tsx`:ssä oli kaksi peräkkäistä JSX-kommenttia jotka olivat sulautuneet virheellisesti yhteen (`{/* a */ {/* b */}}`), TypeScript tulkitsi tämän tyhjäksi objektiksi jota yritettiin renderöidä JSX-lapsena (TS2322, esti puhtaan typecheckin). Ei liity tämän tehtävän varsinaiseen sisältöön, korjattu koska esti buildin.
+
+4. **⬜ "Ota ilmoitukset käyttöön" -toiminnon toimivuus varmistamatta.** Ei selvää palautetta onnistumisesta napin painalluksen jälkeen, ei tiedetä tuleeko push-ilmoitukset oikeasti perille (esim. kun seurattu myyjä menee liveen). Vaatii testauksen: tuleeko selaimen oma lupakysely, ja saapuuko testi-ilmoitus onnistuneen luvan jälkeen.
+
+5. **Profiilin "Ilmianna käyttäjä" -nappi leviää näytön ulkopuolelle mobiilissa.** Siirrä omalle rivilleen "Viesti"/"Seuraa"-nappien ALLE, ei niiden viereen samalla rivillä.
+
+6. **Etusivun mainostila: sijoitus + hallinta.** Pitäisi olla AINA sivun ylimpänä elementtinä. Lisäksi tarvitaan yksinkertainen tapa (esim. kevyt admin-lomake + tietokantataulu, ks. aiempi "Neljä uutta löydöstä 2026-09-02" kohta 3) vaihtaa mainoksen teksti JA lisätä kuva ilman koodimuutosta joka kerta.
+
+7. **✅ PÄÄTETTY: tuote-esiasetukset (`ProductPreset`) puuttuvat tavallisesta hallintapaneelin tuotelomakkeesta.** Vahvistettu: esiasetusten valinta rakennettiin alun perin vain live-konsolin (`/lahetys`) pikalisäykseen, ei koskaan lisätty `/dashboard/tuotteet`-lomakkeeseen. **Lisää esiasetusten valinta myös tavalliseen tuotteen lisäyslomakkeeseen** — sama toiminnallisuus (valitse esiasetus, esitäytä kentät) molempiin paikkoihin.
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**
@@ -977,19 +998,21 @@ tunnuksia koska niitä ei aiemmin tarvittu). Omistaja palautti repon julkiseksi 
 minkä jälkeen deploy jatkui normaalisti. Ei koodimuutos, ei jää pysyväksi ongelmaksi, mutta hyvä
 tietää jos `git pull` joskus alkaa yllättäen kysyä käyttäjätunnusta palvelimella.
 
-## Toimituksen aikataulu ja maksuturva (LUKITTU — TIUKENNETTU 2026-09-01: 48h → 24h)
+## Toimituksen aikataulu ja maksuturva (LUKITTU — TÄSMENNETTY 2026-09-04: ostajan oma kuittaus vapauttaa HETI)
 
-**Ydinsääntö: kun toimitus vahvistuu, ostajalla on 24 tuntia aikaa hyväksyä/reklamoida ennen automaattista maksun vapautumista** — tiukennettu Vinted/Tori-tyylisestä 48h:sta 24h:iin.
+**Ydinsääntö, korjattu looginen virhe 2026-09-04:** aiempi sääntö kohteli kahta eri signaalia samalla tavalla (molemmat käynnistivät 24h-jakson). Nyt eroteltu selvästi:
+- **Postin API sanoo toimitettu, ostaja EI ole vielä reagoinut** → **ostajalla 24 tuntia aikaa hyväksyä/reklamoida**, sitten automaattivapautus jos ei reagoi
+- **Ostaja ITSE aktiivisesti kuittaa vastaanoton** (milloin tahansa, riippumatta Postin statuksesta) → **maksu vapautuu VÄLITTÖMÄSTI, ei mitään 24h-odotusta.** Perustelu: aktiivinen kuittaus ON jo se hyväksyntä, ei ole syytä odottaa lisää sen päälle.
 
 - Myyjä lähettää + syöttää seurantakoodin → kello käynnistyy
-- **Kun toimitus vahvistuu** (Postin API sanoo toimitettu, TAI ostaja itse kuittaa vastaanottaneensa) → **ostajalla 24 tuntia aikaa hyväksyä tai reklamoida**
-  - Jos ostaja ei reagoi 24h sisällä → maksu vapautuu automaattisesti myyjälle (sama kuin hyväksyntä)
+- **Postin API sanoo toimitettu, ostaja ei reagoi** → 24h aikaa hyväksyä/reklamoida
+  - Jos ostaja ei reagoi 24h sisällä → maksu vapautuu automaattisesti myyjälle
   - Jos ostaja reklamoi 24h sisällä → tilanne HABAHUB:n käsittelyyn, maksu jäädytykseen
-- ⚠️ **Tämä korvaa aiemman käytöksen jossa "Postin API sanoo toimitettu" vapautti maksun VÄLITTÖMÄSTI ilman mitään ostajan tarkastusaikaa** — tarkista koodista (`webhooks.ts` tms.) toimiiko se juuri näin (heti vapauttava) nykyisin, ja korjaa lisäämällä tämä 24h-välivaihe ennen automaattivapautusta
-- **Jos toimitus EI koskaan vahvistu** (paketti katoaa, Posti-status ei koskaan päivity toimitetuksi eikä ostaja itse kuittaa) → alla oleva päivä 5/10/14-eskalaatio on yhä voimassa fallback-polkuna:
+- **Ostaja kuittaa itse milloin tahansa (ennen tai jälkeen Postin toimitusvahvistuksen)** → maksu vapautuu heti, ei 24h-jaksoa
+- **Jos toimitus EI koskaan vahvistu eikä ostaja kuittaa** → alla oleva päivä 5/10/14-eskalaatio on yhä voimassa fallback-polkuna:
   - **Päivä 5** — paketti ei liikkunut → automaattinen ilmoitus myyjälle ja ostajalle
   - **Päivä 10** — ei toimitusta → muistutus ostajalle "kuittaa tai ilmoita ongelmasta"
-  - **Päivä 14** — ostaja ei reagoinut eikä toimitus koskaan vahvistunut → maksu vapautuu automaattisesti myyjälle (viimeinen fallback, eri tilanne kuin yllä oleva 24h-sääntö)
+  - **Päivä 14** — ostaja ei reagoinut eikä toimitus koskaan vahvistunut → maksu vapautuu automaattisesti myyjälle (viimeinen fallback)
 - **Noutokoodi vahvistettu** (nouto-toimitustavan tilauksille) → vapauttaa heti, ei odota 24h eikä 14pv, koska molemmat osapuolet fyysisesti läsnä — tämä pysyy ennallaan, ei muutu
 - Ei luoteta pelkästään Postin statukseen ilman tätä 24h-välivaihetta — ostajalle pitää aina jäädä oikea tarkastusikkuna
 - **Erillinen, säilyvä sääntö (käyttöehdot 6.3):** ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa reklamoida tuotteen virheistä/puutteista — tämä on eri asia kuin yllä oleva 24h-maksunvapautusikkuna, koskee tuotevirheitä yleensä eikä vaikuta suoraan siihen onko maksu jo vapautunut. Ei muutu tässä päivityksessä.
