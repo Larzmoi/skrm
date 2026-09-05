@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
-import { api, presetApi, ProductPreset } from '@/lib/api'
+import { api, presetApi, ProductPreset, showApi } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
 import { PAKETTIKOOT } from '@/lib/pakettikoot'
@@ -303,6 +303,22 @@ function TuotteetContent() {
       } else {
         await api.createProduct(data)
         if (appliedPresetId) presetApi.markUsed(appliedPresetId).catch(() => {})
+        // Liitä uusi tuote automaattisesti myyjän ajastettuun/käynnissä olevaan lähetykseen -
+        // sama claim-products-mekanismi jota /lahetys jo kutsuu omalla mountillaan. Ilman tätä
+        // tuote jää näkymättömäksi katsojan Shop-paneelista kunnes myyjä erikseen avaa
+        // /lahetys-konsolin kerran (vahvistettu omistajan raportoimaksi bugiksi 2026-09-05 -
+        // tuotteet lisätty tästä lomakkeesta eivät koskaan ehtineet Shop-paneeliin). Ei koske
+        // pelkkää suoramyyntiä (buy_now). Tehdään VAIN kun myyjällä on TÄSMÄLLEEN YKSI
+        // SCHEDULED/LIVE-lähetys - useampi samanaikainen olisi arvausta kumpaan kuulu, ja
+        // omistajalla itsellään on tuotannossa useita vanhoja ajastettuja lähetyksiä
+        // samanaikaisesti, joten väärä arvaus olisi todellinen riski, ei vain teoreettinen.
+        // Moniselitteisessä tapauksessa myyjä avaa /lahetys-konsolin normaalisti kuten ennenkin.
+        if (saleType !== 'buy_now') {
+          showApi.mine().then((shows: any[]) => {
+            const candidates = shows.filter(s => s.status === 'SCHEDULED' || s.status === 'LIVE')
+            if (candidates.length === 1) showApi.claimProducts(candidates[0].id).catch(() => {})
+          }).catch(() => {})
+        }
       }
       await loadProducts()
       setShowForm(false); reset()
