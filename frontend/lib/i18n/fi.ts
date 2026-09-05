@@ -24,9 +24,6 @@ const fi = {
     upcomingPreBidOpen: 'Ennakkotarjoukset ovat jo auki',
     watchShow: 'Katso lähetys',
     adLabel: 'Habahub suosittelee',
-    adEyebrow: 'Viikon kohokohdat',
-    adTitle: 'Löydä viikon parhaat löydöt',
-    adBody: 'Selaa aktiivisia huutokauppoja ja live-lähetyksiä ennen kuin ne loppuvat.',
     adCta: 'Selaa huutokauppoja',
   },
   live: {

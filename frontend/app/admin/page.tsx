@@ -9,6 +9,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { adminApi } from '@/lib/api'
 import AdminUserManagement from './AdminUserManagement'
+import AdminAdManagement from './AdminAdManagement'
 
 type StatusFilter = '' | 'PENDING' | 'REVIEWED'
 
@@ -106,7 +107,7 @@ export default function AdminPage() {
   const { t } = useLang()
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'reports' | 'users'>('reports')
+  const [tab, setTab] = useState<'reports' | 'users' | 'ad'>('reports')
   const [filter, setFilter] = useState<StatusFilter>('PENDING')
   const [reports, setReports] = useState<any[]>([])
 
@@ -127,6 +128,7 @@ export default function AdminPage() {
   const tabs = [
     { id: 'reports' as const, label: t.admin.tabReports },
     { id: 'users' as const, label: t.admin.tabUsers },
+    { id: 'ad' as const, label: 'Mainos' },
   ]
   const filters: { id: StatusFilter; label: string }[] = [
     { id: 'PENDING', label: t.admin.filterPending },
@@ -165,8 +167,10 @@ export default function AdminPage() {
               </div>
             )}
           </>
-        ) : (
+        ) : tab === 'users' ? (
           <AdminUserManagement />
+        ) : (
+          <AdminAdManagement />
         )}
       </div>
       <Footer />

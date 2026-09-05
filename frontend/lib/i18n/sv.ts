@@ -24,9 +24,6 @@ const sv = {
     upcomingPreBidOpen: 'Förhandsbud är redan öppna',
     watchShow: 'Se sändningen',
     adLabel: 'Habahub rekommenderar',
-    adEyebrow: 'Veckans höjdpunkter',
-    adTitle: 'Hitta veckans bästa fynd',
-    adBody: 'Bläddra bland aktiva auktioner och livesändningar innan de tar slut.',
     adCta: 'Bläddra auktioner',
   },
   live: {

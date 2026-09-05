@@ -18,6 +18,7 @@ import adminRouter from './routes/admin'
 import pushRouter from './routes/push'
 import presetsRouter from './routes/presets'
 import postiRouter from './routes/posti'
+import adRouter from './routes/ad'
 import { setupSocket } from './socket'
 import { setSocketServer } from './lib/notify'
 import { checkDeliveryTimeline } from './jobs/deliveryTimeline'
@@ -62,6 +63,7 @@ app.use('/admin', adminRouter)
 app.use('/push', pushRouter)
 app.use('/presets', presetsRouter)
 app.use('/posti', postiRouter)
+app.use('/ad', adRouter)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

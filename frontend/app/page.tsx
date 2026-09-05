@@ -11,7 +11,7 @@ import { getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/l
 import { useLang } from '@/lib/lang-context'
 import Footer from '@/components/layout/Footer'
 import { useAuth } from '@/lib/auth-context'
-import { auctionApi } from '@/lib/api'
+import { auctionApi, adApi, AdSlot } from '@/lib/api'
 import { BACKEND_URL } from '@/lib/backend'
 import { formatShowTime } from '@/lib/formatShowTime'
 
@@ -77,30 +77,32 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
   )
 }
 
-// Maksettu/nostettu mainospaikka (ks. landing.html-referenssi "MAINOSBANNEREITA" -osio,
-// mock, ei osa koodikantaa). Ei vielä oikeaa mainosmyynti-/varausjärjestelmää taustalla, joten
-// badge lukee "Habahub suosittelee" eikä "Sponsoroitu mainos" kuten mockissa - viimeksi
-// mainittu väittäisi olevan maksettu kolmannen osapuolen mainos vaikka kyseessä on tässä
-// vaiheessa alustan oma nosto. Sisältö promoo huutokauppoja/live-lähetyksiä yleisesti (ei
-// väitetä tarkkoja lukuja kuten "50 kohdetta" koska se ei perustu oikeaan dataan).
-function AdBanner({ C, isMobile, t }: { C: Record<string, string>; isMobile: boolean; t: any }) {
+// Maksettu/nostettu mainospaikka (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 6).
+// Sisältö tulee nyt AdSlot-tietokantataulusta (admin muokkaa /admin-paneelin "Mainos"
+// -välilehdeltä, ei koodimuutosta joka kerta) - ei enää kovakoodattua t.home.ad*-tekstiä.
+// Ei renderöi mitään jos rivi puuttuu tai admin on kytkenyt sen pois päältä (ad === null).
+function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile: boolean; t: any; ad: AdSlot | null }) {
+  if (!ad) return null
   return (
     <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '40px 20px 20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
       <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
         {t.home.adLabel}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+        <div style={{ width: 56, height: 56, borderRadius: 16, background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+          {ad.imageUrl
+            ? <img src={ad.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+          }
         </div>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{t.home.adEyebrow}</div>
-          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 16 : 19, color: '#fff', marginBottom: 3 }}>{t.home.adTitle}</div>
-          <p style={{ fontSize: 12, color: '#CBD5E1', margin: 0 }}>{t.home.adBody}</p>
+          {ad.eyebrow && <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{ad.eyebrow}</div>}
+          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 16 : 19, color: '#fff', marginBottom: 3 }}>{ad.title}</div>
+          <p style={{ fontSize: 12, color: '#CBD5E1', margin: 0 }}>{ad.body}</p>
         </div>
       </div>
-      <Link href="/huutokaupat" className="hb-btn" style={{ whiteSpace: 'nowrap', padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0 }}>
-        {t.home.adCta} →
+      <Link href={ad.ctaHref || '/huutokaupat'} className="hb-btn" style={{ whiteSpace: 'nowrap', padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0 }}>
+        {ad.ctaText || t.home.adCta} →
       </Link>
     </div>
   )
@@ -120,6 +122,7 @@ export default function Home() {
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
   const [now, setNow] = useState(Date.now())
+  const [ad, setAd] = useState<AdSlot | null>(null)
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000)
@@ -159,6 +162,8 @@ export default function Home() {
     auctionApi.list({ limit: '4', sort: 'ending_soon' })
       .then((data: any[]) => { if (Array.isArray(data) && data.length > 0) setAuctions(data) })
       .catch(() => {})
+
+    adApi.get().then(setAd).catch(() => {})
 
     return () => clearInterval(showsIv)
   }, [])
@@ -210,6 +215,15 @@ export default function Home() {
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
+
+      {/* Mainostila — AINA sivun ylin elementti (omistajan pyyntö 2026-09-04), navbarin
+          alapuolella mutta ennen heroa/kaikkea muuta sisältöä. Sisältö AdSlot-taulusta,
+          admin muokkaa /admin-paneelista - renderöi null jos ei konfiguroitu/pois päältä. */}
+      {ad && (
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 14px 0' : '20px 24px 0' }}>
+          <AdBanner C={C} isMobile={isMobile} t={t} ad={ad} />
+        </div>
+      )}
 
       {/* Hero */}
       {!heroHidden && (
@@ -334,7 +348,6 @@ export default function Home() {
         <div style={{ flex: 1, padding: isMobile ? '16px 14px' : '24px 24px', minWidth: 0 }}>
 
           <PromoBanner C={C} isMobile={isMobile} upcoming={displayUpcoming[0]} t={t} lang={lang} />
-          <AdBanner C={C} isMobile={isMobile} t={t} />
 
           {/* Myynnissä — ensin */}
           {filteredProducts.length > 0 && (

@@ -443,3 +443,18 @@ model Follower {
 
   @@unique([sellerId, followerId])
 }
+
+// Etusivun mainostilan sisältö (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 6) -
+// yksi rivi (id aina "main"), admin muokkaa /admin-paneelin "Mainos"-välilehdeltä ilman
+// koodimuutosta. enabled=false piilottaa koko bannerin etusivulta kokonaan.
+model AdSlot {
+  id        String   @id @default("main")
+  enabled   Boolean  @default(true)
+  eyebrow   String   @default("")
+  title     String   @default("")
+  body      String   @default("")
+  ctaText   String   @default("")
+  ctaHref   String   @default("/huutokaupat")
+  imageUrl  String?
+  updatedAt DateTime @updatedAt
+}

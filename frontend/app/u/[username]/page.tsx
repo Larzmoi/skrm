@@ -118,24 +118,26 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 {profile?.bio && <p style={{ fontSize: 13, color: C.textSub, marginTop: 8, lineHeight: 1.5 }}>{profile.bio}</p>}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              {currentUser && currentUser.username !== username && (
-                <Link
-                  href={`/viestit/${encodeURIComponent(username)}`}
-                  style={{ background: C.surface2, color: C.textSub, border: `1px solid ${C.border}`, padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                >
-                  {t.profile.message}
-                </Link>
-              )}
-              {(!currentUser || currentUser.username !== username) && (
-                <button
-                  onClick={toggleFollow}
-                  disabled={followBusy}
-                  style={{ background: following ? C.surface2 : C.accent, color: following ? C.textSub : '#fff', border: `1px solid ${following ? C.border : C.accent}`, padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: followBusy ? 'default' : 'pointer', opacity: followBusy ? 0.7 : 1 }}
-                >
-                  {following ? `✓ ${t.profile.following}` : t.profile.follow}
-                </button>
-              )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {currentUser && currentUser.username !== username && (
+                  <Link
+                    href={`/viestit/${encodeURIComponent(username)}`}
+                    style={{ background: C.surface2, color: C.textSub, border: `1px solid ${C.border}`, padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    {t.profile.message}
+                  </Link>
+                )}
+                {(!currentUser || currentUser.username !== username) && (
+                  <button
+                    onClick={toggleFollow}
+                    disabled={followBusy}
+                    style={{ background: following ? C.surface2 : C.accent, color: following ? C.textSub : '#fff', border: `1px solid ${following ? C.border : C.accent}`, padding: '9px 20px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: followBusy ? 'default' : 'pointer', opacity: followBusy ? 0.7 : 1 }}
+                  >
+                    {following ? `✓ ${t.profile.following}` : t.profile.follow}
+                  </button>
+                )}
+              </div>
               {currentUser && currentUser.username !== username && profile?.id && (
                 <button
                   onClick={() => setShowReport(true)}

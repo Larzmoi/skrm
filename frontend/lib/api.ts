@@ -111,6 +111,18 @@ export function sortPickupPointsByProximity(points: PickupPoint[], buyerPostalCo
   return [...points].sort((a, b) => matchLen(b.postalCode) - matchLen(a.postalCode) || a.city.localeCompare(b.city))
 }
 
+export interface AdSlot {
+  id: string; enabled: boolean
+  eyebrow: string; title: string; body: string; ctaText: string; ctaHref: string
+  imageUrl: string | null
+}
+
+export const adApi = {
+  // Julkinen, ei vaadi kirjautumista - etusivun mainosbanneri (ks. CLAUDE.md "Iso
+  // testauskierros 2026-09-04" kohta 6). Palauttaa null jos ei konfiguroitu/pois päältä.
+  get: (): Promise<AdSlot | null> => request('/ad'),
+}
+
 export const showApi = {
   create: (data: { title: string; category?: string; alakategoria?: string; city?: string; scheduledAt?: string; thumbnailUrl?: string }) => request('/shows', { method: 'POST', body: JSON.stringify(data) }),
   mine: () => request('/shows/mine'),
@@ -165,6 +177,8 @@ export const adminApi = {
     request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeBan: (id: string) => request(`/admin/users/${id}/ban`, { method: 'DELETE' }),
   sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
+  getAd: (): Promise<AdSlot> => request('/admin/ad'),
+  updateAd: (data: Partial<Omit<AdSlot, 'id'>>): Promise<AdSlot> => request('/admin/ad', { method: 'PATCH', body: JSON.stringify(data) }),
 }
 
 export interface ProductPreset {

@@ -24,9 +24,6 @@ const en = {
     upcomingPreBidOpen: 'Pre-bidding is already open',
     watchShow: 'Watch show',
     adLabel: 'Habahub recommends',
-    adEyebrow: "This week's highlights",
-    adTitle: "Find this week's best finds",
-    adBody: 'Browse active auctions and live shows before they end.',
     adCta: 'Browse auctions',
   },
   live: {

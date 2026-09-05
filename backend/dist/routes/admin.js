@@ -181,4 +181,33 @@ router.post('/users/:id/send-password-reset', async (req, res) => {
     await (0, passwordReset_1.createAndSendPasswordResetToken)(user);
     res.json({ ok: true });
 });
+// GET /admin/ad — palauttaa mainosbannerin nykyisen sisällön (myös enabled=false-tilassa,
+// toisin kuin julkinen GET /ad) esitäyttääkseen admin-lomakkeen. Luo tyhjän oletusrivin jos
+// yhtään ei ole vielä tallennettu, ettei frontendin tarvitse käsitellä null-tilaa erikseen.
+router.get('/ad', async (_req, res) => {
+    const ad = await prisma_1.prisma.adSlot.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    res.json(ad);
+});
+// PATCH /admin/ad — päivittää mainosbannerin sisällön. Kuva base64-merkkijonona samaan
+// tapaan kuin muuallakin sivustolla (ks. CLAUDE.md "Kuvat"-koodaussääntö).
+router.patch('/ad', async (req, res) => {
+    const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl } = req.body;
+    const data = {};
+    if (typeof enabled === 'boolean')
+        data.enabled = enabled;
+    if (typeof eyebrow === 'string')
+        data.eyebrow = eyebrow;
+    if (typeof title === 'string')
+        data.title = title;
+    if (typeof body === 'string')
+        data.body = body;
+    if (typeof ctaText === 'string')
+        data.ctaText = ctaText;
+    if (typeof ctaHref === 'string')
+        data.ctaHref = ctaHref;
+    if (typeof imageUrl === 'string' || imageUrl === null)
+        data.imageUrl = imageUrl;
+    const ad = await prisma_1.prisma.adSlot.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } });
+    res.json(ad);
+});
 exports.default = router;

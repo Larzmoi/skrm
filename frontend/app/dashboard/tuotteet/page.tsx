@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useTheme } from '@/lib/theme-context'
 import { KATEGORIAT, getKatNimi, getAlaNimi, getTyyppiNimi, getNakyvatKategoriat } from '@/lib/kategoriat'
 import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
-import { api } from '@/lib/api'
+import { api, presetApi, ProductPreset } from '@/lib/api'
 import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
 import { PAKETTIKOOT } from '@/lib/pakettikoot'
@@ -100,6 +100,35 @@ function TuotteetContent() {
   // valittavaksi ilman että jokaista tarvitsee muokata erikseen jälkikäteen 1000 tuotteen erästä.
   const [bulkSaleType, setBulkSaleType] = useState<'buy_now' | 'both'>('buy_now')
 
+  // Esiasetuksesta täytto (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 7) — sama
+  // toiminnallisuus kuin live-konsolin (/lahetys) pikalisäyksessä, mutta tavalliseen
+  // tuotelomakkeeseen. appliedPresetId kulkee mukana vain merkitäkseen pohjan käytetyksi
+  // (POST /presets/:id/use) onnistuneen tallennuksen jälkeen, ei osa itse Product-dataa.
+  const [showPresetPicker, setShowPresetPicker] = useState(false)
+  const [presets, setPresets] = useState<ProductPreset[]>([])
+  const [presetSearch, setPresetSearch] = useState('')
+  const [presetsLoading, setPresetsLoading] = useState(false)
+  const [appliedPresetId, setAppliedPresetId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!showPresetPicker) return
+    setPresetsLoading(true)
+    const h = setTimeout(() => {
+      presetApi.list(presetSearch || undefined).then(setPresets).catch(() => setPresets([])).finally(() => setPresetsLoading(false))
+    }, 250)
+    return () => clearTimeout(h)
+  }, [showPresetPicker, presetSearch])
+
+  function pickPreset(p: ProductPreset) {
+    setAppliedPresetId(p.id)
+    setName(p.name)
+    setCondition(p.condition ?? '')
+    setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
+    setDescription(p.description ?? '')
+    setImages(p.imageUrl ? [p.imageUrl] : [])
+    setShowPresetPicker(false); setPresetSearch('')
+  }
+
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadProducts() }, [])
@@ -124,6 +153,7 @@ function TuotteetContent() {
     setBulkTab('manual'); setBulkText(''); setBulkFile(null); setParsedPreview([]); setUploading(false)
     setBulkCategory(''); setBulkAlakategoria(''); setBulkTyyppi('')
     if (fileRef.current) fileRef.current.value = ''
+    setAppliedPresetId(null); setShowPresetPicker(false); setPresetSearch('')
   }
 
   function openEdit(p: Product) {
@@ -272,6 +302,7 @@ function TuotteetContent() {
         await api.updateProduct(editId, data)
       } else {
         await api.createProduct(data)
+        if (appliedPresetId) presetApi.markUsed(appliedPresetId).catch(() => {})
       }
       await loadProducts()
       setShowForm(false); reset()
@@ -517,6 +548,46 @@ function TuotteetContent() {
           {showForm && bulkTab === 'manual' && (
             <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '20px', marginBottom: 24 }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 16 }}>{editId ? tp.editTitle : tp.newTitle}</h3>
+
+              {/* Esiasetuksesta täyttö — vain uutta tuotetta lisättäessä, ei muokattaessa
+                  jo julkaistua (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 7) */}
+              {!editId && (
+                <div style={{ marginBottom: 16 }}>
+                  {!showPresetPicker ? (
+                    <button type="button" onClick={() => setShowPresetPicker(true)} style={{ background: 'none', border: `1px dashed ${C.border}`, color: C.textSub, padding: '8px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      ⌗ Esiasetuksista
+                    </button>
+                  ) : (
+                    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10 }}>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <input value={presetSearch} onChange={e => setPresetSearch(e.target.value)} placeholder="Hae esiasetuksista..." autoFocus style={{ ...inp, flex: 1 }} />
+                        <button type="button" onClick={() => { setShowPresetPicker(false); setPresetSearch('') }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
+                      </div>
+                      <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {presetsLoading ? (
+                          <div style={{ fontSize: 12, color: C.muted, padding: '8px 4px' }}>Ladataan...</div>
+                        ) : presets.length === 0 ? (
+                          <div style={{ fontSize: 12, color: C.muted, padding: '8px 4px' }}>Ei esiasetuksia</div>
+                        ) : presets.map(p => (
+                          <button key={p.id} type="button" onClick={() => pickPreset(p)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                            {p.imageUrl
+                              ? <img src={p.imageUrl} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                              : <div style={{ width: 28, height: 28, borderRadius: 4, background: C.surface2, flexShrink: 0 }} />
+                            }
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.favorite ? '★ ' : ''}{p.name}</div>
+                              {p.description && <div style={{ fontSize: 10, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {appliedPresetId && !showPresetPicker && (
+                    <div style={{ fontSize: 11, color: C.accent, marginTop: 6 }}>Esiasetus valittu — nimi/kunto/kategoria/kuva esitäytetty, muokkaa vapaasti</div>
+                  )}
+                </div>
+              )}
 
               {/* Myyntitapa */}
               <div style={{ marginBottom: 18 }}>
