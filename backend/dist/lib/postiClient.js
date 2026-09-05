@@ -100,8 +100,23 @@ async function createShippingOrder(params) {
         body: JSON.stringify(payload),
     });
     const text = await res.text();
-    if (!res.ok)
+    if (!res.ok) {
+        console.error(`[posti] shipping/order epäonnistui: ${res.status} ${text.slice(0, 500)}`);
+        // Postin oma listaus-API (GET /pickuppoints) ei sisällä mitään "aktiivinen"-kenttää, jonka
+        // avulla voisimme suodattaa nämä pois etukäteen - vasta lähetyksen luonti paljastaa tämän
+        // (ks. CLAUDE.md, löydetty 2026-09-05 oikeasta epäonnistuneesta tilauksesta). Tunnistetaan
+        // tämä yksi tunnettu virhekoodi ja annetaan selkeä, toiminnallinen suomenkielinen viesti -
+        // muut virheet näyttävät yhä teknisen raakadatan (diagnostiikkaa varten, ei vielä yleistä).
+        let postiMessage;
+        try {
+            postiMessage = JSON.parse(text)?.error?.message;
+        }
+        catch { }
+        if (postiMessage && /inactive pickup point/i.test(postiMessage)) {
+            throw new Error('Ostajan valitsema noutopiste ei ole enää Postin käytössä. Pyydä ostajaa valitsemaan toinen noutopiste tilaukselleen, minkä jälkeen lähetyksen voi luoda uudelleen.');
+        }
         throw new Error(`Posti-lähetyksen luonti epäonnistui: ${res.status} ${text.slice(0, 300)}`);
+    }
     const json = JSON.parse(text);
     const shipment = json[0];
     if (!shipment)
