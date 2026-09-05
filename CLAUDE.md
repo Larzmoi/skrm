@@ -318,7 +318,7 @@ Omistaja testasi laajasti mobiililla, kokosi seitsemän löydöstä yhteen erä�
 
 **Isommat, ei aikataulutetut:**
 - Visuaalinen tyylipäivitys (lime-väripaletti + Outfit/Plus Jakarta Sans + koko sivuston restailointi) — päätetty, ei aloitettu
-- Slabien (gradatut kortit) oma kuntojärjestelmä (PSA/BGS-numeroarvosana) — tietoisesti rajattu pois aiemmasta korjauksesta, **priorisointi nousi 2026-09-02 WhatsApp-palautteen myötä, ks. alla oleva osio**
+- ✅ Slabien (gradatut kortit) oma kuntojärjestelmä — TEHTY JA DEPLOYATTU 2026-09-05, ks. "WhatsApp-palaute" -osion kohta 1
 - "Tarjoa hintaa" -toiminto, Settilistaus/Variantit — molemmat suunniteltu, ei aikataulutettu
 
 Kaikki muu tässä tiedostossa alempana on joko ✅ valmista (historiallinen referenssi/konteksti) tai LUKITTU-sääntöjä jotka eivät muutu.
@@ -332,7 +332,7 @@ Kommenttirivin parserikorjaus (osa kohdasta 1) on jo tehty — ei toisteta täss
 - **Kuvien tuonti ei ole mahdollista** — CM-kuvalinkkien suora kopiointi voi johtaa CM:n omaan bannnin, joten kuvat lisätään aina manuaalisesti. Ei koodikorjaus, hyväksyttävä rajoitus. Pitkän tähtäimen idea: automaattinen korttitietokanta joka hakisi setin peruskuvan jos myyjä ei lisää omaa.
 - **Kommenttikentästä pitäisi poimia enemmän kuin pelkkä vapaateksti** (nyt koko kommentti menee sellaisenaan `description`-kenttään, mikä on hyvä perusta mutta ei riitä rakenteelliseen hakuun/näyttöön):
   - Fyysinen säilytyspaikka (esim. "Map W1") — pitäisi näkyä myös liven aikaisessa haussa (ks. kohta 2)
-  - **Gradattujen korttien tiedot (luokitusyhtiö, sertifikaattinumero, arvosana, subgradet)** — **tämä liittyy suoraan aiemmin tietoisesti sivuun jätettyyn "slabit"-kuntojärjestelmään** (ks. "Kuntoluokitus Cardmarket-muotoon"-osio, kohta 3: "EI kosketeta tässä korjauksessa... tarvitsisi oman gradingCompany+grade-kenttäparin"). Tämä palaute nostaa sen priorisointia — ei ole enää "joskus myöhemmin", vaan aidosti kysytty ominaisuus.
+  - **✅ TEHTY JA DEPLOYATTU 2026-09-05 (osittain — perusarvosana, ei sertifikaattinumero/subgradet).** `Product.gradingCompany String?` + `Product.grade String?` lisätty schemaan, eri kenttäpari kuin geneerinen/Cardmarket `condition` (joka ei koskaan sopinut gradatulle kortille — "PSA 9" ei ole "erinomainen"). `dashboard/tuotteet`-lomake: kun `tyyppi === 'slabit'`, kunto-pudotusvalikko korvautuu luokitusyhtiö-valitsimella (`GRADING_COMPANIES = ['PSA','BGS','CGC','SGC','Muu']`, `frontend/lib/conditions.ts`) + vapaa arvosanakenttä (esim. "9.5", "10 Black Label" — String eikä Float juuri erikoismerkintöjen takia). Näyttö "PSA 9" -muodossa `condition`-badgen sijaan: `ProductCard.tsx` (jaettu /selaa, etusivu), tuotesivu, live-näkymän tuotetiedot ja lot-otsikko (uusi `conditionLabel()`-apufunktio `live/[showId]/page.tsx`:ssä). **Ei laajennettu:** bulkkituonti (erän tasoinen tyyppi ei tue per-rivi-arvosanaa vielä) eikä `ProductPreset` (pohjat käyttävät yhä geneeristä `condition`-kenttää) — sertifikaattinumero/subgradet eivät myöskään mukana, tietoisesti rajattu pois ensimmäisestä versiosta. Testattu tuotannossa: luotu slabit-tuote `gradingCompany:"PSA", grade:"9.5"` oikealla API-kutsulla, haettu takaisin oikein, siivottu pois.
   - Tarkemmat "puolikunnot" (esim. "NM-"/"EX+") — nykyinen Cardmarket-asteikko (M/NM/EX/GD/LP/PL/PO) ei tue plus/miinus-tarkennuksia
   - Reverse Holo -tieto (ellei lisätä myöhemmin kuvan yhteydessä)
 
