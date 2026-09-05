@@ -2,6 +2,7 @@ import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { PAKETTIKOOT } from '../lib/shipping'
+import { emitToShow } from '../lib/notify'
 
 const router = Router()
 
@@ -25,6 +26,12 @@ async function reapExpiredCartItems(buyerId: string) {
   ])
   const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
   if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } })
+
+  // Sama automaattinen varastosaldon päivitys kuin /cart/add:ssa - vapautunut varasto pitää
+  // näkyä Shop-paneelissa taas saatavilla olevana ilman manuaalista sivun päivitystä.
+  const products = await prisma.product.findMany({ where: { id: { in: expired.map(i => i.productId) } }, select: { showId: true } })
+  const showIds = new Set(products.map(p => p.showId).filter((id): id is string => !!id))
+  showIds.forEach(id => emitToShow(id, 'products_updated', {}))
 }
 
 async function isUserBanned(userId: string) {
@@ -78,6 +85,12 @@ router.post('/add', authMiddleware, async (req: AuthRequest, res: Response) => {
   await prisma.cartItem.create({
     data: { cartId: cart.id, productId: product.id, price, sellerId: product.sellerId, source, quantity },
   })
+
+  // Automaattinen varastosaldon päivitys (ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2)
+  // — jos tuote kuuluu myyjän live-jonoon (saleType "both" ostettavissa myös suoraan kesken
+  // lähetyksen), ilman tätä katsojan Shop-paneeli olisi näyttänyt vanhentunutta saldoa kunnes
+  // joku muu tapahtuma (esim. seuraava huuto) sattumalta päivittäisi näkymän uudelleenhaulla.
+  if (product.showId) emitToShow(product.showId, 'products_updated', {})
 
   res.status(201).json({ ok: true })
 })
@@ -225,6 +238,13 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
 
   const remaining = await prisma.cartItem.count({ where: { cartId: cart.id } })
   if (remaining === 0) await prisma.cart.delete({ where: { id: cart.id } }).catch(() => {})
+
+  // Automaattinen varastosaldon päivitys, ks. yllä /cart/add - myynnin lopullinen SOLD-tila
+  // pitää näkyä Shop-paneelissa/myyjän jonossa heti, ei vasta seuraavan sattumanvaraisen
+  // päivityksen yhteydessä.
+  const soldProducts = await prisma.product.findMany({ where: { id: { in: items.map(i => i.productId) } }, select: { showId: true } })
+  const soldShowIds = new Set(soldProducts.map(p => p.showId).filter((id): id is string => !!id))
+  soldShowIds.forEach(id => emitToShow(id, 'products_updated', {}))
 
   res.status(201).json({ order })
 })

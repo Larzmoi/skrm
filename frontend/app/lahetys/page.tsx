@@ -305,6 +305,12 @@ export default function LahetysPage() {
 
   // Jonon raahaus
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  // Jono-haku (ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 1) - myyjä löytää tuotteen
+  // fyysisen sijainnin perusteella (esim. "Map W1", tallennettu description-kenttään
+  // Cardmarket-kommentista) suuresta jonosta ilman että pitää selata koko listaa läpi.
+  // Nimi + description, sama periaate kuin esiasetusten haku. Ei muuta products-taulukon
+  // järjestystä - vain näkyvää suodatusta, jotta raahaus (indexOf products) pysyy oikeana.
+  const [queueSearch, setQueueSearch] = useState('')
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [qaName, setQaName] = useState('')
   const [qaPrice, setQaPrice] = useState('')
@@ -560,6 +566,14 @@ export default function LahetysPage() {
         ? `Huutokauppa alkoi: ${p?.name ?? ''} — jatkuu ennakkotarjouksesta ${data.startPrice}€ (${data.leaderName})`
         : `Huutokauppa alkoi: ${p?.name ?? ''} — lähtöhinta ${data.startPrice}€`
       addFeed({ kind: 'system', id: `start-${Date.now()}`, text: startText })
+    })
+
+    // Tuplamyyntiriskin esto (ks. socket.ts start_auction, CLAUDE.md "WhatsApp-palaute
+    // 2026-09-02" kohta 2) - jos tuote on jo myyty/varattu suoramyynnissä, huutokauppaa ei
+    // käynnistetty. Näytetään myyjälle selvästi feedissä, ettei se vaikuta hiljaiselta klikiltä.
+    socket.on('start_auction_error', (data: { productId: string; message: string }) => {
+      const p = products.find(x => x.id === data.productId)
+      addFeed({ kind: 'system', id: `start-error-${Date.now()}`, text: `${p?.name ?? 'Tuote'}: ${data.message}` })
     })
 
     socket.on('new_bid', (data: any) => {
@@ -987,12 +1001,22 @@ export default function LahetysPage() {
 
   const activeQueueProducts = products.filter(p => !soldItems.includes(p.id))
   const soldQueueProducts = products.filter(p => soldItems.includes(p.id))
+  const q = queueSearch.trim().toLowerCase()
+  const visibleQueueProducts = q
+    ? activeQueueProducts.filter(p => p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q))
+    : activeQueueProducts
 
   const queuePanelContent = (
     <>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, flexShrink: 0 }}>Jono ({activeQueueProducts.length})</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, flexShrink: 0 }}>Jono ({activeQueueProducts.length})</div>
+      {activeQueueProducts.length > 5 && (
+        <input value={queueSearch} onChange={e => setQueueSearch(e.target.value)} placeholder="Hae nimellä tai sijainnilla..." style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '6px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8, flexShrink: 0 }} />
+      )}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {activeQueueProducts.map((p) => {
+        {q && visibleQueueProducts.length === 0 && (
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', padding: '8px 4px' }}>Ei osumia</div>
+        )}
+        {visibleQueueProducts.map((p) => {
           const i = products.indexOf(p)
           const active = p.id === currentProductId
           return (

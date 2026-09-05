@@ -4,6 +4,7 @@ const express_1 = require("express");
 const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const shipping_1 = require("../lib/shipping");
+const notify_1 = require("../lib/notify");
 const router = (0, express_1.Router)();
 const LIVE_ITEM_WINDOW_MS = 2 * 60 * 60 * 1000; // 2h
 const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
@@ -27,6 +28,11 @@ async function reapExpiredCartItems(buyerId) {
     const remaining = await prisma_1.prisma.cartItem.count({ where: { cartId: cart.id } });
     if (remaining === 0)
         await prisma_1.prisma.cart.delete({ where: { id: cart.id } });
+    // Sama automaattinen varastosaldon päivitys kuin /cart/add:ssa - vapautunut varasto pitää
+    // näkyä Shop-paneelissa taas saatavilla olevana ilman manuaalista sivun päivitystä.
+    const products = await prisma_1.prisma.product.findMany({ where: { id: { in: expired.map(i => i.productId) } }, select: { showId: true } });
+    const showIds = new Set(products.map(p => p.showId).filter((id) => !!id));
+    showIds.forEach(id => (0, notify_1.emitToShow)(id, 'products_updated', {}));
 }
 async function isUserBanned(userId) {
     const ban = await prisma_1.prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } });
@@ -77,6 +83,12 @@ router.post('/add', auth_1.authMiddleware, async (req, res) => {
     await prisma_1.prisma.cartItem.create({
         data: { cartId: cart.id, productId: product.id, price, sellerId: product.sellerId, source, quantity },
     });
+    // Automaattinen varastosaldon päivitys (ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2)
+    // — jos tuote kuuluu myyjän live-jonoon (saleType "both" ostettavissa myös suoraan kesken
+    // lähetyksen), ilman tätä katsojan Shop-paneeli olisi näyttänyt vanhentunutta saldoa kunnes
+    // joku muu tapahtuma (esim. seuraava huuto) sattumalta päivittäisi näkymän uudelleenhaulla.
+    if (product.showId)
+        (0, notify_1.emitToShow)(product.showId, 'products_updated', {});
     res.status(201).json({ ok: true });
 });
 // GET /cart — hae ostoskori ryhmiteltynä myyjittäin
@@ -212,6 +224,12 @@ router.post('/checkout', auth_1.authMiddleware, async (req, res) => {
     const remaining = await prisma_1.prisma.cartItem.count({ where: { cartId: cart.id } });
     if (remaining === 0)
         await prisma_1.prisma.cart.delete({ where: { id: cart.id } }).catch(() => { });
+    // Automaattinen varastosaldon päivitys, ks. yllä /cart/add - myynnin lopullinen SOLD-tila
+    // pitää näkyä Shop-paneelissa/myyjän jonossa heti, ei vasta seuraavan sattumanvaraisen
+    // päivityksen yhteydessä.
+    const soldProducts = await prisma_1.prisma.product.findMany({ where: { id: { in: items.map(i => i.productId) } }, select: { showId: true } });
+    const soldShowIds = new Set(soldProducts.map(p => p.showId).filter((id) => !!id));
+    soldShowIds.forEach(id => (0, notify_1.emitToShow)(id, 'products_updated', {}));
     res.status(201).json({ order });
 });
 exports.default = router;

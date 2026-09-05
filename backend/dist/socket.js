@@ -301,8 +301,17 @@ function setupSocket(io) {
                 // muuten ensimmäinen ennakkotarjoaja "häviäisi" tarjouksensa huomaamattaan.
                 const product = await prisma_1.prisma.product.findUnique({
                     where: { id: productId },
-                    select: { currentBid: true, currentBidderId: true, startPrice: true },
+                    select: { currentBid: true, currentBidderId: true, startPrice: true, status: true },
                 });
+                // Tuplamyyntiriski (ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2): saleType
+                // "both" -tuote voidaan ostaa suoraan (POST /cart/add, source:"direct") samaan aikaan
+                // kun se on yhä myyjän jonossa. Ennen tätä korjausta start_auction ei koskaan
+                // tarkistanut tuotteen statusta - huutokauppa käynnistyi iloisesti jo myydylle/varatulle
+                // tuotteelle, ja voitosta olisi syntynyt TOINEN Order sama fyysinen esine kahdesti myyty.
+                if (!product || product.status !== 'PENDING') {
+                    socket.emit('start_auction_error', { productId, message: 'Tuote ei ole enää saatavilla (myyty tai varattu suoramyynnissä) - ei voida aloittaa huutokauppaa.' });
+                    return;
+                }
                 let leaderId = null;
                 let leaderName = null;
                 // Myyjä voi muokata lähtöhintaa livessä juuri ennen huudon aloitusta (ks. CLAUDE.md
