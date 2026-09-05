@@ -83,6 +83,12 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
 // Ei renderöi mitään jos rivi puuttuu tai admin on kytkenyt sen pois päältä (ad === null).
 function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile: boolean; t: any; ad: AdSlot | null }) {
   if (!ad) return null
+  const href = ad.ctaHref || '/huutokaupat'
+  // Omistajan pitää voida linkittää MIHIN TAHANSA osoitteeseen, ei vain sivuston omiin
+  // reitteihin (ks. CLAUDE.md) - ulkoinen linkki (http/https-alkuinen) renderöidään tavallisena
+  // <a>-tagina uuteen välilehteen, sisäinen polku (esim. "/huutokaupat") next/link:llä kuten ennen.
+  const ctaContent = <>{ad.ctaText || t.home.adCta} →</>
+  const ctaStyle = { whiteSpace: 'nowrap' as const, padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0, textDecoration: 'none' }
   return (
     <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '40px 20px 20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
       <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
@@ -101,9 +107,10 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
           <p style={{ fontSize: 12, color: '#CBD5E1', margin: 0 }}>{ad.body}</p>
         </div>
       </div>
-      <Link href={ad.ctaHref || '/huutokaupat'} className="hb-btn" style={{ whiteSpace: 'nowrap', padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0 }}>
-        {ad.ctaText || t.home.adCta} →
-      </Link>
+      {/^https?:\/\//i.test(href)
+        ? <a href={href} target="_blank" rel="noopener noreferrer" className="hb-btn" style={ctaStyle}>{ctaContent}</a>
+        : <Link href={href} className="hb-btn" style={ctaStyle}>{ctaContent}</Link>
+      }
     </div>
   )
 }
