@@ -254,6 +254,7 @@ model ProductPreset {
   tyyppi       String?
   imageUrl     String?
   description  String? // esim. Cardmarket-kommentista poimittu fyysinen sijainti ("Map T1")
+  startPrice   Float?  // valinnainen oletuslähtöhinta - osa pohjista on tarkoituksella ilman kiinteää hintaa, ks. CLAUDE.md "Esiasetusten kolme löydöstä" kohta 1
   favorite     Boolean   @default(false)
   lastUsedAt   DateTime? // päivittyy kun pohjasta luodaan Product livessä - nostaa listan kärkeen
   createdAt    DateTime  @default(now())

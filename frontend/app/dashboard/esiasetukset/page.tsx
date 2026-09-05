@@ -39,6 +39,7 @@ export default function EsiasetuksetPage() {
   const [tyyppi, setTyyppi] = useState('')
   const [condition, setCondition] = useState('')
   const [description, setDescription] = useState('')
+  const [startPrice, setStartPrice] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -66,14 +67,15 @@ export default function EsiasetuksetPage() {
 
   function reset() {
     setEditId(null); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
-    setCondition(''); setDescription(''); setImage(null); setError('')
+    setCondition(''); setDescription(''); setStartPrice(''); setImage(null); setError('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
   function openEdit(p: ProductPreset) {
     setEditId(p.id); setName(p.name)
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
-    setCondition(p.condition ?? ''); setDescription(p.description ?? ''); setImage(p.imageUrl ?? null)
+    setCondition(p.condition ?? ''); setDescription(p.description ?? ''); setStartPrice(p.startPrice != null ? String(p.startPrice) : '')
+    setImage(p.imageUrl ?? null)
     setError(''); setShowForm(true)
   }
 
@@ -92,6 +94,7 @@ export default function EsiasetuksetPage() {
       name: name.trim(), category: category || undefined, alakategoria: alakategoria || undefined,
       tyyppi: tyyppi || undefined, condition: condition || undefined,
       description: description.trim() || undefined, imageUrl: image ?? undefined,
+      startPrice: startPrice.trim() ? Number(startPrice) : null,
     }
     try {
       if (editId) await presetApi.update(editId, data)
@@ -250,6 +253,11 @@ export default function EsiasetuksetPage() {
               <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
             </div>
             <div>
+              <label style={lbl}>{tp.startPriceLabel}</label>
+              <input type="number" min="0" step="0.01" value={startPrice} onChange={e => setStartPrice(e.target.value)} placeholder="0,00" style={inp} />
+              <div style={{ fontSize: 10, color: C.dim, marginTop: 3 }}>{tp.startPriceHint}</div>
+            </div>
+            <div>
               <label style={lbl}>{tp.imageLabel}</label>
               <div onClick={() => fileRef.current?.click()} style={{ width: 80, height: 80, borderRadius: 8, border: `1px dashed ${C.border}`, background: C.surface2, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {image ? <img src={image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 20, color: C.dim }}>+</span>}
@@ -282,6 +290,7 @@ export default function EsiasetuksetPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                 <div style={{ fontSize: 11, color: C.muted, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {p.condition && <span>{p.condition}</span>}
+                  {p.startPrice != null && <span>· {p.startPrice}€</span>}
                   {p.description && <span>· {p.description}</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>

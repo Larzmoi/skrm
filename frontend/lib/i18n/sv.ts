@@ -241,6 +241,7 @@ const sv = {
     reserveExceededNotice: 'Reservpriset nått — kan inte radera',
     inLiveQueue: 'i livekö', inDirectSale: 'i direktförsäljning', inAuction: 'i auktion',
     goLive: 'Gå live',
+    saveAsPreset: 'Spara som mall (snabbar upp tillägg av samma produkt senare)',
   },
   presetsPage: {
     title: 'Mallar', subtitle: 'Dina egna produktmallar för snabb inmatning under en live',
@@ -250,6 +251,7 @@ const sv = {
     bulkCreated: 'Skapade', saveAll: 'Spara alla',
     nameLabel: 'Namn', namePlaceholder: 't.ex. Charizard ex (WP 38)',
     descriptionLabel: 'Beskrivning / plats', descriptionPlaceholder: 't.ex. Låda T1',
+    startPriceLabel: 'Standard utropspris (€, valfritt)', startPriceHint: 'Förifyller utropspriset under en live — kan ändras',
     imageLabel: 'Bild',
     save: 'Spara', saving: 'Sparar...',
     searchPlaceholder: 'Sök efter namn eller plats...',

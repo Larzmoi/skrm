@@ -130,6 +130,7 @@ export const showApi = {
   setStatus: (id: string, status: 'LIVE' | 'ENDED', thumbnailUrl?: string) => request(`/shows/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, thumbnailUrl }) }),
   remove: (id: string) => request(`/shows/${id}`, { method: 'DELETE' }),
   claimProducts: (id: string) => request(`/shows/${id}/claim-products`, { method: 'POST' }),
+  reorder: (id: string, productIds: string[]) => request(`/shows/${id}/reorder`, { method: 'PATCH', body: JSON.stringify({ productIds }) }),
 }
 
 export const auctionApi = {
@@ -184,17 +185,17 @@ export const adminApi = {
 export interface ProductPreset {
   id: string; name: string; condition?: string | null
   category?: string | null; alakategoria?: string | null; tyyppi?: string | null
-  imageUrl?: string | null; description?: string | null
+  imageUrl?: string | null; description?: string | null; startPrice?: number | null
   favorite: boolean; lastUsedAt?: string | null; createdAt: string
 }
 
 export const presetApi = {
   list: (search?: string) => request(`/presets${search ? `?search=${encodeURIComponent(search)}` : ''}`),
-  create: (data: { name: string; condition?: string; category?: string; alakategoria?: string; tyyppi?: string; imageUrl?: string; description?: string }) =>
+  create: (data: { name: string; condition?: string; category?: string; alakategoria?: string; tyyppi?: string; imageUrl?: string; description?: string; startPrice?: number | null }) =>
     request('/presets', { method: 'POST', body: JSON.stringify(data) }),
   bulkCreate: (text: string, batch?: { category?: string; alakategoria?: string; tyyppi?: string }) =>
     request('/presets/bulk', { method: 'POST', body: JSON.stringify({ text, ...batch }) }),
-  update: (id: string, data: Partial<{ name: string; condition: string | null; category: string | null; alakategoria: string | null; tyyppi: string | null; imageUrl: string | null; description: string | null; favorite: boolean }>) =>
+  update: (id: string, data: Partial<{ name: string; condition: string | null; category: string | null; alakategoria: string | null; tyyppi: string | null; imageUrl: string | null; description: string | null; startPrice: number | null; favorite: boolean }>) =>
     request(`/presets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   markUsed: (id: string) => request(`/presets/${id}/use`, { method: 'POST' }),
   remove: (id: string) => request(`/presets/${id}`, { method: 'DELETE' }),

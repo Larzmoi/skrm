@@ -241,6 +241,7 @@ const en = {
     reserveExceededNotice: 'Reserve price met — cannot delete',
     inLiveQueue: 'in live queue', inDirectSale: 'in direct sale', inAuction: 'in auction',
     goLive: 'Go live',
+    saveAsPreset: 'Save this as a preset (speeds up adding the same item later)',
   },
   presetsPage: {
     title: 'Presets', subtitle: 'Your own product templates for fast entry during a live',
@@ -250,6 +251,7 @@ const en = {
     bulkCreated: 'Created', saveAll: 'Save all',
     nameLabel: 'Name', namePlaceholder: 'e.g. Charizard ex (WP 38)',
     descriptionLabel: 'Description / location', descriptionPlaceholder: 'e.g. Box T1',
+    startPriceLabel: 'Default starting price (€, optional)', startPriceHint: 'Prefills the starting price during a live — can still be changed',
     imageLabel: 'Image',
     save: 'Save', saving: 'Saving...',
     searchPlaceholder: 'Search by name or location...',

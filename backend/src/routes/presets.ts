@@ -30,13 +30,14 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // POST /presets — yksittäisen pohjan luonti (manuaalinen lomake)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, condition, category, alakategoria, tyyppi, imageUrl, description } = req.body
+  const { name, condition, category, alakategoria, tyyppi, imageUrl, description, startPrice } = req.body
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nimi vaaditaan' })
   const preset = await prisma.productPreset.create({
     data: {
       name: name.trim(),
       condition: condition || null, category: category || null, alakategoria: alakategoria || null,
       tyyppi: tyyppi || null, imageUrl: imageUrl || null, description: description || null,
+      startPrice: startPrice !== undefined && startPrice !== null && startPrice !== '' ? Number(startPrice) : null,
       sellerId: req.userId!,
     },
   })
@@ -90,6 +91,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       tyyppi: req.body.tyyppi !== undefined ? (req.body.tyyppi || null) : undefined,
       imageUrl: req.body.imageUrl !== undefined ? (req.body.imageUrl || null) : undefined,
       description: req.body.description !== undefined ? (req.body.description || null) : undefined,
+      startPrice: req.body.startPrice !== undefined ? (req.body.startPrice === null || req.body.startPrice === '' ? null : Number(req.body.startPrice)) : undefined,
       favorite: typeof req.body.favorite === 'boolean' ? req.body.favorite : undefined,
     },
   })

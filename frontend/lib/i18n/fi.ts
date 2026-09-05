@@ -244,6 +244,7 @@ const fi = {
     reserveExceededNotice: 'Varaushinta ylittynyt — ei voi poistaa',
     inLiveQueue: 'live-jonossa', inDirectSale: 'suoramyynnissä', inAuction: 'huutokaupassa',
     goLive: 'Mene liveen',
+    saveAsPreset: 'Tallenna tämä esiasetukseksi (nopeuttaa saman tuotteen lisäystä jatkossa)',
   },
   presetsPage: {
     title: 'Esiasetukset', subtitle: 'Omat pohjatuotteet nopeaan syöttöön livessä',
@@ -253,6 +254,7 @@ const fi = {
     bulkCreated: 'Luotu', saveAll: 'Tallenna kaikki',
     nameLabel: 'Nimi', namePlaceholder: 'esim. Charizard ex (WP 38)',
     descriptionLabel: 'Kuvaus / sijainti', descriptionPlaceholder: 'esim. Map T1',
+    startPriceLabel: 'Oletuslähtöhinta (€, valinnainen)', startPriceHint: 'Esitäyttää lähtöhinnan livessä — voi silti muuttaa',
     imageLabel: 'Kuva',
     save: 'Tallenna', saving: 'Tallennetaan...',
     searchPlaceholder: 'Hae nimellä tai sijainnilla...',

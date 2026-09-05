@@ -193,6 +193,25 @@ router.post('/:id/claim-products', auth_1.authMiddleware, async (req, res) => {
     (0, notify_1.emitToShow)(show.id, 'products_updated', {});
     res.json({ ok: true });
 });
+// PATCH /shows/:id/reorder — tallentaa myyjän Jono-paneelin raahausjärjestyksen palvelimelle.
+// KRIITTINEN KORJAUS (ks. CLAUDE.md "Esiasetusten kolme löydöstä" kohta 3): `/lahetys`-sivun
+// jonon raahaus oli aiemmin puhtaasti paikallista React-tilaa, ei koskaan tallentunut minnekään
+// - sivun päivitys menetti järjestyksen, eikä ostajan Shop-paneeli voinut koskaan lukea sitä.
+// `Product.order`-kenttä oli jo olemassa schemassa mutta täysin kirjoittamaton (aina 0) - tämä
+// on ensimmäinen paikka joka oikeasti asettaa sen. Ottaa tuote-ID-listan halutussa
+// järjestyksessä, asettaa `order`:n listan indeksin mukaan (0, 1, 2, ...).
+router.patch('/:id/reorder', auth_1.authMiddleware, async (req, res) => {
+    const show = await prisma_1.prisma.show.findUnique({ where: { id: String(req.params.id) } });
+    if (!show || show.sellerId !== req.userId)
+        return res.status(403).json({ error: 'Ei oikeutta' });
+    const productIds = req.body?.productIds;
+    if (!Array.isArray(productIds) || productIds.some(id => typeof id !== 'string')) {
+        return res.status(400).json({ error: 'productIds (merkkijonotaulukko) vaaditaan' });
+    }
+    await prisma_1.prisma.$transaction(productIds.map((id, index) => prisma_1.prisma.product.updateMany({ where: { id, showId: show.id, sellerId: req.userId }, data: { order: index } })));
+    (0, notify_1.emitToShow)(show.id, 'products_updated', {});
+    res.json({ ok: true });
+});
 // DELETE /shows/:id — peruuta ajastettu lähetys (vain ennen kuin se on mennyt LIVE:ksi)
 router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
     const show = await prisma_1.prisma.show.findUnique({ where: { id: String(req.params.id) } });

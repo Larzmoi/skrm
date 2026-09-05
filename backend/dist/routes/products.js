@@ -52,9 +52,14 @@ router.get('/', async (req, res) => {
 });
 // GET /products/mine
 router.get('/mine', auth_1.authMiddleware, async (req, res) => {
+    // Järjestys muutettu createdAt:sta order-kenttään 2026-09-05 (ks. CLAUDE.md "Esiasetusten
+    // kolme löydöstä" kohta 3, PATCH /shows/:id/reorder) - /lahetys-sivun Jono-paneeli lataa
+    // tästä, ja sen pitää säilyttää myyjän mahdollisesti tallentama raahausjärjestys sivun
+    // päivityksen jälkeen. createdAt toimii tasapelien ratkaisijana (order on 0 kaikilla ennen
+    // ensimmäistä raahausta, jolloin luontijärjestys on sama kuin ennenkin).
     const products = await prisma_1.prisma.product.findMany({
         where: { sellerId: req.userId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
     res.json(products);
 });

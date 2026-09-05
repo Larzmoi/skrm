@@ -350,6 +350,9 @@ export default function LahetysPage() {
     setQaAlakategoria(p.alakategoria ?? undefined)
     setQaTyyppi(p.tyyppi ?? undefined)
     setQaDescription(p.description ?? undefined)
+    // Esitäyttää lähtöhinnan jos pohjalla on sellainen (ks. CLAUDE.md "Esiasetusten kolme
+    // löydöstä" kohta 1) - myyjä voi silti muuttaa sitä ennen lisäystä, ei lukittu.
+    setQaPrice(p.startPrice != null ? String(p.startPrice) : '')
     setShowPresetPicker(false)
     setShowQuickAdd(true)
   }
@@ -910,6 +913,11 @@ export default function LahetysPage() {
       const arr = [...prev]
       const [moved] = arr.splice(dragIndex, 1)
       arr.splice(targetIndex, 0, moved)
+      // Tallenna uusi järjestys palvelimelle (ks. CLAUDE.md "Esiasetusten kolme löydöstä"
+      // kohta 3) - raahaus oli aiemmin puhtaasti paikallista tilaa, katosi sivun päivityksellä
+      // eikä ostajan Shop-paneeli koskaan nähnyt sitä. Vain PENDING-tuotteet ovat tässä
+      // listassa, joten kaikki näkyvät riittää lähettää joka raahauksen jälkeen.
+      if (show) import('@/lib/api').then(({ showApi }) => showApi.reorder(show.id, arr.map(p => p.id)).catch(() => {}))
       return arr
     })
     setDragIndex(null)

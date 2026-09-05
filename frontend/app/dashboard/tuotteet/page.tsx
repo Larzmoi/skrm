@@ -109,6 +109,7 @@ function TuotteetContent() {
   const [presetSearch, setPresetSearch] = useState('')
   const [presetsLoading, setPresetsLoading] = useState(false)
   const [appliedPresetId, setAppliedPresetId] = useState<string | null>(null)
+  const [saveAsPreset, setSaveAsPreset] = useState(false)
 
   useEffect(() => {
     if (!showPresetPicker) return
@@ -126,6 +127,9 @@ function TuotteetContent() {
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
     setDescription(p.description ?? '')
     setImages(p.imageUrl ? [p.imageUrl] : [])
+    // Esitäyttää lähtöhinnan jos pohjalla on sellainen (ks. CLAUDE.md "Esiasetusten kolme
+    // löydöstä" kohta 1) - myyjä voi silti muuttaa sitä, ei lukittu.
+    setStartPrice(p.startPrice != null ? String(p.startPrice) : '')
     setShowPresetPicker(false); setPresetSearch('')
   }
 
@@ -153,7 +157,7 @@ function TuotteetContent() {
     setBulkTab('manual'); setBulkText(''); setBulkFile(null); setParsedPreview([]); setUploading(false)
     setBulkCategory(''); setBulkAlakategoria(''); setBulkTyyppi('')
     if (fileRef.current) fileRef.current.value = ''
-    setAppliedPresetId(null); setShowPresetPicker(false); setPresetSearch('')
+    setAppliedPresetId(null); setShowPresetPicker(false); setPresetSearch(''); setSaveAsPreset(false)
   }
 
   function openEdit(p: Product) {
@@ -303,6 +307,14 @@ function TuotteetContent() {
       } else {
         await api.createProduct(data)
         if (appliedPresetId) presetApi.markUsed(appliedPresetId).catch(() => {})
+        if (saveAsPreset) {
+          presetApi.create({
+            name: name.trim(), condition: condition || undefined, category: category || undefined,
+            alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined,
+            imageUrl: images[0] || undefined, description: description.trim() || undefined,
+            startPrice: Number(startPrice),
+          }).catch(() => {})
+        }
         // Liitä uusi tuote automaattisesti myyjän ajastettuun/käynnissä olevaan lähetykseen -
         // sama claim-products-mekanismi jota /lahetys jo kutsuu omalla mountillaan. Ilman tätä
         // tuote jää näkymättömäksi katsojan Shop-paneelista kunnes myyjä erikseen avaa
@@ -809,6 +821,16 @@ function TuotteetContent() {
                 <label style={lbl}>{tp.descriptionLabel}</label>
                 <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
               </div>
+
+              {/* "Tallenna esiasetukseksi" (ks. CLAUDE.md "Esiasetusten kolme löydöstä" kohta 2)
+                  - vain uutta tuotetta lisättäessä, säästää saman kategoria/kunto/kuva-klikkailun
+                  uudelleentekemisen seuraavalla samanlaisella tuotteella. */}
+              {!editId && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={saveAsPreset} onChange={e => setSaveAsPreset(e.target.checked)} />
+                  <span style={{ fontSize: 13, color: C.textSub }}>{tp.saveAsPreset}</span>
+                </label>
+              )}
 
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={save} disabled={saving} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
