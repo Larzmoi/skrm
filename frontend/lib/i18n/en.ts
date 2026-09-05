@@ -242,7 +242,7 @@ const en = {
     inLiveQueue: 'in live queue', inDirectSale: 'in direct sale', inAuction: 'in auction',
     goLive: 'Go live',
     saveAsPreset: 'Save this as a preset (speeds up adding the same item later)',
-    gradingCompanyLabel: 'Grading company', gradeLabel: 'Grade',
+    gradingCompanyLabel: 'Grading company', gradeLabel: 'Grade', reverseHoloLabel: 'Reverse Holo',
   },
   presetsPage: {
     title: 'Presets', subtitle: 'Your own product templates for fast entry during a live',

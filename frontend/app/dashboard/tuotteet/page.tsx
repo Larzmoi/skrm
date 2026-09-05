@@ -17,7 +17,7 @@ interface Product {
   id: string; name: string; saleType: SaleType
   startPrice: number; buyNowPrice?: number; reservePrice?: number; bidIncrement?: number
   auctionDuration?: number; quantity: number; condition?: string
-  gradingCompany?: string; grade?: string
+  gradingCompany?: string; grade?: string; reverseHolo?: boolean
   description?: string; imageUrl?: string; category?: string
   alakategoria?: string; tyyppi?: string; city?: string; allowPickup?: boolean; allowShipping?: boolean; status: string
   currentBid?: number
@@ -62,6 +62,7 @@ function TuotteetContent() {
   const [condition, setCondition] = useState('')
   const [gradingCompany, setGradingCompany] = useState('')
   const [grade, setGrade] = useState('')
+  const [reverseHolo, setReverseHolo] = useState(false)
   const [quantity, setQuantity] = useState('1')
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<string[]>([])
@@ -152,7 +153,7 @@ function TuotteetContent() {
   function reset() {
     setSaleType('live'); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
     setCity('')
-    setCondition(''); setGradingCompany(''); setGrade(''); setQuantity('1'); setDescription(''); setImages([])
+    setCondition(''); setGradingCompany(''); setGrade(''); setReverseHolo(false); setQuantity('1'); setDescription(''); setImages([])
     setAllowPickupState(true); setAllowShipping(true); setShowDeliveryAdvanced(false); setNoutoPolicyAccepted(false)
     setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
@@ -167,7 +168,7 @@ function TuotteetContent() {
     setEditId(p.id); setSaleType(p.saleType); setName(p.name)
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
     setCity(p.city ?? '')
-    setCondition(p.condition ?? ''); setGradingCompany(p.gradingCompany ?? ''); setGrade(p.grade ?? ''); setQuantity(String(p.quantity ?? 1))
+    setCondition(p.condition ?? ''); setGradingCompany(p.gradingCompany ?? ''); setGrade(p.grade ?? ''); setReverseHolo(!!p.reverseHolo); setQuantity(String(p.quantity ?? 1))
     setDescription(p.description ?? ''); setImages(p.imageUrl ? p.imageUrl.split('|||').filter((s: string) => s.length > 0) : [])
     // Muokattaessa jo julkaistua tuotetta: tuotteen NYKYINEN tila katsotaan jo hyväksytyksi (ei
     // pakoteta uutta noutokoodi-hyväksyntää pelkän hinnan tms. muokkauksen yhteydessä) — tuore
@@ -301,6 +302,7 @@ function TuotteetContent() {
       condition: tyyppi === 'slabit' ? undefined : (condition || undefined),
       gradingCompany: tyyppi === 'slabit' ? (gradingCompany || undefined) : undefined,
       grade: tyyppi === 'slabit' ? (grade.trim() || undefined) : undefined,
+      reverseHolo: tyyppi === 'irtokortit' ? reverseHolo : false,
       category: category || undefined,
       alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined,
       allowPickup, allowShipping,
@@ -722,6 +724,12 @@ function TuotteetContent() {
                       <div><label style={lbl}>{tp.quantityLabel}</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} min={1} style={inp} /></div>
                     </div>
                   )}
+                  {tyyppi === 'irtokortit' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={reverseHolo} onChange={e => setReverseHolo(e.target.checked)} />
+                      <span style={{ fontSize: 13, color: C.textSub }}>{tp.reverseHoloLabel}</span>
+                    </label>
+                  )}
                   <div><label style={lbl}>{t.selaa.city}</label><input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={inp} /></div>
                 </div>
               </div>
@@ -886,6 +894,7 @@ function TuotteetContent() {
                       <span>{p.startPrice}€</span>
                       {p.gradingCompany && p.grade && <span>· {p.gradingCompany} {p.grade}</span>}
                       {!p.gradingCompany && p.condition && <span>· {(p.tyyppi === 'irtokortit' ? CARDMARKET_KUNTOLUOKAT : KUNTOLUOKAT).find(k => k.id === p.condition)?.nimi ?? p.condition}</span>}
+                      {p.reverseHolo && <span>· {tp.reverseHoloLabel}</span>}
                       {kat && <span>· {kat.nimi[lang as 'fi' | 'en'] ?? kat.nimi.fi}{ala ? ` › ${ala.nimi[lang as 'fi' | 'en'] ?? ala.nimi.fi}` : ''}{ty ? ` › ${getTyyppiNimi(ty, lang as any)}` : ''}</span>}
                     </div>
                   )

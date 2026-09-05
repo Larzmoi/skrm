@@ -212,6 +212,7 @@ model Product {
   // 2026-09-02" kohta 1 - priorisointi nostettu myyjäpalautteen myötä. Molemmat null muille tyypeille.
   gradingCompany  String? // esim. "PSA"/"BGS"/"CGC"/"SGC"/"Muu"
   grade           String? // esim. "9", "9.5", "10" - String eikä Float koska esim. "10 Black Label" -tyyppisiä erikoismerkintöjä esiintyy
+  reverseHolo     Boolean       @default(false) // vain tyyppi "irtokortit" - ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 1
   startPrice      Float
   reservePrice    Float?
   buyNowPrice     Float?

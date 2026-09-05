@@ -242,7 +242,7 @@ const sv = {
     inLiveQueue: 'i livekö', inDirectSale: 'i direktförsäljning', inAuction: 'i auktion',
     goLive: 'Gå live',
     saveAsPreset: 'Spara som mall (snabbar upp tillägg av samma produkt senare)',
-    gradingCompanyLabel: 'Graderingsbolag', gradeLabel: 'Betyg',
+    gradingCompanyLabel: 'Graderingsbolag', gradeLabel: 'Betyg', reverseHoloLabel: 'Reverse Holo',
   },
   presetsPage: {
     title: 'Mallar', subtitle: 'Dina egna produktmallar för snabb inmatning under en live',
