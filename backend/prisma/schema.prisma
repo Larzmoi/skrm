@@ -449,7 +449,10 @@ model Follower {
 // koodimuutosta. enabled=false piilottaa koko bannerin etusivulta kokonaan.
 model AdSlot {
   id        String   @id @default("main")
-  enabled   Boolean  @default(true)
+  // Oletus false - admin-lomakkeen ensimmäinen avaus (GET /admin/ad) luo tämän rivin
+  // upsertilla, eikä tyhjäsisältöistä bannerĩa saa vahingossa aktivoitua julkiseksi ennen
+  // kuin omistaja on oikeasti täyttänyt ja tallentanut sisällön.
+  enabled   Boolean  @default(false)
   eyebrow   String   @default("")
   title     String   @default("")
   body      String   @default("")
