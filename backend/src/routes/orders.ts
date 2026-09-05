@@ -301,20 +301,24 @@ router.post('/:id/confirm-pickup', authMiddleware, async (req: AuthRequest, res:
   res.json(updated)
 })
 
-// POST /orders/:id/confirm-delivery — ostaja kuittaa tuotteen vastaanotetuksi. Ei vapauta maksua
-// heti (LUKITTU 2026-08-25, ks. CLAUDE.md "Toimituksen aikataulu ja maksuturva") — tilaus pysyy
-// SHIPPED-tilassa (voi siis yhä reklamoida, ks. /dispute-reitin SHIPPED-vaatimus) ja
-// deliveryConfirmedAt käynnistää 24h tarkastusikkunan, jonka checkDeliveryTimeline() sulkee
-// automaattisesti jos ostaja ei reklamoi sinä aikana.
+// POST /orders/:id/confirm-delivery — ostaja kuittaa tuotteen vastaanotetuksi. TÄSMENNETTY
+// 2026-09-04 (ks. CLAUDE.md "Toimituksen aikataulu ja maksuturva", "Iso testauskierros"
+// kohta 3): looginen virhe aiemmassa säännössä kohteli tätä samoin kuin passiivista Postin
+// API -ilmoitusta (molemmat 24h-jakso) - mutta ostajan OMA aktiivinen kuittaus ON jo hyväksyntä,
+// ei ole syytä odottaa 24h sen päälle. Vapauttaa maksun VÄLITTÖMÄSTI (SHIPPED → DELIVERED
+// suoraan tässä reitissä), ei enää käynnistä checkDeliveryTimeline()-jakson kautta kulkevaa
+// odotusta. 24h-tarkastusikkuna on tarkoitettu VAIN passiiviselle "Posti sanoo toimitettu,
+// ostaja ei ole vielä reagoinut" -tapaukselle (ei vielä toteutettu - odottaa oikeaa Postin
+// Tracking API -integraatiota, ks. deliveryTimeline.ts).
 router.post('/:id/confirm-delivery', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (order.status !== 'SHIPPED') return res.status(400).json({ error: 'Tilaus ei odota vastaanottokuittausta' })
-  if (order.deliveryConfirmedAt) return res.status(400).json({ error: 'Vastaanotto on jo kuitattu' })
 
-  const updated = await prisma.order.update({ where: { id: order.id }, data: { deliveryConfirmedAt: new Date() } })
-  await notifyUser(order.sellerId, 'DELIVERY_CONFIRMED', 'Ostaja kuittasi vastaanoton', 'Ostaja kuittasi tilauksen vastaanotetuksi. Maksu vapautetaan sinulle automaattisesti 24 tunnin kuluttua, ellei ostaja reklamoi sitä ennen.', '/dashboard/tilaukset')
-  await notifyUser(order.buyerId, 'DELIVERY_CONFIRMED', 'Kuittaus vastaanotettu', 'Kiitos kuittauksesta. Sinulla on 24 tuntia aikaa reklamoida, jos tuotteessa on ongelma — muussa tapauksessa maksu vapautuu myyjälle automaattisesti.', '/ostot')
+  // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
+  const updated = await prisma.order.update({ where: { id: order.id }, data: { deliveryConfirmedAt: new Date(), status: 'DELIVERED' } })
+  await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi tilauksen vastaanotetuksi — maksu on vapautettu sinulle heti.', '/dashboard/tilaukset')
+  await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Kauppa suoritettu', 'Kiitos kuittauksesta — kauppa on nyt suoritettu.', '/ostot')
   res.json(updated)
 })
 

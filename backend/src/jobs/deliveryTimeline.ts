@@ -3,33 +3,24 @@ import { notifyUser } from '../lib/notify'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-// Toimituksen aikataulu SHIPPED-tilauksille — kaksi erillistä polkua (LUKITTU, ks. CLAUDE.md
-// "Toimituksen aikataulu ja maksuturva", tiukennettu 24h:iin 2026-09-01, vahvistettu uudelleen
-// omistajalta 2026-09-03 — koodi oli tätä ennen jäänyt vahingossa 48h:hon):
+// Toimituksen aikataulu SHIPPED-tilauksille (LUKITTU, ks. CLAUDE.md "Toimituksen aikataulu ja
+// maksuturva", TÄSMENNETTY 2026-09-04: ostajan oma kuittaus vapauttaa HETI, ei enää 24h-jaksoa).
 //
-// 1. Ostaja kuittaa vastaanoton (deliveryConfirmedAt asetettu) → 24h tarkastusikkuna, sitten
-//    automaattinen vapautus, ellei ostaja reklamoi sinä aikana (reklamointi siirtää tilauksen
-//    DISPUTED-tilaan, jolloin se ei enää täsmää `status: 'SHIPPED'`-hakuun eikä tätä polkua
-//    enää käydä sille läpi).
-// 2. Ostaja EI koskaan kuittaa (deliveryConfirmedAt on null) → shippedAt-pohjainen fallback-
-//    eskalaatio (päivä 5/10/14) samaan tapaan kuin ennenkin, viimeistään päivä 14 vapauttaa
-//    automaattisesti riippumatta siitä onko ostaja reagoinut.
+// Ostajan oma `POST /orders/:id/confirm-delivery` vapauttaa maksun VÄLITTÖMÄSTI (ks. orders.ts) -
+// tilaus siirtyy suoraan SHIPPED → DELIVERED siinä reitissä, ei koskaan käy tämän cron-jobin
+// kautta. Tämä tiedosto käsittelee siis vain sen, kun ostaja EI itse reagoi ollenkaan:
+// shippedAt-pohjainen fallback-eskalaatio (päivä 5/10/14), viimeistään päivä 14 vapauttaa
+// automaattisesti riippumatta siitä onko ostaja reagoinut.
+//
+// ⬜ TULEVAISUUTTA VARTEN: kun Postin oikea Tracking API joskus integroidaan (ks. CLAUDE.md
+// "Tekemättä"), "Posti sanoo toimitettu, ostaja ei ole vielä reagoinut" -tilanteelle pitää
+// lisätä oma 24h-tarkastusikkuna TÄHÄN - eri asia kuin ostajan oma aktiivinen kuittaus yllä.
+// Ei vielä olemassa koska Postin tracking on yhä simuloitu (getTrackingStatus()), ei oikea webhook.
 export async function checkDeliveryTimeline() {
   const shipped = await prisma.order.findMany({ where: { status: 'SHIPPED', shippedAt: { not: null } } })
   const now = Date.now()
 
   for (const order of shipped) {
-    if (order.deliveryConfirmedAt) {
-      const confirmedAge = now - order.deliveryConfirmedAt.getTime()
-      if (confirmedAge >= DAY_MS) {
-        // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
-        await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
-        await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi vastaanoton eikä reklamoinut 24 tunnin kuluessa — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
-        await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Kauppa suoritettu', 'Reklamointiaikasi on päättynyt — kauppa on nyt suoritettu.', '/ostot')
-      }
-      continue
-    }
-
     const age = now - order.shippedAt!.getTime()
 
     if (age >= 14 * DAY_MS) {

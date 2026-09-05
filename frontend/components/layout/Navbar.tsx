@@ -95,8 +95,8 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Selaa / Huutokaupat / Live + haku — omalla rivillä ettei ylin rivi ahdas */
-          {/* Fix: z-index 9999 ensures dropdown is always visible above scrollable content */}}
+        {/* Selaa / Huutokaupat / Live + haku — omalla rivillä ettei ylin rivi ahdas */}
+        {/* Fix: z-index 9999 ensures dropdown is always visible above scrollable content */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px 10px' }}>
           <input
             placeholder={t.nav.search}

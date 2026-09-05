@@ -303,8 +303,11 @@ export default function OstotPage() {
                           const shippedAge = order.shippedAt ? now - new Date(order.shippedAt).getTime() : 0
                           const daysLeft = Math.max(0, Math.ceil((14 * DAY_MS - shippedAge) / DAY_MS))
                           const currentStepIdx = order.postiStatus ? POSTI_TRACKING_STEPS.indexOf(order.postiStatus) : -1
-                          const confirmedAge = order.deliveryConfirmedAt ? now - new Date(order.deliveryConfirmedAt).getTime() : null
-                          const reviewHoursLeft = confirmedAge !== null ? Math.max(0, Math.ceil((2 * DAY_MS - confirmedAge) / (60 * 60 * 1000))) : null
+                          // Ostajan oma kuittaus vapauttaa maksun VÄLITTÖMÄSTI (ks. CLAUDE.md
+                          // "Toimituksen aikataulu ja maksuturva", täsmennetty 2026-09-04) - tilaus
+                          // siirtyy suoraan DELIVERED-osioon samassa pyynnössä, ei koskaan jää
+                          // tähän SHIPPED-näkymään odottamaan omaa kuittaustaan. Tämä osio näyttää
+                          // siis aina vain "ei vielä kuitattu" -tilan, ei enää mitään countdownia.
                           return (
                             <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
                               {order.trackingNumber && (
@@ -320,40 +323,27 @@ export default function OstotPage() {
                                   </div>
                                 </div>
                               )}
-                              {reviewHoursLeft !== null ? (
-                                <>
-                                  <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: C.accent, fontSize: 12 }}>
-                                    Kuittasit vastaanoton. Maksu vapautuu myyjälle automaattisesti {reviewHoursLeft > 0 ? `${reviewHoursLeft}h kuluttua` : 'pian'}, ellet ilmoita ongelmasta sitä ennen.
-                                  </div>
-                                  <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                                    Ilmoita ongelmasta
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  {order.stalledNotifiedAt && (
-                                    <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#B45309', fontSize: 12 }}>
-                                      Pakettia ei ole vielä kuitattu vastaanotetuksi. Onko se saapunut?
-                                    </div>
-                                  )}
-                                  {order.reminderNotifiedAt && (
-                                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
-                                      Muistutus: kuittaa vastaanotto tai ilmoita ongelmasta ennen kuin tilaus suljetaan automaattisesti.
-                                    </div>
-                                  )}
-                                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-                                    Tilaus suljetaan automaattisesti {daysLeft} päivässä, ellet kuittaa vastaanottoa tai ilmoita ongelmasta.
-                                  </div>
-                                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                      {busy === order.id ? '...' : 'Kuittaa vastaanotto'}
-                                    </button>
-                                    <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                                      Ilmoita ongelmasta
-                                    </button>
-                                  </div>
-                                </>
+                              {order.stalledNotifiedAt && (
+                                <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#B45309', fontSize: 12 }}>
+                                  Pakettia ei ole vielä kuitattu vastaanotetuksi. Onko se saapunut?
+                                </div>
                               )}
+                              {order.reminderNotifiedAt && (
+                                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
+                                  Muistutus: kuittaa vastaanotto tai ilmoita ongelmasta ennen kuin tilaus suljetaan automaattisesti.
+                                </div>
+                              )}
+                              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                                Tilaus suljetaan automaattisesti {daysLeft} päivässä, ellet kuittaa vastaanottoa tai ilmoita ongelmasta.
+                              </div>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                  {busy === order.id ? '...' : 'Kuittaa vastaanotto'}
+                                </button>
+                                <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                                  Ilmoita ongelmasta
+                                </button>
+                              </div>
                               {disputeOpenFor === order.id && (
                                 <div style={{ marginTop: 10 }}>
                                   <textarea
