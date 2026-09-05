@@ -42,7 +42,11 @@ const sv = {
   },
   auction: {
     endsIn: 'Avslutas om', startPrice: 'Startpris', highestBid: 'Högsta anbud',
-    reserveNotMet: 'Reservpriset har ännu inte uppnåtts',
+    reserveNotMet: 'Reservpriset har ännu inte uppnåtts', ended: 'Avslutad',
+    bidFailed: 'Anbudet misslyckades', autoBidFailed: 'Det gick inte att ställa in automatiskt bud',
+    bought: 'Köpt!', buyFailed: 'Köpet misslyckades',
+    bidPlacedAmount: 'Bud på {amount}€ lagt!', autoBidSet: 'Automatiskt bud inställt till max {amount}€',
+    endingSoon: 'Avslutas snart', activeCount: '{count} aktiva auktioner',
   },
   report: {
     button: 'Rapportera', title: 'Rapportera innehåll', titleUser: 'Rapportera användare',
@@ -163,6 +167,8 @@ const sv = {
     minBid: 'Minsta anbud',
     notFound: 'Produkten hittades inte', noImage: 'Ingen bild', pickupFromSeller: 'Hämtning hos säljare',
     deliveryBothOptions: 'Hämtning eller frakt', pickupInfoBox: 'Detta är en hämtningsprodukt. Kom överens om hämtningsdetaljerna med säljaren — hämtning omfattas normalt av Habahubs betalningsskydd.',
+    preBidFailed: 'Budet misslyckades', buyFailed: 'Det gick inte att lägga i varukorgen',
+    share: 'Dela produkt', linkCopied: 'Länk kopierad!',
   },
   profile: {
     follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',

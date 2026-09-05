@@ -95,7 +95,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       setPreBidSuccess(true)
       setTimeout(() => setPreBidSuccess(false), 3000)
     } catch (e: any) {
-      setPreBidError(e.message ?? 'Tarjous epäonnistui')
+      setPreBidError(e.message ?? t.product.preBidFailed)
     }
     setPreBidding(false)
   }
@@ -110,7 +110,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       setAdded(true)
       setTimeout(() => setAdded(false), 3000)
     } catch (e: any) {
-      setBuyError(e.message ?? 'Lisäys koriin epäonnistui')
+      setBuyError(e.message ?? t.product.buyFailed)
     }
     setBuying(false)
   }
@@ -282,7 +282,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               setCopied(true)
               setTimeout(() => setCopied(false), 2000)
             }} style={{ width: '100%', background: C.surface, border: `1px solid ${C.border}`, color: copied ? C.accent : C.textSub, padding: '12px', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer', marginBottom: 20 }}>
-              {copied ? '✓ Linkki kopioitu!' : 'Jaa tuote'}
+              {copied ? `✓ ${t.product.linkCopied}` : t.product.share}
             </button>
 
             <button onClick={() => { if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', marginBottom: 20, textDecoration: 'underline' }}>

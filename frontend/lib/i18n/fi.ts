@@ -42,7 +42,11 @@ const fi = {
   },
   auction: {
     endsIn: 'Päättyy', startPrice: 'Lähtöhinta', highestBid: 'Korkein huuto',
-    reserveNotMet: 'Varaushinta ei ole vielä täyttynyt',
+    reserveNotMet: 'Varaushinta ei ole vielä täyttynyt', ended: 'Päättynyt',
+    bidFailed: 'Huuto epäonnistui', autoBidFailed: 'Automaattihuudon asetus epäonnistui',
+    bought: 'Ostettu!', buyFailed: 'Ostaminen epäonnistui',
+    bidPlacedAmount: 'Huuto {amount}€ tehty!', autoBidSet: 'Automaattihuuto asetettu max {amount}€',
+    endingSoon: 'Päättyy pian', activeCount: '{count} aktiivista huutokauppaa',
   },
   report: {
     button: 'Ilmianna', title: 'Ilmianna sisältö', titleUser: 'Ilmianna käyttäjä',
@@ -166,6 +170,8 @@ const fi = {
     minBid: 'Minimitarjous',
     notFound: 'Tuotetta ei löydy', noImage: 'Ei kuvaa', pickupFromSeller: 'Nouto myyjältä',
     deliveryBothOptions: 'Nouto tai postitus', pickupInfoBox: 'Tämä on noutotuote. Sovi noudon yksityiskohdista myyjän kanssa — nouto kuuluu normaalisti Habahubin maksuturvan piiriin.',
+    preBidFailed: 'Tarjous epäonnistui', buyFailed: 'Lisäys koriin epäonnistui',
+    share: 'Jaa tuote', linkCopied: 'Linkki kopioitu!',
   },
   profile: {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',

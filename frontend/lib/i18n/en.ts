@@ -42,7 +42,11 @@ const en = {
   },
   auction: {
     endsIn: 'Ends in', startPrice: 'Starting price', highestBid: 'Highest bid',
-    reserveNotMet: 'Reserve price not yet met',
+    reserveNotMet: 'Reserve price not yet met', ended: 'Ended',
+    bidFailed: 'Bid failed', autoBidFailed: 'Setting auto-bid failed',
+    bought: 'Bought!', buyFailed: 'Purchase failed',
+    bidPlacedAmount: 'Bid of {amount}€ placed!', autoBidSet: 'Auto-bid set to max {amount}€',
+    endingSoon: 'Ending soon', activeCount: '{count} active auctions',
   },
   report: {
     button: 'Report', title: 'Report content', titleUser: 'Report user',
@@ -163,6 +167,8 @@ const en = {
     minBid: 'Minimum bid',
     notFound: 'Product not found', noImage: 'No image', pickupFromSeller: 'Pickup from seller',
     deliveryBothOptions: 'Pickup or shipping', pickupInfoBox: "This is a pickup item. Arrange the pickup details with the seller — pickup is normally covered by Habahub's payment protection.",
+    preBidFailed: 'Bid failed', buyFailed: 'Adding to cart failed',
+    share: 'Share item', linkCopied: 'Link copied!',
   },
   profile: {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',

@@ -15,8 +15,8 @@ import { auctionApi, adApi, AdSlot } from '@/lib/api'
 import { BACKEND_URL } from '@/lib/backend'
 import { formatShowTime } from '@/lib/formatShowTime'
 
-function auctionTimeLeft(ms: number) {
-  if (ms <= 0) return 'Päättynyt'
+function auctionTimeLeft(ms: number, endedLabel: string) {
+  if (ms <= 0) return endedLabel
   const totalSec = Math.floor(ms / 1000)
   const d = Math.floor(totalSec / 86400)
   const h = Math.floor((totalSec % 86400) / 3600)
@@ -395,7 +395,7 @@ export default function Home() {
                     <ProductCard
                       key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
                       price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} isMobile={isMobile}
-                      timeBadge={{ text: auctionTimeLeft(remaining), urgent: remaining < 60 * 60 * 1000 }}
+                      timeBadge={{ text: auctionTimeLeft(remaining, t.auction.ended), urgent: remaining < 60 * 60 * 1000 }}
                     />
                   )
                 })}

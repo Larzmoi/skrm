@@ -58,7 +58,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
 
   function getTimeLeft(endsAt: string) {
     const diff = new Date(endsAt).getTime() - Date.now()
-    if (diff <= 0) return 'Päättynyt'
+    if (diff <= 0) return t.auction.ended
     const d = Math.floor(diff / 86400000)
     const h = Math.floor((diff % 86400000) / 3600000)
     const m = Math.floor((diff % 3600000) / 60000)
@@ -72,9 +72,9 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
     setError(''); setSuccess(''); setBusy(true)
     try {
       await auctionApi.bid(id, Number(bidAmount))
-      setSuccess(`Huuto ${bidAmount}€ tehty!`)
+      setSuccess(t.auction.bidPlacedAmount.replace('{amount}', String(bidAmount)))
       await loadAuction()
-    } catch (e: any) { setError(e.message ?? 'Huuto epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.auction.bidFailed) }
     setBusy(false)
   }
 
@@ -82,9 +82,9 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
     setError(''); setSuccess(''); setBusy(true)
     try {
       await auctionApi.autobid(id, Number(maxBid))
-      setSuccess(`Automaattihuuto asetettu max ${maxBid}€`)
+      setSuccess(t.auction.autoBidSet.replace('{amount}', String(maxBid)))
       await loadAuction()
-    } catch (e: any) { setError(e.message ?? 'Automaattihuudon asetus epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.auction.autoBidFailed) }
     setBusy(false)
   }
 
@@ -92,9 +92,9 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
     setError(''); setSuccess(''); setBusy(true)
     try {
       await auctionApi.buyNow(id)
-      setSuccess('Ostettu!')
+      setSuccess(t.auction.bought)
       await loadAuction()
-    } catch (e: any) { setError(e.message ?? 'Ostaminen epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.auction.buyFailed) }
     setBusy(false)
   }
 

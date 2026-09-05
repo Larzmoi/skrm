@@ -16,8 +16,8 @@ interface Auction {
 
 function auctionCity(a: Auction) { return a.city ?? a.seller?.city ?? null }
 
-function timeLeftLabel(ms: number) {
-  if (ms <= 0) return 'Päättynyt'
+function timeLeftLabel(ms: number, endedLabel: string) {
+  if (ms <= 0) return endedLabel
   const totalSec = Math.floor(ms / 1000)
   const d = Math.floor(totalSec / 86400)
   const h = Math.floor((totalSec % 86400) / 3600)
@@ -80,7 +80,7 @@ export default function HuutokaupatPage() {
   }, [auctions, city, activeCondition])
 
   const sortOptions = [
-    { id: 'ending_soon', label: 'Päättyy pian' },
+    { id: 'ending_soon', label: t.auction.endingSoon },
     { id: 'newest', label: t.selaa.newest },
     { id: 'price_asc', label: t.selaa.priceAsc },
   ]
@@ -99,8 +99,8 @@ export default function HuutokaupatPage() {
         <div style={{ flex: 1, padding: isMobile ? '16px 14px' : '24px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>Huutokaupat</h1>
-              <p style={{ color: C.muted, fontSize: 13 }}>{loading ? '...' : `${filtered.length} aktiivista huutokauppaa`}</p>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>{t.nav.auctions}</h1>
+              <p style={{ color: C.muted, fontSize: 13 }}>{loading ? '...' : t.auction.activeCount.replace('{count}', String(filtered.length))}</p>
             </div>
             {!isMobile && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -154,7 +154,7 @@ export default function HuutokaupatPage() {
                   <ProductCard
                     key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
                     price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId}
-                    city={auctionCity(a)} timeBadge={{ text: timeLeftLabel(remaining), urgent }} bidCount={a._count?.bids ?? 0}
+                    city={auctionCity(a)} timeBadge={{ text: timeLeftLabel(remaining, t.auction.ended), urgent }} bidCount={a._count?.bids ?? 0}
                   />
                 )
               })}
