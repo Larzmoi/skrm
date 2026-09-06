@@ -319,7 +319,8 @@ Omistaja testasi laajasti mobiililla, kokosi seitsemän löydöstä yhteen erä�
 **Isommat, ei aikataulutetut:**
 - Visuaalinen tyylipäivitys (lime-väripaletti + Outfit/Plus Jakarta Sans + koko sivuston restailointi) — päätetty, ei aloitettu
 - ✅ Slabien (gradatut kortit) oma kuntojärjestelmä — TEHTY JA DEPLOYATTU 2026-09-05, ks. "WhatsApp-palaute" -osion kohta 1
-- "Tarjoa hintaa" -toiminto, Settilistaus/Variantit — molemmat suunniteltu, ei aikataulutettu
+- ✅ "Tarjoa hintaa" -toiminto — TEHTY JA DEPLOYATTU 2026-09-06, ks. oma osionsa
+- Settilistaus/Variantit — suunniteltu, ei aikataulutettu
 
 Kaikki muu tässä tiedostossa alempana on joko ✅ valmista (historiallinen referenssi/konteksti) tai LUKITTU-sääntöjä jotka eivät muutu.
 
@@ -1925,9 +1926,17 @@ Keräilykortit (category, muuttumaton)
 4. Selaa-/Huutokaupat-/Live-sivujen `CategorySidebar`: laajennettava tukemaan kolmatta tasoa (peli valittuna → näytä sen tyypit suodattimena)
 5. Backend: tuotteen luonti/muokkaus- ja hakureitit hyväksymään ja suodattamaan uudella `tyyppi`-kentällä
 
-## Tarjoa hintaa — suoramyyntiin (SUUNNITELTU — päätetty, valmis toteutettavaksi)
+## Tarjoa hintaa — suoramyyntiin — ✅ TEHTY JA DEPLOYATTU 2026-09-06
 
-Vinted-tyylinen "Tarjoa hintaa" -toiminto, mutta **vain suoramyyntituotteille** (`saleType: "suora"`). Ei koske huutokauppaa tai livejä — niissä tarjoaminen tapahtuu jo huutamalla, tarjousmekanismi ei ole tarpeen eikä toivottu (sekoittaisi huutokauppalogiikkaa).
+Toteutettu täsmälleen alla kuvatun suunnitelman mukaan (spesifikaatio käytti vanhaa `saleType: "suora"`-nimeä — nykyisessä koodissa vastaava arvo on `"buy_now"`, käytetty sitä). Vinted-tyylinen "Tarjoa hintaa" -toiminto, **vain suoramyyntituotteille** (`saleType: "buy_now"`, EI `"both"` koska sillä on yhä live/huutokauppa-komponentti). Ei koske huutokauppaa tai livejä — niissä tarjoaminen tapahtuu jo huutamalla.
+
+**Toteutus:**
+- `Offer`-malli täsmälleen suunnitelman mukaan (`productId`, `buyerId`, `amount`, `status`, `counterAmount`, `createdAt`, `respondedAt`) + neljä uutta `NotificationType`-arvoa (`OFFER_RECEIVED`/`OFFER_ACCEPTED`/`OFFER_DECLINED`/`OFFER_COUNTERED`).
+- `backend/src/routes/offers.ts`: `POST /offers` (luo tarjous, validoi saleType/status/ei-oma-tuote/ei-bannattu), `GET /offers/mine` (ostajan omat), `GET /offers/received` (myyjän saapuneet), `POST /offers/:id/accept|decline|counter`. Rooli+tila-tarkistus keskitetty `loadActionableOffer()`-apufunktioon: `pending`-tarjoukseen voi vastata VAIN myyjä, `countered`-tarjoukseen VAIN ostaja — testattu tuotannossa että väärä rooli saa oikein `403`:n.
+- Hyväksyntä (`accept`) kutsuu samaa `createOrderForAuctionWin()`-apufunktiota jota huutokaupan voitto/osta heti jo käyttävät (funktio on riittävän geneerinen, ei mitään auktio-spesifistä sisällä) — 2h maksuaika (LUKITTU-sääntö), sama 6h-yhdistämisikkuna toimii automaattisesti. Muut samaan tuotteeseen tehdyt avoimet tarjoukset perutaan automaattisesti ja niiden tekijät saavat ilmoituksen — kerätty ETUKÄTEEN ennen transaktiota ettei vahingossa ilmoiteta uudestaan jo aiemmin (eri syystä) hylätyille tarjoajille.
+- `backend/src/jobs/expireOffers.ts` — 48h-vanheneminen `pending`/`countered`-tarjouksille (sama looginen ikkuna kuin myyjän lähetysaika), ajetaan tunnin välein `index.ts`:stä samalla periaatteella kuin `checkDeliveryTimeline`.
+- Frontend: "Tarjoa hintaa" -laatikko `tuotteet/[id]`-sivulla (näkyy vain `saleType === 'buy_now'`), uusi `/dashboard/tarjoukset`-sivu kahdella välilehdellä (Saapuneet/Lähetetyt) — sama tili on tällä alustalla sekä ostaja että myyjä, ei tarvinnut kahta erillistä sivua. Nav-linkki lisätty `DashboardLayoutClient.tsx`:hen.
+- **Testattu tuotannossa täydellä päästä-päähän-kierroksella** oikeilla testitileillä (testiuser=myyjä, testi2user=ostaja): tarjous 30€ → myyjän vastatarjous 40€ → myyjän oma yritys hyväksyä oma vastatarjouksensa hylätty oikein 403:lla ("Odotetaan ostajan vastausta") → ostaja hyväksyi 40€:n vastatarjouksen → tuote `SOLD`, `finalPrice:40` → uusi `PENDING_PAYMENT`-tilaus 40€:lla ostajan `GET /orders/mine`:ssä oikealla 2h-maksudeadlinella. Testidata (tuote/tarjous/tilaus) siivottu pois.
 
 ### Malli (uusi, Prisma)
 ```
