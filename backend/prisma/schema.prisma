@@ -67,6 +67,10 @@ enum NotificationType {
   NEW_FOLLOWER
   SELLER_LIVE
   DELIVERY_CONFIRMED
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_DECLINED
+  OFFER_COUNTERED
 }
 
 enum ReportStatus {
@@ -138,6 +142,7 @@ model User {
   reports           Report[]
   pushSubscriptions PushSubscription[]
   passwordResetTokens PasswordResetToken[]
+  offers            Offer[]
 }
 
 // Salasanan palautuslinkin token (ks. CLAUDE.md "KRIITTINEN LÖYDÖS" / "Resend"). tokenHash on
@@ -241,6 +246,7 @@ model Product {
   orderItems OrderItem[]
   messages   Message[]
   autoBids   AutoBid[]
+  offers     Offer[]
 }
 
 // Myyjän omat pohjatuotteet livekäyttöön — ei itsessään myytävä Product, vain mallipohja
@@ -467,4 +473,22 @@ model AdSlot {
   ctaHref   String   @default("/huutokaupat")
   imageUrl  String?
   updatedAt DateTime @updatedAt
+}
+
+// "Tarjoa hintaa" -toiminto suoramyyntituotteille (ks. CLAUDE.md "Tarjoa hintaa — suoramyyntiin").
+// Vain saleType "buy_now" - ei live/auction-tuotteille, koska niissä tarjoaminen tapahtuu jo
+// huutamalla, tarjousmekanismi sekoittaisi huutokauppalogiikkaa. Useampi ostaja voi tarjota
+// samaan tuotteeseen samanaikaisesti - ensimmäinen jonka myyjä hyväksyy voittaa, loput perutaan
+// automaattisesti (ks. POST /offers/:id/accept).
+model Offer {
+  id            String    @id @default(cuid())
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  buyerId       String
+  buyer         User      @relation(fields: [buyerId], references: [id])
+  amount        Float
+  status        String    @default("pending") // pending | accepted | declined | countered | expired
+  counterAmount Float?
+  createdAt     DateTime  @default(now())
+  respondedAt   DateTime?
 }

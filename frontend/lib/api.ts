@@ -201,6 +201,25 @@ export const presetApi = {
   remove: (id: string) => request(`/presets/${id}`, { method: 'DELETE' }),
 }
 
+export interface Offer {
+  id: string; productId: string; buyerId: string; amount: number
+  status: 'pending' | 'accepted' | 'declined' | 'countered' | 'expired'
+  counterAmount: number | null; createdAt: string; respondedAt: string | null
+  product: { id: string; name: string; imageUrl?: string; startPrice: number; status: string; sellerId?: string; seller?: { username: string } }
+  buyer?: { username: string }
+}
+
+// "Tarjoa hintaa" -toiminto (ks. CLAUDE.md "Tarjoa hintaa — suoramyyntiin") — vain saleType
+// "buy_now" -tuotteille, ei live/auction.
+export const offerApi = {
+  create: (productId: string, amount: number) => request('/offers', { method: 'POST', body: JSON.stringify({ productId, amount }) }),
+  mine: (): Promise<Offer[]> => request('/offers/mine'),
+  received: (): Promise<Offer[]> => request('/offers/received'),
+  accept: (id: string) => request(`/offers/${id}/accept`, { method: 'POST' }),
+  decline: (id: string) => request(`/offers/${id}/decline`, { method: 'POST' }),
+  counter: (id: string, counterAmount: number) => request(`/offers/${id}/counter`, { method: 'POST', body: JSON.stringify({ counterAmount }) }),
+}
+
 export const messageApi = {
   conversations: () => request('/messages'),
   thread: (userId: string) => request(`/messages/${userId}`),

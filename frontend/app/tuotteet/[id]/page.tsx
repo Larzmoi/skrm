@@ -9,7 +9,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import { KATEGORIAT, getKatNimi } from '@/lib/kategoriat'
-import { api, cartApi, messageApi } from '@/lib/api'
+import { api, cartApi, messageApi, offerApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ReportModal from '@/components/ReportModal'
 
@@ -27,6 +27,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [added, setAdded] = useState(false)
   const [buyError, setBuyError] = useState('')
   const [buying, setBuying] = useState(false)
+  const [offerAmount, setOfferAmount] = useState('')
+  const [offerBusy, setOfferBusy] = useState(false)
+  const [offerError, setOfferError] = useState('')
+  const [offerSent, setOfferSent] = useState(false)
   const [showContact, setShowContact] = useState(false)
   const [copied, setCopied] = useState(false)
   const [qty, setQty] = useState(1)
@@ -113,6 +117,21 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       setBuyError(e.message ?? t.product.buyFailed)
     }
     setBuying(false)
+  }
+
+  async function submitOffer() {
+    if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
+    const amount = Number(offerAmount)
+    if (!isFinite(amount) || amount <= 0) return
+    setOfferError(''); setOfferBusy(true)
+    try {
+      await offerApi.create(product.id, amount)
+      setOfferSent(true)
+      setOfferAmount('')
+    } catch (e: any) {
+      setOfferError(e.message ?? t.offersPage.actionFailed)
+    }
+    setOfferBusy(false)
   }
 
   async function sendSellerMessage() {
@@ -231,6 +250,30 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   <button onClick={buyNow} disabled={buying} style={{ width: '100%', background: C.accentSolid, color: C.accentText, border: 'none', padding: '14px', borderRadius: 10, fontWeight: 800, fontSize: 16, cursor: buying ? 'default' : 'pointer', opacity: buying ? 0.7 : 1, marginBottom: 10 }}>
                     {buying ? t.auth.loading : t.product.addToCart}
                   </button>
+                )}
+
+                {/* "Tarjoa hintaa" (ks. CLAUDE.md "Tarjoa hintaa — suoramyyntiin") - vain
+                    pelkkä suoramyynti, ei "both" jossa tuotteella on myös live/huutokauppa-
+                    komponentti johon tarjousmekanismi ei sovi. */}
+                {product.saleType === 'buy_now' && (
+                  <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', marginTop: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>{t.product.makeOfferTitle}</div>
+                    {offerError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 8, color: '#EF4444', fontSize: 12 }}>{offerError}</div>}
+                    {offerSent ? (
+                      <div style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>✓ {t.product.offerSentConfirm}</div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          type="text" inputMode="decimal" value={offerAmount} onChange={e => setOfferAmount(e.target.value)}
+                          placeholder={t.product.makeOfferPlaceholder}
+                          style={{ flex: 1, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px', color: C.text, fontSize: 14, outline: 'none', minWidth: 0, boxSizing: 'border-box' }}
+                        />
+                        <button onClick={submitOffer} disabled={offerBusy || !offerAmount} style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: offerBusy ? 'default' : 'pointer', opacity: offerBusy ? 0.7 : 1, flexShrink: 0 }}>
+                          {offerBusy ? t.auth.loading : t.product.makeOfferSubmit}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             ) : !isPreBiddable ? (

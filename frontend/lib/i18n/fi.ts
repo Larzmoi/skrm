@@ -7,7 +7,7 @@ const fi = {
     settings: 'Asetukset', notifications: 'Ilmoitukset', allCategories: 'Kaikki',
     messages: 'Viestit',
     products: 'Tuotteet', broadcast: 'Lähetys', sales: 'Myynnit',
-    payouts: 'Tilitykset', commission: 'Välityspalkkio', presets: 'Esiasetukset',
+    payouts: 'Tilitykset', commission: 'Välityspalkkio', presets: 'Esiasetukset', offers: 'Tarjoukset',
   },
   home: {
     liveNow: 'Live nyt', showAll: 'Näytä kaikki', upcoming: 'Tulossa pian',
@@ -172,6 +172,8 @@ const fi = {
     deliveryBothOptions: 'Nouto tai postitus', pickupInfoBox: 'Tämä on noutotuote. Sovi noudon yksityiskohdista myyjän kanssa — nouto kuuluu normaalisti Habahubin maksuturvan piiriin.',
     preBidFailed: 'Tarjous epäonnistui', buyFailed: 'Lisäys koriin epäonnistui',
     share: 'Jaa tuote', linkCopied: 'Linkki kopioitu!',
+    makeOfferTitle: 'Tarjoa hintaa', makeOfferPlaceholder: 'Tarjouksesi (€)',
+    makeOfferSubmit: 'Lähetä tarjous', offerSentConfirm: 'Tarjous lähetetty! Myyjä vastaa pian.',
   },
   profile: {
     follow: 'Seuraa', following: 'Seuraat', message: 'Viesti', upcoming: 'Tulossa pian',
@@ -270,6 +272,18 @@ const fi = {
     enterName: 'Anna nimi', enterText: 'Syötä teksti',
     loadFailed: 'Lataus epäonnistui', saveFailed: 'Tallennus epäonnistui', deleteFailed: 'Poisto epäonnistui',
     confirmDelete: 'Poistetaanko tämä esiasetus?',
+  },
+  offersPage: {
+    title: 'Tarjoukset', subtitle: 'Saapuneet ja lähetetyt tarjoukset',
+    tabReceived: 'Saapuneet', tabSent: 'Lähetetyt',
+    empty: 'Ei tarjouksia', loading: 'Ladataan...',
+    statusPending: 'Odottaa vastausta', statusAccepted: 'Hyväksytty', statusDeclined: 'Hylätty',
+    statusCountered: 'Vastatarjous tehty', statusExpired: 'Vanhentunut',
+    yourOffer: 'Sinun tarjouksesi', counterOfferFrom: 'Myyjän vastatarjous',
+    accept: 'Hyväksy', decline: 'Hylkää', counter: 'Vastatarjous',
+    counterPlaceholder: 'Vastatarjouksen summa (€)', counterSubmit: 'Lähetä vastatarjous',
+    actionFailed: 'Toiminto epäonnistui',
+    from: 'Ostaja', for: 'Tuote',
   },
   footer: {
     company: 'Yritys', about: 'Meistä', becomeSeller: 'Ryhdy myyjäksi',

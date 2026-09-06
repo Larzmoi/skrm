@@ -7,7 +7,7 @@ const en = {
     settings: 'Settings', notifications: 'Notifications', allCategories: 'All',
     messages: 'Messages',
     products: 'Products', broadcast: 'Broadcast', sales: 'Sales',
-    payouts: 'Payouts', commission: 'Commission', presets: 'Presets',
+    payouts: 'Payouts', commission: 'Commission', presets: 'Presets', offers: 'Offers',
   },
   home: {
     liveNow: 'Live now', showAll: 'Show all', upcoming: 'Upcoming',
@@ -169,6 +169,8 @@ const en = {
     deliveryBothOptions: 'Pickup or shipping', pickupInfoBox: "This is a pickup item. Arrange the pickup details with the seller — pickup is normally covered by Habahub's payment protection.",
     preBidFailed: 'Bid failed', buyFailed: 'Adding to cart failed',
     share: 'Share item', linkCopied: 'Link copied!',
+    makeOfferTitle: 'Make an offer', makeOfferPlaceholder: 'Your offer (€)',
+    makeOfferSubmit: 'Send offer', offerSentConfirm: 'Offer sent! The seller will respond soon.',
   },
   profile: {
     follow: 'Follow', following: 'Following', message: 'Message', upcoming: 'Upcoming',
@@ -267,6 +269,18 @@ const en = {
     enterName: 'Enter a name', enterText: 'Enter some text',
     loadFailed: 'Failed to load', saveFailed: 'Save failed', deleteFailed: 'Delete failed',
     confirmDelete: 'Delete this preset?',
+  },
+  offersPage: {
+    title: 'Offers', subtitle: 'Offers received and sent',
+    tabReceived: 'Received', tabSent: 'Sent',
+    empty: 'No offers', loading: 'Loading...',
+    statusPending: 'Awaiting response', statusAccepted: 'Accepted', statusDeclined: 'Declined',
+    statusCountered: 'Counter-offer made', statusExpired: 'Expired',
+    yourOffer: 'Your offer', counterOfferFrom: "Seller's counter-offer",
+    accept: 'Accept', decline: 'Decline', counter: 'Counter-offer',
+    counterPlaceholder: 'Counter-offer amount (€)', counterSubmit: 'Send counter-offer',
+    actionFailed: 'Action failed',
+    from: 'Buyer', for: 'Item',
   },
   footer: {
     company: 'Company', about: 'About', becomeSeller: 'Become a seller',

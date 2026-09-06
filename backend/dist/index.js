@@ -57,10 +57,12 @@ const push_1 = __importDefault(require("./routes/push"));
 const presets_1 = __importDefault(require("./routes/presets"));
 const posti_1 = __importDefault(require("./routes/posti"));
 const ad_1 = __importDefault(require("./routes/ad"));
+const offers_1 = __importDefault(require("./routes/offers"));
 const socket_1 = require("./socket");
 const notify_1 = require("./lib/notify");
 const deliveryTimeline_1 = require("./jobs/deliveryTimeline");
 const closeAuctions_1 = require("./jobs/closeAuctions");
+const expireOffers_1 = require("./jobs/expireOffers");
 dotenv.config();
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
@@ -98,6 +100,7 @@ app.use('/push', push_1.default);
 app.use('/presets', presets_1.default);
 app.use('/posti', posti_1.default);
 app.use('/ad', ad_1.default);
+app.use('/offers', offers_1.default);
 app.get('/health', (_, res) => res.json({ ok: true }));
 (0, notify_1.setSocketServer)(io);
 (0, socket_1.setupSocket)(io);
@@ -114,5 +117,9 @@ setInterval(() => {
 setInterval(() => {
     (0, closeAuctions_1.closeExpiredAuctions)().catch(e => console.error('closeExpiredAuctions virhe:', e));
 }, 60 * 1000);
+// Tarjousten (Offer) 48h-vanheneminen — kerran tunnissa riittää, sama periaate kuin deliveryTimeline
+setInterval(() => {
+    (0, expireOffers_1.checkExpiredOffers)().catch(e => console.error('checkExpiredOffers virhe:', e));
+}, 60 * 60 * 1000);
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => console.log(`SKRM backend käynnissä portilla ${PORT}`));

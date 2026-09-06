@@ -19,10 +19,12 @@ import pushRouter from './routes/push'
 import presetsRouter from './routes/presets'
 import postiRouter from './routes/posti'
 import adRouter from './routes/ad'
+import offersRouter from './routes/offers'
 import { setupSocket } from './socket'
 import { setSocketServer } from './lib/notify'
 import { checkDeliveryTimeline } from './jobs/deliveryTimeline'
 import { closeExpiredAuctions } from './jobs/closeAuctions'
+import { checkExpiredOffers } from './jobs/expireOffers'
 
 dotenv.config()
 
@@ -64,6 +66,7 @@ app.use('/push', pushRouter)
 app.use('/presets', presetsRouter)
 app.use('/posti', postiRouter)
 app.use('/ad', adRouter)
+app.use('/offers', offersRouter)
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 
@@ -85,6 +88,11 @@ setInterval(() => {
 setInterval(() => {
   closeExpiredAuctions().catch(e => console.error('closeExpiredAuctions virhe:', e))
 }, 60 * 1000)
+
+// Tarjousten (Offer) 48h-vanheneminen — kerran tunnissa riittää, sama periaate kuin deliveryTimeline
+setInterval(() => {
+  checkExpiredOffers().catch(e => console.error('checkExpiredOffers virhe:', e))
+}, 60 * 60 * 1000)
 
 const PORT = process.env.PORT || 4000
 httpServer.listen(PORT, () => console.log(`SKRM backend käynnissä portilla ${PORT}`))

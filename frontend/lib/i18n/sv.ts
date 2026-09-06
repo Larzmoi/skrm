@@ -7,7 +7,7 @@ const sv = {
     settings: 'Inställningar', notifications: 'Aviseringar', allCategories: 'Alla',
     messages: 'Meddelanden',
     products: 'Produkter', broadcast: 'Ström', sales: 'Försäljningar',
-    payouts: 'Utbetalningar', commission: 'Kommission', presets: 'Mallar',
+    payouts: 'Utbetalningar', commission: 'Kommission', presets: 'Mallar', offers: 'Bud',
   },
   home: {
     liveNow: 'Live nu', showAll: 'Visa alla', upcoming: 'Kommande',
@@ -169,6 +169,8 @@ const sv = {
     deliveryBothOptions: 'Hämtning eller frakt', pickupInfoBox: 'Detta är en hämtningsprodukt. Kom överens om hämtningsdetaljerna med säljaren — hämtning omfattas normalt av Habahubs betalningsskydd.',
     preBidFailed: 'Budet misslyckades', buyFailed: 'Det gick inte att lägga i varukorgen',
     share: 'Dela produkt', linkCopied: 'Länk kopierad!',
+    makeOfferTitle: 'Lägg ett bud', makeOfferPlaceholder: 'Ditt bud (€)',
+    makeOfferSubmit: 'Skicka bud', offerSentConfirm: 'Bud skickat! Säljaren svarar snart.',
   },
   profile: {
     follow: 'Följ', following: 'Följer', message: 'Meddelande', upcoming: 'Kommande',
@@ -267,6 +269,18 @@ const sv = {
     enterName: 'Ange ett namn', enterText: 'Ange text',
     loadFailed: 'Kunde inte ladda', saveFailed: 'Det gick inte att spara', deleteFailed: 'Det gick inte att radera',
     confirmDelete: 'Radera denna mall?',
+  },
+  offersPage: {
+    title: 'Bud', subtitle: 'Mottagna och skickade bud',
+    tabReceived: 'Mottagna', tabSent: 'Skickade',
+    empty: 'Inga bud', loading: 'Laddar...',
+    statusPending: 'Väntar på svar', statusAccepted: 'Accepterat', statusDeclined: 'Avvisat',
+    statusCountered: 'Motbud gjort', statusExpired: 'Utgånget',
+    yourOffer: 'Ditt bud', counterOfferFrom: 'Säljarens motbud',
+    accept: 'Acceptera', decline: 'Avvisa', counter: 'Motbud',
+    counterPlaceholder: 'Motbudets belopp (€)', counterSubmit: 'Skicka motbud',
+    actionFailed: 'Åtgärden misslyckades',
+    from: 'Köpare', for: 'Produkt',
   },
   footer: {
     company: 'Företag', about: 'Om oss', becomeSeller: 'Bli säljare',
