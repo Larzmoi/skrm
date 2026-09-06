@@ -134,6 +134,12 @@ router.post('/:id/prebid', auth_1.authMiddleware, async (req, res) => {
     if (previousBidderId && previousBidderId !== req.userId) {
         await (0, notify_1.notifyUser)(previousBidderId, 'OUTBID', 'Sinut ohitettiin!', `Joku tarjosi ${amount}€ tuotteesta ${product.name}`, `/tuotteet/${productId}`);
     }
+    // Ilman tätä muut samaa lähetystä katsovat eivät nähneet ennakkotarjouksen nostamaa
+    // currentBid-arvoa reaaliajassa - Shop-paneeli/modaali näytti vanhentunutta hintaa kunnes
+    // jokin muu tapahtuma sattumalta laukaisi uudelleenhaun. Sama periaate kuin cart.ts:n
+    // automaattisessa varastosaldon päivityksessä (ks. CLAUDE.md).
+    if (product.showId)
+        (0, notify_1.emitToShow)(product.showId, 'products_updated', {});
     const updated = await prisma_1.prisma.product.findUnique({
         where: { id: productId },
         include: {

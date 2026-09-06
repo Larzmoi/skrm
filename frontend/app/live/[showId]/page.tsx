@@ -23,7 +23,7 @@ interface AuctionState {
   active: boolean
 }
 
-interface ShowProduct { id: string; name: string; condition?: string; gradingCompany?: string | null; grade?: string | null; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string }
+interface ShowProduct { id: string; name: string; condition?: string; gradingCompany?: string | null; grade?: string | null; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string; currentBid?: number | null; currentBidderId?: string | null; bidIncrement?: number | null }
 
 // "PSA 9" gradatulle kortille, muuten geneerinen/Cardmarket-kunto sellaisenaan (ks. CLAUDE.md
 // "WhatsApp-palaute 2026-09-02" kohta 1, Product.gradingCompany/grade).
@@ -116,7 +116,35 @@ function VideoPlayer({ showId }: { showId: string }) {
 // Katsoja ei aiemmin pystynyt avaamaan nykyistä tuotetta suurempaan näkymään nähdäkseen
 // kuvauksen (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 4) - tuotetietolaatikko oli
 // vain teksti, ei interaktiota. Yksinkertainen lightbox-tyylinen modaali korjaa tämän.
-function ProductDetailModal({ product, onClose }: { product: ShowProduct; onClose: () => void }) {
+// Ennakkotarjous suoraan tässä modaalissa (ks. CLAUDE.md, omistajan pyyntö 2026-09-06: "ei saa
+// ohjata pois livehuutokaupasta") - aiemmin "Pre-bid"-nappi navigoi pois /tuotteet/[id]-sivulle,
+// mikä vei katsojan pois streamista. Sama POST /products/:id/prebid-kutsu kuin sillä sivulla,
+// vain kutsuttu tästä ilman sivunvaihtoa. isPreBiddable on false nykyiselle aktiiviselle lotille
+// (huudetaan livenä BidPanelin kautta, ei tätä kautta) - sama sääntö kuin ShopPanelin riveillä.
+function ProductDetailModal({ product, isPreBiddable, t, user, onClose, onSuccess, onRequireLogin }: { product: ShowProduct; isPreBiddable: boolean; t: any; user: any; onClose: () => void; onSuccess: () => void; onRequireLogin: () => void }) {
+  const [amount, setAmount] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const minBid = Math.round(((product.currentBid ?? product.startPrice) + (product.bidIncrement ?? 1)) * 100) / 100
+
+  async function submitPreBid() {
+    if (!user) { onRequireLogin(); return }
+    const num = Number(amount)
+    if (!isFinite(num) || num < minBid) { setError(`${t.product.minBid} ${minBid}€`); return }
+    setBusy(true); setError('')
+    try {
+      const { api } = await import('@/lib/api')
+      await api.prebid(product.id, num)
+      setSuccess(true)
+      onSuccess()
+    } catch (e: any) {
+      setError(e.message ?? t.product.preBidFailed)
+    }
+    setBusy(false)
+  }
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, maxWidth: 420, width: '100%', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -130,7 +158,30 @@ function ProductDetailModal({ product, onClose }: { product: ShowProduct; onClos
           </div>
           {conditionLabel(product) && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 10 }}>{conditionLabel(product)}</div>}
           {product.description && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{product.description}</p>}
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginTop: 12 }}>{product.startPrice}€</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 12 }}>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{product.currentBid != null ? t.product.currentBid : t.product.startingBid}</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{product.currentBid ?? product.startPrice}€</span>
+          </div>
+
+          {isPreBiddable && product.status === 'PENDING' && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              {error && <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 8, color: '#F87171', fontSize: 12 }}>{error}</div>}
+              {success ? (
+                <div style={{ fontSize: 13, color: '#4ADE80', fontWeight: 700 }}>✓ {t.product.bidPlaced}</div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)}
+                    placeholder={`${t.product.minBid} ${minBid}€`}
+                    style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, padding: '10px 12px', color: '#fff', fontSize: 14, outline: 'none', minWidth: 0, boxSizing: 'border-box' }}
+                  />
+                  <button onClick={submitPreBid} disabled={busy} style={{ background: '#2ECC71', color: '#06210F', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    {busy ? t.product.placingBid : t.product.placeBid}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -352,11 +403,10 @@ interface ShopPanelProps {
   filter: 'all' | 'buynow'; setFilter: (v: 'all' | 'buynow') => void
   sort: 'default' | 'price_asc' | 'price_desc'; setSort: (v: 'default' | 'price_asc' | 'price_desc') => void
   onBuyNow: (productId: string) => void
-  onPreBid: (productId: string) => void
   onProductClick: (product: ShowProduct) => void
 }
 
-function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onPreBid, onProductClick }: ShopPanelProps) {
+function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onProductClick }: ShopPanelProps) {
   let list = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
   if (filter === 'buynow') list = list.filter(p => !!p.buyNowPrice)
   if (sort === 'price_asc') list = [...list].sort((a, b) => a.startPrice - b.startPrice)
@@ -409,7 +459,7 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
               {!isSold && (
                 rowPreBiddable || p.buyNowPrice ? (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {rowPreBiddable && <button onClick={e => { e.stopPropagation(); onPreBid(p.id) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
+                    {rowPreBiddable && <button onClick={e => { e.stopPropagation(); onProductClick(p) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
                     {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accentSolid, border: 'none', color: C.accentText, padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
                   </div>
                 ) : (
@@ -691,15 +741,6 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setTimeout(() => setToast(''), 2500)
     }
   }
-  // Ennakkotarjouksen syöttölomake on jo rakennettu ja testattu /tuotteet/[id]-sivulla
-  // (ks. CLAUDE.md "Ennakkotarjoukset") - ohjataan sinne sen sijaan että kaksinnettaisiin
-  // sama tarjouslogiikka tänne. Tämä nappi näytetään vain kun show on vielä SCHEDULED
-  // (ks. preBiddable-propi ShopPanelille), joten kohdesivun ennakkotarjouslomake on aina
-  // näkyvissä kun tänne päädytään.
-  function goToPreBid(productId: string) {
-    router.push(`/tuotteet/${productId}`)
-  }
-
   function placeBid() {
     if (!user) { setBidError('Kirjaudu sisään / Sign in to bid'); setTimeout(() => setBidError(''), 3000); return }
     if (!auction.active) { setBidError(t.live.waitAuction); setTimeout(() => setBidError(''), 3000); return }
@@ -795,7 +836,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
               <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
             </div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} onProductClick={setModalProduct} />
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
           </div>
         </div>
 
@@ -872,7 +913,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
-        {modalProduct && <ProductDetailModal product={modalProduct} onClose={() => setModalProduct(null)} />}
+        {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
       </div>
     )
   }
@@ -911,7 +952,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         {!isTablet && (
           <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} onProductClick={setModalProduct} />
+            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
           </div>
         )}
 
@@ -953,7 +994,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
               </div>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onPreBid={goToPreBid} onProductClick={setModalProduct} />
+                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
               </div>
             </div>
           )}
@@ -977,7 +1018,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       </div>
       {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
-      {modalProduct && <ProductDetailModal product={modalProduct} onClose={() => setModalProduct(null)} />}
+      {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
     </div>
   )
 }
