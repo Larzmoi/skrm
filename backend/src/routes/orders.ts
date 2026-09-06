@@ -323,10 +323,25 @@ router.post('/:id/confirm-delivery', authMiddleware, async (req: AuthRequest, re
 })
 
 // POST /orders/:id/dispute — ostaja ilmoittaa ongelmasta
+// Reklamaatio-oikeuden erottelu (ks. CLAUDE.md "Toimituksen aikataulu ja maksuturva",
+// "RISTIRIITA KORJATTU 2026-09-05"): ostajan OMA aktiivinen "Hyväksyn"-kuittaus
+// (deliveryConfirmedAt asetettu POST /:id/confirm-delivery:ssä) on lopullinen - ei enää
+// reklamaatio-oikeutta sen jälkeen, koska aktiivisen hyväksynnän koko tarkoitus on "kaikki
+// kunnossa". Passiivinen 14pv-automaattivapautus (deliveryConfirmedAt jää nulliksi, ks.
+// jobs/deliveryTimeline.ts) SÄILYTTÄÄ käyttöehtojen 6.3 mukaisen 3 vrk:n reklamaatio-oikeuden,
+// koska ostaja ei koskaan itse vahvistanut mitään olevan kunnossa. Ei uutta kenttää tähän -
+// updatedAt riittää ajankohdaksi koska mikään muu ei koske Order-riviä DELIVERED-siirtymän
+// jälkeen ennen mahdollista reklamaatiota.
+const PASSIVE_DISPUTE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000
+
 router.post('/:id/dispute', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  if (order.status !== 'SHIPPED') return res.status(400).json({ error: 'Tilaus ei ole reklamoitavissa' })
+  const passiveDeliveredRecently = order.status === 'DELIVERED' && order.deliveryConfirmedAt === null
+    && (Date.now() - order.updatedAt.getTime()) <= PASSIVE_DISPUTE_WINDOW_MS
+  if (order.status !== 'SHIPPED' && !passiveDeliveredRecently) {
+    return res.status(400).json({ error: 'Tilaus ei ole enää reklamoitavissa' })
+  }
 
   const reason = String(req.body?.reason ?? '').trim().slice(0, 1000) || 'Ei tarkennettu'
   const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'DISPUTED', disputeReason: reason } })

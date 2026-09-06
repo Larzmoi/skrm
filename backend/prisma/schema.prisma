@@ -71,6 +71,7 @@ enum NotificationType {
   OFFER_ACCEPTED
   OFFER_DECLINED
   OFFER_COUNTERED
+  ADMIN_LOST_PACKAGE_REVIEW
 }
 
 enum ReportStatus {

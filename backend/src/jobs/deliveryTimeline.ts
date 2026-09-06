@@ -28,6 +28,20 @@ export async function checkDeliveryTimeline() {
       await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
       await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja ei reagoinut 14 päivän kuluessa — tilaus suljettiin automaattisesti ja maksu on vapautettu sinulle.', '/dashboard/tilaukset')
       await notifyUser(order.buyerId, 'ORDER_AUTO_COMPLETED', 'Tilaus suljettu automaattisesti', 'Et kuitannut tilausta 14 päivän kuluessa, joten se suljettiin automaattisesti.', '/ostot')
+      // Habahubin OMA vastuu Posti-reklamaatiosta (ks. CLAUDE.md "Toimituksen aikataulu ja
+      // maksuturva", "UUSI LÖYDÖS 2026-09-05") - jos toimitus ei koskaan vahvistunut, paketti on
+      // todennäköisesti kadonnut. Habahub on Posti-logistiikkasopimuksen (691317) haltija, ei
+      // ostaja/myyjä - vain Habahub voi/pitäisi reklamoida Postille mahdollisen korvauksen
+      // saamiseksi. Ilman tätä kukaan ei koskaan saanut mitään muistutusta tehdä niin -
+      // ostajalle/myyjälle meneviä ilmoituksia yllä ei ollut tarkoitettu tähän. Käyttää
+      // olemassa olevaa ilmoitusjärjestelmää (näkyy adminille /ilmoitukset-sivulla), ei uutta
+      // erillistä tehtävälistaa - riittävä "muistutus" ilman ylimääräistä UI:ta.
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } })
+      await Promise.all(admins.map(a => notifyUser(
+        a.id, 'ADMIN_LOST_PACKAGE_REVIEW', 'Kadonnut paketti — harkitse Posti-reklamaatiota',
+        `Tilaus ${order.id} vapautui automaattisesti 14 päivän jälkeen ilman toimitusvahvistusta — paketti on todennäköisesti kadonnut. Habahub sopimuksenhaltijana (691317) voi reklamoida Postille mahdollisen korvauksen saamiseksi.`,
+        '/dashboard/tilaukset',
+      ).catch(() => {})))
       continue
     }
 

@@ -16,7 +16,7 @@ interface Order {
   paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
   pickupPointId: string | null; trackingNumber: string | null; sendingCode: string | null; labelUrl: string | null; postiStatus: PostiTrackingStep | null
   shippedAt: string | null; stalledNotifiedAt: string | null; reminderNotifiedAt: string | null; deliveryConfirmedAt: string | null; disputeReason: string | null
-  items: OrderItem[]; seller: { name: string; username: string }; createdAt: string
+  items: OrderItem[]; seller: { name: string; username: string }; createdAt: string; updatedAt: string
   reviews: { reviewerId: string }[]
 }
 
@@ -384,8 +384,43 @@ export default function OstotPage() {
 
                         {section.key === 'DELIVERED' && (() => {
                           const alreadyReviewed = order.reviews.some(r => r.reviewerId === user?.id)
+                          // Reklamaatio-oikeuden erottelu (ks. CLAUDE.md "Toimituksen aikataulu ja
+                          // maksuturva", "RISTIRIITA KORJATTU 2026-09-05"): jos ostaja itse aktiivisesti
+                          // kuittasi (deliveryConfirmedAt asetettu), ei enää reklamaatio-oikeutta - se
+                          // OLI juuri se hyväksyntä. Jos tilaus vapautui passiivisesti (14pv-automatiikka,
+                          // deliveryConfirmedAt tyhjä), 3 vrk:n reklamaatio-oikeus (käyttöehdot 6.3) on
+                          // yhä voimassa updatedAt:sta (= DELIVERED-siirtymän ajankohta) laskettuna.
+                          const passiveDisputeMsLeft = !order.deliveryConfirmedAt
+                            ? 3 * DAY_MS - (Date.now() - new Date(order.updatedAt).getTime())
+                            : -1
+                          const canStillDispute = passiveDisputeMsLeft > 0
                           return (
                             <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                              {canStillDispute && (
+                                <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
+                                  <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
+                                    Tilaus vapautui automaattisesti ilman kuittaustasi — sinulla on vielä {Math.max(1, Math.ceil(passiveDisputeMsLeft / DAY_MS))} vrk aikaa ilmoittaa ongelmasta.
+                                  </div>
+                                  {disputeOpenFor === order.id ? (
+                                    <div>
+                                      <textarea
+                                        value={disputeReasonInput[order.id] ?? ''}
+                                        onChange={e => setDisputeReasonInput(s => ({ ...s, [order.id]: e.target.value }))}
+                                        placeholder="Kuvaile ongelma..."
+                                        rows={3}
+                                        style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
+                                      />
+                                      <button onClick={() => submitDispute(order.id)} disabled={busy === order.id} style={{ marginTop: 8, background: '#EF4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
+                                        {busy === order.id ? '...' : 'Lähetä reklamaatio'}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => setDisputeOpenFor(order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                                      Ilmoita ongelmasta
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                               {alreadyReviewed ? (
                                 <div style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>✓ Kiitos arvostelusta</div>
                               ) : reviewOpenFor === order.id ? (

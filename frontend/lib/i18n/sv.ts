@@ -314,10 +314,10 @@ const sv = {
     deliveryMethod: 'Leveransmetod', price: 'Pris för köparen',
     shippingPostal: 'Frakt', shippingPickup: 'Hämtning hos säljare', shippingFree: 'Gratis',
     protection: 'Betalningsskydd',
-    protectionDesc: 'Köparens betalning hålls på Habahubs konto tills leveransen är bekräftad och köparen har godkänt produkten — eller 24 timmar har gått utan reklamation.',
+    protectionDesc: 'Köparens betalning hålls på Habahubs konto tills köparen godkänner produkten eller en automatisk tidsgräns uppnås.',
     protectionPoints: [
-      'Betalningen frigörs till säljaren när köparen godkänner produkten, eller 24h efter att leveransen bekräftats utan reklamation',
-      'Köparen har 3 dagar på sig att reklamera efter mottagning',
+      'Köparens egen aktiva bekräftelse frigör betalningen omedelbart — slutgiltig, ingen reklamationsrätt kvar',
+      'Om köparen inte reagerar själv frigörs betalningen automatiskt efter 24h/14 dagar och reklamationsrätten på 3 dagar kvarstår',
       'Tvister hanteras av Habahub kundservice',
     ],
     noFees: [

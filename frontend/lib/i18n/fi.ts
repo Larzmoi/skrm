@@ -317,10 +317,10 @@ const fi = {
     deliveryMethod: 'Toimitustapa', price: 'Hinta ostajalle',
     shippingPostal: 'Postitus', shippingPickup: 'Nouto myyjältä', shippingFree: 'Maksuton',
     protection: 'Maksuturva',
-    protectionDesc: 'Ostajan maksu pidätetään Habahubin tilillä kunnes toimitus on vahvistettu ja ostaja on hyväksynyt tuotteen — tai 24 tuntia on kulunut ilman reklamaatiota.',
+    protectionDesc: 'Ostajan maksu pidätetään Habahubin tilillä kunnes ostaja hyväksyy tuotteen tai automaattinen aikaraja täyttyy.',
     protectionPoints: [
-      'Maksu vapautetaan myyjälle kun ostaja hyväksyy tuotteen, tai 24h kuluttua toimituksen vahvistumisesta ilman reklamaatiota',
-      'Ostajalla 3 päivää reklamoida vastaanoton jälkeen',
+      'Ostajan oma aktiivinen hyväksyntä vapauttaa maksun heti — kuittaus on lopullinen, ei enää reklamaatio-oikeutta',
+      'Jos ostaja ei itse reagoi, maksu vapautuu automaattisesti 24h/14pv kuluttua ja 3 päivän reklamaatio-oikeus säilyy',
       'Riitatilanteet selvitetään Habahubin asiakastuessa',
     ],
     noFees: [

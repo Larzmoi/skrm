@@ -314,10 +314,10 @@ const en = {
     deliveryMethod: 'Delivery method', price: 'Price for buyer',
     shippingPostal: 'Shipping', shippingPickup: 'Pickup from seller', shippingFree: 'Free',
     protection: 'Payment protection',
-    protectionDesc: "The buyer's payment is held by Habahub until delivery is confirmed and the buyer accepts the item — or 24 hours pass without a dispute.",
+    protectionDesc: "The buyer's payment is held by Habahub until the buyer accepts the item or an automatic deadline is reached.",
     protectionPoints: [
-      'Payment released to seller when the buyer accepts the item, or 24h after delivery is confirmed without a dispute',
-      'Buyer has 3 days to file a complaint after receiving',
+      "The buyer's own active confirmation releases payment immediately — final, no more complaint right",
+      "If the buyer doesn't respond, payment is released automatically after 24h/14 days and the 3-day complaint right remains",
       'Disputes are handled by Habahub customer support',
     ],
     noFees: [

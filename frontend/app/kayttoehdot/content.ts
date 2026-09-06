@@ -98,9 +98,11 @@ Ostaja on velvollinen maksamaan voittamastaan huudosta tai ostoksesta 2 tunnin k
 6.3 Reklamaatiot
 Ostajalla on 3 vuorokautta tuotteen vastaanottamisesta aikaa ilmoittaa mahdollisista virheistä tai puutteista. Reklamaatio tulee tehdä kirjallisesti osoitteeseen support@habahub.fi.
 
+Tämä reklamaatio-oikeus riippuu siitä, miten maksu vapautuu Myyjälle (ks. kohta 7): jos Ostaja itse aktiivisesti kuittaa tuotteen vastaanotetuksi ja hyväksyy sen palvelussa, kuittaus on lopullinen eikä tämän kohdan mukaista reklamaatio-oikeutta ole enää sen jälkeen. Jos maksu sen sijaan vapautuu Myyjälle automaattisesti ilman että Ostaja on itse kuitannut vastaanottoa, edellä mainittu 3 vuorokauden reklamaatio-oikeus säilyy normaalisti.
+
 7. MAKSUTURVA
 
-HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Kun toimitus vahvistuu (Postin seurantatieto tai Ostajan oma kuittaus), Ostajalla on 24 tuntia aikaa hyväksyä tai reklamoida toimitus. Jos Ostaja ei reagoi 24 tunnin kuluessa, maksu vapautetaan Myyjälle automaattisesti. Jos toimitus ei koskaan vahvistu, maksu vapautetaan Myyjälle viimeistään 14 vuorokauden kuluttua lähetyksestä.
+HABAHUB pidättää Ostajan maksun siihen asti, kunnes Myyjä on toimittanut seurantakoodin. Jos Ostaja itse aktiivisesti kuittaa tuotteen vastaanotetuksi palvelussa, maksu vapautetaan Myyjälle välittömästi — tämä kuittaus on lopullinen (ks. kohta 6.3). Jos Ostaja ei itse kuittaa vastaanottoa mutta Postin seurantatieto ilmoittaa toimituksen tapahtuneen, Ostajalla on 24 tuntia aikaa hyväksyä tai reklamoida toimitus; jos Ostaja ei reagoi tämän ajan kuluessa, maksu vapautetaan Myyjälle automaattisesti. Jos toimitus ei koskaan vahvistu eikä Ostaja itse kuittaa vastaanottoa, maksu vapautetaan Myyjälle viimeistään 14 vuorokauden kuluttua lähetyksestä. Näissä kahdessa jälkimmäisessä (automaattisessa) tapauksessa kohdan 6.3 mukainen 3 vuorokauden reklamaatio-oikeus säilyy.
 
 Maksuturva ei kata tilanteita, joissa Ostaja on antanut virheellisen toimitusosoitteen tai muutoin omalla toiminnallaan estänyt toimituksen.
 
@@ -143,7 +145,7 @@ Henkilötietojen käsittelystä kerrotaan tarkemmin tietosuojaselosteessa, joka 
 
 12. LOMAMOODIOMINAISUUS
 
-Myyjä voi aktivoida lomamoodin, jolloin lähetysaika pitenee 48 tunnista 7 vuorokauteen. Lomamoodi tulee aktivoida etukäteen, eikä sitä voi käyttää jo syntyneiden tilausten lähetysajan pidentämiseen jälkikäteen.
+Myyjä voi aktivoida lomamoodin, jolloin lähetysaika pitenee 4 vuorokaudesta 7 vuorokauteen. Lomamoodi tulee aktivoida etukäteen, eikä sitä voi käyttää jo syntyneiden tilausten lähetysajan pidentämiseen jälkikäteen.
 
 13. PALVELUN MUUTOKSET JA KESKEYTYKSET
 
@@ -266,9 +268,11 @@ Köparen är skyldig att betala för ett vunnet anbud eller köp inom 2 timmar. 
 6.3 Reklamationer
 Köparen har 3 dygn från mottagandet av produkten på sig att anmäla eventuella fel eller brister. Reklamationen ska göras skriftligen till support@habahub.fi.
 
+Denna reklamationsrätt beror på hur betalningen frigörs till Säljaren (se punkt 7): om Köparen själv aktivt kvitterar produkten som mottagen och godkänner den i tjänsten, är kvitteringen slutgiltig och reklamationsrätten enligt denna punkt gäller inte längre efter det. Om betalningen istället frigörs till Säljaren automatiskt utan att Köparen själv har kvitterat mottagandet, kvarstår ovannämnda reklamationsrätt på 3 dygn som vanligt.
+
 7. BETALNINGSSKYDD
 
-HABAHUB håller inne Köparens betalning tills Säljaren har lämnat en spårningskod. När leveransen bekräftas (via Postis spårningsuppgifter eller Köparens egen kvittering) har Köparen 24 timmar på sig att godkänna eller reklamera leveransen. Om Köparen inte reagerar inom 24 timmar frigörs betalningen automatiskt till Säljaren. Om leveransen aldrig bekräftas frigörs betalningen till Säljaren senast 14 dygn efter att produkten skickades.
+HABAHUB håller inne Köparens betalning tills Säljaren har lämnat en spårningskod. Om Köparen själv aktivt kvitterar produkten som mottagen i tjänsten frigörs betalningen till Säljaren omedelbart — denna kvittering är slutgiltig (se punkt 6.3). Om Köparen inte själv kvitterar mottagandet men Postis spårningsuppgifter anger att leveransen har skett, har Köparen 24 timmar på sig att godkänna eller reklamera leveransen; om Köparen inte reagerar inom denna tid frigörs betalningen automatiskt till Säljaren. Om leveransen aldrig bekräftas och Köparen inte själv kvitterar mottagandet, frigörs betalningen till Säljaren senast 14 dygn efter att produkten skickades. I dessa två senare (automatiska) fall kvarstår reklamationsrätten på 3 dygn enligt punkt 6.3.
 
 Betalningsskyddet täcker inte situationer där Köparen har lämnat en felaktig leveransadress eller på annat sätt genom eget agerande förhindrat leveransen.
 
@@ -423,9 +427,11 @@ The Buyer is obligated to pay for won auctions or purchases within 2 hours. Fail
 6.3 Complaints
 The Buyer has 3 days from receiving the product to report any defects or discrepancies. Complaints must be submitted in writing to support@habahub.fi.
 
+This right depends on how payment is released to the Seller (see section 7): if the Buyer actively confirms receipt and accepts the product in the service, that confirmation is final and this 3-day complaint right no longer applies afterwards. If payment is instead released to the Seller automatically without the Buyer having confirmed receipt, the 3-day complaint right above remains in effect as normal.
+
 7. PAYMENT PROTECTION
 
-HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. Once delivery is confirmed (via Posti tracking or the Buyer's own confirmation), the Buyer has 24 hours to accept or dispute the delivery. If the Buyer does not respond within 24 hours, payment is released to the Seller automatically. If delivery is never confirmed, payment is released to the Seller no later than 14 days after shipment.
+HABAHUB holds the Buyer's payment until the Seller has provided a tracking code. If the Buyer actively confirms receipt of the product in the service, payment is released to the Seller immediately — this confirmation is final (see section 6.3). If the Buyer does not confirm receipt themselves but Posti's tracking data indicates the delivery has occurred, the Buyer has 24 hours to accept or dispute the delivery; if the Buyer does not respond within that time, payment is released to the Seller automatically. If delivery is never confirmed and the Buyer does not confirm receipt themselves, payment is released to the Seller no later than 14 days after shipment. In these latter two (automatic) cases, the 3-day complaint right under section 6.3 remains in effect.
 
 8. DISPUTES
 

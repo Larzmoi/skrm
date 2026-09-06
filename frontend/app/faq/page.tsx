@@ -25,6 +25,7 @@ const FAQ_DATA = {
         { q: 'Miten maksan ostokseni?', a: 'Maksu tapahtuu Paytrailin kautta — tuetaan kaikkia suomalaisia pankkeja, MobilePay, korttimaksut, Google Pay ja Apple Pay.' },
         { q: 'Milloin saan tilaukseni?', a: 'Myyjä sitoutuu lähettämään tuotteen 4 vuorokauden sisällä huutokaupan päättymisestä. Saat seurantakoodin heti kun myyjä on lähettänyt paketin.' },
         { q: 'Mitä jos tuote ei saavu tai on erilainen kuin kuvattu?', a: 'Ota yhteyttä asiakastukeen välittömästi. Tutkimme jokaisen tapauksen ja autamme ratkaisemaan tilanteen.' },
+        { q: 'Voinko vielä reklamoida sen jälkeen kun olen kuitannut tuotteen vastaanotetuksi?', a: 'Jos kuittaat tuotteen vastaanotetuksi itse aktiivisesti palvelussa, kuittaus on lopullinen — se tarkoittaa että olet tarkastanut tuotteen ja todennut sen kunnossa olevaksi, eikä 3 vuorokauden reklamaatio-oikeutta ole enää sen jälkeen. Jos sen sijaan maksu vapautuu myyjälle automaattisesti ilman että itse kuittaat vastaanottoa (24 tunnin tai 14 päivän aikaraja täyttyy), 3 vuorokauden reklamaatio-oikeus säilyy normaalisti.' },
       ],
     },
     {
@@ -65,6 +66,7 @@ const FAQ_DATA = {
         { q: 'How do I pay?', a: 'Payment is made through Paytrail — supporting all Finnish banks, MobilePay, card payments, Google Pay and Apple Pay.' },
         { q: 'When will I receive my order?', a: 'The seller commits to shipping within 4 days of the auction ending. You receive a tracking code as soon as the seller has shipped the package.' },
         { q: "What if the item doesn't arrive or differs from description?", a: 'Contact customer support immediately. We investigate each case and help resolve the situation.' },
+        { q: 'Can I still file a complaint after confirming I received the item?', a: "If you actively confirm receipt yourself in the service, that confirmation is final - it means you've checked the item and found it to be in order, so the 3-day complaint right no longer applies afterwards. If instead payment is released to the seller automatically without you confirming receipt yourself (the 24-hour or 14-day deadline is reached), the 3-day complaint right remains in effect as normal." },
       ],
     },
     {
@@ -105,6 +107,7 @@ const FAQ_DATA = {
         { q: 'Hur betalar jag?', a: 'Betalning sker via Paytrail — stöder alla finländska banker, MobilePay, kortbetalningar, Google Pay och Apple Pay.' },
         { q: 'När får jag min beställning?', a: 'Säljaren förbinder sig att skicka produkten inom 4 dygn efter att auktionen avslutats. Du får en spårningskod så snart säljaren har skickat paketet.' },
         { q: 'Vad händer om varan inte kommer fram eller skiljer sig från beskrivningen?', a: 'Kontakta kundtjänsten omedelbart. Vi utreder varje fall och hjälper till att lösa situationen.' },
+        { q: 'Kan jag fortfarande reklamera efter att jag har kvitterat att jag mottagit produkten?', a: 'Om du själv aktivt kvitterar mottagandet i tjänsten är kvitteringen slutgiltig — det innebär att du har kontrollerat produkten och funnit den vara i sin ordning, så reklamationsrätten på 3 dygn gäller inte längre efter det. Om betalningen istället frigörs till säljaren automatiskt utan att du själv kvitterar mottagandet (24-timmars- eller 14-dagarsgränsen uppnås), kvarstår reklamationsrätten på 3 dygn som vanligt.' },
       ],
     },
     {
