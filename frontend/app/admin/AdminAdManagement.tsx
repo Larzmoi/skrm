@@ -29,7 +29,9 @@ export default function AdminAdManagement() {
     if (!file) return
     const reader = new FileReader()
     reader.onload = async () => {
-      const resized = await resizeImage(reader.result as string, 400)
+      // Kuva täyttää nyt koko mainoslaatikon (ei enää pieni 56px kuvake, ks. CLAUDE.md) -
+      // 400px oli riittävä kuvakkeelle mutta venyisi rakeiseksi koko leveän bannerin taustalla.
+      const resized = await resizeImage(reader.result as string, 1600)
       update('imageUrl', resized)
     }
     reader.readAsDataURL(file)
@@ -97,9 +99,9 @@ export default function AdminAdManagement() {
           </div>
         </div>
         <div>
-          <label style={labelStyle}>Kuva (valinnainen — jos ei kuvaa, näytetään oletusikoni)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 12, background: C.surface, border: `1px solid ${C.border}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <label style={labelStyle}>Kuva (valinnainen — täyttää koko mainoslaatikon taustana, tumma liukuväri pitää tekstin luettavana päällä. Jos ei kuvaa, näytetään oletusikoni.)</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ width: 220, height: 90, borderRadius: 10, background: C.surface, border: `1px solid ${C.border}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {ad.imageUrl ? <img src={ad.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: C.dim }}>Ei kuvaa</span>}
             </div>
             <input type="file" accept="image/*" onChange={handleImage} style={{ fontSize: 13, color: C.text }} />

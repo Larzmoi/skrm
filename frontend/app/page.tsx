@@ -89,28 +89,50 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
   // <a>-tagina uuteen välilehteen, sisäinen polku (esim. "/huutokaupat") next/link:llä kuten ennen.
   const ctaContent = <>{ad.ctaText || t.home.adCta} →</>
   const ctaStyle = { whiteSpace: 'nowrap' as const, padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0, textDecoration: 'none' }
+  const hasImage = !!ad.imageUrl
+  // Kuva täyttää nyt KOKO laatikon (ei enää pieni 56px kuvake) - omistajan pyyntö 2026-09-07.
+  // Kuva on absoluuttisesti asemoitu tausta, tumma liukuväri (scrim) sen päällä pitää tekstin
+  // luettavana kuvan päällä väristä riippumatta, sisältö+CTA overlayna liukuvärin päällä.
+  // Laatikko myös korkeampi kuin ennen (minHeight) jotta kuva ehtii näkyä kunnolla.
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, padding: isMobile ? '40px 20px 20px' : '24px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 20, marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
-      <div style={{ position: 'absolute', top: 12, right: 16, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
+    <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, minHeight: isMobile ? 260 : 320, display: 'flex', marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
+      {hasImage && (
+        <img src={ad.imageUrl!} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      )}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: hasImage
+          ? (isMobile
+              ? 'linear-gradient(180deg, rgba(15,23,42,0.25) 0%, rgba(15,23,42,0.55) 45%, rgba(15,23,42,0.94) 100%)'
+              : 'linear-gradient(90deg, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.5) 45%, rgba(15,23,42,0.92) 100%)')
+          : 'none',
+      }} />
+      <div style={{ position: 'absolute', top: 14, right: 18, zIndex: 1, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
         {t.home.adLabel}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
-          {ad.imageUrl
-            ? <img src={ad.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
-          }
+      <div style={{
+        position: 'relative', zIndex: 1, width: '100%',
+        padding: isMobile ? '40px 20px 24px' : '28px 32px',
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {!hasImage && (
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+            </div>
+          )}
+          <div>
+            {ad.eyebrow && <div style={{ fontSize: 11, fontWeight: 700, color: hasImage ? '#fff' : C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{ad.eyebrow}</div>}
+            <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 18 : 24, color: '#fff', marginBottom: 5, textWrap: 'balance' as const }}>{ad.title}</div>
+            <p style={{ fontSize: 13, color: '#CBD5E1', margin: 0, maxWidth: 480 }}>{ad.body}</p>
+          </div>
         </div>
-        <div>
-          {ad.eyebrow && <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{ad.eyebrow}</div>}
-          <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 16 : 19, color: '#fff', marginBottom: 3 }}>{ad.title}</div>
-          <p style={{ fontSize: 12, color: '#CBD5E1', margin: 0 }}>{ad.body}</p>
-        </div>
+        {/^https?:\/\//i.test(href)
+          ? <a href={href} target="_blank" rel="noopener noreferrer" className="hb-btn" style={ctaStyle}>{ctaContent}</a>
+          : <Link href={href} className="hb-btn" style={ctaStyle}>{ctaContent}</Link>
+        }
       </div>
-      {/^https?:\/\//i.test(href)
-        ? <a href={href} target="_blank" rel="noopener noreferrer" className="hb-btn" style={ctaStyle}>{ctaContent}</a>
-        : <Link href={href} className="hb-btn" style={ctaStyle}>{ctaContent}</Link>
-      }
     </div>
   )
 }
