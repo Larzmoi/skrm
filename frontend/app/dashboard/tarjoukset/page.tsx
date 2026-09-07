@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import DashboardLayoutClient from '@/components/dashboard/DashboardLayoutClient'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { offerApi, Offer } from '@/lib/api'
@@ -71,8 +70,7 @@ export default function TarjouksetPage() {
   const list = tab === 'received' ? received : sent
 
   return (
-    <DashboardLayoutClient>
-      <div style={{ color: C.text }}>
+    <div style={{ color: C.text }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>{tp.title}</h1>
         <p style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>{tp.subtitle}</p>
 
@@ -143,6 +141,5 @@ export default function TarjouksetPage() {
           </div>
         )}
       </div>
-    </DashboardLayoutClient>
   )
 }
