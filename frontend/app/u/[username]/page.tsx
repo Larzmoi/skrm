@@ -113,7 +113,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 }
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
+                  {profile?.businessId && (
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>
+                      {t.product.businessSeller}
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize: 14, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
                 {profile?.bio && <p style={{ fontSize: 13, color: C.textSub, marginTop: 8, lineHeight: 1.5 }}>{profile.bio}</p>}
               </div>

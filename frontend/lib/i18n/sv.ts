@@ -154,6 +154,7 @@ const sv = {
     sellerProfile: 'Profil →', shippingInfo: 'Frakt & skydd',
     shipIn24: 'Säljaren åtar sig att leverera inom 4 dygn',
     vatIncluded: 'Priset inkluderar moms 25,5%',
+    businessSeller: 'Företagssäljare',
     binding: 'Alla köp är bindande — inga avbokningar',
     trackingCode: 'Spårningskod tillhandahålls för köparen',
     category: 'Kategori', seller: 'Säljare', description: 'Beskrivning',

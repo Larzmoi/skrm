@@ -290,6 +290,27 @@ Omistaja testasi laajasti mobiililla, kokosi seitsemän löydöstä yhteen erä�
 
 Vahvistettu koodista (`frontend/app/kayttoehdot/content.ts` rivi 146): "Myyjä voi aktivoida lomamoodin, jolloin lähetysaika pitenee **48 tunnista** 7 vuorokauteen" — perus-lähetysaika muutettiin aiemmin 48h:sta **4 vuorokauteen**, mutta tätä lomamoodin tekstiä ei päivitetty samalla. **Korjattu: "48 tunnista" → "4 vuorokaudesta"**, muu teksti ennallaan. Koko repo tarkistettu samalla haulla ("48 tunti"/"48h"/"48 hours"/"48 timmar") — ei muita osumia löytynyt. SV-versio ("förlängs från 4 dygn till 7 dygn") oli jo entuudestaan oikein, EN-versiolla ei ole erillistä lomamoodi-osiota (lyhennetty käännös, ei sisällä tätä kohtaa lainkaan).
 
+## Oikeudellinen analyysi 2026-09-05 (toinen AI, "Jarvis") — käyty läpi, päätökset tehty
+
+Toinen AI-assistentti kävi läpi käyttöehdot/tietosuojaseloste Suomen lain näkökulmasta. Ensimmäinen versio vertasi virheellisesti tavalliseen verkkokauppaan, korjattu kolmannella yrityksellä oikeaksi kirpputori-/keräilymarkkinapaikka-viitekehykseksi (C2C ~90%, B2C ~10% yritysmyyjät, Habahub itse aina B2C-suhteessa käyttäjiin).
+
+**✅ TEHTY JA DEPLOYATTU 2026-09-07 — yritysmyyjän status näkyville:**
+Lisätty selvä "Yritysmyyjä"-merkintä (uusi `t.product.businessSeller`-avain, fi/en/sv) kaikkialle missä myyjän tiedot näkyvät julkisesti, kun `User.businessId` on asetettu (ei-tyhjä). Sama kenttä kuin ALV-työssä, mutta eri, juridisesti erillinen tarkoitus (DSA art. 31 -läpinäkyvyys, ei hintatieto) — badge näytetään aina riippumatta ALV-merkinnästä. Toteutus: `backend/src/routes/users.ts`:n `GET /users/:username` (julkinen profiili) ei aiemmin valinnut `businessId`:tä ollenkaan — lisätty `select`iin (products.ts/auctions.ts sisälsivät sen jo ALV-työstä). Frontend: `ProductCard.tsx` (jaettu kortti — kattaa /selaa, /huutokaupat, etusivun kaikki listaukset automaattisesti, koska `sellerBusinessId`-propi oli jo kytketty joka kutsupaikkaan ALV-tekstiä varten), `tuotteet/[id]`- ja `huutokauppa/[id]`-sivujen myyjäkortti, sekä `/u/[username]`-julkisen profiilin otsikkorivi nimen vieressä. Ei koskettu mihinkään hinta-/checkout-logiikkaan, puhdas tekstillinen/visuaalinen lisäys.
+
+**✅ PÄÄTETTY, EI MUUTETA — live-huutokaupan peruutusoikeuspoikkeus (oli K2):** Omistaja hyväksyy tietoisen riskin: perustelu on että tuote esitellään livenä joka suunnasta, verrattavissa poliisin fyysiseen huutokauppaan (ei pääse tarkastamaan tuotetta yhtä läheltä kuin haluaisi, sama periaate). **Omistaja ottaa vastuun mahdollisista oikeudellisista seurauksista tietoisesti** — ei muuteta käyttöehtojen live-huutokauppapoikkeusta.
+
+**✅ PÄÄTETTY, EI MUUTETA — sisäinen valitusmekanismi tilin sulkemiselle (oli M3, DSA art. 17):** Omistaja päätti tietoisesti olla rakentamatta mitään valitus-/muutoksenhakuprosessia tilin sulkemiselle. **Tiedostettu compliance-aukko, hyväksytty riski, ei toimenpiteitä.**
+
+**✅ TEHTY JA DEPLOYATTU 2026-09-07 — evästesuostumus-maininta poistettu tietosuojaselosteesta (oli M4):** `frontend/app/tietosuoja/content.ts`:n kohta 9 (FI: "EVÄSTEET JA SEURANTA", SV: "KAKOR OCH SPÅRNING") sisälsi rivin "Palvelun kehittämiseen tilastotietojen avulla (analytiikka, suostumuksella)" — poistettu molemmista kieliversioista, korvattu selkeällä toteamuksella ettei analytiikka-/seurantaevästeitä käytetä ollenkaan. EN-versiossa ei ollut erillistä evästekohtaa lainkaan (lyhennetty käännös), ei vaatinut muutosta.
+
+**✅ TEHTY JA DEPLOYATTU 2026-09-07 — kaksi tekstikorjausta:**
+- **Resend Inc. GDPR-siirto:** `frontend/app/tietosuoja/content.ts`:n kohdan 5 (FI)/kohdan 5 (SV)/kohdan 5 (EN) Resend Inc. -riville lisätty siirtoperuste kaikissa kolmessa kieliversiossa — "tietojen siirto perustuu EU:n vakiosopimuslausekkeisiin, Standard Contractual Clauses, SCC" (fi/sv/en-vastineet).
+- **100€ vastuukatto kavennettu koskemaan vain C2C-riitojen välitystä.** `frontend/app/kayttoehdot/content.ts`:n kohta 9 (FI+SV+EN, "VASTUUNRAJOITUS"/"ANSVARSBEGRÄNSNING"/"LIMITATION OF LIABILITY") — lisätty eksplisiittinen lause että 100€/12kk-katto koskee HABAHUB:n roolia riitojen välittäjänä (Myyjä↔Ostaja-kaupankäynnin riskit: tuotteen laatu, toimitusviive, kolmansien osapuolten palvelut), EI rajoita HABAHUB:n omaa vastuuta Palvelun tarjoajana omista virheistään (esim. maksuturvan virheellinen käsittely, perusteeton tilin sulkeminen) — nämä jäävät nyt tavanomaisten vastuusääntöjen piiriin ilman kattoa. Kohta 8.2:n (riidan sovittelu, katto = välityspalkkio) kanssa ei ristiriitaa, kaksi eri kattoa eri tilanteille pysyvät ennallaan.
+
+**Ei koskettu (kuten pyydetty):** live-huutokaupan peruutusoikeuspoikkeus, sisäinen valitusmekanismi tilin sulkemiselle — molemmat pysyvät yllä kuvatussa, tietoisesti hyväksytyssä tilassa.
+
+**⬜ Ei vielä päätetty, jätetty auki:** K2:n taustalla oleva EU-komission tulkintaohje "julkinen huutokauppa"-poikkeuksesta — en pysty itse vahvistamaan tätä ilman web-hakua/oikeaa juristia, mutta omistaja on jo päättänyt olla muuttamatta mitään, joten tämä ei vaadi jatkotoimia ellei omistaja myöhemmin toisin päätä.
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**

@@ -90,6 +90,11 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {sellerUsername && <div style={{ fontSize: 11, color: C.muted }}>@{sellerUsername}</div>}
+          {sellerBusinessId && (
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 2, display: 'inline-block' }}>
+              {t.product.businessSeller}
+            </div>
+          )}
           {city && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{city}</div>}
         </div>
       </div>

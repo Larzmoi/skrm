@@ -90,7 +90,7 @@ Emme myy henkilötietojasi kolmansille osapuolille.
 Voimme luovuttaa henkilötietoja:
 
 - Paytrail Oyj: maksujen käsittely
-- Resend Inc.: sähköpostiviestintä
+- Resend Inc.: sähköpostiviestintä (yhdysvaltalainen palveluntarjoaja — tietojen siirto perustuu EU:n vakiosopimuslausekkeisiin, Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: palvelininfrastruktuuri
 - Viranomaiset: lain edellyttämissä tapauksissa tai rikosepäilyissä
 
@@ -134,9 +134,8 @@ Habahub ei tee automaattisia päätöksiä, joilla olisi merkittäviä oikeudell
 Habahub käyttää evästeitä:
 - Kirjautumistilan ylläpitämiseen (välttämätön)
 - Kielivalinnan ja asetusten muistamiseen (toiminnallinen)
-- Palvelun kehittämiseen tilastotietojen avulla (analytiikka, suostumuksella)
 
-Emme käytä kolmannen osapuolen mainosevästeitä.
+Emme käytä analytiikka- tai seurantaevästeitä emmekä kolmannen osapuolen mainosevästeitä.
 
 10. TIETOTURVA
 
@@ -263,7 +262,7 @@ Vi säljer inte dina personuppgifter till tredje part.
 Vi kan lämna ut personuppgifter till:
 
 - Paytrail Oyj: betalningshantering
-- Resend Inc.: e-postkommunikation
+- Resend Inc.: e-postkommunikation (amerikansk tjänsteleverantör — dataöverföringen grundar sig på EU:s standardavtalsklausuler, Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: serverinfrastruktur
 - Myndigheter: i fall som lagen kräver eller vid misstanke om brott
 
@@ -307,9 +306,8 @@ Habahub fattar inga automatiserade beslut som har betydande rättsliga effekter 
 Habahub använder kakor (cookies) för att:
 - Upprätthålla inloggningsstatus (nödvändigt)
 - Komma ihåg språkval och inställningar (funktionellt)
-- Utveckla tjänsten med hjälp av statistik (analys, med samtycke)
 
-Vi använder inte tredjeparts reklamkakor.
+Vi använder inga analys- eller spårningskakor och inga tredjeparts reklamkakor.
 
 10. DATASÄKERHET
 
@@ -427,7 +425,7 @@ We do not sell your personal data to third parties.
 
 We may share personal data with:
 - Paytrail Oyj: payment processing
-- Resend Inc.: email communications
+- Resend Inc.: email communications (a US-based provider — data transfer is based on the EU Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: server infrastructure
 - Authorities: as required by law or in cases of suspected crime
 

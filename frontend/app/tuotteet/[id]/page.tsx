@@ -357,6 +357,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>@{product.seller.username}</div>
                   <div style={{ fontSize: 12, color: C.muted }}>{product.seller.name}</div>
+                  {product.seller.businessId && (
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textSub, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 3, display: 'inline-block' }}>
+                      {t.product.businessSeller}
+                    </div>
+                  )}
                 </div>
                 <span style={{ fontSize: 13, color: C.accent }}>{t.product.sellerProfile}</span>
               </Link>

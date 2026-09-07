@@ -53,7 +53,7 @@ function getOptionalUserId(req: Request): string | null {
 router.get('/:username', async (req, res) => {
   const user = await prisma.user.findFirst({
     where: { username: decodeURIComponent(String(req.params.username)) },
-    select: { id: true, name: true, username: true, avatarUrl: true, bio: true, createdAt: true, vacationUntil: true, vacationMessage: true },
+    select: { id: true, name: true, username: true, avatarUrl: true, bio: true, createdAt: true, vacationUntil: true, vacationMessage: true, businessId: true }, // businessId: "Yritysmyyjä"-merkintä, ks. CLAUDE.md "Oikeudellinen analyysi 2026-09-05" (DSA art. 31)
   })
   if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
 

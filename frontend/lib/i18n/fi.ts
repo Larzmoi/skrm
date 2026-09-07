@@ -157,6 +157,11 @@ const fi = {
     // (voimassa 1.9.2024 alkaen) - näytetään VAIN yritysmyyjille (User.businessId asetettu),
     // ks. CLAUDE.md "ALV yritysmyyjille". Puhdas tekstimerkintä, ei vaikuta hintalaskentaan.
     vatIncluded: 'Hinta sisältää alv 25,5%',
+    // "Yritysmyyjä"-merkintä (DSA art. 31, markkinapaikan pitää näyttää onko myyjä yksityinen
+    // vai elinkeinonharjoittaja) - ks. CLAUDE.md "Oikeudellinen analyysi 2026-09-05". Näytetään
+    // aina kun User.businessId on asetettu, riippumatta ALV-merkinnästä (eri tarkoitus samasta
+    // kentästä: tämä on juridinen läpinäkyvyysvaatimus, vatIncluded on hintatieto).
+    businessSeller: 'Yritysmyyjä',
     binding: 'Kaikki kaupat sitovia — ei peruutuksia',
     trackingCode: 'Seurantakoodi toimitetaan ostajalle',
     category: 'Kategoria', seller: 'Myyjä', description: 'Kuvaus',

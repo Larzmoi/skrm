@@ -126,7 +126,7 @@ HABAHUB ei vastaa:
 - Palvelun tilapäisistä käyttökatkoista tai teknisistä häiriöistä
 - Kolmansien osapuolten palveluiden (maksupalvelu, videopalvelu jne.) toiminnasta
 
-HABAHUB:n kokonaisvastuu Käyttäjää kohtaan rajoittuu aina enintään siihen summaan, jonka Käyttäjä on maksanut HABAHUB:lle viimeisen 12 kuukauden aikana, kuitenkin enintään 100 euroon.
+HABAHUB:n vastuu tässä kohdassa 9 kuvatuista, Myyjän ja Ostajan välisen kaupankäynnin riskeistä (esim. tuotteen laatu, toimitusviive, kolmansien osapuolten palvelut) rajoittuu aina enintään siihen summaan, jonka Käyttäjä on maksanut HABAHUB:lle viimeisen 12 kuukauden aikana, kuitenkin enintään 100 euroon. Tämä rajoitus koskee HABAHUB:n roolia Käyttäjien välisten riitojen välittäjänä eikä rajoita HABAHUB:n vastuuta sen omista virheistä Palvelun tarjoajana (esim. maksuturvan virheellinen käsittely tai perusteeton tilin sulkeminen).
 
 10. SISÄLTÖ JA IMMATERIAALIOIKEUDET
 
@@ -296,7 +296,7 @@ HABAHUB ansvarar inte för:
 - Tillfälliga driftsavbrott eller tekniska störningar i Tjänsten
 - Tredjepartstjänsters (betaltjänst, videotjänst osv.) funktion
 
-HABAHUBs totala ansvar gentemot en Användare är alltid begränsat till högst det belopp som Användaren har betalat till HABAHUB under de senaste 12 månaderna, dock högst 100 euro.
+HABAHUBs ansvar för de risker som beskrivs i detta avsnitt 9 gällande handeln mellan Säljare och Köpare (t.ex. produktens kvalitet, leveransförseningar, tredjepartstjänster) är alltid begränsat till högst det belopp som Användaren har betalat till HABAHUB under de senaste 12 månaderna, dock högst 100 euro. Denna begränsning gäller HABAHUBs roll som förmedlare av tvister mellan Användare och begränsar inte HABAHUBs ansvar för sina egna fel som tjänsteleverantör (t.ex. felaktig hantering av köparskyddet eller en obefogad avstängning av ett konto).
 
 10. INNEHÅLL OCH IMMATERIELLA RÄTTIGHETER
 
@@ -439,7 +439,7 @@ Disputes are primarily between the Buyer and Seller. HABAHUB may act as a mediat
 
 9. LIMITATION OF LIABILITY
 
-HABAHUB is not liable for product quality, delivery failures, indirect damages, service interruptions, or third-party service failures. HABAHUB's total liability is limited to €100 or the amount paid by the User to HABAHUB in the past 12 months, whichever is less.
+HABAHUB is not liable for product quality, delivery failures, indirect damages, service interruptions, or third-party service failures. For these Buyer/Seller trading risks, HABAHUB's total liability is limited to €100 or the amount paid by the User to HABAHUB in the past 12 months, whichever is less. This cap applies to HABAHUB's role mediating disputes between Users and does not limit HABAHUB's liability for its own errors as the Service provider (e.g. a payment-protection mistake or an unjustified account suspension).
 
 10. GOVERNING LAW
 
