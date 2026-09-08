@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import * as dotenv from 'dotenv'
@@ -30,12 +30,16 @@ import { checkExpiredOffers } from './jobs/expireOffers'
 dotenv.config()
 
 const app = express()
-// Tuotannossa Cloudflare -> nginx (localhost proxy_pass) -> tämä sovellus. Ilman tätä
-// req.ip olisi AINA nginxin oma osoite (127.0.0.1) jokaisella pyynnöllä, jolloin alla oleva
-// rate limiting laskisi KAIKKI käyttäjät yhteen ainoaan "IP:hen" - yksi ainoa ämpäri koko
-// sivustolle 100 pyynnön/15min sisällä riippumatta kuinka moni oikea kävijä sivustolla on.
-// "1" = luota täsmälleen yhteen väliin jäävään proxyyn (nginx), jolloin req.ip resolvoituu
-// nginxin X-Forwarded-For-otsikon oikeasta, alkuperäisestä asiakas-IP:stä.
+// Tuotannossa Cloudflare -> nginx (localhost proxy_pass) -> tämä sovellus - kaksi väliin
+// jäävää hyppyä, ei yksi. "1" pitää silti asettaa jotta Express-ominaisuudet jotka
+// luottavat req.ip:hen/req.secureen toimivat järkevästi nginxin takana yleisesti.
+// EI kuitenkaan riitä alla olevan rate limitingin IP-tunnistukseen sellaisenaan - testattu
+// suoraan tuotannossa 2026-09-08: trust proxy=1 palautti req.ip:ksi Cloudflaren OMAN,
+// pyynnöstä toiseen VAIHTUVAN reunapalvelimen osoitteen (X-Forwarded-For-ketjun toiseksi
+// oikeanpuoleisin merkintä), ei koskaan samaa kävijän oikeaa IP:tä kahdesti - rate limiter
+// ei koskaan täyttynyt yhdenkään yksittäisen kävijän kohdalla riippumatta pyyntömäärästä.
+// Korjaus alla: rate limiterit käyttävät Cloudflaren omaa, asiakkaan väärentämätöntä
+// CF-Connecting-IP-otsikkoa suoraan sen sijaan että laskisivat proxy-hyppyjä XFF:stä.
 app.set('trust proxy', 1)
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
@@ -64,11 +68,24 @@ app.use(express.json({ limit: '10mb' }))
 // API:a vaikka polut eivät ala /api:lla täällä) + tiukempi raja login/register/forgot-
 // password-reiteille erikseen, koska 100/15min yksin sallisi silti kymmeniä/satoja
 // bruteforce-yrityksiä ennen rajoittumista.
+//
+// Molemmat käyttävät samaa keyGeneratoria: Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei
+// voi väärentää sitä - Cloudflare kirjoittaa sen aina itse yhteyden perusteella), req.ip
+// vain varapolkuna niille harvoille pyynnöille jotka eivät kulje Cloudflaren kautta (esim.
+// palvelimen omat sisäiset kutsut). Katso yllä oleva kommentti miksi pelkkä trust proxy
+// -hyppylaskenta EI riittänyt tässä pino ssa. ipKeyGenerator normalisoi IPv6-osoitteet
+// /56-aliverkkoon niin ettei sama kävijä pääse kiertämään rajaa vaihtamalla IPv6-osoitetta.
+function clientKey(req: import('express').Request): string {
+  const cf = req.headers['cf-connecting-ip']
+  const ip = (typeof cf === 'string' && cf) ? cf : (req.ip ?? req.socket.remoteAddress ?? 'unknown')
+  return ipKeyGenerator(ip)
+}
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: clientKey,
   message: { error: 'Liian monta pyyntöä, yritä myöhemmin uudelleen' },
 })
 const authLimiter = rateLimit({
@@ -76,6 +93,7 @@ const authLimiter = rateLimit({
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: clientKey,
   message: { error: 'Liian monta yritystä, yritä myöhemmin uudelleen' },
 })
 app.use(globalLimiter)
