@@ -7,6 +7,12 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Admin voi poistaa suoraan ilman ilmiantoa 2026-09-08 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja halusi että admin-oikeuksilla voi poistaa toisten käyttäjien tuotteita/livejä suoraan sivulta, ilman että pitää ensin itse ilmiantaa sisältö saadakseen poistonapin näkyviin (aiempi Ilmiannot-välilehden kautta kulkeva virtaus vaati tämän välivaiheen). `DELETE /admin/products/:id` ja `DELETE /admin/shows/:id` olivat jo olemassa ja jo admin-suojattuja (koko `/admin`-router vaatii `authMiddleware`+`adminMiddleware`) — ne eivät koskaan oikeasti riippuneet ilmiannosta, ainoastaan admin-paneelin UI ei tarjonnut mitään muuta reittiä niihin.
+
+**Toteutus:** uusi `frontend/components/AdminDeleteModal.tsx` (mukailee `ReportModal.tsx`:n rakennetta, käyttää samoja olemassa olevia `t.admin.removeListing`/`removeReasonLabel`/`removeReasonPlaceholder`/`confirmRemove`/`cancel`-käännösavaimia joita Ilmiannot-välilehti jo käytti) — pieni punainen "Poista (admin)" -nappi (`t.admin.adminDeleteTrigger`, uusi avain fi/en/sv) "Ilmianna"-napin vieressä, näkyy vain kun `user?.role === 'ADMIN'`. Lisätty kolmelle sivulle joilla "Ilmianna" jo oli: `tuotteet/[id]`, `huutokauppa/[id]`, ja `live/[showId]` (sekä mobiili- että desktop-näkymä, kaksi erillistä renderöintikohtaa). Poiston jälkeen ohjataan pois sivulta jota ei enää ole (`/selaa`, `/huutokaupat` tai `/live-kaikki`), sama myyjälle-ilmoitus-mekanismi (`LISTING_REMOVED`) toimii ennallaan koska käyttää samaa backend-reittiä.
+
 ## "Tietokanta katosi" 2026-09-08 — ✅ EI TIETOKANTAONGELMA, oma rate limiting oli liian tiukka
 
 Omistaja raportoi hätääntyneenä: habahub.com:lla kaikki tuotteet ja käyttäjät katosivat yhtäkkiä, toisella selaimella näkyi taas normaalisti. **Tutkittu heti suoraan tuotannosta ennen mihinkään johtopäätökseen hyppäämistä:** PostgreSQL käynnissä, `skrm`-kanta olemassa, `SELECT count(*)` palautti oikean määrän (8 käyttäjää, 42 tuotetta, 7 tilausta) — data oli koko ajan täysin ehjä, ei minkäänlaista datan menetystä.
