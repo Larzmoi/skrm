@@ -317,6 +317,51 @@ Lisätty selvä "Yritysmyyjä"-merkintä (uusi `t.product.businessSeller`-avain,
 
 **⬜ Ei vielä päätetty, jätetty auki:** K2:n taustalla oleva EU-komission tulkintaohje "julkinen huutokauppa"-poikkeuksesta — en pysty itse vahvistamaan tätä ilman web-hakua/oikeaa juristia, mutta omistaja on jo päättänyt olla muuttamatta mitään, joten tämä ei vaadi jatkotoimia ellei omistaja myöhemmin toisin päätä.
 
+## Koko sivusto vaatii kirjautumisen — pitäisi olla julkinen selattava 2026-09-07 — ✅ TEHTY JA DEPLOYATTU 2026-09-08
+
+**Toteutettu täsmälleen alla kuvatun suunnitelman mukaisesti.** `frontend/proxy.ts`: `PUBLIC_PATHS`-allowlist käännetty `PROTECTED_PATHS`-denylistaksi — kaikki muu on nyt julkista oletuksena, vain `/dashboard`, `/kori`, `/checkout`, `/ostot`, `/myynnit`, `/tarjoukset`, `/viestit`, `/admin`, `/profiili/muokkaa` vaativat `habahub_token`-evästeen (muuten 307-uudelleenohjaus `/login`:iin `redirect`-parametrilla). Julkinen `/u/[username]`-profiilinäkymä pysyi tarkoituksella listan ulkopuolella.
+
+**Testattu tuotannossa curlilla anonyyminä kävijänä (ei evästettä, vastaa incognito-tilaa):** `/`, `/selaa`, `/huutokaupat`, `/faq`, `/meista`, `/valityspalkkiot`, `/kayttoehdot`, `/tietosuoja`, `/u/testiuser`, `/tuotteet/...` → kaikki `200`. `/dashboard`, `/kori`, `/ostot`, `/viestit`, `/admin`, `/dashboard/tarjoukset` → kaikki `307` → `/login?redirect=...` oikealla, encodetulla kohdepolulla.
+
+**Skannaustyökalua varten generoitu 2026-09-08 kertakäyttöinen JWT testiuserille** (`testi@testi.com`, `userId` haettu suoraan tuotantokannasta) — kertakäyttöinen Node-skripti `backend/`-hakemiston SISÄLLÄ (jotta `require('dotenv')`/`jsonwebtoken`/`@prisma/client` resolvoituvat oikein projektin `node_modules`:sta), täsmälleen sama `jwt.sign({userId}, JWT_SECRET, {expiresIn:'30d'})`-muoto kuin `auth.ts`:n oikea kirjautuminen käyttää, skripti poistettu heti ajon jälkeen. Vahvistettu toimivaksi kahdella tavalla ennen luovutusta: `Authorization: Bearer <token>` palautti oikean, todellisen datan `GET /notifications`:sta (14 riviä, kaikki `userId` täsmää testiuseriin); `Cookie: habahub_token=<token>` palautti `200`:n `https://habahub.com/dashboard`:sta (ei uudelleenohjausta loginiin). Raaka token annettu omistajalle erikseen (ei tallenneta tähän tiedostoon, sama käytäntö kuin muidenkin salaisuuksien kanssa) — omistaja syöttää sen skannaustyökaluun joko cookie- tai Authorization-otsikkona kuten yllä alun perin suunniteltiin.
+
+**✅ TARKENNUS 2026-09-07: kaksi lisärajoitusta skannaukseen.**
+1. **`/admin`-paneelia EI skannata** — vain omistajalla on sinne tunnus, ei osa tätä skannauskierrosta, pysyy `PROTECTED_PATHS`-listalla mutta jätetään testin ulkopuolelle tarkoituksella.
+2. **Skannaustyökalut todennäköisesti eivät osaa simuloida interaktiivista kirjautumislomaketta.** Ratkaisu: älä pyydä työkalua kirjautumaan — **generoi testitilille valmis JWT-tunniste käsin kertaalleen** (kertakäyttöinen skripti palvelimella, käyttää samaa `JWT_SECRET`-arvoa ja `jsonwebtoken`-kirjastoa kuin `auth.ts`, allekirjoittaa tokenin testiuserin `userId`:llä — sama tapa kuin oikea kirjautuminen tuottaisi, ei mitään erillistä ohitusta koodiin). Anna tuloksena saatu raaka JWT-merkkijono skannaustyökalulle asetettavaksi joko:
+   - Cookie-otsikkona: `habahub_token=<token>` (avaa proxy.ts:n suojaamat sivut)
+   - Authorization-otsikkona: `Bearer <token>` (avaa suoraan API-reitit)
+   
+   **Ei vaadi mitään muutosta itse kirjautumislogiikkaan tai koodiin** — pelkkä kertaluontoinen tunnisteen generointi palvelimella, ei jätä mitään pysyvää ohitusta/reikää tuotantoon.
+
+**✅ VAHVISTETTU OMISTAJALTA: tämä oli tarkoituksellinen, jäi päälle kehitysvaiheesta.** Vahvistettu koodista (`frontend/proxy.ts`): `PUBLIC_PATHS`-lista sisältää vain `/login, /register, /kayttoehdot, /tietosuoja, /unohtuiko-salasana, /nollaa-salasana` — kirjaimellisesti kaikki muu vaatii kirjautumisen, mukaan lukien etusivu, Selaa, Huutokaupat, Live, tuotesivut, FAQ, Meistä, Välityspalkkiot.
+
+**✅ PÄÄTETTY JA LUPA ANNETTU 2026-09-07: käännä logiikka toisinpäin — oletuksena julkinen, lukitse vain erikseen ne jotka oikeasti vaativat identiteetin.**
+
+**Uusi malli: `PROTECTED_PATHS`-lista** — kaikki muu on oletuksena julkista:
+- Lukittavat: `/dashboard`, `/kori`, `/checkout`, `/ostot`, `/myynnit`, `/tarjoukset`, `/viestit`, `/admin`, `/profiili/muokkaa` (tai vastaava muokkaus-alapolku, EI itse julkinen `/u/[username]`-profiilinäkymä)
+- Julkiset (kaikki muu automaattisesti): etusivu, Selaa, Huutokaupat, Live-katselu, yksittäiset tuotesivut, FAQ, Meistä, Välityspalkkiot, käyttöehdot, tietosuoja, julkinen käyttäjäprofiili
+
+**✅ LISÄTTY 2026-09-07: turvallisuusskannaus tarvitsee myös kirjautuneen näkymän, ei vain julkisen.** Skannaustyökalut jotka toimivat vain kirjautumattomana näkevät vain puolet riskeistä — moni oikea tietoturva-aukko (esim. pääseekö tavallinen käyttäjä käsiksi toisen käyttäjän tietoihin ID:tä vaihtamalla, pääseekö admin-reiteille ilman admin-roolia) näkyy vasta kirjautuneena skannattuna. **Olemassa oleva testitunnus käytettäväksi skannaukseen:** `testi@testi.com` / `testi12345` (username: `testiuser`) — anna nämä tunnukset skannaustyökalulle jotta se pääsee kirjautumaan sisään ja skannaamaan koko autentikoidun kokemuksen (dashboard, profiili, tuotteiden hallinta, jne.), ei vain julkista puolta.
+
+## Tarjoukset-sivu renderöityy kahteen kertaan 2026-09-07 — ✅ TEHTY JA DEPLOYATTU
+
+`frontend/app/dashboard/tarjoukset/page.tsx`:n oma `DashboardLayoutClient`-importti ja -käärintä poistettu, sisältö palautetaan nyt suoraan kuten muutkin dashboard-alasivut (esim. `tuotteet/page.tsx`) — `dashboard/layout.tsx` hoitaa kääreen jo automaattisesti kaikille `/dashboard`-alasivuille.
+
+## Rate limiting puuttuu kokonaan — 64 CodeQL-varoitusta 2026-09-07 — ✅ TEHTY JA DEPLOYATTU 2026-09-08, YKSI KRIITTINEN LISÄLÖYDÖS MATKAN VARRELLA
+
+**Toteutettu suunnitelman mukaisesti, `backend/src/index.ts`:** `express-rate-limit` asennettu, kaksi tasoa — yleinen `globalLimiter` (100/15min per kävijä) sovellettu kaikkeen (`app.use(globalLimiter)`, koskee koko `/api/`-pintaa koska nginx poistaa etuliitteen ennen tätä sovellusta), ja tiukempi `authLimiter` (8/15min, jaettu ämpäri kaikille kolmelle reitille yhdessä) `/auth/login`, `/auth/register`, `/auth/forgot-password` -reiteille erikseen ennen `authRouter`-mounttia.
+
+**⚠️ KRIITTINEN LÖYDÖS testauksen aikana — pelkkä `trust proxy` -numero EI riittänyt tässä pinossa, vahvistettu suoraan tuotannosta.** Ensimmäinen versio (`app.set('trust proxy', 1)`, `express-rate-limit`:n oma oletus-`keyGenerator` joka käyttää `req.ip`:tä) läpäisi typecheckin/buildin mutta EI TOIMINUT: 10 peräkkäistä epäonnistunutta `/auth/login`-yritystä (raja 8) ei koskaan palauttanut `429`:ää. Diagnosoitu lisäämällä kertakäyttöinen `/debug-ip`-reitti suoraan tuotannon `dist/index.js`:ään (poistettu heti diagnoosin jälkeen, ei koskaan committoitu) — paljasti että `req.ip` resolvoitui **Cloudflaren omaksi, pyynnöstä toiseen VAIHTUVAKSI reunapalvelimen IP:ksi** (`X-Forwarded-For`-ketjun toiseksi oikeanpuoleisin merkintä, koska pino on Cloudflare → nginx → Express eli KAKSI väliin jäävää hyppyä, ei yksi kuten `trust proxy: 1` oletti), ei koskaan kävijän todelliseen, pysyvään IP:hen — jokainen pyyntö näytti siis rate limiterille "uudelta kävijältä", ämpäri ei koskaan täyttynyt kenellekään oikealle kävijälle riippumatta pyyntömäärästä.
+
+**Korjaus:** molemmat limiterit käyttävät nyt yhteistä `clientKey()`-funktiota joka lukee Cloudflaren **`CF-Connecting-IP`**-otsikon suoraan (Cloudflare kirjoittaa tämän aina itse todellisen TCP-yhteyden perusteella — asiakas ei voi väärentää sitä toisin kuin `X-Forwarded-For`:ia, jota Cloudflare vain täydentää olemassa olevan arvon perään), `req.ip` vain varapolkuna pyynnöille jotka eivät kulje Cloudflaren kautta. `express-rate-limit`:n oma `ipKeyGenerator`-apufunktio normalisoi IPv6-osoitteet `/56`-aliverkkoon ettei sama kävijä pääse kiertämään rajaa vaihtamalla IPv6-osoitetta saman aliverkon sisällä. `trust proxy: 1` jätetty päälle yleisenä hyvänä käytäntönä (vaikuttaa muihin Express-ominaisuuksiin kuten `req.secure`), mutta rate limiting ei enää riipu siitä.
+
+**Testattu uudelleen tuotannossa deployn jälkeen, molemmat vahvistettu oikeiksi:**
+- `/auth/login`: 8 ensimmäistä yritystä `401` (väärä salasana), 9. yritys `429 {"error":"Liian monta yritystä, yritä myöhemmin uudelleen"}`. `/auth/register` samalta IP:ltä palautti heti `429`:n — vahvistaa että kolme auth-reittiä jakavat saman IP-kohtaisen ämpärin (tarkoituksellista, estää kiertämisen vaihtamalla reittiä).
+- Globaali raja: 93. pyyntö `/health`:iin (10 aiemman auth-testipyynnön jälkeen, sama IP) palautti `429 {"error":"Liian monta pyyntöä, yritä myöhemmin uudelleen"}` — täsmää 100/15min-asetukseen.
+- Eri IP/reitti (esim. suora `localhost:4000`-kutsu palvelimelta) ei kärsinyt ulkoisen testi-IP:n rajoituksesta — vahvistaa ettei rate limiting ole enää yksi jaettu ämpäri kaikille kävijöille.
+
+Vanha `security_report.md` (2026-08-25, vanhentunut skrm.fi-domain-viittauksin) ei mainitse rate limitingiä erikseen — tämä on uusi, itsenäinen löydös CodeQL:stä.
+
 ## 📋 MITÄ ON VIELÄ TEKEMÄTTÄ (päivitetty 2026-09-02) — katso tästä ensin ennen kuin etsit muualta
 
 **Odottaa omistajan toimintaa (ei koodia):**
