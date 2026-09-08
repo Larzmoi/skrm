@@ -82,9 +82,15 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Nimi vaaditaan' });
     // Striimausoikeus on admin-myönnettävä (ks. CLAUDE.md/INTEGRATION.md 2026-09-02,
     // User.canStream) - frontendin kytkin ei itsessään estä mitään, tämä backend-tarkistus on
-    // se mikä oikeasti rajoittaa pääsyn.
-    const streamer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { canStream: true } });
-    if (!streamer?.canStream) {
+    // se mikä oikeasti rajoittaa pääsyn. Lisätty 2026-09-08: streamaaminen vaatii NYT myös
+    // vahvistetun (Signicat-varmennetun, tilapäisesti admin myöntää käsin) käyttäjätilin -
+    // sama User.verified-lippu joka gatettaa tuotteen listaamisen (ks. products.ts
+    // requireVerifiedSeller). Molemmat ehdot tarkistetaan erikseen selkeän virheviestin vuoksi.
+    const streamer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { canStream: true, verified: true } });
+    if (!streamer?.verified) {
+        return res.status(403).json({ error: 'Striimaaminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' });
+    }
+    if (!streamer.canStream) {
         return res.status(403).json({ error: 'Striimausoikeutta ei ole vielä myönnetty' });
     }
     // Varmistaa että myyjän Ingress on olemassa (lazy-luonti) vaikka ei suoraan tarvita tässä.

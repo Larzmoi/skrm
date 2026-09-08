@@ -152,7 +152,18 @@ router.post('/:id/prebid', auth_1.authMiddleware, async (req, res) => {
     res.json(updated);
 });
 // POST /products
+// Myyminen vaatii vahvistetun (Signicat-varmennetun, ks. CLAUDE.md "Signicat") käyttäjätilin -
+// tilapäisesti admin myöntää User.verified-lipun käsin ennen kuin oikea Signicat-integraatio
+// on rakennettu, ks. CLAUDE.md "Vahvistettu käyttäjä -merkintä". Sama tarkistus sekä
+// yksittäis- että bulkkiluonnissa, koska molemmat ovat "myyminen aloittaa"-hetkiä.
+async function requireVerifiedSeller(userId) {
+    const seller = await prisma_1.prisma.user.findUnique({ where: { id: userId }, select: { verified: true } });
+    return !!seller?.verified;
+}
 router.post('/', auth_1.authMiddleware, async (req, res) => {
+    if (!(await requireVerifiedSeller(req.userId))) {
+        return res.status(403).json({ error: 'Myyminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' });
+    }
     const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, reverseHolo, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body;
     if (!name || !startPrice)
         return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' });
@@ -210,6 +221,9 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
 // jokaista yksitellen — myyjä valitsee kerralla ennen tallennusta, muokkaus onnistuu silti
 // jälkikäteen per tuote jos yksittäinen rivi pitää vaihtaa myöhemmin.
 router.post('/bulk', auth_1.authMiddleware, async (req, res) => {
+    if (!(await requireVerifiedSeller(req.userId))) {
+        return res.status(403).json({ error: 'Myyminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' });
+    }
     const { products, category, alakategoria, tyyppi, saleType } = req.body;
     if (!Array.isArray(products) || products.length === 0) {
         return res.status(400).json({ error: 'Tuotteita ei annettu' });
