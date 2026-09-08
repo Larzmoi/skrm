@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const dotenv = __importStar(require("dotenv"));
@@ -65,6 +66,13 @@ const closeAuctions_1 = require("./jobs/closeAuctions");
 const expireOffers_1 = require("./jobs/expireOffers");
 dotenv.config();
 const app = (0, express_1.default)();
+// Tuotannossa Cloudflare -> nginx (localhost proxy_pass) -> tämä sovellus. Ilman tätä
+// req.ip olisi AINA nginxin oma osoite (127.0.0.1) jokaisella pyynnöllä, jolloin alla oleva
+// rate limiting laskisi KAIKKI käyttäjät yhteen ainoaan "IP:hen" - yksi ainoa ämpäri koko
+// sivustolle 100 pyynnön/15min sisällä riippumatta kuinka moni oikea kävijä sivustolla on.
+// "1" = luota täsmälleen yhteen väliin jäävään proxyyn (nginx), jolloin req.ip resolvoituu
+// nginxin X-Forwarded-For-otsikon oikeasta, alkuperäisestä asiakas-IP:stä.
+app.set('trust proxy', 1);
 const httpServer = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(httpServer, {
     cors: { origin: true, credentials: true }, // salli kaikki originit kehityksessä
@@ -84,6 +92,30 @@ app.use((0, cors_1.default)({
     credentials: true
 }));
 app.use(express_1.default.json({ limit: '10mb' }));
+// Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
+// (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle
+// (nginx poistaa /api/-etuliitteen ennen tätä sovellusta, joten tämä KOSKEE koko julkista
+// API:a vaikka polut eivät ala /api:lla täällä) + tiukempi raja login/register/forgot-
+// password-reiteille erikseen, koska 100/15min yksin sallisi silti kymmeniä/satoja
+// bruteforce-yrityksiä ennen rajoittumista.
+const globalLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Liian monta pyyntöä, yritä myöhemmin uudelleen' },
+});
+const authLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Liian monta yritystä, yritä myöhemmin uudelleen' },
+});
+app.use(globalLimiter);
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
+app.use('/auth/forgot-password', authLimiter);
 app.use('/auth', auth_1.default);
 app.use('/products', products_1.default);
 app.use('/shows', shows_1.default);

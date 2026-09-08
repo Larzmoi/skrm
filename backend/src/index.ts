@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import * as dotenv from 'dotenv'
@@ -29,6 +30,13 @@ import { checkExpiredOffers } from './jobs/expireOffers'
 dotenv.config()
 
 const app = express()
+// Tuotannossa Cloudflare -> nginx (localhost proxy_pass) -> tämä sovellus. Ilman tätä
+// req.ip olisi AINA nginxin oma osoite (127.0.0.1) jokaisella pyynnöllä, jolloin alla oleva
+// rate limiting laskisi KAIKKI käyttäjät yhteen ainoaan "IP:hen" - yksi ainoa ämpäri koko
+// sivustolle 100 pyynnön/15min sisällä riippumatta kuinka moni oikea kävijä sivustolla on.
+// "1" = luota täsmälleen yhteen väliin jäävään proxyyn (nginx), jolloin req.ip resolvoituu
+// nginxin X-Forwarded-For-otsikon oikeasta, alkuperäisestä asiakas-IP:stä.
+app.set('trust proxy', 1)
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: { origin: true, credentials: true }, // salli kaikki originit kehityksessä
@@ -49,6 +57,31 @@ app.use(cors({
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
+
+// Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
+// (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle
+// (nginx poistaa /api/-etuliitteen ennen tätä sovellusta, joten tämä KOSKEE koko julkista
+// API:a vaikka polut eivät ala /api:lla täällä) + tiukempi raja login/register/forgot-
+// password-reiteille erikseen, koska 100/15min yksin sallisi silti kymmeniä/satoja
+// bruteforce-yrityksiä ennen rajoittumista.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Liian monta pyyntöä, yritä myöhemmin uudelleen' },
+})
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Liian monta yritystä, yritä myöhemmin uudelleen' },
+})
+app.use(globalLimiter)
+app.use('/auth/login', authLimiter)
+app.use('/auth/register', authLimiter)
+app.use('/auth/forgot-password', authLimiter)
 
 app.use('/auth', authRouter)
 app.use('/products', productsRouter)

@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/kayttoehdot', '/tietosuoja', '/unohtuiko-salasana', '/nollaa-salasana']
+// Oletuksena julkinen - lukitaan vain ne polut jotka oikeasti vaativat identiteetin
+// (ostajan/myyjän omat tiedot, hallintapaneelit). Käännetty PUBLIC_PATHS-allowlistasta
+// PROTECTED_PATHS-listaksi 2026-09-08, ks. CLAUDE.md "Koko sivusto vaatii kirjautumisen"
+// - omistajan päätös ja lupa. Julkinen /u/[username]-profiilinäkymä jää tarkoituksella
+// listan ulkopuolelle, samoin etusivu/Selaa/Huutokaupat/Live-katselu/tuotesivut/
+// FAQ/Meistä/Välityspalkkiot/käyttöehdot/tietosuoja - kaikki nämä julkisia oletuksena.
+const PROTECTED_PATHS = ['/dashboard', '/kori', '/checkout', '/ostot', '/myynnit', '/tarjoukset', '/viestit', '/admin', '/profiili/muokkaa']
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('habahub_token')?.value
   const path = request.nextUrl.pathname
-  const isPublic = PUBLIC_PATHS.some(p => path.startsWith(p))
+  const isProtected = PROTECTED_PATHS.some(p => path.startsWith(p))
 
-  if (!token && !isPublic) {
+  if (!token && isProtected) {
     // Säilytä alkuperäinen kohde redirect-parametrissa - ilman tätä esim. Paytrailin
     // maksun jälkeinen paluu /ostot:iin (ks. lib/paytrail.ts redirectUrls) katosi kokonaan
     // jos habahub_token-eväste puuttui juuri sillä hetkellä selaimesta (esim. selaimen oma
