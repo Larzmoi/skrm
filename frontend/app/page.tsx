@@ -243,7 +243,7 @@ export default function Home() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
       <Navbar />
 
       {/* Mainostila — AINA sivun ylin elementti (omistajan pyyntö 2026-09-04), navbarin
@@ -323,7 +323,7 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto' }}>
+      <div style={{ display: 'flex', maxWidth: 1440, margin: '0 auto', flex: 1, width: '100%' }}>
 
         {/* Desktop sidebar */}
         {!isMobile && (
