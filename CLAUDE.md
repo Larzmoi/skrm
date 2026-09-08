@@ -7,6 +7,15 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Vahvistettu käyttäjä -merkintä 2026-09-08 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja pyysi "vahvistettu käyttäjä" -merkinnän lisäämistä tileille Larzmoi, danielbacklund, michaelbacklund ja habacardsoy. `User.verified Boolean` oli jo schemassa (lisätty aiemmin admin-käyttäjälistatyön yhteydessä) ja näkyi jo read-only-badgena admin-paneelin käyttäjälistassa (`t.admin.verifiedYes`/`verifiedNo`), mutta mitään tapaa ASETTAA sitä tai näyttää se julkisesti ei ollut olemassa — rakennettu nyt kokonaan:
+
+- `PATCH /admin/users/:id` hyväksyy nyt `verified`-kentän (boolean), sama malli kuin olemassa oleva `canStream`. Admin-paneeliin lisätty kytkin ("Vahvistettu käyttäjä") `canStream`-kytkimen viereen, sama tallennus/lataus-virtaus.
+- `GET /users/:username` (julkinen profiili), `GET /products`, `GET /products/:id`, `GET /auctions`, `GET /auctions/:id` palauttavat nyt `seller.verified`/`verified`:n.
+- Pieni sininen checkmark-badge (kiinteä `#3B82F6`, ei teemasidonnainen — vahvistus-badget ovat yleensä kiinteän värisiä riippumatta sivuston omasta teemasta) lisätty jokaiseen paikkaan missä myyjän @käyttäjätunnus jo näkyy: `ProductCard.tsx` (kattaa /selaa, /huutokaupat ja etusivun kaikki listaukset automaattisesti, sama `sellerVerified`-propin kytkentä kuin aiemmin `sellerBusinessId`:llä), tuote-/huutokauppasivun myyjäkortti, ja `/u/[username]`-julkisen profiilin otsikkorivi nimen vieressä. Uusi `t.product.verifiedUser`-i18n-avain (fi/en/sv) tooltip-tekstinä.
+- **Datan asetus:** kertakäyttöinen skripti palvelimella (`prisma.user.updateMany`), poistettu ajon jälkeen — asetti `verified:true` kaikille neljälle pyydetylle tilille. Vahvistettu jälkikäteen suoraan `GET /users/:username`-vastauksesta kaikille neljälle.
+
 ## Posti-lähetyksen E41-virhe ("Inactive pickup point") 2026-09-05 — ✅ virheviesti selkeytetty, ei muuta muutosta
 
 Omistaja raportoi `POST /orders/:id/create-shipment`:n epäonnistuneen `500 {"error":{"message":"E41: Inactive pickup point, please choose an alternative pickup point"}}` -virheellä, sekä huomion ettei noutopistehaku "Sepänkylä"-haulla näyttänyt kaikkia mahdollisia pisteitä.
