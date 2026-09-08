@@ -66,6 +66,7 @@ const en = {
     markReviewed: 'Mark reviewed', removeListing: 'Remove content',
     removeReasonLabel: 'Removal reason (shown to seller)', removeReasonPlaceholder: 'E.g. prohibited item — give more detail',
     confirmRemove: 'Remove', cancel: 'Cancel',
+    adminDeleteTrigger: 'Delete (admin)',
     userSearchPlaceholder: 'Search by name, username, or email...',
     ban: 'Ban', banReasonLabel: 'Ban reason', banReasonPlaceholder: 'E.g. repeated unpaid orders',
     banDaysLabel: 'Duration (days)', banConfirm: 'Confirm ban', banSuccess: 'User banned',

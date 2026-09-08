@@ -66,6 +66,9 @@ const fi = {
     markReviewed: 'Merkitse käsitellyksi', removeListing: 'Poista sisältö',
     removeReasonLabel: 'Poiston syy (näytetään myyjälle)', removeReasonPlaceholder: 'Esim. kielletty tuote — kerro tarkemmin',
     confirmRemove: 'Poista', cancel: 'Peruuta',
+    // Suora poistonappi tuote-/huutokauppa-/live-sivuilla admin-käyttäjälle - ei vaadi enää
+    // erillistä ilmiantoa ensin, ks. CLAUDE.md "Admin voi poistaa suoraan ilman ilmiantoa".
+    adminDeleteTrigger: 'Poista (admin)',
     userSearchPlaceholder: 'Hae nimellä, käyttäjänimellä tai sähköpostilla...',
     ban: 'Bannaa', banReasonLabel: 'Bannin syy', banReasonPlaceholder: 'Esim. toistuvat maksamattomat tilaukset',
     banDaysLabel: 'Kesto (päivää)', banConfirm: 'Vahvista banni', banSuccess: 'Käyttäjä bannattu',

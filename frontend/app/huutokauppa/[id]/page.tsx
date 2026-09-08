@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { auctionApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ReportModal from '@/components/ReportModal'
+import AdminDeleteModal from '@/components/AdminDeleteModal'
 
 // Pyöristää senteille — estää JS:n liukulukutarkkuuden aiheuttamat virheet (esim. 5.1 + 0.1 = 5.199999999999999)
 function roundCents(amount: number) {
@@ -32,6 +33,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [showAdminDelete, setShowAdminDelete] = useState(false)
 
   const loadAuction = useCallback(async () => {
     try {
@@ -303,11 +305,25 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
             <button onClick={() => { if (!user) { router.push(`/login?redirect=/huutokauppa/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>
               {t.report.button}
             </button>
+
+            {user?.role === 'ADMIN' && (
+              <button onClick={() => setShowAdminDelete(true)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#EF4444', padding: '4px', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>
+                {t.admin.adminDeleteTrigger}
+              </button>
+            )}
           </div>
         </div>
       </div>
       <Footer />
       {showReport && <ReportModal targetType="product" targetId={product.id} onClose={() => setShowReport(false)} />}
+      {showAdminDelete && (
+        <AdminDeleteModal
+          targetType="product"
+          targetId={product.id}
+          onClose={() => setShowAdminDelete(false)}
+          onDeleted={() => router.push('/huutokaupat')}
+        />
+      )}
     </div>
   )
 }

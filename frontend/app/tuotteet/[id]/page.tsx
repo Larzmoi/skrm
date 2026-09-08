@@ -12,6 +12,7 @@ import { KATEGORIAT, getKatNimi } from '@/lib/kategoriat'
 import { api, cartApi, messageApi, offerApi } from '@/lib/api'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ReportModal from '@/components/ReportModal'
+import AdminDeleteModal from '@/components/AdminDeleteModal'
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -39,6 +40,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [showAdminDelete, setShowAdminDelete] = useState(false)
   const [preBidAmount, setPreBidAmount] = useState('')
   const [preBidding, setPreBidding] = useState(false)
   const [preBidError, setPreBidError] = useState('')
@@ -328,9 +330,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               {copied ? `✓ ${t.product.linkCopied}` : t.product.share}
             </button>
 
-            <button onClick={() => { if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', marginBottom: 20, textDecoration: 'underline' }}>
+            <button onClick={() => { if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return } setShowReport(true) }} style={{ width: '100%', background: 'transparent', border: 'none', color: C.muted, padding: '4px', fontSize: 12, cursor: 'pointer', marginBottom: user?.role === 'ADMIN' ? 4 : 20, textDecoration: 'underline' }}>
               {t.report.button}
             </button>
+
+            {user?.role === 'ADMIN' && (
+              <button onClick={() => setShowAdminDelete(true)} style={{ width: '100%', background: 'transparent', border: 'none', color: '#EF4444', padding: '4px', fontSize: 12, cursor: 'pointer', marginBottom: 20, textDecoration: 'underline' }}>
+                {t.admin.adminDeleteTrigger}
+              </button>
+            )}
 
             {showContact && (
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px', marginBottom: 20 }}>
@@ -400,6 +408,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       <Footer />
 
       {showReport && <ReportModal targetType="product" targetId={product.id} onClose={() => setShowReport(false)} />}
+      {showAdminDelete && (
+        <AdminDeleteModal
+          targetType="product"
+          targetId={product.id}
+          onClose={() => setShowAdminDelete(false)}
+          onDeleted={() => router.push('/selaa')}
+        />
+      )}
 
       {/* Suurennusnäkymä */}
       {zoomed && (

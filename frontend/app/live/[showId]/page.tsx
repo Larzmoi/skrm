@@ -11,6 +11,7 @@ import { useCart } from '@/lib/cart-context'
 import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { BACKEND_URL } from '@/lib/backend'
 import ReportModal from '@/components/ReportModal'
+import AdminDeleteModal from '@/components/AdminDeleteModal'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface ChatMsg { id: string; userId?: string; username: string; message: string; isBid?: boolean; hidden?: boolean }
@@ -513,6 +514,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   // kavennetuin/piilotetuin paneelein.
   const [isTablet, setIsTablet] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [showAdminDelete, setShowAdminDelete] = useState(false)
 
   // Chat & moderointi -laajennus
   const [isSeller, setIsSeller] = useState(false)
@@ -861,6 +863,11 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <div style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 20, padding: '5px 10px', fontSize: 12, color: '#fff', backdropFilter: 'blur(8px)' }}>{viewers}</div>
                 <button onClick={shareStream} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.live.share}>➤</button>
                 <button onClick={openReport} style={{ background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.report.button}>⚑</button>
+                {user?.role === 'ADMIN' && (
+                  <button onClick={() => setShowAdminDelete(true)} style={{ background: 'rgba(239,68,68,0.75)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', cursor: 'pointer' }} title={t.admin.adminDeleteTrigger}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  </button>
+                )}
                 <Link href="/" style={{ background: 'rgba(0,0,0,0.55)', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, backdropFilter: 'blur(8px)' }}>✕</Link>
               </div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 10px', zIndex: 10 }}>
@@ -912,6 +919,9 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             />
         </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
+        {showAdminDelete && (
+          <AdminDeleteModal targetType="show" targetId={showId} onClose={() => setShowAdminDelete(false)} onDeleted={() => router.push('/live-kaikki')} />
+        )}
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
         {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
       </div>
@@ -941,6 +951,9 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
         <button onClick={shareStream} style={{ background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer' }}>➤ {t.live.share}</button>
         <button onClick={openReport} style={{ background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer' }}>⚑ {t.report.button}</button>
+        {user?.role === 'ADMIN' && (
+          <button onClick={() => setShowAdminDelete(true)} style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: 13, cursor: 'pointer' }}>{t.admin.adminDeleteTrigger}</button>
+        )}
         <Link href="/" style={{ color: '#666', fontSize: 13 }}>{t.live.leaveShow}</Link>
       </div>
 
@@ -1017,6 +1030,9 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         </div>
       </div>
       {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
+      {showAdminDelete && (
+        <AdminDeleteModal targetType="show" targetId={showId} onClose={() => setShowAdminDelete(false)} onDeleted={() => router.push('/live-kaikki')} />
+      )}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
     </div>

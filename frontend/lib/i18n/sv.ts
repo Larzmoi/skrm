@@ -66,6 +66,7 @@ const sv = {
     markReviewed: 'Markera som granskad', removeListing: 'Ta bort innehåll',
     removeReasonLabel: 'Borttagningsanledning (visas till säljaren)', removeReasonPlaceholder: 'T.ex. förbjuden vara — ge mer detalj',
     confirmRemove: 'Ta bort', cancel: 'Avbryt',
+    adminDeleteTrigger: 'Ta bort (admin)',
     userSearchPlaceholder: 'Sök efter namn, användarnamn eller e-post...',
     ban: 'Bann', banReasonLabel: 'Banors anledning', banReasonPlaceholder: 'T.ex. upprepade obetalda order',
     banDaysLabel: 'Varaktighet (dagar)', banConfirm: 'Bekräfta bann', banSuccess: 'Användaren bannad',
