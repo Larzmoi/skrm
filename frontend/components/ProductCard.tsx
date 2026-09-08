@@ -18,6 +18,9 @@ export interface ProductCardProps {
   // Ei-tyhjä = yritysmyyjä, näytetään ALV-läpinäkyvyysmerkintä hinnan alla (ks. CLAUDE.md
   // "ALV yritysmyyjille") — puhtaasti tekstillinen lisäys, ei muuta price-proppia mihinkään.
   sellerBusinessId?: string | null
+  // Admin-myöntämä "Vahvistettu käyttäjä" -merkki (User.verified) - pieni sininen checkmark
+  // @käyttäjätunnuksen vieressä.
+  sellerVerified?: boolean
   city?: string | null
   isMobile?: boolean
   // Aikaraja-badge (esim. huutokaupan jäljellä oleva aika) - kuvan vasempaan alakulmaan.
@@ -31,7 +34,7 @@ export interface ProductCardProps {
 // visuaalinen uudistus 2026-08-31). hb-card/hb-card-img -luokat (globals.css) tuovat
 // kohonnan ja kuvan zoomauksen hoverilla; loput tyylistä pysyy C.xxx-teemajärjestelmässä
 // kuten muukin sivusto.
-export default function ProductCard({ id, href, name, imageUrl, price, condition, gradingCompany, grade, sellerUsername, sellerBusinessId, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
+export default function ProductCard({ id, href, name, imageUrl, price, condition, gradingCompany, grade, sellerUsername, sellerBusinessId, sellerVerified, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
   const { C } = useTheme()
   const { t } = useLang()
   return (
@@ -89,7 +92,19 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
           )}
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          {sellerUsername && <div style={{ fontSize: 11, color: C.muted }}>@{sellerUsername}</div>}
+          {sellerUsername && (
+            <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
+              @{sellerUsername}
+              {sellerVerified && (
+                <span title={t.product.verifiedUser} style={{ display: 'inline-flex', flexShrink: 0 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="12" fill="#3B82F6" />
+                    <path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              )}
+            </div>
+          )}
           {sellerBusinessId && (
             <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 2, display: 'inline-block' }}>
               {t.product.businessSeller}

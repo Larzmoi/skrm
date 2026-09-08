@@ -174,7 +174,7 @@ export const adminApi = {
     return request(`/admin/users?${q.toString()}`)
   },
   banUser: (id: string, reason: string, days: number) => request(`/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ reason, days }) }),
-  updateUser: (id: string, data: { canStream?: boolean; customCommissionRate?: number | null; customCommissionCap?: number | null }) =>
+  updateUser: (id: string, data: { canStream?: boolean; customCommissionRate?: number | null; customCommissionCap?: number | null; verified?: boolean }) =>
     request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeBan: (id: string) => request(`/admin/users/${id}/ban`, { method: 'DELETE' }),
   sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),

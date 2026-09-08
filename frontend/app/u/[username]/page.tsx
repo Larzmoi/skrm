@@ -115,6 +115,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                   <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</h1>
+                  {profile?.verified && (
+                    <span title={t.product.verifiedUser} style={{ display: 'inline-flex', flexShrink: 0 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="12" fill="#3B82F6" />
+                        <path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  )}
                   {profile?.businessId && (
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>
                       {t.product.businessSeller}

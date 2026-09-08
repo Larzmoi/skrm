@@ -355,7 +355,17 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   }
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>@{product.seller.username}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    @{product.seller.username}
+                    {product.seller.verified && (
+                      <span title={t.product.verifiedUser} style={{ display: 'inline-flex', flexShrink: 0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="12" fill="#3B82F6" />
+                          <path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: C.muted }}>{product.seller.name}</div>
                   {product.seller.businessId && (
                     <div style={{ fontSize: 10, fontWeight: 700, color: C.textSub, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 3, display: 'inline-block' }}>

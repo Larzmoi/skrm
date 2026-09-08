@@ -73,6 +73,7 @@ const fi = {
     userManagementTitle: 'Käyttäjähallinta',
     userManagementSubtitle: 'Hae käyttäjä hallitaksesi striimausoikeutta, komissiota ja bannia.',
     canStream: 'Striimausoikeus',
+    verified: 'Vahvistettu käyttäjä',
     commissionRate: 'Komissio (%)',
     commissionCap: 'Komissiokatto (€)',
     setSuperuserValues: 'Aseta 3,0 % / 25 €',
@@ -162,6 +163,9 @@ const fi = {
     // aina kun User.businessId on asetettu, riippumatta ALV-merkinnästä (eri tarkoitus samasta
     // kentästä: tämä on juridinen läpinäkyvyysvaatimus, vatIncluded on hintatieto).
     businessSeller: 'Yritysmyyjä',
+    // Admin-myöntämä "Vahvistettu käyttäjä" -merkintä (User.verified), ks. AdminUserManagement.
+    // Tooltip-teksti pienen sinisen merkkikuvakkeen yhteydessä nimen vieressä.
+    verifiedUser: 'Vahvistettu käyttäjä',
     binding: 'Kaikki kaupat sitovia — ei peruutuksia',
     trackingCode: 'Seurantakoodi toimitetaan ostajalle',
     category: 'Kategoria', seller: 'Myyjä', description: 'Kuvaus',

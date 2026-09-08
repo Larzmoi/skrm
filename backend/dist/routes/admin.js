@@ -116,16 +116,18 @@ router.get('/users', async (req, res) => {
     res.json({ users: enriched, total, page, pageSize });
 });
 // PATCH /admin/users/:id — osittainen päivitys (canStream/customCommissionRate/
-// customCommissionCap). Kaikki kentät valinnaisia, vain annetut päivitetään.
+// customCommissionCap/verified). Kaikki kentät valinnaisia, vain annetut päivitetään.
 router.patch('/users/:id', async (req, res) => {
     const userId = String(req.params.id);
-    const { canStream, customCommissionRate, customCommissionCap } = req.body;
+    const { canStream, customCommissionRate, customCommissionCap, verified } = req.body;
     const existing = await prisma_1.prisma.user.findUnique({ where: { id: userId } });
     if (!existing)
         return res.status(404).json({ error: 'Käyttäjää ei löydy' });
     const data = {};
     if (typeof canStream === 'boolean')
         data.canStream = canStream;
+    if (typeof verified === 'boolean')
+        data.verified = verified;
     if (customCommissionRate !== undefined) {
         if (customCommissionRate !== null && (typeof customCommissionRate !== 'number' || !isFinite(customCommissionRate) || customCommissionRate < 0)) {
             return res.status(400).json({ error: 'Virheellinen komissioprosentti' });
@@ -141,7 +143,7 @@ router.patch('/users/:id', async (req, res) => {
     const updated = await prisma_1.prisma.user.update({
         where: { id: userId },
         data,
-        select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true },
+        select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, verified: true },
     });
     res.json({ ...updated, activeBan: await findActiveBan(userId) });
 });

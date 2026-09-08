@@ -52,6 +52,7 @@ async function updateUser(id: string, data: {
   canStream?: boolean
   customCommissionRate?: number | null
   customCommissionCap?: number | null
+  verified?: boolean
 }) {
   return adminApi.updateUser(id, data)
 }
@@ -80,6 +81,7 @@ function UserRow({
   onReload: () => void
 }) {
   const [canStream, setCanStream] = useState(user.canStream)
+  const [verified, setVerified] = useState(user.verified)
   const [rate, setRate] = useState(user.customCommissionRate?.toString() ?? '')
   const [cap, setCap] = useState(user.customCommissionCap?.toString() ?? '')
   const [banReason, setBanReason] = useState('')
@@ -91,6 +93,7 @@ function UserRow({
 
   useEffect(() => {
     setCanStream(user.canStream)
+    setVerified(user.verified)
     setRate(user.customCommissionRate?.toString() ?? '')
     setCap(user.customCommissionCap?.toString() ?? '')
   }, [user])
@@ -101,6 +104,7 @@ function UserRow({
     try {
       await updateUser(user.id, {
         canStream,
+        verified,
         customCommissionRate: rate.trim() === '' ? null : Number(rate),
         customCommissionCap: cap.trim() === '' ? null : Number(cap),
       })
@@ -203,10 +207,10 @@ function UserRow({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(130px, .7fr) minmax(120px, .7fr) minmax(120px, .7fr)',
+          gridTemplateColumns: 'minmax(180px, 1.4fr) minmax(110px, .6fr) minmax(130px, .7fr) minmax(120px, .7fr) minmax(120px, .7fr)',
           gap: 14,
           alignItems: 'start',
-          minWidth: 560,
+          minWidth: 660,
         }}
       >
         <div>
@@ -280,6 +284,39 @@ function UserRow({
                   height: 20,
                   borderRadius: '50%',
                   background: canStream ? C.accentText : C.muted,
+                  transition: 'left .15s ease',
+                }}
+              />
+            </button>
+          </div>
+        </label>
+
+        <label style={{ color: C.textSub, fontSize: 12 }}>
+          {t.admin.verified}
+          <div style={{ marginTop: 7 }}>
+            <button
+              type="button"
+              onClick={() => setVerified(value => !value)}
+              aria-pressed={verified}
+              style={{
+                width: 52,
+                height: 28,
+                borderRadius: 20,
+                border: `1px solid ${verified ? C.accent : C.border}`,
+                background: verified ? C.accentSolid : C.surface2,
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 3,
+                  left: verified ? 27 : 3,
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: verified ? C.accentText : C.muted,
                   transition: 'left .15s ease',
                 }}
               />

@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
         where, orderBy, take: limit ? Number(limit) : 50,
         // businessId mukana ALV-läpinäkyvyysmerkintää varten (ks. CLAUDE.md "ALV yritysmyyjille") -
         // ei-tyhjä businessId = yritysmyyjä, frontend näyttää "Hinta sisältää alv 25,5%" -tekstin.
-        include: { seller: { select: { id: true, name: true, username: true, city: true, businessId: true } } },
+        include: { seller: { select: { id: true, name: true, username: true, city: true, businessId: true, verified: true } } },
     });
     res.json(products);
 });
@@ -69,7 +69,7 @@ router.get('/:id', async (req, res) => {
     const product = await prisma_1.prisma.product.findUnique({
         where: { id },
         include: {
-            seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true } }, // ALV-merkintä, ks. yllä
+            seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true, verified: true } }, // ALV-merkintä + varmennettu-merkki, ks. yllä
             // show.status kertoo frontendille onko tuote ennakkotarjottavissa (Show SCHEDULED,
             // ei vielä LIVE) - ks. POST /:id/prebid. bids/​_count samalla periaatteella kuin
             // auctions.ts:n GET /auctions/:id, näyttää tarjoushistorian läpinäkyvästi.
@@ -143,7 +143,7 @@ router.post('/:id/prebid', auth_1.authMiddleware, async (req, res) => {
     const updated = await prisma_1.prisma.product.findUnique({
         where: { id: productId },
         include: {
-            seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true } }, // ALV-merkintä, ks. yllä
+            seller: { select: { id: true, name: true, username: true, avatarUrl: true, city: true, businessId: true, verified: true } }, // ALV-merkintä + varmennettu-merkki, ks. yllä
             show: { select: { id: true, status: true, scheduledAt: true, title: true } },
             bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
             _count: { select: { bids: true } },
