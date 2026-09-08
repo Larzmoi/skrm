@@ -66,8 +66,18 @@ app.use(express.json({ limit: '10mb' }))
 // (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle
 // (nginx poistaa /api/-etuliitteen ennen tätä sovellusta, joten tämä KOSKEE koko julkista
 // API:a vaikka polut eivät ala /api:lla täällä) + tiukempi raja login/register/forgot-
-// password-reiteille erikseen, koska 100/15min yksin sallisi silti kymmeniä/satoja
+// password-reiteille erikseen, koska pelkkä yleinen raja yksin sallisi silti kymmeniä/satoja
 // bruteforce-yrityksiä ennen rajoittumista.
+//
+// ⚠️ 2026-09-08: alkuperäinen yleinen raja (100/15min) oli LIIAN TIUKKA oikealle liikenteelle,
+// aiheutti aidon tuotanto-oireen ("tietokanta katosi" - kaikki tuotteet/käyttäjät näyttivät
+// tyhjiltä yhdelle oikealle kävijälle). Juurisyy vahvistettu nginx-lokeista: etusivun yksi
+// lataus ampuu jo ~7 rinnakkaista API-kutsua (ad/notifications/products/shows/auctions/cart/
+// messages), JA `/shows`-listaus pollataan 20s välein koko ajan kun etusivu on auki (45
+// kutsua/15min pelkästään siitä) - normaali selailu muutamalla sivulla ylitti 100:n rajan
+// helposti ILMAN mitään väärinkäyttöä. Nostettu 1000:aan - riittää reilusti yhden kävijän
+// (tai saman IP:n takana olevan kotitalouden/toimiston) normaaliin käyttöön, rajoittaa silti
+// selvästi poikkeavan, jatkuvan automaattisen raapimisen/skannauksen.
 //
 // Molemmat käyttävät samaa keyGeneratoria: Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei
 // voi väärentää sitä - Cloudflare kirjoittaa sen aina itse yhteyden perusteella), req.ip
@@ -82,7 +92,7 @@ function clientKey(req: import('express').Request): string {
 }
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: clientKey,
