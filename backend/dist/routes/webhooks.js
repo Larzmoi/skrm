@@ -13,6 +13,7 @@ const notify_1 = require("../lib/notify");
 const livekit_1 = require("../lib/livekit");
 const stripe_1 = require("../lib/stripe");
 const resend_1 = require("../lib/resend");
+const orderCancellation_1 = require("../lib/orderCancellation");
 const router = (0, express_1.Router)();
 // TIUKENNETTU 2026-08-13 (LUKITTU, ks. CLAUDE.md "Banni"): jo ENSIMMÄINEN maksamaton
 // tilaus → automaattinen 30 päivän banni heti, ei enää 3 kerran varoitusrajaa. Jokainen
@@ -27,20 +28,11 @@ async function checkExpiredPayments() {
         include: { items: { include: { product: true } }, buyer: true },
     });
     for (const order of expired) {
+        // Umpeutuminen ON rike (ostaja jätti reagoimatta) - PaymentViolation kirjataan aina, toisin
+        // kuin ostajan omassa vapaaehtoisessa peruutuksessa (ks. orders.ts POST /:id/cancel, joka
+        // käyttää samaa buildStockRestoreOps-apufunktiota mutta EI koskaan tätä riviä).
         await prisma_1.prisma.$transaction([
-            prisma_1.prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } }),
-            // Huutokauppatuote ei palaa PENDING-tilaan (auctionEndsAt on jo mennyt — closeAuctions poimisi sen heti
-            // uudelleen ja yrittäisi ilmoittaa samalle maksamattomalle voittajalle loputtomasti). Merkitään lopullisesti
-            // myymättömäksi — myyjä voi listata sen uudestaan manuaalisesti jos haluaa.
-            ...order.items.map(item => item.product.saleType === 'auction'
-                ? prisma_1.prisma.product.update({
-                    where: { id: item.productId },
-                    data: { status: 'UNSOLD', finalPrice: null, currentBid: null, currentBidderId: null, auctionEndsAt: null },
-                })
-                : prisma_1.prisma.product.update({
-                    where: { id: item.productId },
-                    data: { quantity: { increment: item.quantity }, status: 'PENDING', finalPrice: null },
-                })),
+            ...(0, orderCancellation_1.buildStockRestoreOps)(order),
             prisma_1.prisma.paymentViolation.create({ data: { userId: order.buyerId, orderId: order.id } }),
         ]);
         await (0, notify_1.notifyUser)(order.buyerId, 'PAYMENT_EXPIRED', 'Maksuaika umpeutui', 'Tilauksesi maksuaika umpeutui ja tilaus peruutettiin.', '/ostot');

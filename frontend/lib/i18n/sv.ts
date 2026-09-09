@@ -221,6 +221,9 @@ const sv = {
     errConfirmFailed: 'Bekräftelsen misslyckades', errDescribeProblem: 'Beskriv problemet',
     errDisputeFailed: 'Det gick inte att skicka reklamationen', errSelectRating: 'Välj ett stjärnbetyg',
     errReviewFailed: 'Det gick inte att skicka recensionen', plusShipping: '+ frakt',
+    cancelOrderButton: 'Avbryt beställning', cancelOrderConfirmTitle: 'Avbryta beställningen?',
+    cancelOrderConfirmMessage: 'Produkten läggs tillbaka till försäljning. Detta kan inte ångras — om du vill köpa den senare måste du lägga till den i kundvagnen igen. En frivillig avbeställning påverkar inte ditt konto.',
+    errCancelFailed: 'Avbrytandet misslyckades',
   },
   dashboard: {
     hello: 'Hej', subtitle: 'Här är en sammanfattning av din aktivitet',

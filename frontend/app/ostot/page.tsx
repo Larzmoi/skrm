@@ -9,6 +9,7 @@ import { useCart } from '@/lib/cart-context'
 import { orderApi, postiApi, PickupPoint, sortPickupPointsByProximity } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string; allowPickup?: boolean; allowShipping?: boolean } }
 interface Order {
@@ -51,6 +52,10 @@ export default function OstotPage() {
   const [reviewComment, setReviewComment] = useState<Record<string, string>>({})
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
   const [pickupSearch, setPickupSearch] = useState('')
+  // Ostajan oma vapaaehtoinen peruutus maksamattomalle tilaukselle, ks. CLAUDE.md "Ostoskori/
+  // tilauksen peruutus" 2026-09-09 — ennen tätä ainoat vaihtoehdot olivat maksaa tai antaa 2h
+  // umpeutua (mikä bannaa 30 päiväksi heti ensimmäisellä kerralla).
+  const [cancelConfirmFor, setCancelConfirmFor] = useState<string | null>(null)
 
   useEffect(() => {
     postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
@@ -130,6 +135,16 @@ export default function OstotPage() {
       if (redirectUrl) { window.location.href = redirectUrl; return }
       await load()
     } catch (e: any) { setError(e.message ?? t.purchases.errPaymentFailed) }
+    setBusy(null)
+  }
+
+  async function cancelOrder(orderId: string) {
+    setCancelConfirmFor(null)
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.cancel(orderId)
+      await load()
+    } catch (e: any) { setError(e.message ?? t.purchases.errCancelFailed) }
     setBusy(null)
   }
 
@@ -216,7 +231,14 @@ export default function OstotPage() {
                       <div key={order.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                           <Link href={`/u/${order.seller.username}`} style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>@{order.seller.username}</Link>
-                          <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
+                            {section.key === 'PENDING_PAYMENT' && (
+                              <button onClick={() => setCancelConfirmFor(order.id)} disabled={busy === order.id} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#EF4444', fontWeight: 600, cursor: busy === order.id ? 'default' : 'pointer', textDecoration: 'underline' }}>
+                                {t.purchases.cancelOrderButton}
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
@@ -468,6 +490,18 @@ export default function OstotPage() {
           </div>
         )}
       </div>
+
+      {cancelConfirmFor && (
+        <ConfirmDialog
+          title={t.purchases.cancelOrderConfirmTitle}
+          message={t.purchases.cancelOrderConfirmMessage}
+          confirmLabel={t.purchases.cancelOrderButton}
+          cancelLabel={t.purchases.cancel}
+          danger
+          onConfirm={() => cancelOrder(cancelConfirmFor)}
+          onCancel={() => setCancelConfirmFor(null)}
+        />
+      )}
     </DashboardLayoutClient>
   )
 }

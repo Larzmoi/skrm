@@ -71,6 +71,7 @@ export const orderApi = {
   selling: () => request('/orders/selling'),
   selectShipping: (orderId: string, pakettikokoId: string, pickupPointId?: string) => request(`/orders/${orderId}/select-shipping`, { method: 'POST', body: JSON.stringify({ pakettikokoId, pickupPointId }) }),
   pay: (orderId: string) => request(`/orders/${orderId}/pay`, { method: 'POST' }),
+  cancel: (orderId: string) => request(`/orders/${orderId}/cancel`, { method: 'POST' }),
   addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),
   createShipment: (orderId: string, pakettikoko: 'PIENI' | 'ISO') => request(`/orders/${orderId}/create-shipment`, { method: 'POST', body: JSON.stringify({ pakettikoko }) }),
   confirmPickup: (orderId: string, code: string) => request(`/orders/${orderId}/confirm-pickup`, { method: 'POST', body: JSON.stringify({ code }) }),

@@ -5,6 +5,7 @@ import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
 import { verifyWebhookSignature, verifyAccountEventSignature, getAccountStatus } from '../lib/stripe'
 import { sendBanNotificationEmail, sendOrderConfirmationEmail } from '../lib/resend'
+import { buildStockRestoreOps } from '../lib/orderCancellation'
 
 const router = Router()
 
@@ -23,21 +24,11 @@ export async function checkExpiredPayments() {
   })
 
   for (const order of expired) {
+    // Umpeutuminen ON rike (ostaja jätti reagoimatta) - PaymentViolation kirjataan aina, toisin
+    // kuin ostajan omassa vapaaehtoisessa peruutuksessa (ks. orders.ts POST /:id/cancel, joka
+    // käyttää samaa buildStockRestoreOps-apufunktiota mutta EI koskaan tätä riviä).
     await prisma.$transaction([
-      prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } }),
-      // Huutokauppatuote ei palaa PENDING-tilaan (auctionEndsAt on jo mennyt — closeAuctions poimisi sen heti
-      // uudelleen ja yrittäisi ilmoittaa samalle maksamattomalle voittajalle loputtomasti). Merkitään lopullisesti
-      // myymättömäksi — myyjä voi listata sen uudestaan manuaalisesti jos haluaa.
-      ...order.items.map(item => item.product.saleType === 'auction'
-        ? prisma.product.update({
-            where: { id: item.productId },
-            data: { status: 'UNSOLD', finalPrice: null, currentBid: null, currentBidderId: null, auctionEndsAt: null },
-          })
-        : prisma.product.update({
-            where: { id: item.productId },
-            data: { quantity: { increment: item.quantity }, status: 'PENDING', finalPrice: null },
-          })
-      ),
+      ...buildStockRestoreOps(order),
       prisma.paymentViolation.create({ data: { userId: order.buyerId, orderId: order.id } }),
     ])
 

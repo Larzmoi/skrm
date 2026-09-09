@@ -4,6 +4,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAvatar } from '@/lib/avatar-context'
 import { userApi } from '@/lib/api'
+import StripeConnectCard from '@/components/StripeConnectCard'
 
 export default function ProfiiliPage() {
   const { C } = useTheme()
@@ -198,6 +199,8 @@ export default function ProfiiliPage() {
           {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
         </button>
       </div>
+
+      <StripeConnectCard />
 
       <div style={{ background: C.cardBg, border: `1px solid ${vacationOn ? '#F59E0B' : C.border}`, borderRadius: 12, padding: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: vacationOn || showVacForm ? 16 : 0 }}>

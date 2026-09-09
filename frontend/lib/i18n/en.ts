@@ -221,6 +221,9 @@ const en = {
     errConfirmFailed: 'Confirmation failed', errDescribeProblem: 'Describe the problem',
     errDisputeFailed: 'Failed to submit dispute', errSelectRating: 'Select a star rating',
     errReviewFailed: 'Failed to submit review', plusShipping: '+ shipping',
+    cancelOrderButton: 'Cancel order', cancelOrderConfirmTitle: 'Cancel this order?',
+    cancelOrderConfirmMessage: 'The item goes back on sale. This cannot be undone — if you want it later, you\'ll need to add it to your cart again. A voluntary cancellation does not affect your account.',
+    errCancelFailed: 'Cancellation failed',
   },
   dashboard: {
     hello: 'Hi', subtitle: 'Here is a summary of your activity',

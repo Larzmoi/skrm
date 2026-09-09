@@ -46,6 +46,7 @@ const postiService = __importStar(require("../lib/postiService"));
 const postiClient = __importStar(require("../lib/postiClient"));
 const notify_1 = require("../lib/notify");
 const resend_1 = require("../lib/resend");
+const orderCancellation_1 = require("../lib/orderCancellation");
 const router = (0, express_1.Router)();
 // Nouto-tilauksen vahvistuskoodi — 6 numeroa, helppo lukea/sanoa ääneen fyysisessä noudossa
 function generatePickupCode() {
@@ -174,6 +175,28 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
     catch (e) {
         return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' });
     }
+});
+// POST /orders/:id/cancel — ostaja peruuttaa OMAN, vielä maksamattoman tilauksensa
+// vapaaehtoisesti (ks. CLAUDE.md "Ostoskori/tilauksen peruutus" 2026-09-09). Ennen tätä
+// ainoat vaihtoehdot maksamattomalle tilaukselle olivat maksaa tai antaa 2h umpeutua — jälkimmäinen
+// laukaisee LUKITTU-säännön mukaisen 30 päivän bannin heti ensimmäisestä kerrasta (ks.
+// "Banni"-sääntö), mikä oli kohtuutonta jos ostaja vain haluaa perua mielensä muutettuaan
+// esim. vahingossa aloitetun maksun. Käyttää samaa varastonpalautuslogiikkaa kuin
+// checkExpiredPayments() (ks. lib/orderCancellation.ts), mutta EI KOSKAAN kirjaa
+// PaymentViolationia eikä bannaa — vapaaehtoinen, rehellinen peruutus ei ole rike.
+router.post('/:id/cancel', auth_1.authMiddleware, async (req, res) => {
+    const order = await prisma_1.prisma.order.findUnique({
+        where: { id: String(req.params.id) },
+        include: { items: { include: { product: { select: { name: true, saleType: true } } } } },
+    });
+    if (!order || order.buyerId !== req.userId)
+        return res.status(403).json({ error: 'Ei oikeutta' });
+    if (order.status !== 'PENDING_PAYMENT')
+        return res.status(400).json({ error: 'Tilausta ei voi enää peruuttaa' });
+    await prisma_1.prisma.$transaction((0, orderCancellation_1.buildStockRestoreOps)(order));
+    const productNames = order.items.map(i => i.product.name).join(', ');
+    await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_CANCELLED_BY_BUYER', 'Ostaja peruutti tilauksen', `Ostaja peruutti maksamattoman tilauksen (${productNames}) ennen maksua — tuote on taas myynnissä.`, '/dashboard/tuotteet');
+    res.json({ ok: true });
 });
 // POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote.
 // Stripe purkaa destination-chargen jaon automaattisesti (reverse_transfer+

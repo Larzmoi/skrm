@@ -234,6 +234,9 @@ const fi = {
     errConfirmFailed: 'Kuittaus epäonnistui', errDescribeProblem: 'Kuvaile ongelma',
     errDisputeFailed: 'Reklamaation lähetys epäonnistui', errSelectRating: 'Valitse tähtiarvosana',
     errReviewFailed: 'Arvostelun lähetys epäonnistui', plusShipping: '+ toimitus',
+    cancelOrderButton: 'Peruuta tilaus', cancelOrderConfirmTitle: 'Peruutetaanko tilaus?',
+    cancelOrderConfirmMessage: 'Tuote vapautuu takaisin myyntiin. Tätä ei voi peruuttaa jälkikäteen — jos haluat ostaa tuotteen myöhemmin, joudut lisäämään sen koriin uudelleen. Vapaaehtoinen peruutus ei estä tiliäsi.',
+    errCancelFailed: 'Peruutus epäonnistui',
   },
   dashboard: {
     hello: 'Hei', subtitle: 'Tässä yhteenveto toiminnastasi',

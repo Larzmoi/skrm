@@ -8,6 +8,7 @@ import * as postiService from '../lib/postiService'
 import * as postiClient from '../lib/postiClient'
 import { notifyUser } from '../lib/notify'
 import { sendShippingNotificationEmail } from '../lib/resend'
+import { buildStockRestoreOps } from '../lib/orderCancellation'
 
 const router = Router()
 
@@ -141,6 +142,30 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
   }
+})
+
+// POST /orders/:id/cancel — ostaja peruuttaa OMAN, vielä maksamattoman tilauksensa
+// vapaaehtoisesti (ks. CLAUDE.md "Ostoskori/tilauksen peruutus" 2026-09-09). Ennen tätä
+// ainoat vaihtoehdot maksamattomalle tilaukselle olivat maksaa tai antaa 2h umpeutua — jälkimmäinen
+// laukaisee LUKITTU-säännön mukaisen 30 päivän bannin heti ensimmäisestä kerrasta (ks.
+// "Banni"-sääntö), mikä oli kohtuutonta jos ostaja vain haluaa perua mielensä muutettuaan
+// esim. vahingossa aloitetun maksun. Käyttää samaa varastonpalautuslogiikkaa kuin
+// checkExpiredPayments() (ks. lib/orderCancellation.ts), mutta EI KOSKAAN kirjaa
+// PaymentViolationia eikä bannaa — vapaaehtoinen, rehellinen peruutus ei ole rike.
+router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findUnique({
+    where: { id: String(req.params.id) },
+    include: { items: { include: { product: { select: { name: true, saleType: true } } } } },
+  })
+  if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Tilausta ei voi enää peruuttaa' })
+
+  await prisma.$transaction(buildStockRestoreOps(order))
+
+  const productNames = order.items.map(i => i.product.name).join(', ')
+  await notifyUser(order.sellerId, 'ORDER_CANCELLED_BY_BUYER', 'Ostaja peruutti tilauksen', `Ostaja peruutti maksamattoman tilauksen (${productNames}) ennen maksua — tuote on taas myynnissä.`, '/dashboard/tuotteet')
+
+  res.json({ ok: true })
 })
 
 // POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote.

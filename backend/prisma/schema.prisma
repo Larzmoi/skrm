@@ -72,6 +72,7 @@ enum NotificationType {
   OFFER_DECLINED
   OFFER_COUNTERED
   ADMIN_LOST_PACKAGE_REVIEW
+  ORDER_CANCELLED_BY_BUYER
 }
 
 enum ReportStatus {
