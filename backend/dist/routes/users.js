@@ -231,8 +231,18 @@ router.get('/me/stripe-status', auth_1.authMiddleware, async (req, res) => {
     const user = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { stripeAccountId: true } });
     if (!user?.stripeAccountId)
         return res.json({ connected: false, transfersEnabled: false, payoutsEnabled: false });
-    const status = await (0, stripe_1.getAccountStatus)(user.stripeAccountId);
-    res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled });
+    // Sama korjaus kuin POST /orders/:id/pay:ssa (ks. sen kommentti) - vanhentunut/väärän tilan
+    // stripeAccountId (esim. testitilassa luotu tili, jota sk_live_-avain ei löydä) heittäisi
+    // muuten käsittelemättömän poikkeuksen. connected:true tässä tapauksessa on tarkoituksella
+    // säilytetty (tili ON kirjattu tietokantaan), vain kapasiteettitiedot palautuvat false:na.
+    try {
+        const status = await (0, stripe_1.getAccountStatus)(user.stripeAccountId);
+        return res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled });
+    }
+    catch (e) {
+        console.error('[stripe] getAccountStatus epäonnistui /me/stripe-status:ssa:', user.stripeAccountId, e.message);
+        return res.json({ connected: true, transfersEnabled: false, payoutsEnabled: false });
+    }
 });
 // POST /users/me/stripe-onboarding — luo Stripe Connect -tilin jos ei vielä ole (kerran per
 // myyjä, ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09) ja palauttaa hostatun onboarding-

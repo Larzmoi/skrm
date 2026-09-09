@@ -238,8 +238,17 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 router.get('/me/stripe-status', authMiddleware, async (req: AuthRequest, res: Response) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { stripeAccountId: true } })
   if (!user?.stripeAccountId) return res.json({ connected: false, transfersEnabled: false, payoutsEnabled: false })
-  const status = await getAccountStatus(user.stripeAccountId)
-  res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled })
+  // Sama korjaus kuin POST /orders/:id/pay:ssa (ks. sen kommentti) - vanhentunut/väärän tilan
+  // stripeAccountId (esim. testitilassa luotu tili, jota sk_live_-avain ei löydä) heittäisi
+  // muuten käsittelemättömän poikkeuksen. connected:true tässä tapauksessa on tarkoituksella
+  // säilytetty (tili ON kirjattu tietokantaan), vain kapasiteettitiedot palautuvat false:na.
+  try {
+    const status = await getAccountStatus(user.stripeAccountId)
+    return res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled })
+  } catch (e: any) {
+    console.error('[stripe] getAccountStatus epäonnistui /me/stripe-status:ssa:', user.stripeAccountId, e.message)
+    return res.json({ connected: true, transfersEnabled: false, payoutsEnabled: false })
+  }
 })
 
 // POST /users/me/stripe-onboarding — luo Stripe Connect -tilin jos ei vielä ole (kerran per

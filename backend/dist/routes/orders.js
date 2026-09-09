@@ -152,7 +152,20 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
     // luonnin raa'alla englanninkielisellä virheellä ("destination account needs to have...
     // stripe_transfers capability") jos myyjän onboarding on kesken. Selkeämpi suomenkielinen
     // virhe tässä on parempi UX ostajalle kuin Stripen oma tekninen virheviesti.
-    const { transfersEnabled } = await (0, stripe_1.getAccountStatus)(order.seller.stripeAccountId);
+    // ⚠️ Oma try/catch TÄRKEÄ tässä (löytyi vasta tuotanto-avainten vaihdon yhteydessä 2026-09-09):
+    // getAccountStatus() ei ollut aiemmin minkään catch-lohkon sisällä - jos stripeAccountId on
+    // testitilassa luotu (esim. sk_test_-avaimella tehty onboarding), sk_live_-avain ei löydä sitä
+    // ollenkaan ("No such account") ja Stripe-kirjasto heittää poikkeuksen. Ilman tätä catchia koko
+    // pyyntö olisi kaatunut käsittelemättömään 500-virheeseen jokaiselle myyjälle jonka Stripe-tili
+    // on jäänyt vanhaan tilaan kesken testi->tuotanto-siirtymän.
+    let transfersEnabled = false;
+    try {
+        const status = await (0, stripe_1.getAccountStatus)(order.seller.stripeAccountId);
+        transfersEnabled = status.transfersEnabled;
+    }
+    catch (e) {
+        console.error('[stripe] getAccountStatus epäonnistui, tili todennäköisesti vanhentunut/väärässä tilassa:', order.seller.stripeAccountId, e.message);
+    }
     if (!transfersEnabled)
         return res.status(400).json({ error: 'Myyjän Stripe-onboarding on vielä kesken, tilausta ei voi maksaa juuri nyt' });
     // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
