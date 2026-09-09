@@ -318,10 +318,15 @@ router.delete('/:id', auth_1.authMiddleware, async (req, res) => {
     const realOrderItems = product.orderItems.filter(oi => oi.order.status !== 'CANCELLED');
     if (realOrderItems.length > 0)
         return res.status(400).json({ error: 'Tuote on osa tilausta, ei voida poistaa' });
-    // Perinteinen huutokauppa: ei voi poistaa jos varaushinta on jo ylittynyt (tai jos ei varaushintaa
-    // ollenkaan ja huuto on jo tullut) — huuto on silloin LUKITTU-säännön mukaisesti sitova.
-    if (product.saleType === 'auction' && product.currentBid != null && (!product.reservePrice || product.currentBid >= product.reservePrice)) {
-        return res.status(400).json({ error: 'Tuotetta ei voi poistaa — varaushinta on ylittynyt, huuto on sitova' });
+    // Sitova huuto estää poiston (LUKITTU-sääntö "Kaikki huudot sitovia — ei peruutuksia") —
+    // koski aiemmin VAIN saleType==="auction" (perinteinen huutokauppa), jättäen "both"/"live"-
+    // tyyppiset live-tuotteet suojaamatta vaikka niillä käytetään täsmälleen samaa Product.
+    // currentBid/reservePrice-mekanismia. Löytyi 2026-09-09 kun myyjä pystyi poistamaan
+    // testituotteen jolla oli aito 1,10€ huuto ilman mitään varoitusta tai ilmoitusta huutajalle
+    // (bidit siivoutuivat hiljaa alla olevalla deleteMany:llä). Laajennettu koskemaan kaikkea
+    // paitsi puhdasta suoramyyntiä (buy_now), koska vain se ei koskaan voi saada huutoja.
+    if (product.saleType !== 'buy_now' && product.currentBid != null && (!product.reservePrice || product.currentBid >= product.reservePrice)) {
+        return res.status(400).json({ error: 'Tuotetta ei voi poistaa — huuto on sitova' });
     }
     await prisma_1.prisma.autoBid.deleteMany({ where: { productId: id } });
     await prisma_1.prisma.bid.deleteMany({ where: { productId: id } });
