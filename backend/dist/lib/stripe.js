@@ -157,13 +157,32 @@ function verifyWebhookSignature(rawBody, signature) {
         throw new Error('STRIPE_WEBHOOK_SECRET puuttuu');
     return stripe.webhooks.constructEvent(rawBody, signature, secret);
 }
+// v2 Core Accounts -tilikapasiteettimuutokset (ks. CLAUDE.md "PÄÄTÖS 2026-09-09:
+// SIGNICAT/CRIIPTO HYLÄTTY" -osio) tulevat Stripen "thin events" -mallin kautta, ERI
+// mekanismi kuin yllä oleva v1 checkout.session.completed-webhook - vahvistettu suoraan
+// Stripen dokumentaatiosta (docs.stripe.com/event-destinations) ennen koodausta:
+// - Rekisteröidään ERIKSEEN "Event Destination" -resurssina (POST /v2/core/event_destinations,
+//   tehty kertakäyttöisellä palvelinskriptillä samaan tapaan kuin muutkin tämän projektin
+//   kertaluontoiset ulkoisten API:en asetuskutsut, ei jäänyt repoon), ei Dashboardin
+//   klassinen webhook-URL-lista jota v1-tapahtumat käyttävät. Oma signing secret
+//   (STRIPE_ACCOUNT_EVENTS_SECRET), eri kuin STRIPE_WEBHOOK_SECRET. Tehty erikseen testi-
+//   ja tuotantotilassa (kumpikin oma Event Destination, oma secret) - ks. CLAUDE.md.
+// - Thin event -runko on kevyt: sisältää vain event.type + related_object.id:n (esim.
+//   tilin acct_-ID:n), EI tilan/kapasiteetin uutta arvoa itsessään - luotettava tapa on
+//   aina hakea tuore tila erikseen (ks. getAccountStatus), ei koskaan luottaa runkoon.
+// - ⚠️ Allekirjoituksen tarkistus EI käytä samaa stripe.webhooks.constructEvent-mekanismia
+//   kuin v1 - vahvistettu VÄÄRÄKSI suoraan tuotantotestissä 2026-09-09 (aiempi WebSearch-
+//   löydös oli virheellinen): constructEvent hylkää thin eventin omalla virheellään
+//   ("You passed a thin event notification to a function that expects a webhook. Use the
+//   corresponding EventNotification method instead."). Oikea metodi on stripen SDK:n oma
+//   `stripe.parseEventNotification(payload, signature, secret)` (top-level, ei
+//   `stripe.webhooks`-alla) - löydetty tutkimalla asennetun stripe-node-paketin prototyyppiä
+//   suoraan, ei arvattu. Palauttaa `Stripe.V2.EventNotification`-tyyppisen olion.
 function verifyAccountEventSignature(rawBody, signature) {
     const secret = process.env.STRIPE_ACCOUNT_EVENTS_SECRET;
     if (!secret)
         throw new Error('STRIPE_ACCOUNT_EVENTS_SECRET puuttuu');
-    // Thin eventin runko ei vastaa Stripe.Event (v1) -tyyppiä - sama allekirjoitusmekanismi,
-    // eri hyötykuorman muoto, joten tulos tyypitetään uudelleen omaan rajapintaan.
-    return stripe.webhooks.constructEvent(rawBody, signature, secret);
+    return stripe.parseEventNotification(rawBody, signature, secret);
 }
 // Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).
 // reverse_transfer palauttaa myyjän saaman osuuden takaisin meille, refund_application_fee

@@ -191,23 +191,18 @@ export function verifyWebhookSignature(rawBody: Buffer, signature: string): Stri
 // - Thin event -runko on kevyt: sisältää vain event.type + related_object.id:n (esim.
 //   tilin acct_-ID:n), EI tilan/kapasiteetin uutta arvoa itsessään - luotettava tapa on
 //   aina hakea tuore tila erikseen (ks. getAccountStatus), ei koskaan luottaa runkoon.
-// - Allekirjoituksen tarkistus käyttää samaa stripe.webhooks.constructEvent-mekanismia
-//   kuin v1 (vahvistettu Stripen dokumentaatiosta) - vain SECRET on eri, koska tapahtuma
-//   tulee eri Event Destination -rekisteröinnistä.
-export interface StripeAccountThinEvent {
-  id: string
-  type: string
-  livemode: boolean
-  created: string
-  related_object?: { id: string; type: string; url: string } | null
-}
-
-export function verifyAccountEventSignature(rawBody: Buffer, signature: string): StripeAccountThinEvent {
+// - ⚠️ Allekirjoituksen tarkistus EI käytä samaa stripe.webhooks.constructEvent-mekanismia
+//   kuin v1 - vahvistettu VÄÄRÄKSI suoraan tuotantotestissä 2026-09-09 (aiempi WebSearch-
+//   löydös oli virheellinen): constructEvent hylkää thin eventin omalla virheellään
+//   ("You passed a thin event notification to a function that expects a webhook. Use the
+//   corresponding EventNotification method instead."). Oikea metodi on stripen SDK:n oma
+//   `stripe.parseEventNotification(payload, signature, secret)` (top-level, ei
+//   `stripe.webhooks`-alla) - löydetty tutkimalla asennetun stripe-node-paketin prototyyppiä
+//   suoraan, ei arvattu. Palauttaa `Stripe.V2.EventNotification`-tyyppisen olion.
+export function verifyAccountEventSignature(rawBody: Buffer, signature: string): Stripe.V2.Core.EventNotification {
   const secret = process.env.STRIPE_ACCOUNT_EVENTS_SECRET
   if (!secret) throw new Error('STRIPE_ACCOUNT_EVENTS_SECRET puuttuu')
-  // Thin eventin runko ei vastaa Stripe.Event (v1) -tyyppiä - sama allekirjoitusmekanismi,
-  // eri hyötykuorman muoto, joten tulos tyypitetään uudelleen omaan rajapintaan.
-  return stripe.webhooks.constructEvent(rawBody, signature, secret) as unknown as StripeAccountThinEvent
+  return stripe.parseEventNotification(rawBody, signature, secret)
 }
 
 // Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).
