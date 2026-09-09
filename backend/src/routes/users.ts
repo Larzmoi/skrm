@@ -237,9 +237,9 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 // milloin tahansa myyjän täyttäessä lomaketta, ei haluta näyttää vanhentunutta tilaa.
 router.get('/me/stripe-status', authMiddleware, async (req: AuthRequest, res: Response) => {
   const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { stripeAccountId: true } })
-  if (!user?.stripeAccountId) return res.json({ connected: false, payoutsEnabled: false })
+  if (!user?.stripeAccountId) return res.json({ connected: false, transfersEnabled: false, payoutsEnabled: false })
   const status = await getAccountStatus(user.stripeAccountId)
-  res.json({ connected: true, payoutsEnabled: status.payoutsEnabled })
+  res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled })
 })
 
 // POST /users/me/stripe-onboarding — luo Stripe Connect -tilin jos ei vielä ole (kerran per

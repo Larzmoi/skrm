@@ -230,9 +230,9 @@ router.patch('/me', auth_1.authMiddleware, async (req, res) => {
 router.get('/me/stripe-status', auth_1.authMiddleware, async (req, res) => {
     const user = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { stripeAccountId: true } });
     if (!user?.stripeAccountId)
-        return res.json({ connected: false, payoutsEnabled: false });
+        return res.json({ connected: false, transfersEnabled: false, payoutsEnabled: false });
     const status = await (0, stripe_1.getAccountStatus)(user.stripeAccountId);
-    res.json({ connected: true, payoutsEnabled: status.payoutsEnabled });
+    res.json({ connected: true, transfersEnabled: status.transfersEnabled, payoutsEnabled: status.payoutsEnabled });
 });
 // POST /users/me/stripe-onboarding — luo Stripe Connect -tilin jos ei vielä ole (kerran per
 // myyjä, ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09) ja palauttaa hostatun onboarding-

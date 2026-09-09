@@ -3,7 +3,7 @@ import crypto from 'crypto'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getShippingPrice } from '../lib/shipping'
-import { createCheckoutSession, refundPayment, computeCommissionCents, getEffectiveCommissionOverride, createConnectedAccount, createOnboardingLink } from '../lib/stripe'
+import { createCheckoutSession, refundPayment, computeCommissionCents, getEffectiveCommissionOverride, getAccountStatus } from '../lib/stripe'
 import * as postiService from '../lib/postiService'
 import * as postiClient from '../lib/postiClient'
 import { notifyUser } from '../lib/notify'
@@ -112,6 +112,13 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
   if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Ei odottavaa maksua' })
   if (order.shippingPrice == null) return res.status(400).json({ error: 'Valitse ensin toimitustapa' })
   if (!order.seller.stripeAccountId) return res.status(400).json({ error: 'Myyjä ei ole vielä yhdistänyt Stripe-tiliään maksujen vastaanottamiseen' })
+  // Tarkistetaan ETUKÄTEEN onko destination-chargen kohdetili valmis vastaanottamaan siirtoja
+  // - löydetty tuotantotestissä 2026-09-09: ilman tätä Stripe hylkää Checkout Sessionin
+  // luonnin raa'alla englanninkielisellä virheellä ("destination account needs to have...
+  // stripe_transfers capability") jos myyjän onboarding on kesken. Selkeämpi suomenkielinen
+  // virhe tässä on parempi UX ostajalle kuin Stripen oma tekninen virheviesti.
+  const { transfersEnabled } = await getAccountStatus(order.seller.stripeAccountId)
+  if (!transfersEnabled) return res.status(400).json({ error: 'Myyjän Stripe-onboarding on vielä kesken, tilausta ei voi maksaa juuri nyt' })
 
   // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
   // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu

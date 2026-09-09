@@ -146,6 +146,14 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Valitse ensin toimitustapa' });
     if (!order.seller.stripeAccountId)
         return res.status(400).json({ error: 'Myyjä ei ole vielä yhdistänyt Stripe-tiliään maksujen vastaanottamiseen' });
+    // Tarkistetaan ETUKÄTEEN onko destination-chargen kohdetili valmis vastaanottamaan siirtoja
+    // - löydetty tuotantotestissä 2026-09-09: ilman tätä Stripe hylkää Checkout Sessionin
+    // luonnin raa'alla englanninkielisellä virheellä ("destination account needs to have...
+    // stripe_transfers capability") jos myyjän onboarding on kesken. Selkeämpi suomenkielinen
+    // virhe tässä on parempi UX ostajalle kuin Stripen oma tekninen virheviesti.
+    const { transfersEnabled } = await (0, stripe_1.getAccountStatus)(order.seller.stripeAccountId);
+    if (!transfersEnabled)
+        return res.status(400).json({ error: 'Myyjän Stripe-onboarding on vielä kesken, tilausta ei voi maksaa juuri nyt' });
     // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
     // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
     // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.

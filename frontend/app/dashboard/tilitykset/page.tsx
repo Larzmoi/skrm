@@ -10,12 +10,12 @@ import { userApi } from '@/lib/api'
 // tiedostossa).
 function StripeConnectCard() {
   const { C } = useTheme()
-  const [status, setStatus] = useState<{ connected: boolean; payoutsEnabled: boolean } | null>(null)
+  const [status, setStatus] = useState<{ connected: boolean; transfersEnabled: boolean; payoutsEnabled: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    userApi.getStripeStatus().then(setStatus).catch(() => setStatus({ connected: false, payoutsEnabled: false }))
+    userApi.getStripeStatus().then(setStatus).catch(() => setStatus({ connected: false, transfersEnabled: false, payoutsEnabled: false }))
   }, [])
 
   async function connect() {
@@ -38,14 +38,14 @@ function StripeConnectCard() {
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>Maksujen vastaanotto (Stripe)</div>
           <div style={{ fontSize: 13, color: C.muted }}>
-            {status.payoutsEnabled
+            {status.transfersEnabled
               ? 'Stripe-tilisi on yhdistetty ja valmis vastaanottamaan maksuja.'
               : status.connected
               ? 'Stripe-tili luotu, mutta onboarding on vielä kesken — täytä loput tiedot jatkaaksesi.'
               : 'Yhdistä Stripe-tilisi ennen kuin voit vastaanottaa maksuja ostajilta. Ei vaadi Y-tunnusta.'}
           </div>
         </div>
-        {!status.payoutsEnabled && (
+        {!status.transfersEnabled && (
           <button onClick={connect} disabled={busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap' }}>
             {busy ? 'Ohjataan...' : status.connected ? 'Jatka onboardingia' : 'Yhdistä Stripe-tili'}
           </button>

@@ -97,15 +97,21 @@ export async function createOnboardingLink(accountId: string): Promise<string> {
   return link.url
 }
 
-// Tilin tila - kertoo onko myyjä valmis vastaanottamaan maksuja (payouts-kapasiteetti
-// "active"). v2:ssa ei ole v1:n kaltaista suoraa details_submitted-kenttää - requirements-
-// listan tyhjyys/kapasiteetin tila kertoo saman asian käytännössä.
-export async function getAccountStatus(accountId: string): Promise<{ payoutsEnabled: boolean }> {
+// Tilin tila - kaksi ERI kapasiteettia, tarkoituksella eroteltu (löytyi tuotantotestissä
+// 2026-09-09): stripe_transfers = voiko destination-charge YLIPÄÄTÄÄN ohjata rahaa tälle
+// tilille (tämä on se joka estää POST /orders/:id/pay:n jos puuttuu, ks. checkTransfersReady
+// alla) - payouts = voiko myyjä NOSTAA jo vastaanotetun saldon omalle pankkitililleen,
+// eri, myöhempi vaihe onboardingissa. v2:ssa ei ole v1:n kaltaista suoraa details_submitted-
+// kenttää - kapasiteettien tila kertoo saman asian käytännössä.
+export async function getAccountStatus(accountId: string): Promise<{ payoutsEnabled: boolean; transfersEnabled: boolean }> {
   const account = await stripe.v2.core.accounts.retrieve(accountId, {
     include: ['configuration.recipient'],
   })
-  const payoutsEnabled = account.configuration?.recipient?.capabilities?.stripe_balance?.payouts?.status === 'active'
-  return { payoutsEnabled }
+  const capabilities = account.configuration?.recipient?.capabilities?.stripe_balance
+  return {
+    payoutsEnabled: capabilities?.payouts?.status === 'active',
+    transfersEnabled: capabilities?.stripe_transfers?.status === 'active',
+  }
 }
 
 export interface CheckoutLineItem {
