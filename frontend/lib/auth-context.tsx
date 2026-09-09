@@ -43,8 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // localStorage on aina totuuden lähde (ks. api.ts:n Authorization-header) - habahub_token-
       // eväste on vain proxy.ts:n reittisuojausta varten, ja se voi hävitä itsenäisesti
       // localStoragesta (esim. selaimen yksityisyyssuoja pudottaa sen risti-sivustoisen
-      // uudelleenohjauksen, kuten Paytrail-maksun paluun, aikana - löydetty 2026-08-31 kun
-      // ostaja päätyi /loginiin vaikka maksu onnistui täysin normaalisti). Palautetaan eväste
+      // uudelleenohjauksen, kuten maksun paluun Stripe Checkoutista (aiemmin Paytrailista),
+      // aikana - löydetty 2026-08-31 kun ostaja päätyi /loginiin vaikka maksu onnistui
+      // täysin normaalisti). Palautetaan eväste
       // aina kun localStoragessa on kelvollisen näköinen sessio, sen sijaan että kirjattaisiin
       // koko sessio ulos pelkän evästeen puuttumisen perusteella - jos token on aidosti
       // vanhentunut, seuraava API-kutsu paljastaa sen normaalisti kuten muuallakin sovelluksessa.

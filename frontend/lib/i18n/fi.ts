@@ -348,7 +348,7 @@ const fi = {
     subtitle: 'Selkeä ja reilu hinnoittelu ilman piilomaksuja.',
     commission: 'Myyntipalkkio',
     skrmFee: 'Habahub välityspalkkio',
-    paymentFee: 'Maksunkäsittely (Paytrail)',
+    paymentFee: 'Maksunkäsittely (Stripe)',
     paymentFeeDesc: '+ 0,25€ per kauppa · ei kattoa · menee maksupalvelulle',
     noHidden: 'Ei piilomaksuja',
     salePrice: 'Myyntihinta',

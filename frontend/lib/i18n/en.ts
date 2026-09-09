@@ -335,7 +335,7 @@ const en = {
     subtitle: 'Clear and fair pricing with no hidden fees.',
     commission: 'Commission',
     skrmFee: 'Habahub commission',
-    paymentFee: 'Payment processing (Paytrail)',
+    paymentFee: 'Payment processing (Stripe)',
     paymentFeeDesc: '+ €0.25 per transaction · no cap · goes to payment provider',
     noHidden: 'No hidden fees',
     salePrice: 'Sale price',

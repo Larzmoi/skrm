@@ -187,8 +187,9 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
 
   // Yhdistetty lähetys: sama myyjä 6h sisällä JA tilaus ei ole vielä maksettu → liitetään
   // avoimeen tilaukseen. Omistajan korjaus 2026-08-12: tuote+toimitus maksetaan aina YHDESSÄ
-  // yhtenä Paytrail-maksuna, joten yhdistäminen voi tapahtua vain ENNEN maksua - maksetun
-  // tilauksen lisärivit aloittavat oman uuden tilauksensa (ks. CLAUDE.md "Paytrail").
+  // yhtenä maksuna (Stripe Checkout Session, ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09),
+  // joten yhdistäminen voi tapahtua vain ENNEN maksua - maksetun tilauksen lisärivit
+  // aloittavat oman uuden tilauksensa.
   const existingOrder = await prisma.order.findFirst({
     where: {
       buyerId, sellerId: String(sellerId), status: 'PENDING_PAYMENT',
@@ -197,7 +198,7 @@ router.post('/checkout', authMiddleware, async (req: AuthRequest, res: Response)
     orderBy: { createdAt: 'desc' },
   })
 
-  // EI luo Paytrail-maksua tässä — ostaja käynnistää sen erikseen (POST /orders/:id/pay)
+  // EI luo Stripe Checkout Sessionia tässä — ostaja käynnistää sen erikseen (POST /orders/:id/pay)
   // heti perään frontendistä, samana käyttäjätoimintona ("Maksa tämä myyjä" -nappi kutsuu
   // molemmat peräkkäin).
   let order

@@ -24,7 +24,9 @@ export async function checkDeliveryTimeline() {
     const age = now - order.shippedAt!.getTime()
 
     if (age >= 14 * DAY_MS) {
-      // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
+      // Ei vaadi erillistä maksun vapautus-/capture-kutsua — Stripen destination charge (ks.
+      // lib/stripe.ts createCheckoutSession) siirsi myyjän osuuden hänen tililleen jo
+      // maksuhetkellä, tämä vain päivittää tilauksen tilan.
       await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
       await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja ei reagoinut 14 päivän kuluessa — tilaus suljettiin automaattisesti ja maksu on vapautettu sinulle.', '/dashboard/tilaukset')
       await notifyUser(order.buyerId, 'ORDER_AUTO_COMPLETED', 'Tilaus suljettu automaattisesti', 'Et kuitannut tilausta 14 päivän kuluessa, joten se suljettiin automaattisesti.', '/ostot')

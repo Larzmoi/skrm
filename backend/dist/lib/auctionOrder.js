@@ -8,15 +8,15 @@ const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h yhdistämisikkuna —
 // koskaan maksamaan — closeAuctions ja buy-now vain merkitsivät tuotteen myydyksi ja
 // lähettivät ilmoituksen "sinulla on aikaa maksaa", mutta Orderia ei koskaan syntynyt.
 //
-// EI luo Paytrail-maksua tässä — maksu käynnistetään erikseen ostajan omasta aloitteesta
-// (POST /orders/:id/pay), koska huutokaupan voitto on PASSIIVINEN tapahtuma (voittaja ei
-// välttämättä ole edes sivustolla sillä hetkellä) - maksuistunnon luonti vasta kun ostaja
-// oikeasti aikoo maksaa (esim. /ostot-sivulta) on ainoa järkevä hetki.
+// EI luo Stripe Checkout Sessionia tässä — maksu käynnistetään erikseen ostajan omasta
+// aloitteesta (POST /orders/:id/pay), koska huutokaupan voitto on PASSIIVINEN tapahtuma
+// (voittaja ei välttämättä ole edes sivustolla sillä hetkellä) - maksuistunnon luonti vasta
+// kun ostaja oikeasti aikoo maksaa (esim. /ostot-sivulta) on ainoa järkevä hetki.
 async function createOrderForAuctionWin(buyerId, sellerId, productId, price, paymentWindowMs) {
     const now = new Date();
     // Yhdistäminen vain vielä maksamattomaan tilaukseen - tuote+toimitus maksetaan aina
-    // yhdessä (ks. CLAUDE.md "Paytrail"), joten maksetun tilauksen lisärivit aloittavat
-    // oman uuden tilauksensa.
+    // yhdessä (ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09), joten maksetun tilauksen
+    // lisärivit aloittavat oman uuden tilauksensa.
     const existingOrder = await prisma_1.prisma.order.findFirst({
         where: { buyerId, sellerId, status: 'PENDING_PAYMENT', shippingWindowEnd: { gt: now } },
         orderBy: { createdAt: 'desc' },

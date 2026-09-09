@@ -33,7 +33,7 @@ Myyjän tiedot:
 
 Ostaminen:
 - Toimitusosoite ja yhteystiedot tilauksia varten
-- Maksutapahtumien tiedot (käsitellään Paytrailin kautta — Habahub ei tallenna korttitietoja)
+- Maksutapahtumien tiedot (käsitellään Stripen kautta — Habahub ei tallenna korttitietoja)
 - Tilaushistoria
 
 Live ja yhteisölliset toiminnot:
@@ -89,7 +89,7 @@ Emme myy henkilötietojasi kolmansille osapuolille.
 
 Voimme luovuttaa henkilötietoja:
 
-- Paytrail Oyj: maksujen käsittely
+- Stripe Payments Europe, Limited: maksujen käsittely (irlantilainen yhtiö, vastaa Stripen sopimussuhteista EU/ETA-alueella)
 - Resend Inc.: sähköpostiviestintä (yhdysvaltalainen palveluntarjoaja — tietojen siirto perustuu EU:n vakiosopimuslausekkeisiin, Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: palvelininfrastruktuuri
 - Viranomaiset: lain edellyttämissä tapauksissa tai rikosepäilyissä
@@ -205,7 +205,7 @@ Säljaruppgifter:
 
 Köp:
 - Leveransadress och kontaktuppgifter för beställningar
-- Betalningstransaktionsdata (behandlas via Paytrail — Habahub lagrar inga kortuppgifter)
+- Betalningstransaktionsdata (behandlas via Stripe — Habahub lagrar inga kortuppgifter)
 - Orderhistorik
 
 Live- och communityfunktioner:
@@ -261,7 +261,7 @@ Vi säljer inte dina personuppgifter till tredje part.
 
 Vi kan lämna ut personuppgifter till:
 
-- Paytrail Oyj: betalningshantering
+- Stripe Payments Europe, Limited: betalningshantering (irländskt bolag, ansvarar för Stripes avtalsförhållanden inom EU/EES)
 - Resend Inc.: e-postkommunikation (amerikansk tjänsteleverantör — dataöverföringen grundar sig på EU:s standardavtalsklausuler, Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: serverinfrastruktur
 - Myndigheter: i fall som lagen kräver eller vid misstanke om brott
@@ -375,7 +375,7 @@ Seller data:
 
 Purchasing:
 - Delivery address and contact details for orders
-- Payment transaction data (processed by Paytrail — Habahub does not store card details)
+- Payment transaction data (processed by Stripe — Habahub does not store card details)
 - Order history
 
 Live and community features:
@@ -424,7 +424,7 @@ We do not sell your personal data to third parties.
 5. DATA SHARING
 
 We may share personal data with:
-- Paytrail Oyj: payment processing
+- Stripe Payments Europe, Limited: payment processing (Irish entity responsible for Stripe's contractual relationships in the EU/EEA)
 - Resend Inc.: email communications (a US-based provider — data transfer is based on the EU Standard Contractual Clauses, SCC)
 - Hetzner Online GmbH: server infrastructure
 - Authorities: as required by law or in cases of suspected crime

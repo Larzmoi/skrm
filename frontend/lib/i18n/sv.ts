@@ -335,7 +335,7 @@ const sv = {
     subtitle: 'Tydlig och rättvis prissättning utan dolda avgifter.',
     commission: 'Kommission',
     skrmFee: 'Habahub kommission',
-    paymentFee: 'Betalningshantering (Paytrail)',
+    paymentFee: 'Betalningshantering (Stripe)',
     paymentFeeDesc: '+ 0,25€ per affär · inget tak · går till betalningsleverantör',
     noHidden: 'Inga dolda avgifter',
     salePrice: 'Försäljningspris',

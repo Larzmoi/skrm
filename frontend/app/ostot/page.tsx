@@ -77,11 +77,11 @@ export default function OstotPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Paytrail ohjaa selaimen tänne maksun jälkeen ?payment=success/cancel&orderId=... -
+  // Stripe Checkout ohjaa selaimen tänne maksun jälkeen ?payment=success/cancel&orderId=... -
   // TÄMÄ redirect ei itsessään ole luotettava tiedonlähde (ei allekirjoitusta tarkisteta
   // täällä), vain webhookilla (backend/routes/webhooks.ts) päivitetty tilaus on totuus.
-  // Paytrailin oma webhook-kutsu voi saapua hieman redirectin jälkeen, joten haetaan
-  // tilaukset uudestaan hetken päästä varmistukseksi.
+  // Stripen oma webhook-kutsu (checkout.session.completed) voi saapua hieman redirectin
+  // jälkeen, joten haetaan tilaukset uudestaan hetken päästä varmistukseksi.
   const [paymentNotice, setPaymentNotice] = useState<'success' | 'cancel' | null>(null)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -109,8 +109,8 @@ export default function OstotPage() {
     return pakettikoot.filter(p => (p.id === 'postitus' ? allowShipping : p.id === 'nouto' ? allowPickup : true))
   }
 
-  // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna (ks. CLAUDE.md
-  // "Paytrail" — omistajan korjaus 2026-08-12). Jos pakettikokoa ei ole vielä valittu
+  // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Stripe Checkout Sessionina (ks. CLAUDE.md
+  // "Paytrail -> Stripe" — omistajan korjaus 2026-08-12). Jos pakettikokoa ei ole vielä valittu
   // (esim. huutokaupan voitto, jolle ei ollut aiempaa kori-vaihetta), valitaan se tässä
   // ennen maksun aloitusta - muuten tilaus oli jo valittu (esim. korista tullessa).
   async function payOrder(order: Order) {

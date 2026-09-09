@@ -29,7 +29,7 @@ HABAHUB EI OLE OSAPUOLI OSTAJAN JA MYYJÄN VÄLISESSÄ KAUPPASOPIMUKSESSA.
 
 HABAHUB ei vastaa Myyjien tuotteiden laadusta, lainmukaisuudesta, toimituksesta, kuvauksen oikeellisuudesta tai muista kauppaan liittyvistä seikoista, lukuun ottamatta lainsäädännön Palveluntarjoajalle erikseen asettamia velvoitteita.
 
-HABAHUB välittää maksut Ostajilta Myyjille kolmannen osapuolen maksupalvelun (Paytrail) avulla. Maksunvälitys ei tee HABAHUB:stä kauppasopimuksen osapuolta.
+HABAHUB välittää maksut Ostajilta Myyjille kolmannen osapuolen maksupalvelun (Stripe) avulla. Maksunvälitys ei tee HABAHUB:stä kauppasopimuksen osapuolta.
 
 4. REKISTERÖITYMINEN JA KÄYTTÄJÄTILI
 
@@ -78,7 +78,7 @@ Myyjä sitoutuu lähettämään myytyyn tuotteen 4 vuorokauden kuluessa kaupan s
 Myyjä vastaa siitä, että tuotteen kuvaus, kuvat ja muut tiedot vastaavat todellisuutta. Harhaanjohtavat kuvaukset voivat johtaa tilin sulkemiseen ja korvausvelvollisuuteen.
 
 5.5 Välityspalkkio
-HABAHUB perii onnistuneesta kaupasta välityspalkkion, joka on 3,5 % myyntihinnasta, enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Paytrail) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
+HABAHUB perii onnistuneesta kaupasta välityspalkkion, joka on 3,5 % myyntihinnasta, enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Stripe) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
 
 5.6 Noutotuotteet
 Myyjä voi tarjota tuotteita noudettavaksi. Noutotuotteiden kaupassa HABAHUB ei tarjoa maksuturvaa eikä vastaa kaupan toteutumisesta. Kauppa tapahtuu suoraan ostajan ja myyjän välillä, ja he sopivat noutoajasta, -paikasta ja maksusta keskenään.
@@ -199,7 +199,7 @@ HABAHUB ÄR INTE PART I KÖPEAVTALET MELLAN KÖPAREN OCH SÄLJAREN.
 
 HABAHUB ansvarar inte för Säljares produkters kvalitet, laglighet, leverans, beskrivningens riktighet eller andra omständigheter kring affären, förutom vad lagstiftningen särskilt ålägger tjänsteleverantören.
 
-HABAHUB förmedlar betalningar från Köpare till Säljare via en tredjeparts betaltjänst (Paytrail). Betalningsförmedlingen gör inte HABAHUB till part i köpeavtalet.
+HABAHUB förmedlar betalningar från Köpare till Säljare via en tredjeparts betaltjänst (Stripe). Betalningsförmedlingen gör inte HABAHUB till part i köpeavtalet.
 
 4. REGISTRERING OCH ANVÄNDARKONTO
 
@@ -248,7 +248,7 @@ Säljaren åtar sig att skicka den sålda produkten inom 4 dygn från det att af
 Säljaren ansvarar för att produktens beskrivning, bilder och andra uppgifter motsvarar verkligheten. Vilseledande beskrivningar kan leda till att kontot stängs och till ersättningsskyldighet.
 
 5.5 Förmedlingsavgift
-HABAHUB tar ut en förmedlingsavgift på 3,5 % av försäljningspriset för en genomförd affär, dock högst 35 euro per affär. Dessutom tillkommer betaltjänstleverantörens (Paytrail) transaktionsavgift (cirka 1,5 % + 0,25 €), som inte har något tak. Mer information finns på sidan om förmedlingsavgifter.
+HABAHUB tar ut en förmedlingsavgift på 3,5 % av försäljningspriset för en genomförd affär, dock högst 35 euro per affär. Dessutom tillkommer betaltjänstleverantörens (Stripe) transaktionsavgift (cirka 1,5 % + 0,25 €), som inte har något tak. Mer information finns på sidan om förmedlingsavgifter.
 
 5.6 Hämtningsprodukter
 Säljaren kan erbjuda produkter för avhämtning. Vid hämtningsaffärer erbjuder HABAHUB inget betalningsskydd och ansvarar inte för att affären genomförs. Affären sker direkt mellan köpare och säljare, som själva kommer överens om tid, plats och betalning för hämtningen.
@@ -369,7 +369,7 @@ HABAHUB IS NOT A PARTY TO THE PURCHASE AGREEMENT BETWEEN THE BUYER AND THE SELLE
 
 HABAHUB is not responsible for the quality, legality, delivery, accuracy of description, or other aspects of the purchase, except as specifically required by applicable law.
 
-HABAHUB processes payments from Buyers to Sellers through a third-party payment service (Paytrail). Processing payments does not make HABAHUB a party to the purchase agreement.
+HABAHUB processes payments from Buyers to Sellers through a third-party payment service (Stripe). Processing payments does not make HABAHUB a party to the purchase agreement.
 
 4. REGISTRATION AND USER ACCOUNT
 
@@ -409,7 +409,7 @@ The following may not be sold on the Service:
 The Seller commits to shipping the sold product within 4 days of the transaction and providing a tracking code to HABAHUB and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
 
 5.4 Commission
-HABAHUB charges a commission of 3.5% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Paytrail, approximately 1.5% + €0.25) are charged separately with no cap.
+HABAHUB charges a commission of 3.5% of the sale price, up to a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Stripe, approximately 1.5% + €0.25) are charged separately with no cap.
 
 5.5 Pickup items
 The Seller may offer products for local pickup. For pickup transactions, HABAHUB does not provide payment protection and is not responsible for the completion of the transaction. The transaction takes place directly between the Buyer and Seller, who agree on the pickup time, location, and payment between themselves.

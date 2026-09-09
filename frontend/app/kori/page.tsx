@@ -88,13 +88,13 @@ export default function KoriPage() {
   async function payGroup(sellerId: string, pakettikokoId: string) {
     setPaying(sellerId)
     try {
-      // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Paytrail-maksuna - toimitustapa
-      // pitää siis olla valittuna ENNEN maksun aloitusta (ks. CLAUDE.md "Paytrail").
+      // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Stripe Checkout Sessionina - toimitustapa
+      // pitää siis olla valittuna ENNEN maksun aloitusta (ks. CLAUDE.md "Paytrail -> Stripe").
       const { order } = await cartApi.checkout(sellerId)
       await orderApi.selectShipping(order.id, pakettikokoId, pakettikokoId === 'postitus' ? selectedPickupPoint[sellerId] : undefined)
       const { redirectUrl } = await orderApi.pay(order.id)
       if (redirectUrl) {
-        // Ulkoinen Paytrail-osoite - koko sivun navigointi, ei Next.js-routeria
+        // Ulkoinen Stripe Checkout -osoite - koko sivun navigointi, ei Next.js-routeria
         window.location.href = redirectUrl
         return
       }

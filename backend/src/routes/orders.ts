@@ -59,8 +59,8 @@ router.get('/selling', authMiddleware, async (req: AuthRequest, res: Response) =
 })
 
 // POST /orders/:id/select-shipping — ostaja valitsee toimitustavan ENNEN maksua (ei enää
-// oma erillinen maksuvaiheensa, ks. CLAUDE.md "Paytrail" — omistajan korjaus 2026-08-12:
-// tuote ja toimitus maksetaan aina yhdessä, ei kahdessa erillisessä Paytrail-maksussa).
+// oma erillinen maksuvaiheensa, ks. CLAUDE.md "Paytrail -> Stripe" — omistajan korjaus
+// 2026-08-12: tuote ja toimitus maksetaan aina yhdessä, ei kahdessa erillisessä maksussa).
 router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
@@ -192,7 +192,9 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
   const { trackingCode } = req.body
   if (!trackingCode) return res.status(400).json({ error: 'Seurantakoodi vaaditaan' })
 
-  // TODO: Paytrail capture — vapauta tuotteen maksu myyjälle kun oikea integraatio on käytössä
+  // Ei vaadi erillistä maksun vapautus-/capture-kutsua — Stripen destination charge (ks.
+  // lib/stripe.ts createCheckoutSession) siirsi myyjän osuuden hänen tililleen jo
+  // maksuhetkellä, tämä vain päivittää tilauksen tilan.
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: { trackingCode, status: 'SHIPPED', shippedAt: new Date() },
@@ -302,7 +304,9 @@ router.post('/:id/confirm-pickup', authMiddleware, async (req: AuthRequest, res:
 
   // Sama vapautuslogiikka kuin "Postin API sanoo toimitettu" -tapauksessa, mutta heti — molemmat osapuolet
   // ovat fyysisesti läsnä ja voivat vahvistaa vaihdon saman tien, ei tarvitse odottaa 14 päivää
-  // TODO: Paytrail capture — vapauta tuotteen maksu myyjälle kun oikea integraatio on käytössä
+  // Ei vaadi erillistä maksun vapautus-/capture-kutsua — Stripen destination charge (ks.
+  // lib/stripe.ts createCheckoutSession) siirsi myyjän osuuden hänen tililleen jo
+  // maksuhetkellä, tämä vain päivittää tilauksen tilan.
   const updated = await prisma.order.update({ where: { id: order.id }, data: { status: 'DELIVERED' } })
   await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Noutokoodi vahvistettu — maksu on vapautettu sinulle.', '/dashboard/tilaukset')
   await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Nouto vahvistettu', 'Myyjä vahvisti noudon — kauppa on suoritettu.', '/ostot')
@@ -323,7 +327,9 @@ router.post('/:id/confirm-delivery', authMiddleware, async (req: AuthRequest, re
   if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
   if (order.status !== 'SHIPPED') return res.status(400).json({ error: 'Tilaus ei odota vastaanottokuittausta' })
 
-  // TODO: Paytrail capture — vapauta maksu myyjälle kun oikea integraatio on käytössä
+  // Ei vaadi erillistä maksun vapautus-/capture-kutsua — Stripen destination charge (ks.
+  // lib/stripe.ts createCheckoutSession) siirsi myyjän osuuden hänen tililleen jo
+  // maksuhetkellä, tämä vain päivittää tilauksen tilan.
   const updated = await prisma.order.update({ where: { id: order.id }, data: { deliveryConfirmedAt: new Date(), status: 'DELIVERED' } })
   await notifyUser(order.sellerId, 'PAYMENT_RELEASED', 'Maksu vapautettu', 'Ostaja kuittasi tilauksen vastaanotetuksi — maksu on vapautettu sinulle heti.', '/dashboard/tilaukset')
   await notifyUser(order.buyerId, 'ORDER_DELIVERED', 'Kauppa suoritettu', 'Kiitos kuittauksesta — kauppa on nyt suoritettu.', '/ostot')
