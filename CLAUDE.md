@@ -7,6 +7,26 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Stripe-maksun ajoitus + ostajan oma tilauksen peruutus + profiilin Stripe-linkki 2026-09-09 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja kysyi kolme asiaa Stripe-siirron jälkeen: (1) toimiiko 2h maksuaika yhä Stripen kanssa vai veloittaako Stripe kortilta automaattisesti heti, (2) "Osta heti" (suoramyynti) -tuotteen pitäisi olla poistettavissa ostoskorista tarvittaessa, (3) profiilista pitäisi päästä tekemään Stripe-tunnistautuminen.
+
+**1. Maksun ajoitus — VAHVISTETTU: 2h maksuaika toimii ennallaan, ei vaadi muutosta.** Stripe Checkout on hostattu, interaktiivinen maksusivu — mikään ei veloita ostajaa automaattisesti pelkästään siitä että MYYJÄN tili on yhdistetty Stripeen (Connect koskee vain myyjää, joka VASTAANOTTAA rahaa — ostajalla ei ole mitään omaa tallennettua maksutapaa meidän puolellamme). Kulku on sama kuin Paytraililla: `Order` luodaan `PENDING_PAYMENT`-tilaan `paymentDeadline = nyt+2h` heti checkoutissa (`cart.ts`), ostaja ohjataan Stripen sivulle vasta kun hän itse painaa "Maksa" (`POST /orders/:id/pay`), ja mikään ei veloitu ennen kuin ostaja on itse täyttänyt kortin/lompakon sivulla. Jos 2h umpeutuu maksamatta, `checkExpiredPayments()` peruu tilauksen ja bannaa entiseen tapaan. Ei koodimuutosta — vain selvennys.
+
+**2. "Osta heti" -kori-poisto — testattu suoraan tuotannossa: itse poisto-mekanismi toimii oikein, todellinen puute oli MUUALLA.** Loin kertakäyttöisen suoramyyntituotteen, ajoin täsmälleen saman `POST /cart/add` → `GET /cart` → `DELETE /cart/:itemId`-ketjun kuin `/kori`-sivu käyttää — tuote lisättiin, näkyi korissa, poistui siististi, varasto palautui oikein. Pelkkä ennen-checkoutia-oleva korista-poisto EI siis ollut rikki.
+
+**Todellinen puute löytyi koodista: kun ostaja painaa "Maksa" korissa, `POST /cart/checkout` luo `Order`-rivin ja tuote siirtyy korista Tilaukseksi — mutta millekään maksamattomalle Tilaukselle EI ollut mitään peruutusreittiä.** Ainoat vaihtoehdot olivat maksaa tai antaa 2h umpeutua, mikä LUKITTU-säännön mukaan bannaa 30 päiväksi heti ensimmäisestä kerrasta — kohtuutonta jos ostaja esim. klikkasi vahingossa "Maksa" ja sulki Stripe-välilehden.
+
+**Korjaus — uusi `POST /orders/:id/cancel` (`backend/src/routes/orders.ts`):**
+- Ostaja voi peruuttaa OMAN `PENDING_PAYMENT`-tilauksensa milloin tahansa ennen maksamista.
+- Käyttää samaa varastonpalautus-transaktiota kuin `checkExpiredPayments()` (`webhooks.ts`) — eriytetty jaettuun `buildStockRestoreOps()`-apufunktioon (`backend/src/lib/orderCancellation.ts`), jotta kaksi hieman erillistä kopiota samasta logiikasta ei ajaudu eriytymään ajan myötä. Auktiotuote → `UNSOLD` (nollattu), muu → `quantity+1`/`PENDING`.
+- **EI KOSKAAN kirjaa `PaymentViolationia` eikä bannaa** — vapaaehtoinen, rehellinen peruutus ei ole LUKITTU-säännön tarkoittama rike (jättää reagoimatta). Tämä on tarkoituksellinen, tietoinen ero umpeutumiseen verrattuna.
+- Myyjä saa ilmoituksen (uusi `NotificationType.ORDER_CANCELLED_BY_BUYER`), linkki `/dashboard/tuotteet`-sivulle.
+- Frontend: `/ostot`-sivun jokaisen `PENDING_PAYMENT`-tilausrivin yläkulmaan "Peruuta tilaus" -linkki, avaa `ConfirmDialog`-vahvistuksen (sama komponentti kuin `dashboard/tilaukset`:n hyvitysvahvistus) ennen peruutusta.
+- **Testattu tuotannossa oikealla HTTP-reitillä:** luotu kertakäyttöinen `PENDING_PAYMENT`-tilaus, `POST /orders/:id/cancel` → `200`, toinen peruutusyritys samalle tilaukselle → `400 "Tilausta ei voi enää peruuttaa"` (estää tuplaperuutuksen). Vahvistettu suoraan tietokannasta: `order.status:"CANCELLED"`, tuotteen `quantity` palautui oikein, **`PaymentViolation`-rivejä 0 ja ei aktiivista bannia** ostajalle — juuri niin kuin piti. Testidata siivottu.
+
+**3. Profiilin Stripe-linkki — TEHTY.** `StripeConnectCard` (aiemmin vain `/dashboard/tilitykset`-sivulla) eriytetty jaetuksi komponentiksi (`frontend/components/StripeConnectCard.tsx`) ja lisätty myös `/dashboard/profiili`-sivulle (Lomamoodi-kortin yläpuolelle) — myyjä löytää Stripe-vahvistuksen suoraan profiilista sen sijaan että pitäisi tietää etukäteen Tilitykset-sivun olemassaolo. Sama komponentti, sama toiminnallisuus (tila + "Yhdistä Stripe-tili"/"Jatka onboardingia" -nappi) molemmissa paikoissa.
+
 ## Paytrail → Stripe Connect — koko maksujärjestelmä vaihdettu 2026-09-09 — ✅ TEHTY JA DEPLOYATTU, testitilassa
 
 **⚠️ TÄRKEÄ: kaikki alempana tässä tiedostossa olevat "Paytrail"-osiot (mm. "Paytrail-maksuintegraatio", "Paytrail ja myyjien tilinumerot", "Paytrail-alakauppiaan onboarding") ovat NYT HISTORIALLISTA REFERENSSIÄ — Paytrail on poistettu koodista kokonaan, ei enää käytössä. Älä koodaa niiden ohjeiden mukaan. Maksut kulkevat nyt Stripe Connectin kautta, ks. tämä osio.**
