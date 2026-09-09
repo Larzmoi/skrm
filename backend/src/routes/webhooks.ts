@@ -3,7 +3,7 @@ import express from 'express'
 import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
-import { verifyWebhookSignature } from '../lib/stripe'
+import { verifyWebhookSignature, verifyAccountEventSignature, getAccountStatus } from '../lib/stripe'
 import { sendBanNotificationEmail, sendOrderConfirmationEmail } from '../lib/resend'
 
 const router = Router()
@@ -181,6 +181,55 @@ export async function handleStripeWebhook(req: Request, res: Response) {
   // Muut tapahtumatyypit (esim. checkout.session.async_payment_failed) - ei toimenpiteitä
   // toistaiseksi, ostaja voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-
   // cron siivoaa myöhemmin.
+
+  res.status(200).json({ received: true })
+}
+
+// POST /webhooks/stripe-accounts — Stripen v2 "thin event" -ilmoitukset myyjien Connect-
+// tilien kapasiteettimuutoksista (ks. CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO
+// HYLÄTTY"). ERI reitti/ERI signing secret kuin yllä oleva /webhooks/stripe (v1
+// checkout-tapahtumat) - v2-tilitapahtumat rekisteröidään omana Event Destinationina,
+// ei Dashboardin klassisena webhook-URL:na (ks. lib/stripe.ts:n kommentti,
+// scripts/registerStripeAccountEventDestination.ts). Sama raaka-runko-vaatimus kuin
+// /webhooks/stripe:llä, montattu index.ts:ssä ennen express.json():ia.
+//
+// Automatisoi sen mitä omistaja teki aiemmin käsin admin-paneelista: kun myyjän Stripe-
+// onboarding valmistuu (stripe_transfers-kapasiteetti menee active-tilaan), User.verified
+// asetetaan todeksi ilman että kenenkään tarvitsee klikata mitään. EI KOSKAAN luoteta
+// thin eventin omaan runkoon kapasiteetin UUDESTA arvosta (sitä ei edes sisälly siihen,
+// vain tilin ID) - haetaan aina tuore tila suoraan Stripeltä ennen kirjoitusta.
+export async function handleStripeAccountWebhook(req: Request, res: Response) {
+  const signature = req.headers['stripe-signature']
+  if (typeof signature !== 'string') return res.status(400).send('missing signature')
+
+  let event
+  try {
+    event = verifyAccountEventSignature(req.body as Buffer, signature)
+  } catch (err: any) {
+    console.error('[stripe account webhook] virheellinen allekirjoitus, hylätty', err.message)
+    return res.status(400).send(`Webhook Error: ${err.message}`)
+  }
+
+  if (event.type === 'v2.core.account[configuration.recipient].capability_status_updated' && event.related_object?.id) {
+    const accountId = event.related_object.id
+    try {
+      const { transfersEnabled } = await getAccountStatus(accountId)
+      if (transfersEnabled) {
+        // updateMany + verified:false-ehto: idempotentti, ei kirjoita mitään jos käyttäjä on
+        // jo vahvistettu (esim. admin ehti jo klikata kytkintä, tai Stripe lähettää saman
+        // tapahtuman uudestaan - dokumentoitu käytös).
+        const updated = await prisma.user.updateMany({
+          where: { stripeAccountId: accountId, verified: false },
+          data: { verified: true },
+        })
+        if (updated.count > 0) {
+          console.log(`[stripe account webhook] User.verified=true asetettu automaattisesti tilille ${accountId}`)
+        }
+      }
+    } catch (err: any) {
+      console.error('[stripe account webhook] tilan haku epäonnistui', accountId, err.message)
+    }
+  }
 
   res.status(200).json({ received: true })
 }

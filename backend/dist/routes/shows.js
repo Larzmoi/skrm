@@ -83,12 +83,14 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
     // Striimausoikeus on admin-myönnettävä (ks. CLAUDE.md/INTEGRATION.md 2026-09-02,
     // User.canStream) - frontendin kytkin ei itsessään estä mitään, tämä backend-tarkistus on
     // se mikä oikeasti rajoittaa pääsyn. Lisätty 2026-09-08: streamaaminen vaatii NYT myös
-    // vahvistetun (Signicat-varmennetun, tilapäisesti admin myöntää käsin) käyttäjätilin -
-    // sama User.verified-lippu joka gatettaa tuotteen listaamisen (ks. products.ts
-    // requireVerifiedSeller). Molemmat ehdot tarkistetaan erikseen selkeän virheviestin vuoksi.
+    // vahvistetun käyttäjätilin - sama User.verified-lippu joka gatettaa tuotteen listaamisen
+    // (ks. products.ts requireVerifiedSeller). Signicat/Criipto hylättiin 2026-09-09 (ks.
+    // CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO HYLÄTTY") - verified asetetaan nyt
+    // automaattisesti Stripe Connect -onboardingin valmistuttua, ei enää käsin admin-paneelista
+    // ensisijaisesti. Molemmat ehdot tarkistetaan erikseen selkeän virheviestin vuoksi.
     const streamer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { canStream: true, verified: true } });
     if (!streamer?.verified) {
-        return res.status(403).json({ error: 'Striimaaminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' });
+        return res.status(403).json({ error: 'Striimaaminen vaatii vahvistetun maksutilin. Siirry Tilitykset-sivulle vahvistaaksesi tilisi.', code: 'SELLER_NOT_VERIFIED' });
     }
     if (!streamer.canStream) {
         return res.status(403).json({ error: 'Striimausoikeutta ei ole vielä myönnetty' });

@@ -16,7 +16,14 @@ async function request(path: string, options: RequestInit = {}) {
     },
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error ?? 'Virhe')
+  if (!res.ok) {
+    const err = new Error(data.error ?? 'Virhe') as Error & { code?: string }
+    // code (esim. 'SELLER_NOT_VERIFIED') antaa kutsujan näyttää oman UI:n (esim. linkin
+    // /dashboard/tilitykset-sivulle) merkkijonopohjaisen virhetekstin vertailun sijaan -
+    // ks. CLAUDE.md "Myyjän virheviesti ohjaa yhä ota yhteyttä ylläpitoon".
+    if (data.code) err.code = data.code
+    throw err
+  }
   return data
 }
 

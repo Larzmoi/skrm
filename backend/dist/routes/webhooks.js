@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkExpiredPayments = checkExpiredPayments;
 exports.handleStripeWebhook = handleStripeWebhook;
+exports.handleStripeAccountWebhook = handleStripeAccountWebhook;
 const express_1 = require("express");
 const express_2 = __importDefault(require("express"));
 const prisma_1 = require("../db/prisma");
@@ -175,6 +176,54 @@ async function handleStripeWebhook(req, res) {
     // Muut tapahtumatyypit (esim. checkout.session.async_payment_failed) - ei toimenpiteitä
     // toistaiseksi, ostaja voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-
     // cron siivoaa myöhemmin.
+    res.status(200).json({ received: true });
+}
+// POST /webhooks/stripe-accounts — Stripen v2 "thin event" -ilmoitukset myyjien Connect-
+// tilien kapasiteettimuutoksista (ks. CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO
+// HYLÄTTY"). ERI reitti/ERI signing secret kuin yllä oleva /webhooks/stripe (v1
+// checkout-tapahtumat) - v2-tilitapahtumat rekisteröidään omana Event Destinationina,
+// ei Dashboardin klassisena webhook-URL:na (ks. lib/stripe.ts:n kommentti,
+// scripts/registerStripeAccountEventDestination.ts). Sama raaka-runko-vaatimus kuin
+// /webhooks/stripe:llä, montattu index.ts:ssä ennen express.json():ia.
+//
+// Automatisoi sen mitä omistaja teki aiemmin käsin admin-paneelista: kun myyjän Stripe-
+// onboarding valmistuu (stripe_transfers-kapasiteetti menee active-tilaan), User.verified
+// asetetaan todeksi ilman että kenenkään tarvitsee klikata mitään. EI KOSKAAN luoteta
+// thin eventin omaan runkoon kapasiteetin UUDESTA arvosta (sitä ei edes sisälly siihen,
+// vain tilin ID) - haetaan aina tuore tila suoraan Stripeltä ennen kirjoitusta.
+async function handleStripeAccountWebhook(req, res) {
+    const signature = req.headers['stripe-signature'];
+    if (typeof signature !== 'string')
+        return res.status(400).send('missing signature');
+    let event;
+    try {
+        event = (0, stripe_1.verifyAccountEventSignature)(req.body, signature);
+    }
+    catch (err) {
+        console.error('[stripe account webhook] virheellinen allekirjoitus, hylätty', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    if (event.type === 'v2.core.account[configuration.recipient].capability_status_updated' && event.related_object?.id) {
+        const accountId = event.related_object.id;
+        try {
+            const { transfersEnabled } = await (0, stripe_1.getAccountStatus)(accountId);
+            if (transfersEnabled) {
+                // updateMany + verified:false-ehto: idempotentti, ei kirjoita mitään jos käyttäjä on
+                // jo vahvistettu (esim. admin ehti jo klikata kytkintä, tai Stripe lähettää saman
+                // tapahtuman uudestaan - dokumentoitu käytös).
+                const updated = await prisma_1.prisma.user.updateMany({
+                    where: { stripeAccountId: accountId, verified: false },
+                    data: { verified: true },
+                });
+                if (updated.count > 0) {
+                    console.log(`[stripe account webhook] User.verified=true asetettu automaattisesti tilille ${accountId}`);
+                }
+            }
+        }
+        catch (err) {
+            console.error('[stripe account webhook] tilan haku epäonnistui', accountId, err.message);
+        }
+    }
     res.status(200).json({ received: true });
 }
 exports.default = router;

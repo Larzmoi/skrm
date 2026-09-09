@@ -178,6 +178,38 @@ export function verifyWebhookSignature(rawBody: Buffer, signature: string): Stri
   return stripe.webhooks.constructEvent(rawBody, signature, secret)
 }
 
+// v2 Core Accounts -tilikapasiteettimuutokset (ks. CLAUDE.md "PÄÄTÖS 2026-09-09:
+// SIGNICAT/CRIIPTO HYLÄTTY" -osio) tulevat Stripen "thin events" -mallin kautta, ERI
+// mekanismi kuin yllä oleva v1 checkout.session.completed-webhook - vahvistettu suoraan
+// Stripen dokumentaatiosta (docs.stripe.com/event-destinations) ennen koodausta:
+// - Rekisteröidään ERIKSEEN "Event Destination" -resurssina (POST /v2/core/event_destinations,
+//   tehty kertakäyttöisellä palvelinskriptillä samaan tapaan kuin muutkin tämän projektin
+//   kertaluontoiset ulkoisten API:en asetuskutsut, ei jäänyt repoon), ei Dashboardin
+//   klassinen webhook-URL-lista jota v1-tapahtumat käyttävät. Oma signing secret
+//   (STRIPE_ACCOUNT_EVENTS_SECRET), eri kuin STRIPE_WEBHOOK_SECRET. Tehty erikseen testi-
+//   ja tuotantotilassa (kumpikin oma Event Destination, oma secret) - ks. CLAUDE.md.
+// - Thin event -runko on kevyt: sisältää vain event.type + related_object.id:n (esim.
+//   tilin acct_-ID:n), EI tilan/kapasiteetin uutta arvoa itsessään - luotettava tapa on
+//   aina hakea tuore tila erikseen (ks. getAccountStatus), ei koskaan luottaa runkoon.
+// - Allekirjoituksen tarkistus käyttää samaa stripe.webhooks.constructEvent-mekanismia
+//   kuin v1 (vahvistettu Stripen dokumentaatiosta) - vain SECRET on eri, koska tapahtuma
+//   tulee eri Event Destination -rekisteröinnistä.
+export interface StripeAccountThinEvent {
+  id: string
+  type: string
+  livemode: boolean
+  created: string
+  related_object?: { id: string; type: string; url: string } | null
+}
+
+export function verifyAccountEventSignature(rawBody: Buffer, signature: string): StripeAccountThinEvent {
+  const secret = process.env.STRIPE_ACCOUNT_EVENTS_SECRET
+  if (!secret) throw new Error('STRIPE_ACCOUNT_EVENTS_SECRET puuttuu')
+  // Thin eventin runko ei vastaa Stripe.Event (v1) -tyyppiä - sama allekirjoitusmekanismi,
+  // eri hyötykuorman muoto, joten tulos tyypitetään uudelleen omaan rajapintaan.
+  return stripe.webhooks.constructEvent(rawBody, signature, secret) as unknown as StripeAccountThinEvent
+}
+
 // Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).
 // reverse_transfer palauttaa myyjän saaman osuuden takaisin meille, refund_application_fee
 // palauttaa myös meidän komissio-osuutemme - Stripe suhteuttaa molemmat automaattisesti

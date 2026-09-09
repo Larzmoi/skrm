@@ -52,6 +52,9 @@ function TuotteetContent() {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  // 'SELLER_NOT_VERIFIED' -> näytä linkki /dashboard/tilitykset-sivulle pelkän tekstin sijaan
+  // (ks. CLAUDE.md "Myyjän virheviesti ohjaa yhä ota yhteyttä ylläpitoon").
+  const [errorCode, setErrorCode] = useState('')
 
   const [saleType, setSaleType] = useState<SaleType>('live')
   const [name, setName] = useState('')
@@ -287,7 +290,7 @@ function TuotteetContent() {
     if (!startPrice || Number(startPrice) <= 0) { setError(tp.enterPrice); return }
     if (!allowPickup && !allowShipping) { setError(tp.selectAtLeastOneDelivery); return }
     if (showDeliveryAdvanced && allowPickup && !noutoPolicyAccepted) { setError(tp.acceptPickupTerms); return }
-    setError(''); setSaving(true)
+    setError(''); setErrorCode(''); setSaving(true)
 
     const data = {
       name: name.trim(), saleType,
@@ -343,7 +346,7 @@ function TuotteetContent() {
       await loadProducts()
       setShowForm(false); reset()
     } catch (e: any) {
-      setError(e.message)
+      setError(e.message); setErrorCode(e.code ?? '')
     } finally {
       setSaving(false)
     }
@@ -355,6 +358,7 @@ function TuotteetContent() {
 
     try {
       setUploading(true)
+      setError(''); setErrorCode('')
       const response = await api.bulkCreateProducts(
         validItems.map(p => ({ name: p.name, startPrice: p.startPrice, quantity: p.quantity, condition: p.condition || undefined, description: p.description || undefined })),
         { category: bulkCategory || undefined, alakategoria: bulkAlakategoria || undefined, tyyppi: bulkTyyppi || undefined, saleType: bulkSaleType },
@@ -363,7 +367,7 @@ function TuotteetContent() {
       setBulkTab('success')
       await loadProducts()
     } catch (e: any) {
-      setError(e.message)
+      setError(e.message); setErrorCode(e.code ?? '')
     } finally {
       setUploading(false)
     }
@@ -424,7 +428,16 @@ function TuotteetContent() {
         </div>
       </div>
 
-      {error && <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13 }}>{error}</div>}
+      {error && (
+        <div style={{ background: '#FFF0F0', border: '1px solid #FFCCCC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#CC0000', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>{error}</span>
+          {errorCode === 'SELLER_NOT_VERIFIED' && (
+            <Link href="/dashboard/tilitykset" style={{ background: '#CC0000', color: '#fff', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', textDecoration: 'none' }}>
+              Siirry Tilitykset-sivulle
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Bulk upload section */}
       {(showForm || bulkTab !== 'manual') && (

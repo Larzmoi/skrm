@@ -10,7 +10,7 @@ import showsRouter from './routes/shows'
 import usersRouter from './routes/users'
 import cartRouter from './routes/cart'
 import ordersRouter from './routes/orders'
-import webhooksRouter, { checkExpiredPayments, handleStripeWebhook } from './routes/webhooks'
+import webhooksRouter, { checkExpiredPayments, handleStripeWebhook, handleStripeAccountWebhook } from './routes/webhooks'
 import notificationsRouter from './routes/notifications'
 import messagesRouter from './routes/messages'
 import auctionsRouter from './routes/auctions'
@@ -70,6 +70,11 @@ app.use(cors({
 // express.json():n oletus-content-type-suodattimeen niin varmasti kuin Stripen aina
 // "application/json"-tyyppisenä lähettämä pyyntö osuisi).
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook)
+
+// v2 "thin event" -ilmoitukset myyjien Connect-tilien kapasiteettimuutoksista (ks.
+// CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO HYLÄTTY") - sama raaka-runko-vaatimus
+// kuin yllä, ERI Event Destination -rekisteröinti/signing secret (ks. lib/stripe.ts).
+app.post('/webhooks/stripe-accounts', express.raw({ type: 'application/json' }), handleStripeAccountWebhook)
 
 app.use(express.json({ limit: '10mb' }))
 

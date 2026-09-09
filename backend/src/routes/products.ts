@@ -156,9 +156,14 @@ router.post('/:id/prebid', authMiddleware, async (req: AuthRequest, res: Respons
 })
 
 // POST /products
-// Myyminen vaatii vahvistetun (Signicat-varmennetun, ks. CLAUDE.md "Signicat") käyttäjätilin -
-// tilapäisesti admin myöntää User.verified-lipun käsin ennen kuin oikea Signicat-integraatio
-// on rakennettu, ks. CLAUDE.md "Vahvistettu käyttäjä -merkintä". Sama tarkistus sekä
+// Myyminen vaatii vahvistetun käyttäjätilin - Signicat/Criipto hylättiin kokonaan 2026-09-09
+// (ks. CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO HYLÄTTY"), koska Stripe Connectin oma
+// KYC (passikuva+selfie yksityishenkilöille) toimii jo samana porttivahtina. User.verified
+// asetetaan nyt AUTOMAATTISESTI Stripen v2-webhookilla kun stripe_transfers-kapasiteetti
+// aktivoituu (ks. routes/webhooks.ts handleStripeAccountWebhook) - admin-paneelin kytkin
+// säilyy vain manuaalisena ylikirjoituksena, ei enää ensisijaisena reittinä. `code`-kenttä
+// virhevastauksessa antaa frontendin ohjata käyttäjän suoraan /dashboard/tilitykset-sivulle
+// merkkijonopohjaisen virhetekstin sijaan (ks. lib/api.ts:n request()). Sama tarkistus sekä
 // yksittäis- että bulkkiluonnissa, koska molemmat ovat "myyminen aloittaa"-hetkiä.
 async function requireVerifiedSeller(userId: string) {
   const seller = await prisma.user.findUnique({ where: { id: userId }, select: { verified: true } })
@@ -167,7 +172,7 @@ async function requireVerifiedSeller(userId: string) {
 
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!(await requireVerifiedSeller(req.userId!))) {
-    return res.status(403).json({ error: 'Myyminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' })
+    return res.status(403).json({ error: 'Myyminen vaatii vahvistetun maksutilin. Siirry Tilitykset-sivulle vahvistaaksesi tilisi.', code: 'SELLER_NOT_VERIFIED' })
   }
   const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, reverseHolo, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
@@ -232,7 +237,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 // jälkikäteen per tuote jos yksittäinen rivi pitää vaihtaa myöhemmin.
 router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!(await requireVerifiedSeller(req.userId!))) {
-    return res.status(403).json({ error: 'Myyminen vaatii vahvistetun käyttäjätilin. Ota yhteyttä ylläpitoon.' })
+    return res.status(403).json({ error: 'Myyminen vaatii vahvistetun maksutilin. Siirry Tilitykset-sivulle vahvistaaksesi tilisi.', code: 'SELLER_NOT_VERIFIED' })
   }
   const { products, category, alakategoria, tyyppi, saleType } = req.body
   if (!Array.isArray(products) || products.length === 0) {

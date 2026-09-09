@@ -10,6 +10,7 @@ exports.createOnboardingLink = createOnboardingLink;
 exports.getAccountStatus = getAccountStatus;
 exports.createCheckoutSession = createCheckoutSession;
 exports.verifyWebhookSignature = verifyWebhookSignature;
+exports.verifyAccountEventSignature = verifyAccountEventSignature;
 exports.refundPayment = refundPayment;
 const stripe_1 = __importDefault(require("stripe"));
 // Stripe Connect -integraatio, korvaa Paytrailin (ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09).
@@ -154,6 +155,14 @@ function verifyWebhookSignature(rawBody, signature) {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret)
         throw new Error('STRIPE_WEBHOOK_SECRET puuttuu');
+    return stripe.webhooks.constructEvent(rawBody, signature, secret);
+}
+function verifyAccountEventSignature(rawBody, signature) {
+    const secret = process.env.STRIPE_ACCOUNT_EVENTS_SECRET;
+    if (!secret)
+        throw new Error('STRIPE_ACCOUNT_EVENTS_SECRET puuttuu');
+    // Thin eventin runko ei vastaa Stripe.Event (v1) -tyyppiä - sama allekirjoitusmekanismi,
+    // eri hyötykuorman muoto, joten tulos tyypitetään uudelleen omaan rajapintaan.
     return stripe.webhooks.constructEvent(rawBody, signature, secret);
 }
 // Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).

@@ -254,6 +254,9 @@ export default function LahetysPage() {
   const [isLive, setIsLive] = useState(false)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  // 'SELLER_NOT_VERIFIED' -> näytä linkki /dashboard/tilitykset-sivulle (ks. CLAUDE.md
+  // "Myyjän virheviesti ohjaa yhä ota yhteyttä ylläpitoon").
+  const [startErrorCode, setStartErrorCode] = useState('')
   const [connected, setConnected] = useState(false)
   const [showObsInfo, setShowObsInfo] = useState(false)
   const [showModTools, setShowModTools] = useState(false)
@@ -318,6 +321,7 @@ export default function LahetysPage() {
   const [qaImage, setQaImage] = useState<string | null>(null)
   const [qaSaving, setQaSaving] = useState(false)
   const [qaError, setQaError] = useState('')
+  const [qaErrorCode, setQaErrorCode] = useState('')
   const qaImageRef = useRef<HTMLInputElement>(null)
   // Esiasetuksesta täytetyt kentät, näkymättömät quick-add-lomakkeessa (myyjä muokkaa vain
   // nimeä/hintaa siellä, ks. CLAUDE.md "WhatsApp-palaute 2026-09-02" kohta 2) - kulkevat mukana
@@ -719,7 +723,7 @@ export default function LahetysPage() {
   // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
   async function createShow() {
     if (!title.trim()) { setStartError('Anna lähetykselle nimi'); return }
-    setStarting(true); setStartError('')
+    setStarting(true); setStartError(''); setStartErrorCode('')
     try {
       const { showApi } = await import('@/lib/api')
       const created = await showApi.create({ title: title.trim(), category: category || undefined, alakategoria: alakategoria || undefined, city: city.trim() || undefined, thumbnailUrl: thumbnail ?? undefined })
@@ -731,6 +735,7 @@ export default function LahetysPage() {
       setSoldAmounts({})
     } catch (e: any) {
       setStartError(e.message ?? 'Lähetyksen luonti epäonnistui')
+      setStartErrorCode(e.code ?? '')
     }
     setStarting(false)
   }
@@ -903,7 +908,7 @@ export default function LahetysPage() {
     // puuttuvan arvon 1€ oletuskorotukseksi (sama fallback kuin dashboardin täydellä
     // lomakkeella, ks. CLAUDE.md "Mobiili-läpikäynti" kohta 8).
     const bidIncrement = qaBidIncrement ? Number(qaBidIncrement.replace(',', '.')) : undefined
-    setQaSaving(true); setQaError('')
+    setQaSaving(true); setQaError(''); setQaErrorCode('')
     try {
       const { api } = await import('@/lib/api')
       const created = await api.createProduct({
@@ -917,6 +922,7 @@ export default function LahetysPage() {
       clearQuickAdd()
     } catch (e: any) {
       setQaError(e.message ?? 'Lisäys epäonnistui')
+      setQaErrorCode(e.code ?? '')
     }
     setQaSaving(false)
   }
@@ -1089,7 +1095,16 @@ export default function LahetysPage() {
               {qaImage ? <img src={qaImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>+ Kuva</span>}
             </div>
             <input ref={qaImageRef} type="file" accept="image/*" onChange={handleQaImage} style={{ display: 'none' }} />
-            {qaError && <div style={{ fontSize: 11, color: '#FCA5A5', marginBottom: 6 }}>{qaError}</div>}
+            {qaError && (
+              <div style={{ fontSize: 11, color: '#FCA5A5', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span>{qaError}</span>
+                {qaErrorCode === 'SELLER_NOT_VERIFIED' && (
+                  <Link href="/dashboard/tilitykset" style={{ background: '#EF4444', color: '#fff', padding: '3px 10px', borderRadius: 5, fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', textDecoration: 'none' }}>
+                    Siirry Tilitykset-sivulle
+                  </Link>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => { clearQuickAdd(); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
               <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
@@ -1319,7 +1334,16 @@ export default function LahetysPage() {
                   <input ref={thumbnailRef} type="file" accept="image/*" onChange={handleThumbnail} style={{ display: 'none' }} />
                 </div>
 
-                {startError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{startError}</div>}
+                {startError && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span>{startError}</span>
+                    {startErrorCode === 'SELLER_NOT_VERIFIED' && (
+                      <Link href="/dashboard/tilitykset" style={{ background: '#EF4444', color: '#fff', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', textDecoration: 'none' }}>
+                        Siirry Tilitykset-sivulle
+                      </Link>
+                    )}
+                  </div>
+                )}
 
                 <button onClick={createShow} disabled={starting} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
                   {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}

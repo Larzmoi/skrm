@@ -104,6 +104,10 @@ app.use((0, cors_1.default)({
 // express.json():n oletus-content-type-suodattimeen niin varmasti kuin Stripen aina
 // "application/json"-tyyppisenä lähettämä pyyntö osuisi).
 app.post('/webhooks/stripe', express_1.default.raw({ type: 'application/json' }), webhooks_1.handleStripeWebhook);
+// v2 "thin event" -ilmoitukset myyjien Connect-tilien kapasiteettimuutoksista (ks.
+// CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO HYLÄTTY") - sama raaka-runko-vaatimus
+// kuin yllä, ERI Event Destination -rekisteröinti/signing secret (ks. lib/stripe.ts).
+app.post('/webhooks/stripe-accounts', express_1.default.raw({ type: 'application/json' }), webhooks_1.handleStripeAccountWebhook);
 app.use(express_1.default.json({ limit: '10mb' }));
 // Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
 // (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle
