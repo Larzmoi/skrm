@@ -134,7 +134,17 @@ Omistaja pyysi "vahvistettu käyttäjä" -merkinnän lisäämistä tileille Larz
 - **Ei rikkonut ketään olemassa olevaa:** tarkistettu tuotannon datasta ennen deployta — kaikilla neljällä juuri vahvistetulla tilillä (Larzmoi/danielbacklund/michaelbacklund/habacardsoy) oli jo `canStream:true` valmiiksi, joten striimausoikeus säilyi saumattomasti. Kaikki muut tuotannon tilit (`testiuser`/`testi2user`/`testi3user`/`apuapustelija`) ovat `verified:false` — nämä eivät voi enää listata uusia tuotteita eivätkä aloittaa striimiä ennen kuin omistaja vahvistaa tilin admin-paneelista.
 - **Testattu tuotannossa oikeilla HTTP-kutsuilla molemmille reiteille:** vahvistamaton `testiuser` (canStream:true, verified:false) → `POST /products` `403`, `POST /shows` `403` (uusi "Striimaaminen vaatii..." -viesti, ei enää läpäisisi pelkällä canStream:true:lla kuten ennen tätä muutosta). Vahvistettu `michaelbacklund` → `POST /products` `201`, testituote poistettu heti testin jälkeen.
 
-## Posti-lähetyksen E41-virhe ("Inactive pickup point") 2026-09-05 — ✅ virheviesti selkeytetty, ei muuta muutosta
+## Posti-lähetyksen E41-virhe ("Inactive pickup point") — jatko 2026-09-09: se harvinainen tapaus toteutui oikeasti, rakennettu oikea korjaus
+
+**Se "⬜ tietoisesti rajattu pois" -kohta alla toteutui oikeasti** — omistaja törmäsi tähän uudelleen käytännössä (ei enää teoreettinen), tuotti raa'an virheviestin lukiessaan seliteltyä 400-vastausta ("öö?") koska mitään tapaa edetä ei ollut. Rakennettu nyt oikeasti:
+
+- **Uusi `PATCH /orders/:id/pickup-point`** (`backend/src/routes/orders.ts`) — ostaja voi vaihtaa oman `PENDING_SHIPPING`-tilauksensa noutopisteen niin kauan kuin `trackingNumber` on vielä tyhjä (lähetystä ei ole vielä luotu — sen jälkeen vaihto ei enää tekisi mitään).
+- **`POST /orders/:id/create-shipment`** ilmoittaa nyt myös OSTAJALLE (uusi `NotificationType.PICKUP_POINT_INACTIVE`) kun E41-virhe iskee — aiemmin vain myyjä näki virheviestin joka kehotti "pyytämään ostajaa" ilman että ostaja koskaan sai mitään tietoa asiasta. Kun ostaja vaihtaa pisteen, myyjä saa vastaviestin (`PICKUP_POINT_CHANGED`) että voi yrittää uudelleen.
+- Frontend (`/ostot`): postitus-tilauksille joilla ei vielä ole `trackingNumber`:ia näkyy piilotettu "Vaihda noutopiste" -linkki, avautuu samaksi haku+valinta-UI:ksi jota checkout jo käyttää.
+
+**Testattu ja korjattu OIKEALLE, juuri jumiin jääneelle tuotantotilaukselle** (`cmtui2mgb...`, omistajan oma reaaliaikainen Larzmoi→testiuser-testi, oikea Stripe-maksu `pi_3UDrlRJZ...`): `PATCH .../pickup-point` uudella pisteellä (`001043223`, Helsinki) → `200`; seuraava `POST .../create-shipment` → **`200`, `status:"SHIPPED"`, oikea trackingNumber `JJFI67750398912048113`** — tilaus joka oli jumissa, on nyt oikeasti lähetetty. Ei siis vain koodikatselmus/synteettinen testi, vaan oikean, aiemmin jumissa olleen tilauksen ratkaisu.
+
+Alkuperäinen 2026-09-05 löydös säilytetty alla, ei enää ajantasainen "ei tehty" -osalta:
 
 Omistaja raportoi `POST /orders/:id/create-shipment`:n epäonnistuneen `500 {"error":{"message":"E41: Inactive pickup point, please choose an alternative pickup point"}}` -virheellä, sekä huomion ettei noutopistehaku "Sepänkylä"-haulla näyttänyt kaikkia mahdollisia pisteitä.
 
@@ -146,7 +156,7 @@ Omistaja raportoi `POST /orders/:id/create-shipment`:n epäonnistuneen `500 {"er
 
 **Korjaus, päätetty omistajan kanssa (kysytty kahden vaihtoehdon välillä, valittiin suppeampi):** VAIN virheviesti selkeytetty — ei rakennettu ostajalle jälkikäteistä noutopisteen vaihtomahdollisuutta (harkittu, tietoisesti rajattu pois toistaiseksi). `backend/src/lib/postiClient.ts`:n `createShippingOrder()` tunnistaa nyt tämän yhden tunnetun Posti-virhekoodin (`/inactive pickup point/i`-täsmäys suoraan Postin JSON-vastauksen `error.message`-kentästä) ja heittää selkeän suomenkielisen virheen ("Ostajan valitsema noutopiste ei ole enää Postin käytössä. Pyydä ostajaa valitsemaan toinen noutopiste tilaukselleen...") sen sijaan että näyttäisi raa'an Posti-JSON-dumpin myyjälle asti. Raaka Posti-vastaus lokitetaan silti palvelimen konsoliin (`console.error`) diagnostiikkaa varten. Muut/tuntemattomat Posti-virheet näyttävät yhä teknisen raakadatan — ei yleistetty kaikkiin virhekoodeihin, koska vain tämä yksi on toistaiseksi nähty/tunnistettu tuotannossa.
 
-**⬜ Tietoisesti rajattu pois nyt, mahdollinen jatkokehitys:** jos tämä toistuu usein, harkitse ostajalle mahdollisuutta vaihtaa noutopiste `/ostot`-sivulta niin kauan kuin `Order.trackingNumber` on vielä tyhjä (ennen kuin myyjä on onnistuneesti luonut lähetyksen) — vaatisi uuden `PATCH /orders/:id/pickup-point`-reitin + pienen UI-lisäyksen, ei tehty nyt koska tapaus on toistaiseksi harvinainen eikä oikeaa asiakastilausta ole vielä jäänyt jumiin siihen.
+**✅ TEHTY 2026-09-09** — ks. yllä oleva "jatko 2026-09-09" -osio, tämä toteutui oikeasti.
 
 ## Ajastetun lähetyksen Shop-paneeli tyhjä 2026-09-05 — ✅ juurisyy löydetty ja korjattu
 
