@@ -116,12 +116,12 @@ export default function OstotPage() {
   async function payOrder(order: Order) {
     if (order.shippingPrice == null) {
       const size = selectedSize[order.id]
-      if (!size) { setError('Valitse pakettikoko'); return }
-      if (size === 'postitus' && !selectedPickupPoint[order.id]) { setError('Valitse noutopiste'); return }
+      if (!size) { setError(t.purchases.errSelectSize); return }
+      if (size === 'postitus' && !selectedPickupPoint[order.id]) { setError(t.purchases.errSelectPickup); return }
       setBusy(order.id); setError('')
       try {
         await orderApi.selectShipping(order.id, size, size === 'postitus' ? selectedPickupPoint[order.id] : undefined)
-      } catch (e: any) { setError(e.message ?? 'Toimituksen valinta epäonnistui'); setBusy(null); return }
+      } catch (e: any) { setError(e.message ?? t.purchases.errShippingSelectFailed); setBusy(null); return }
     } else {
       setBusy(order.id); setError('')
     }
@@ -129,7 +129,7 @@ export default function OstotPage() {
       const { redirectUrl } = await orderApi.pay(order.id)
       if (redirectUrl) { window.location.href = redirectUrl; return }
       await load()
-    } catch (e: any) { setError(e.message ?? 'Maksu epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.purchases.errPaymentFailed) }
     setBusy(null)
   }
 
@@ -138,42 +138,42 @@ export default function OstotPage() {
     try {
       await orderApi.confirmDelivery(orderId)
       await load()
-    } catch (e: any) { setError(e.message ?? 'Kuittaus epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.purchases.errConfirmFailed) }
     setBusy(null)
   }
 
   async function submitDispute(orderId: string) {
     const reason = disputeReasonInput[orderId]?.trim()
-    if (!reason) { setError('Kuvaile ongelma'); return }
+    if (!reason) { setError(t.purchases.errDescribeProblem); return }
     setBusy(orderId); setError('')
     try {
       await orderApi.dispute(orderId, reason)
       setDisputeOpenFor(null)
       await load()
-    } catch (e: any) { setError(e.message ?? 'Reklamaation lähetys epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.purchases.errDisputeFailed) }
     setBusy(null)
   }
 
   async function submitReview(orderId: string) {
     const rating = reviewRating[orderId] ?? 0
-    if (rating < 1) { setError('Valitse tähtiarvosana'); return }
+    if (rating < 1) { setError(t.purchases.errSelectRating); return }
     setBusy(orderId); setError('')
     try {
       await orderApi.review(orderId, rating, reviewComment[orderId]?.trim() || undefined)
       setReviewOpenFor(null)
       await load()
-    } catch (e: any) { setError(e.message ?? 'Arvostelun lähetys epäonnistui') }
+    } catch (e: any) { setError(e.message ?? t.purchases.errReviewFailed) }
     setBusy(null)
   }
 
   const orderTotal = (o: Order) => o.productTotal + (o.shippingPrice ?? 0)
 
   const sections = [
-    { key: 'PENDING_PAYMENT', title: 'Odottaa maksua', orders: orders.filter(o => o.status === 'PENDING_PAYMENT') },
-    { key: 'PENDING_SHIPPING', title: 'Odottaa lähetystä', orders: orders.filter(o => o.status === 'PENDING_SHIPPING') },
-    { key: 'SHIPPED', title: 'Lähetetty', orders: orders.filter(o => o.status === 'SHIPPED') },
-    { key: 'DISPUTED', title: 'Reklamoitu', orders: orders.filter(o => o.status === 'DISPUTED') },
-    { key: 'DELIVERED', title: 'Toimitettu', orders: orders.filter(o => o.status === 'DELIVERED') },
+    { key: 'PENDING_PAYMENT', title: t.purchases.sectionPendingPayment, orders: orders.filter(o => o.status === 'PENDING_PAYMENT') },
+    { key: 'PENDING_SHIPPING', title: t.purchases.sectionPendingShipping, orders: orders.filter(o => o.status === 'PENDING_SHIPPING') },
+    { key: 'SHIPPED', title: t.purchases.shipped, orders: orders.filter(o => o.status === 'SHIPPED') },
+    { key: 'DISPUTED', title: t.purchases.sectionDisputed, orders: orders.filter(o => o.status === 'DISPUTED') },
+    { key: 'DELIVERED', title: t.purchases.delivered, orders: orders.filter(o => o.status === 'DELIVERED') },
   ]
 
   const hasAny = orders.some(o => o.status !== 'CANCELLED')
@@ -185,17 +185,17 @@ export default function OstotPage() {
         <p style={{ color: C.muted, fontSize: 14, marginBottom: 24 }}>{t.purchases.subtitle}</p>
 
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#EF4444', fontSize: 13 }}>{error}</div>}
-        {paymentNotice === 'success' && <div style={{ background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: C.accentBright, fontSize: 13 }}>Maksu vastaanotettu — tilaus päivittyy hetken kuluttua.</div>}
-        {paymentNotice === 'cancel' && <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#F59E0B', fontSize: 13 }}>Maksu peruutettiin — voit yrittää uudelleen.</div>}
+        {paymentNotice === 'success' && <div style={{ background: 'rgba(46,204,113,0.12)', border: '1px solid rgba(46,204,113,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: C.accentBright, fontSize: 13 }}>{t.purchases.paymentSuccessNotice}</div>}
+        {paymentNotice === 'cancel' && <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#F59E0B', fontSize: 13 }}>{t.purchases.paymentCancelNotice}</div>}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>{t.purchases.loading}</div>
         ) : !hasAny ? (
           <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>Ei ostoksia vielä</div>
-            <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>Ostettuasi tuotteita ne näkyvät täällä seurantakoodeineen.</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>{t.purchases.emptyTitle}</div>
+            <div style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>{t.purchases.emptyBody}</div>
             <Link href="/selaa" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 24px', borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
-              Selaa tuotteita
+              {t.purchases.browseProducts}
             </Link>
           </div>
         ) : (
@@ -205,7 +205,7 @@ export default function OstotPage() {
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12 }}>{section.title} <span style={{ color: C.muted, fontWeight: 400 }}>({section.orders.length})</span></h2>
                 {section.key === 'PENDING_PAYMENT' && (
                   <div style={{ background: C.warnLight, border: `1px solid ${C.warn}55`, borderRadius: 8, padding: '9px 14px', marginBottom: 12, fontSize: 12, color: C.warn }}>
-                    Jos maksuaika ehtii loppua, tilisi estetään automaattisesti 30 päiväksi — myös ensimmäisellä kerralla.
+                    {t.purchases.banWarning}
                   </div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -231,23 +231,23 @@ export default function OstotPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
                             {order.shippingPrice != null ? orderTotal(order).toLocaleString('fi-FI') : order.productTotal.toLocaleString('fi-FI')}€
-                            {order.shippingPrice == null && section.key === 'PENDING_PAYMENT' && <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}> + toimitus</span>}
+                            {order.shippingPrice == null && section.key === 'PENDING_PAYMENT' && <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}> {t.purchases.plusShipping}</span>}
                           </span>
 
                           {section.key === 'PENDING_PAYMENT' && paymentRemaining !== null && order.shippingPrice != null && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <span style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.muted }}>
-                                {paymentRemaining > 0 ? `${timeLeftLabel(paymentRemaining)} jäljellä` : 'Aika loppui'}
+                                {paymentRemaining > 0 ? `${timeLeftLabel(paymentRemaining)} ${t.purchases.remainingSuffix}` : t.purchases.timeExpired}
                               </span>
                               <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                {busy === order.id ? 'Käsitellään...' : 'Maksa nyt'}
+                                {busy === order.id ? t.purchases.processing : t.purchases.payNow}
                               </button>
                             </div>
                           )}
 
                           {section.key === 'SHIPPED' && (order.labelUrl ? (
                             <button onClick={() => orderApi.openLabelPdf(order.id).catch((e: any) => alert(e.message))} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: C.accent, fontWeight: 700, cursor: 'pointer' }}>
-                              Osoitetarra (PDF) →
+                              {t.purchases.shippingLabelPdf}
                             </button>
                           ) : (order.sendingCode || order.trackingCode) && (
                             <span style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{t.purchases.trackingCode}: {order.sendingCode ?? order.trackingCode}</span>
@@ -275,12 +275,12 @@ export default function OstotPage() {
                                 toimitustavan (ks. CLAUDE.md "Uudet löydökset 2026-08-13" kohta 13). */}
                             {paymentRemaining !== null && (
                               <div style={{ fontSize: 12, fontWeight: 700, color: paymentRemaining < 30 * 60 * 1000 ? '#EF4444' : C.text, marginBottom: 4 }}>
-                                Maksuaikaa {paymentRemaining > 0 ? timeLeftLabel(paymentRemaining) : '0:00 — aika loppui'}
+                                {t.purchases.paymentTimeLabel} {paymentRemaining > 0 ? timeLeftLabel(paymentRemaining) : t.purchases.paymentTimeExpiredFull}
                               </div>
                             )}
                             {shippingRemaining !== null && (
                               <div style={{ fontSize: 12, fontWeight: 700, color: shippingRemaining < 60 * 60 * 1000 ? '#EF4444' : C.muted, marginBottom: 8 }}>
-                                {shippingRemaining > 0 ? `Toimitusvalinta-aikaa ${timeLeftLabel(shippingRemaining)}` : '6h ikkuna umpeutunut'}
+                                {shippingRemaining > 0 ? `${t.purchases.shippingSelectTimeLabel} ${timeLeftLabel(shippingRemaining)}` : t.purchases.shippingSelectExpired}
                               </div>
                             )}
                             {(() => {
@@ -292,24 +292,24 @@ export default function OstotPage() {
                                 <div>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                   <select value={selectedSize[order.id] ?? ''} onChange={e => setSelectedSize(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text }}>
-                                    <option value="">Valitse pakettikoko...</option>
-                                    {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : '(ilmainen)'}</option>)}
+                                    <option value="">{t.purchases.selectPackageSizePlaceholder}</option>
+                                    {options.map(p => <option key={p.id} value={p.id}>{p.nimi} {p.hinta > 0 ? `— ${p.hinta.toLocaleString('fi-FI')}€` : t.purchases.free}</option>)}
                                   </select>
                                   {selectedSize[order.id] === 'postitus' && (
                                     <select value={selectedPickupPoint[order.id] ?? ''} onChange={e => setSelectedPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 0, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, boxSizing: 'border-box' as const }}>
-                                      <option value="">Valitse noutopiste...</option>
+                                      <option value="">{t.purchases.selectPickupPointPlaceholder}</option>
                                       {filteredPickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
                                     </select>
                                   )}
                                   <button onClick={() => payOrder(order)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-                                    {busy === order.id ? '...' : 'Vahvista ja maksa'}
+                                    {busy === order.id ? '...' : t.purchases.confirmAndPay}
                                   </button>
                                 </div>
                                 {selectedSize[order.id] === 'postitus' && (
                                   <input
                                     value={pickupSearch}
                                     onChange={e => setPickupSearch(e.target.value)}
-                                    placeholder="Hae noutopistettä (kaupunki, postinumero, nimi)..."
+                                    placeholder={t.purchases.searchPickupPlaceholder}
                                     style={{ width: '100%', boxSizing: 'border-box' as const, marginTop: 6, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: C.text }}
                                   />
                                 )}
@@ -332,7 +332,7 @@ export default function OstotPage() {
                             <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
                               {order.trackingNumber && (
                                 <div style={{ marginBottom: 10 }}>
-                                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Seurantanumero: {order.trackingNumber}</div>
+                                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>{t.purchases.trackingNumberLabel}: {order.trackingNumber}</div>
                                   <div style={{ display: 'flex', gap: 4 }}>
                                     {POSTI_TRACKING_STEPS.map((step, i) => (
                                       <div key={step} style={{ flex: 1, textAlign: 'center' }}>
@@ -345,23 +345,23 @@ export default function OstotPage() {
                               )}
                               {order.stalledNotifiedAt && (
                                 <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#B45309', fontSize: 12 }}>
-                                  Pakettia ei ole vielä kuitattu vastaanotetuksi. Onko se saapunut?
+                                  {t.purchases.notConfirmedWarning}
                                 </div>
                               )}
                               {order.reminderNotifiedAt && (
                                 <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 8, color: '#EF4444', fontSize: 12 }}>
-                                  Muistutus: kuittaa vastaanotto tai ilmoita ongelmasta ennen kuin tilaus suljetaan automaattisesti.
+                                  {t.purchases.reminderWarning}
                                 </div>
                               )}
                               <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-                                Tilaus suljetaan automaattisesti {daysLeft} päivässä, ellet kuittaa vastaanottoa tai ilmoita ongelmasta.
+                                {t.purchases.autoCloseIn.replace('{days}', String(daysLeft))}
                               </div>
                               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 <button onClick={() => confirmDelivery(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                  {busy === order.id ? '...' : 'Kuittaa vastaanotto'}
+                                  {busy === order.id ? '...' : t.purchases.confirmDelivery}
                                 </button>
                                 <button onClick={() => setDisputeOpenFor(o => o === order.id ? null : order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                                  Ilmoita ongelmasta
+                                  {t.purchases.reportProblem}
                                 </button>
                               </div>
                               {disputeOpenFor === order.id && (
@@ -369,12 +369,12 @@ export default function OstotPage() {
                                   <textarea
                                     value={disputeReasonInput[order.id] ?? ''}
                                     onChange={e => setDisputeReasonInput(s => ({ ...s, [order.id]: e.target.value }))}
-                                    placeholder="Kuvaile ongelma..."
+                                    placeholder={t.purchases.describeProblemPlaceholder}
                                     rows={3}
                                     style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
                                   />
                                   <button onClick={() => submitDispute(order.id)} disabled={busy === order.id} style={{ marginTop: 8, background: '#EF4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                    {busy === order.id ? '...' : 'Lähetä reklamaatio'}
+                                    {busy === order.id ? '...' : t.purchases.sendDispute}
                                   </button>
                                 </div>
                               )}
@@ -399,52 +399,52 @@ export default function OstotPage() {
                               {canStillDispute && (
                                 <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px solid ${C.border}` }}>
                                   <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>
-                                    Tilaus vapautui automaattisesti ilman kuittaustasi — sinulla on vielä {Math.max(1, Math.ceil(passiveDisputeMsLeft / DAY_MS))} vrk aikaa ilmoittaa ongelmasta.
+                                    {t.purchases.autoReleasedDisputeWindow.replace('{days}', String(Math.max(1, Math.ceil(passiveDisputeMsLeft / DAY_MS))))}
                                   </div>
                                   {disputeOpenFor === order.id ? (
                                     <div>
                                       <textarea
                                         value={disputeReasonInput[order.id] ?? ''}
                                         onChange={e => setDisputeReasonInput(s => ({ ...s, [order.id]: e.target.value }))}
-                                        placeholder="Kuvaile ongelma..."
+                                        placeholder={t.purchases.describeProblemPlaceholder}
                                         rows={3}
                                         style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '10px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
                                       />
                                       <button onClick={() => submitDispute(order.id)} disabled={busy === order.id} style={{ marginTop: 8, background: '#EF4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                        {busy === order.id ? '...' : 'Lähetä reklamaatio'}
+                                        {busy === order.id ? '...' : t.purchases.sendDispute}
                                       </button>
                                     </div>
                                   ) : (
                                     <button onClick={() => setDisputeOpenFor(order.id)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                                      Ilmoita ongelmasta
+                                      {t.purchases.reportProblem}
                                     </button>
                                   )}
                                 </div>
                               )}
                               {alreadyReviewed ? (
-                                <div style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>✓ Kiitos arvostelusta</div>
+                                <div style={{ fontSize: 13, color: C.accent, fontWeight: 600 }}>✓ {t.purchases.reviewThanks}</div>
                               ) : reviewOpenFor === order.id ? (
                                 <div>
                                   <StarRatingInput value={reviewRating[order.id] ?? 0} onChange={v => setReviewRating(s => ({ ...s, [order.id]: v }))} />
                                   <textarea
                                     value={reviewComment[order.id] ?? ''}
                                     onChange={e => setReviewComment(s => ({ ...s, [order.id]: e.target.value }))}
-                                    placeholder="Kommentti (valinnainen)"
+                                    placeholder={t.purchases.commentPlaceholder}
                                     rows={2}
                                     style={{ width: '100%', marginTop: 8, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 13, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' as const }}
                                   />
                                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                                     <button onClick={() => submitReview(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1 }}>
-                                      {busy === order.id ? '...' : 'Lähetä arvostelu'}
+                                      {busy === order.id ? '...' : t.purchases.sendReview}
                                     </button>
                                     <button onClick={() => setReviewOpenFor(null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
-                                      Peruuta
+                                      {t.purchases.cancel}
                                     </button>
                                   </div>
                                 </div>
                               ) : (
                                 <button onClick={() => setReviewOpenFor(order.id)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.text, padding: '8px 16px', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                                  Jätä arvostelu myyjälle
+                                  {t.purchases.leaveReview}
                                 </button>
                               )}
                             </div>
@@ -454,7 +454,7 @@ export default function OstotPage() {
                         {section.key === 'DISPUTED' && (
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
                             <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '10px 12px', color: '#EF4444', fontSize: 13 }}>
-                              <div style={{ fontWeight: 700, marginBottom: 4 }}>Reklamaatio käsittelyssä</div>
+                              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t.purchases.disputeInProgress}</div>
                               {order.disputeReason && <div>{order.disputeReason}</div>}
                             </div>
                           </div>
