@@ -10,7 +10,7 @@ import showsRouter from './routes/shows'
 import usersRouter from './routes/users'
 import cartRouter from './routes/cart'
 import ordersRouter from './routes/orders'
-import webhooksRouter, { checkExpiredPayments } from './routes/webhooks'
+import webhooksRouter, { checkExpiredPayments, handleStripeWebhook } from './routes/webhooks'
 import notificationsRouter from './routes/notifications'
 import messagesRouter from './routes/messages'
 import auctionsRouter from './routes/auctions'
@@ -60,6 +60,17 @@ app.use(cors({
   origin: true, // salli kaikki originit kehityksessä
   credentials: true
 }))
+
+// Stripe webhook TÄYTYY montata ENNEN app.use(express.json())-riviä alla. Stripen
+// allekirjoituksen varmistus (stripe.webhooks.constructEvent, ks. lib/stripe.ts) vaatii
+// pyynnön RAA'AN, jäsentämättömän rungon tavuina - jos globaali express.json() ehtisi
+// jäsentää sen ensin JS-olioksi, allekirjoitus ei koskaan täsmäisi. express.raw() tälle
+// yhdelle polulle "varastaa" pyynnön ennen globaalia jäsentäjää (sama kikka jota
+// /webhooks/livekit käyttää reitin omalla middlewarellaan, mutta sen polku ei osu
+// express.json():n oletus-content-type-suodattimeen niin varmasti kuin Stripen aina
+// "application/json"-tyyppisenä lähettämä pyyntö osuisi).
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook)
+
 app.use(express.json({ limit: '10mb' }))
 
 // Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä

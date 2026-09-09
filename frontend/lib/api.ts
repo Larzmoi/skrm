@@ -48,6 +48,8 @@ export const userApi = {
   getStreamInfo: () => request('/users/me/stream-info'),
   regenerateStreamKey: () => request('/users/me/stream-key/regenerate', { method: 'POST' }),
   getPublishToken: () => request('/users/me/publish-token', { method: 'POST' }),
+  getStripeStatus: (): Promise<{ connected: boolean; payoutsEnabled: boolean }> => request('/users/me/stripe-status'),
+  getStripeOnboardingLink: (): Promise<{ url: string }> => request('/users/me/stripe-onboarding', { method: 'POST' }),
 }
 
 export const cartApi = {

@@ -5,6 +5,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, createPublisherToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 import { notifyUser } from '../lib/notify'
 import { syncNewsletterContact } from '../lib/resend'
+import { createConnectedAccount, createOnboardingLink, getAccountStatus } from '../lib/stripe'
 
 const router = Router()
 
@@ -227,6 +228,36 @@ router.patch('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Tieto on jo käytössä' })
     }
     res.status(500).json({ error: 'Palvelinvirhe' })
+  }
+})
+
+// GET /users/me/stripe-status — kertoo dashboardin "Tilitykset"-sivulle onko myyjä jo
+// yhdistänyt Stripe-tilinsä ja onko onboarding valmis (payouts-kapasiteetti aktiivinen).
+// Kysytään aina tuoreena suoraan Stripeltä (ei välimuistia) - onboarding-tila voi muuttua
+// milloin tahansa myyjän täyttäessä lomaketta, ei haluta näyttää vanhentunutta tilaa.
+router.get('/me/stripe-status', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { stripeAccountId: true } })
+  if (!user?.stripeAccountId) return res.json({ connected: false, payoutsEnabled: false })
+  const status = await getAccountStatus(user.stripeAccountId)
+  res.json({ connected: true, payoutsEnabled: status.payoutsEnabled })
+})
+
+// POST /users/me/stripe-onboarding — luo Stripe Connect -tilin jos ei vielä ole (kerran per
+// myyjä, ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09) ja palauttaa hostatun onboarding-
+// linkin. Kutsutaan dashboard/tilitykset-sivun "Yhdistä Stripe-tili" -napista.
+router.post('/me/stripe-onboarding', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { id: true, email: true, name: true, stripeAccountId: true } })
+  if (!user) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
+  try {
+    let accountId = user.stripeAccountId
+    if (!accountId) {
+      accountId = await createConnectedAccount({ email: user.email, name: user.name })
+      await prisma.user.update({ where: { id: user.id }, data: { stripeAccountId: accountId } })
+    }
+    const url = await createOnboardingLink(accountId)
+    res.json({ url })
+  } catch (e: any) {
+    res.status(400).json({ error: e.message ?? 'Stripe-tilin luonti epäonnistui' })
   }
 })
 

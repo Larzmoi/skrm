@@ -3,7 +3,7 @@ import express from 'express'
 import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
-import { verifyCallbackSignature, parseStamp } from '../lib/paytrail'
+import { verifyWebhookSignature } from '../lib/stripe'
 import { sendBanNotificationEmail, sendOrderConfirmationEmail } from '../lib/resend'
 
 const router = Router()
@@ -124,55 +124,65 @@ router.post('/livekit', express.raw({ type: '*/*' }), async (req: Request, res: 
   res.status(200).send('ok')
 })
 
-// GET /webhooks/paytrail — Paytrailin server-to-server callback (HUOM: GET, ei POST —
-// Paytrail kutsuu redirect- ja callback-URL:eja samalla tavalla, query-parametrein, ks.
-// docs "Redirect and callback URL parameters"). Sama osoite annettu sekä success- että
-// cancel-callbackUrl:na createPaymentissa, checkout-status kertoo kumpi tapahtui.
+// POST /webhooks/stripe — Stripen server-to-server ilmoitus maksutapahtumista. HUOM: tämä
+// reitti EI kulje tämän routerin (webhooksRouter) kautta normaalisti — se on montattu
+// suoraan index.ts:ään ENNEN globaalia express.json()-middlewarea, koska Stripen
+// allekirjoituksen varmistus (constructEvent) vaatii RAA'AN, jäsentämättömän pyyntörungon
+// (Buffer). Jos express.json() ehtisi jäsentää bodyn ensin, allekirjoitus ei koskaan
+// täsmäisi. Tämä funktio on silti tässä tiedostossa loogisen sijoittelun vuoksi (sama
+// paikka kuin muutkin maksu-/tilaustapahtumia käsittelevät webhookit).
 //
-// EI KOSKAAN luoteta ilmoitukseen ennen HMAC-allekirjoituksen varmistusta - kuka tahansa
-// voisi muuten kutsua tätä URL:ia suoraan ja väittää maksun onnistuneen ilman että
-// mitään oikeasti maksettiin.
-router.get('/paytrail', async (req: Request, res: Response) => {
-  const query: Record<string, string> = {}
-  for (const [key, value] of Object.entries(req.query)) {
-    if (typeof value === 'string') query[key] = value
+// EI KOSKAAN luoteta ilmoitukseen ennen allekirjoituksen varmistusta - kuka tahansa voisi
+// muuten kutsua tätä URL:ia suoraan ja väittää maksun onnistuneen ilman että mitään
+// oikeasti maksettiin.
+export async function handleStripeWebhook(req: Request, res: Response) {
+  const signature = req.headers['stripe-signature']
+  if (typeof signature !== 'string') return res.status(400).send('missing signature')
+
+  let event
+  try {
+    event = verifyWebhookSignature(req.body as Buffer, signature)
+  } catch (err: any) {
+    console.error('[stripe webhook] virheellinen allekirjoitus, hylätty', err.message)
+    return res.status(400).send(`Webhook Error: ${err.message}`)
   }
 
-  if (!verifyCallbackSignature(query)) {
-    console.error('[paytrail webhook] virheellinen allekirjoitus, hylätty', query)
-    return res.status(401).send('invalid signature')
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as { metadata?: Record<string, string>; payment_intent?: string | null }
+    const orderId = session.metadata?.orderId
+    if (!orderId) return res.status(200).send('ok') // tuntematon metadata - ei voida käsitellä, mutta kuitataan ettei Stripe yritä uudelleen loputtomiin
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        buyer: { select: { email: true, name: true } },
+        items: { include: { product: { select: { name: true } } } },
+      },
+    })
+    if (!order) return res.status(200).send('ok')
+
+    // Idempotenssi: Stripe voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
+    // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/
+    // ilmoitetaan. Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut
+    // webhook riittää. Sama ehto suojaa myös tilausvahvistussähköpostia (ks. CLAUDE.md,
+    // sähköpostit-integraatio 2026-09-03) - toistokutsu näkee order.status:in jo
+    // PENDING_SHIPPING:nä eikä lähetä uudestaan.
+    if (order.status === 'PENDING_PAYMENT') {
+      const total = order.productTotal + (order.shippingPrice ?? 0)
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'PENDING_SHIPPING', paymentDeadline: null, stripePaymentIntentId: session.payment_intent ?? null },
+      })
+      await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset')
+      const productNames = order.items.map(i => i.product.name).join(', ')
+      void sendOrderConfirmationEmail(order.buyer.email, order.buyer.name, order.id, productNames, total)
+    }
   }
+  // Muut tapahtumatyypit (esim. checkout.session.async_payment_failed) - ei toimenpiteitä
+  // toistaiseksi, ostaja voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-
+  // cron siivoaa myöhemmin.
 
-  const stamp = query['checkout-stamp']
-  const status = query['checkout-status']
-  const parsed = stamp ? parseStamp(stamp) : null
-  if (!parsed) return res.status(200).send('ok') // tuntematon stamp - ei voida käsitellä, mutta kuitataan ettei Paytrail yritä uudelleen loputtomiin
-
-  const order = await prisma.order.findUnique({
-    where: { id: parsed.orderId },
-    include: {
-      buyer: { select: { email: true, name: true } },
-      items: { include: { product: { select: { name: true } } } },
-    },
-  })
-  if (!order) return res.status(200).send('ok')
-
-  // Idempotenssi: Paytrail voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
-  // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/ilmoitetaan.
-  // Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut webhook riittää.
-  // Sama ehto suojaa myös tilausvahvistussähköpostia (ks. CLAUDE.md, sähköpostit-integraatio
-  // 2026-09-03) - toistokutsu näkee order.status:in jo PENDING_SHIPPING:nä eikä lähetä uudestaan.
-  if (status === 'ok' && order.status === 'PENDING_PAYMENT') {
-    const total = order.productTotal + (order.shippingPrice ?? 0)
-    await prisma.order.update({ where: { id: order.id }, data: { status: 'PENDING_SHIPPING', paymentDeadline: null } })
-    await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset')
-    const productNames = order.items.map(i => i.product.name).join(', ')
-    void sendOrderConfirmationEmail(order.buyer.email, order.buyer.name, order.id, productNames, total)
-  }
-  // status 'fail'/'pending'/'delayed', tai jo käsitelty tila: ei toimenpiteitä - ostaja
-  // voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-cron siivoaa myöhemmin.
-
-  res.status(200).send('ok')
-})
+  res.status(200).json({ received: true })
+}
 
 export default router

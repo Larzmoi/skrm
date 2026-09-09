@@ -95,6 +95,15 @@ app.use((0, cors_1.default)({
     origin: true, // salli kaikki originit kehityksessä
     credentials: true
 }));
+// Stripe webhook TÄYTYY montata ENNEN app.use(express.json())-riviä alla. Stripen
+// allekirjoituksen varmistus (stripe.webhooks.constructEvent, ks. lib/stripe.ts) vaatii
+// pyynnön RAA'AN, jäsentämättömän rungon tavuina - jos globaali express.json() ehtisi
+// jäsentää sen ensin JS-olioksi, allekirjoitus ei koskaan täsmäisi. express.raw() tälle
+// yhdelle polulle "varastaa" pyynnön ennen globaalia jäsentäjää (sama kikka jota
+// /webhooks/livekit käyttää reitin omalla middlewarellaan, mutta sen polku ei osu
+// express.json():n oletus-content-type-suodattimeen niin varmasti kuin Stripen aina
+// "application/json"-tyyppisenä lähettämä pyyntö osuisi).
+app.post('/webhooks/stripe', express_1.default.raw({ type: 'application/json' }), webhooks_1.handleStripeWebhook);
 app.use(express_1.default.json({ limit: '10mb' }));
 // Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
 // (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle

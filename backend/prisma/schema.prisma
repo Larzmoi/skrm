@@ -338,6 +338,12 @@ model Order {
                                  // stampin ("{itemId}__{attemptId}") rekonstruointiin hyvityksessä,
                                  // koska sama itemId ei kelpaa stampiksi kahdesti (Paytrailin oma
                                  // toistosuoja, ks. lib/paytrail.ts createPayment())
+                                 // Paytrail-kentät (yllä) jätetty koskematta vanhan datan säilymiseksi
+                                 // (ks. CLAUDE.md "Paytrail -> Stripe") - eivät enää täyty uusilla
+                                 // tilauksilla, korvattu alla olevilla Stripe-vastineilla.
+  stripeSessionId       String? // Checkout Sessionin ID - luodaan POST /orders/:id/pay:ssa
+  stripePaymentIntentId String? // PaymentIntentin ID, saadaan checkout.session.completed-webhookista.
+                                 // Tarvitaan hyvityksiin (stripe.refunds.create({ payment_intent })).
   shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?

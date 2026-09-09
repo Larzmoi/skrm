@@ -2,14 +2,15 @@ import type { NextConfig } from "next";
 
 // Turvallisuusauditointi 2026-08-26 (ks. CLAUDE.md "Turvallisuusauditointi" -osio) — toteutettu
 // 2026-09-01. script-src sallii yhä 'unsafe-inline'/'unsafe-eval': Next.js'n oma hydraatio ja
-// mahdolliset kolmannen osapuolen kirjastot (LiveKit, hls.js, Paytrail-uudelleenohjaus) eivät ole
+// mahdolliset kolmannen osapuolen kirjastot (LiveKit, hls.js, Stripe-uudelleenohjaus) eivät ole
 // käyty läpi nonce-pohjaista tiukennusta varten, eikä tätä ole voitu vahvistaa interaktiivisella
 // selaimella (vain palvelinpuolinen curl-testaus mahdollista) — liian tiukka script-src riskeeraisi
 // koko sivun hiljaisen rikkoutumisen (tyhjä sivu, ei virheilmoitusta käyttäjälle). Omistajan
 // suositellaan käymään selaimen Console-välilehti läpi (kirjautuminen, selaus, LiveKit-video/chat,
-// Paytrail-testimaksu) ennen kuin script-src tiukennetaan nonce-pohjaiseksi.
+// Stripe-testimaksu) ennen kuin script-src tiukennetaan nonce-pohjaiseksi.
 //
-// connect-src/frame-src/form-action sallivat Paytrailin (*.paytrail.com) vaikka nykyinen koodi
+// connect-src/frame-src/form-action sallivat Stripen (*.stripe.com, checkout.stripe.com —
+// päivitetty 2026-09-09 Paytrailista, ks. CLAUDE.md "Paytrail -> Stripe") vaikka nykyinen koodi
 // (frontend/app/kori/page.tsx, ostot/page.tsx) käyttää täyttä sivunavigointia
 // (window.location.href) eikä fetch/iframe-upotusta — CSP ei siis teknisesti vaatisi näitä juuri
 // nyt, mutta pidetty mukana koska maksuvirtaus saattaa muuttua eikä salliminen tuo turvariskiä
@@ -46,9 +47,9 @@ const securityHeaders = [
       "img-src 'self' data: blob:",
       "media-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' wss: stun: turn: turns: https://*.paytrail.com https://gateway.posti.fi https://gateway-auth.posti.fi",
-      "frame-src 'self' https://*.paytrail.com",
-      "form-action 'self' https://*.paytrail.com",
+      "connect-src 'self' wss: stun: turn: turns: https://*.stripe.com https://gateway.posti.fi https://gateway-auth.posti.fi",
+      "frame-src 'self' https://*.stripe.com",
+      "form-action 'self' https://*.stripe.com",
       "frame-ancestors 'self'",
       "object-src 'none'",
       "base-uri 'self'",

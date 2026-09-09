@@ -41,7 +41,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const shipping_1 = require("../lib/shipping");
-const paytrail_1 = require("../lib/paytrail");
+const stripe_1 = require("../lib/stripe");
 const postiService = __importStar(require("../lib/postiService"));
 const postiClient = __importStar(require("../lib/postiClient"));
 const notify_1 = require("../lib/notify");
@@ -121,9 +121,9 @@ router.post('/:id/select-shipping', auth_1.authMiddleware, async (req, res) => {
     });
     res.json({ order: updated });
 });
-// POST /orders/:id/pay — käynnistää YHDEN Paytrail-maksun koko tilaukselle (tuote +
-// toimitus yhdessä — vaatii että toimitustapa on jo valittu, ks. select-shipping yllä).
-// Korvaa vanhan mock-pay-testivirran (ks. CLAUDE.md "Paytrail").
+// POST /orders/:id/pay — käynnistää YHDEN Stripe Checkout Sessionin koko tilaukselle
+// (tuote + toimitus yhdessä — vaatii että toimitustapa on jo valittu, ks. select-shipping
+// yllä). Korvaa Paytrailin (ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09).
 router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
     const order = await prisma_1.prisma.order.findUnique({
         where: { id: String(req.params.id) },
@@ -133,7 +133,9 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
             // Myyjän mahdolliset admin-asettamat komissiopoikkeukset (ks. CLAUDE.md/INTEGRATION.md
             // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon. createdAt
             // tarvitaan 14 päivän 0%-tutustumisjakson laskentaan (ks. getEffectiveCommissionOverride).
-            seller: { select: { customCommissionRate: true, customCommissionCap: true, createdAt: true } },
+            // stripeAccountId tarvitaan destination-chargen kohteeksi - ilman sitä ei ole minne
+            // ohjata myyjän osuutta.
+            seller: { select: { customCommissionRate: true, customCommissionCap: true, createdAt: true, stripeAccountId: true } },
         },
     });
     if (!order || order.buyerId !== req.userId)
@@ -142,32 +144,33 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Ei odottavaa maksua' });
     if (order.shippingPrice == null)
         return res.status(400).json({ error: 'Valitse ensin toimitustapa' });
+    if (!order.seller.stripeAccountId)
+        return res.status(400).json({ error: 'Myyjä ei ole vielä yhdistänyt Stripe-tiliään maksujen vastaanottamiseen' });
     // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
     // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
     // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
     try {
-        const { rate: effectiveRate, cap: effectiveCap } = (0, paytrail_1.getEffectiveCommissionOverride)(order.seller);
-        const items = order.items.map(i => ({
-            itemId: i.id, name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity,
-            sellerId: order.sellerId, chargeCommission: true,
-            customCommissionRate: effectiveRate, customCommissionCap: effectiveCap,
-        }));
-        // Toimitus omana rivinään samassa maksussa - ei komissiota postista, SKRM ottaa
-        // osuutensa vain myyntihinnasta (LUKITTU-sääntö).
-        if (order.shippingPrice > 0) {
-            items.push({ itemId: `${order.id}-shipping`, name: 'Toimitus', unitPriceEuros: order.shippingPrice, quantity: 1, sellerId: order.sellerId, chargeCommission: false, customCommissionRate: null, customCommissionCap: null });
-        }
-        const session = await (0, paytrail_1.createPayment)({ orderId: order.id, items, buyerEmail: order.buyer.email });
-        await prisma_1.prisma.order.update({ where: { id: order.id }, data: { paytrailPaymentId: session.transactionId, paytrailProductTxId: session.transactionId, paytrailAttemptId: session.attemptId } });
+        const { rate: effectiveRate, cap: effectiveCap } = (0, stripe_1.getEffectiveCommissionOverride)(order.seller);
+        // Komissio lasketaan VAIN tuoteriveistä (ei toimituksesta, LUKITTU-sääntö) - yhtenä
+        // application_fee_amount:ina koko tilaukselle, koska Order.sellerId on aina yksittäinen
+        // (ei tarvitse per-rivi-komissiota kuten Paytrailin Shop-in-Shopissa).
+        const commissionCents = order.items.reduce((sum, i) => sum + (0, stripe_1.computeCommissionCents)(i.price * i.quantity, effectiveRate, effectiveCap), 0);
+        const items = order.items.map(i => ({ name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity }));
+        const session = await (0, stripe_1.createCheckoutSession)({
+            orderId: order.id, items, shippingEuros: order.shippingPrice, buyerEmail: order.buyer.email,
+            sellerStripeAccountId: order.seller.stripeAccountId, commissionCents,
+        });
+        await prisma_1.prisma.order.update({ where: { id: order.id }, data: { stripeSessionId: session.sessionId } });
         return res.json({ order, redirectUrl: session.redirectUrl });
     }
     catch (e) {
         return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' });
     }
 });
-// POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote
-// (Shop-in-Shopin natiivi tuki: hyvitys palautuu suoraan oikealle osapuolelle, komissio-
-// osuus palautuu SKRM:n komissiotililtä takaisin myyjälle samassa pyynnössä).
+// POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote.
+// Stripe purkaa destination-chargen jaon automaattisesti (reverse_transfer+
+// refund_application_fee, ks. lib/stripe.ts) - komissio-osuus palautuu suhteutettuna
+// hyvitettyyn summaan ilman että meidän tarvitsee laskea sitä itse (eri kuin Paytrail).
 // Body: { itemIds?: string[] } — jätä pois tai anna tyhjä taulukko koko tuotemaksun
 // hyvittämiseksi, tai anna tietyt OrderItem-ID:t hyvittääksesi vain ne.
 router.post('/:id/refund', auth_1.authMiddleware, async (req, res) => {
@@ -177,7 +180,7 @@ router.post('/:id/refund', auth_1.authMiddleware, async (req, res) => {
     });
     if (!order || order.sellerId !== req.userId)
         return res.status(403).json({ error: 'Ei oikeutta' });
-    if (!order.paytrailProductTxId)
+    if (!order.stripePaymentIntentId)
         return res.status(400).json({ error: 'Tilaukselle ei ole maksettua tuotemaksua hyvitettäväksi' });
     if (!['PENDING_SHIPPING', 'SHIPPED', 'DELIVERED', 'DISPUTED'].includes(order.status)) {
         return res.status(400).json({ error: 'Tilaus ei ole maksetussa tilassa' });
@@ -185,23 +188,19 @@ router.post('/:id/refund', auth_1.authMiddleware, async (req, res) => {
     const itemIds = Array.isArray(req.body?.itemIds) ? req.body.itemIds : [];
     try {
         if (itemIds.length === 0) {
-            // Koko maksu (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail")
-            await (0, paytrail_1.refundFull)(order.paytrailProductTxId, order.productTotal + (order.shippingPrice ?? 0));
+            // Koko maksu (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail -> Stripe")
+            await (0, stripe_1.refundPayment)(order.stripePaymentIntentId);
         }
         else {
-            if (!order.paytrailAttemptId)
-                return res.status(400).json({ error: 'Rivikohtaista hyvitystä ei voi tehdä tälle tilaukselle (vanha maksu ilman tallennettua yritys-ID:tä)' });
             const items = order.items.filter(i => itemIds.includes(i.id));
             if (items.length === 0)
                 return res.status(400).json({ error: 'Tuntemattomat tuoterivit' });
-            for (const item of items) {
-                const commissionEuros = (0, paytrail_1.computeCommissionCents)(item.price * item.quantity) / 100;
-                await (0, paytrail_1.refundItem)(order.paytrailProductTxId, item.id, order.paytrailAttemptId, item.price * item.quantity, order.sellerId, commissionEuros);
-            }
+            const amountEuros = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+            await (0, stripe_1.refundPayment)(order.stripePaymentIntentId, amountEuros);
         }
     }
     catch (e) {
-        return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Paytraililta' });
+        return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Stripeltä' });
     }
     await (0, notify_1.notifyUser)(order.buyerId, 'REFUND_ISSUED', 'Sait hyvityksen', `Myyjä hyvitti tilauksen ${order.id} — hyvitys näkyy maksutavallasi muutaman päivän sisällä.`, '/ostot');
     res.json({ ok: true });
