@@ -365,7 +365,7 @@ const sv = {
     subtitle: 'Svensk liveauktionsplattform',
     description1: 'Habahub är en svensk plattform för liveauktioner och direktförsäljning. Säljare kan sälja i realtidsvideostreaming eller listas för direktköp.',
     description2: 'Vår mission är att bygga Sveriges bästa och mest prisvärda marknadsplats. Vi erbjuder säljare låg kommission — bara 3,5% max 35€ per försäljning.',
-    description3: 'För köparna erbjuder vi en säker och genomskinlig auktionserfarenhet. Alla anbud är bindande och säljare åtar sig att skicka inom 24 timmar.',
+    description3: 'För köparna erbjuder vi en säker och genomskinlig auktionserfarenhet. Alla anbud är bindande och säljare åtar sig att skicka inom 4 dygn.',
     cheapest: 'Lågsta kommission', cheapestSub: 'Max 35€ per försäljning',
     categories: 'Kategorier', categoriesSub: 'Från samlingskort till elektronik',
     shipping: 'Leveranstid', shippingSub: 'Säljaren åtar sig att skicka',

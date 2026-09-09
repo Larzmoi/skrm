@@ -11,7 +11,7 @@ const FAQ_DATA = {
       id: 'yleista', title: 'Yleistä',
       items: [
         { q: 'Mikä on Habahub?', a: 'Habahub on suomalainen huutokauppa- ja suoramyyntialusta. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä (live-huutokauppa), ajastetussa perinteisessä huutokaupassa tai suoraan kiinteällä hinnalla (suoramyynti). Ostajat voivat huutaa tuotteista live-lähetyksen tai perinteisen huutokaupan aikana, tai ostaa suoraan.' },
-        { q: 'Onko rekisteröityminen maksullista?', a: 'Ei. Tilin luominen on täysin ilmaista. Maksat vain ostamiesi tuotteiden hinnan ja toimituskulut.' },
+        { q: 'Onko rekisteröityminen maksullista?', a: 'Ei. Tilin luominen on täysin ilmaista.' },
         { q: 'Voinko sekä ostaa että myydä samalla tunnuksella?', a: 'Kyllä. Yhdellä tunnuksella voit sekä osallistua huutokauppoihin ostajana että myydä omia tuotteitasi.' },
         { q: 'Missä Habahub toimii?', a: 'Habahub on suunnattu ensisijaisesti suomalaisille käyttäjille. Toimitus tapahtuu pääasiassa Suomessa.' },
       ],
@@ -52,7 +52,7 @@ const FAQ_DATA = {
       id: 'general', title: 'General',
       items: [
         { q: 'What is Habahub?', a: 'Habahub is a Finnish auction and direct-sale marketplace. Sellers can sell their products in real-time video broadcasts (live auctions), in scheduled timed auctions, or directly at a fixed price (direct sale). Buyers can bid during a live stream or a timed auction, or buy items directly.' },
-        { q: 'Is registration free?', a: 'Yes. Creating an account is completely free. You only pay for the products you buy and shipping costs.' },
+        { q: 'Is registration free?', a: 'Yes. Creating an account is completely free.' },
         { q: 'Can I both buy and sell with the same account?', a: 'Yes. With one account you can both participate in auctions as a buyer and sell your own products.' },
         { q: 'Where does Habahub operate?', a: 'Habahub is primarily aimed at Finnish users. Shipping takes place mainly within Finland.' },
       ],
@@ -93,7 +93,7 @@ const FAQ_DATA = {
       id: 'allmant', title: 'Allmänt',
       items: [
         { q: 'Vad är Habahub?', a: 'Habahub är en finländsk auktions- och direktförsäljningsplattform. Säljare kan sälja sina produkter i realtidsvideosändningar (liveauktioner), i schemalagda tidsbegränsade auktioner eller direkt till ett fast pris (direktförsäljning). Köpare kan lägga bud under en livesändning eller en tidsbegränsad auktion, eller köpa direkt.' },
-        { q: 'Är registrering gratis?', a: 'Ja. Det är helt gratis att skapa ett konto. Du betalar bara för de produkter du köper och fraktkostnaderna.' },
+        { q: 'Är registrering gratis?', a: 'Ja. Det är helt gratis att skapa ett konto.' },
         { q: 'Kan jag både köpa och sälja med samma konto?', a: 'Ja. Med ett konto kan du både delta i auktioner som köpare och sälja dina egna produkter.' },
         { q: 'Var verkar Habahub?', a: 'Habahub riktar sig i första hand till finländska användare. Leveranser sker huvudsakligen inom Finland.' },
       ],

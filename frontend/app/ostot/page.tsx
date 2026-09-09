@@ -11,7 +11,7 @@ import { StarRatingInput } from '@/components/StarRating'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
-interface OrderItem { id: string; productId: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string; condition?: string; allowPickup?: boolean; allowShipping?: boolean } }
+interface OrderItem { id: string; productId: string; price: number; quantity: number; binding?: boolean; product: { id: string; name: string; imageUrl?: string; condition?: string; allowPickup?: boolean; allowShipping?: boolean } }
 interface Order {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
   paymentDeadline: string | null; shippingWindowEnd: string | null; trackingCode: string | null; pickupCode: string | null
@@ -233,7 +233,11 @@ export default function OstotPage() {
                           <Link href={`/u/${order.seller.username}`} style={{ fontSize: 13, color: C.muted, textDecoration: 'none' }}>@{order.seller.username}</Link>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             <span style={{ fontSize: 12, color: C.muted }}>{new Date(order.createdAt).toLocaleDateString('fi-FI')}</span>
-                            {section.key === 'PENDING_PAYMENT' && (
+                            {/* Ei näytetä sitovalle (huudosta/hyväksytystä tarjouksesta syntyneelle)
+                                tilaukselle - LUKITTU-sääntö "kaikki huudot sitovia, ei peruutuksia"
+                                ei salli tätä, ja backend hylkäisi kutsun joka tapauksessa (ks.
+                                CLAUDE.md "Ostoskori/tilauksen peruutus" 2026-09-09). */}
+                            {section.key === 'PENDING_PAYMENT' && !order.items.some(i => i.binding) && (
                               <button onClick={() => setCancelConfirmFor(order.id)} disabled={busy === order.id} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#EF4444', fontWeight: 600, cursor: busy === order.id ? 'default' : 'pointer', textDecoration: 'underline' }}>
                                 {t.purchases.cancelOrderButton}
                               </button>

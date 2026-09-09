@@ -378,7 +378,7 @@ const fi = {
     subtitle: 'Suomalainen live-huutokauppa-alusta',
     description1: 'Habahub on suomalainen alusta live-huutokaupalle ja suoramyynnille. Myyjät voivat myydä tuotteitaan reaaliaikaisessa videolähetyksessä tai listata ne suoraan myyntiin.',
     description2: 'Missiomme on rakentaa Suomen paras ja edullisin marketplace. Tarjoamme myyjille alhaisen provision — vain 3,5% max 35€ per kauppa.',
-    description3: 'Ostajille tarjoamme turvallisen ja läpinäkyvän huutokauppakokemuksen. Kaikki huudot ovat sitovia ja myyjät sitoutuvat lähettämään tuotteet 24 tunnin sisällä.',
+    description3: 'Ostajille tarjoamme turvallisen ja läpinäkyvän huutokauppakokemuksen. Kaikki huudot ovat sitovia ja myyjät sitoutuvat lähettämään tuotteet 4 vuorokauden sisällä.',
     cheapest: 'Halvin provisio', cheapestSub: 'Max 35€ per kauppa',
     categories: 'Kategoriaa', categoriesSub: 'Keräilystä elektroniikkaan',
     shipping: 'Lähetysaika', shippingSub: 'Myyjä sitoutuu lähettämään',

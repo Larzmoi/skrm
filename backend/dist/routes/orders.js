@@ -184,6 +184,15 @@ router.post('/:id/pay', auth_1.authMiddleware, async (req, res) => {
 // esim. vahingossa aloitetun maksun. Käyttää samaa varastonpalautuslogiikkaa kuin
 // checkExpiredPayments() (ks. lib/orderCancellation.ts), mutta EI KOSKAAN kirjaa
 // PaymentViolationia eikä bannaa — vapaaehtoinen, rehellinen peruutus ei ole rike.
+//
+// ⚠️ EI SAA RISTIRIITAA LUKITTU-säännön "Kaikki huudot sitovia — ei peruutuksia" kanssa
+// (omistajan muistutus 2026-09-09). Jos YKSIKIN tilauksen riveistä on syntynyt voitetusta
+// huudosta/hyväksytystä tarjouksesta (OrderItem.binding, ks. schema.prisma-kommentti —
+// asetetaan lib/auctionOrder.ts:n createOrderForAuctionWin():ssa: perinteisen huutokaupan
+// voitto, "osta heti" auktiotuotteelle, hyväksytty tarjous, TAI live-huudon voitto), koko
+// tilausta EI voi peruuttaa — myös silloin kun sama Order sisältää lisäksi 6h-yhdistämis-
+// ikkunan kautta liittyneen tavallisen kori-ostoksen. Vain puhtaasti ei-sitovista riveistä
+// (cart.ts checkout - suoramyynti/live-shop-osto ilman huutoa) koostuva tilaus on peruttavissa.
 router.post('/:id/cancel', auth_1.authMiddleware, async (req, res) => {
     const order = await prisma_1.prisma.order.findUnique({
         where: { id: String(req.params.id) },
@@ -193,6 +202,9 @@ router.post('/:id/cancel', auth_1.authMiddleware, async (req, res) => {
         return res.status(403).json({ error: 'Ei oikeutta' });
     if (order.status !== 'PENDING_PAYMENT')
         return res.status(400).json({ error: 'Tilausta ei voi enää peruuttaa' });
+    if (order.items.some(i => i.binding)) {
+        return res.status(400).json({ error: 'Tilaus sisältää voitetun huudon tai hyväksytyn tarjouksen — sitovaa ostosta ei voi peruuttaa' });
+    }
     await prisma_1.prisma.$transaction((0, orderCancellation_1.buildStockRestoreOps)(order));
     const productNames = order.items.map(i => i.product.name).join(', ');
     await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_CANCELLED_BY_BUYER', 'Ostaja peruutti tilauksen', `Ostaja peruutti maksamattoman tilauksen (${productNames}) ennen maksua — tuote on taas myynnissä.`, '/dashboard/tuotteet');

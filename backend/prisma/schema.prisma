@@ -398,6 +398,14 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
   price     Float
   quantity  Int     @default(1)
+  // true = rivi syntyi voitetusta huudosta/hyväksytystä tarjouksesta (lib/auctionOrder.ts
+  // createOrderForAuctionWin - huutokaupan voitto, "osta heti" auktiotuotteelle, hyväksytty
+  // tarjous, tai live-huudon voitto), false = tavallinen suoramyynti-/kori-osto (cart.ts
+  // checkout). LUKITTU-sääntö "kaikki huudot sitovia — ei peruutuksia" koskee vain true-rivejä
+  // - ostajan oma POST /orders/:id/cancel (ks. CLAUDE.md "Ostoskori/tilauksen peruutus")
+  // tarkistaa tämän ja estää peruutuksen jos YKSIKIN tilauksen rivi on binding:true, koska
+  // sama Order voi 6h-yhdistämisikkunan takia sisältää sekä sitovan että ei-sitovan rivin.
+  binding   Boolean @default(false)
 }
 
 model PaymentViolation {

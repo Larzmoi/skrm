@@ -365,7 +365,7 @@ const en = {
     subtitle: 'Finnish live auction platform',
     description1: 'Habahub is a Finnish platform for live auctions and direct sales. Sellers can sell in real-time video broadcasts or list items for direct purchase.',
     description2: 'Our mission is to build the best and most affordable marketplace in Finland. We offer sellers a low commission — just 3.5% max €35 per sale.',
-    description3: 'For buyers we offer a safe and transparent auction experience. All bids are binding and sellers commit to ship within 24 hours.',
+    description3: 'For buyers we offer a safe and transparent auction experience. All bids are binding and sellers commit to ship within 4 days.',
     cheapest: 'Lowest commission', cheapestSub: 'Max €35 per sale',
     categories: 'Categories', categoriesSub: 'From collectibles to electronics',
     shipping: 'Shipping time', shippingSub: 'Seller commits to ship',

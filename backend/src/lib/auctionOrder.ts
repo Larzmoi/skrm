@@ -21,13 +21,17 @@ export async function createOrderForAuctionWin(buyerId: string, sellerId: string
     orderBy: { createdAt: 'desc' },
   })
 
+  // binding:true - tämä rivi syntyy AINA voitetusta huudosta/hyväksytystä tarjousta, ks.
+  // schema.prisma:n OrderItem.binding-kommentti. Estää ostajan oman POST /orders/:id/cancel-
+  // reitin koko tilaukselle, vaikka rivi olisi yhdistynyt (6h-ikkuna) muutoin ei-sitovaan
+  // tavalliseen kori-ostokseen.
   if (existingOrder) {
     return prisma.order.update({
       where: { id: existingOrder.id },
       data: {
         productTotal: existingOrder.productTotal + price,
         shippingPrice: null, shippingSize: null,
-        items: { create: [{ productId, price, quantity: 1 }] },
+        items: { create: [{ productId, price, quantity: 1, binding: true }] },
       },
     })
   }
@@ -39,7 +43,7 @@ export async function createOrderForAuctionWin(buyerId: string, sellerId: string
       productTotal: price,
       paymentDeadline: new Date(now.getTime() + paymentWindowMs),
       shippingWindowEnd: new Date(now.getTime() + SHIPPING_MERGE_WINDOW_MS),
-      items: { create: [{ productId, price, quantity: 1 }] },
+      items: { create: [{ productId, price, quantity: 1, binding: true }] },
     },
   })
 }
