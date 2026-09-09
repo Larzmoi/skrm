@@ -237,6 +237,8 @@ const fi = {
     cancelOrderButton: 'Peruuta tilaus', cancelOrderConfirmTitle: 'Peruutetaanko tilaus?',
     cancelOrderConfirmMessage: 'Tuote vapautuu takaisin myyntiin. Tätä ei voi peruuttaa jälkikäteen — jos haluat ostaa tuotteen myöhemmin, joudut lisäämään sen koriin uudelleen. Vapaaehtoinen peruutus ei estä tiliäsi.',
     errCancelFailed: 'Peruutus epäonnistui',
+    changePickupPoint: 'Vaihda noutopiste', savePickupPoint: 'Tallenna',
+    errPickupChangeFailed: 'Noutopisteen vaihto epäonnistui',
   },
   dashboard: {
     hello: 'Hei', subtitle: 'Tässä yhteenveto toiminnastasi',

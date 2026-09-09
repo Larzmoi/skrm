@@ -224,6 +224,8 @@ const sv = {
     cancelOrderButton: 'Avbryt beställning', cancelOrderConfirmTitle: 'Avbryta beställningen?',
     cancelOrderConfirmMessage: 'Produkten läggs tillbaka till försäljning. Detta kan inte ångras — om du vill köpa den senare måste du lägga till den i kundvagnen igen. En frivillig avbeställning påverkar inte ditt konto.',
     errCancelFailed: 'Avbrytandet misslyckades',
+    changePickupPoint: 'Byt utlämningsställe', savePickupPoint: 'Spara',
+    errPickupChangeFailed: 'Det gick inte att byta utlämningsställe',
   },
   dashboard: {
     hello: 'Hej', subtitle: 'Här är en sammanfattning av din aktivitet',

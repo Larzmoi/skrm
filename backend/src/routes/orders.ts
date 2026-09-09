@@ -278,7 +278,17 @@ router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res
       pickupPointQuickId: order.pickupPointId,
     })
   } catch (e: any) {
-    return res.status(400).json({ error: e.message ?? 'Posti-lähetyksen luonti epäonnistui' })
+    const message = e.message ?? 'Posti-lähetyksen luonti epäonnistui'
+    // E41 "Inactive pickup point" (ks. postiClient.ts, CLAUDE.md "Posti-lähetyksen E41-virhe")
+    // — ostajan valitsema noutopiste ei ole enää Postin käytössä. Alun perin virheviesti VAIN
+    // selkeytettiin myyjälle ("pyydä ostajaa valitsemaan toinen") ilman että ostajalla oli
+    // mitään keinoa tehdä niin - ei ilmoitusta, ei UI:ta. Korjattu 2026-09-09: ostaja saa nyt
+    // ilmoituksen jossa on suora linkki /ostot-sivulle, jossa voi vaihtaa noutopisteen (ks.
+    // PATCH /orders/:id/pickup-point alempana) ilman että myyjän tarvitsee erikseen kertoa asiasta.
+    if (message.includes('ei ole enää Postin käytössä')) {
+      await notifyUser(order.buyerId, 'PICKUP_POINT_INACTIVE', 'Noutopiste ei ole enää käytössä', 'Valitsemasi Postin noutopiste ei ole enää käytössä. Valitse tilaukseesi toinen noutopiste, jotta myyjä voi luoda lähetyksen.', '/ostot')
+    }
+    return res.status(400).json({ error: message })
   }
 
   // Sending Code API kytketty 2026-09-04 (uudet API-roolit lisätty tiliin, ks. CLAUDE.md) -
@@ -306,6 +316,26 @@ router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res
   })
   const shippedMessage = sendingCode ? `Lähetyskoodi: ${sendingCode}` : 'Osoitetarra on valmis tulostettavaksi'
   await notifyUser(order.buyerId, 'ORDER_SHIPPED', 'Tilauksesi lähetettiin', shippedMessage, '/ostot')
+  res.json(updated)
+})
+
+// PATCH /orders/:id/pickup-point — ostaja vaihtaa noutopisteensä jos alkuperäinen osoittautuu
+// Postilla käytöstä poistetuksi (E41-virhe, ks. CLAUDE.md "Posti-lähetyksen E41-virhe" ja
+// postiClient.ts:n virheviesti) — ilman tätä myyjä oli aiemmin täysin jumissa, ei mitään keinoa
+// edetä. Sallittu vain ennen lähetyksen luontia (trackingNumber tyhjä) - lähetyksen luonnin
+// jälkeen vaihto ei enää tekisi mitään, Posti-lähetys on jo olemassa vanhalla pisteellä.
+router.patch('/:id/pickup-point', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findUnique({ where: { id: String(req.params.id) } })
+  if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
+  if (order.shippingSize !== 'postitus') return res.status(400).json({ error: 'Tilaus ei ole postitus-toimitustavalla' })
+  if (order.status !== 'PENDING_SHIPPING') return res.status(400).json({ error: 'Tilaus ei odota lähetystä' })
+  if (order.trackingNumber) return res.status(400).json({ error: 'Lähetys on jo luotu, noutopistettä ei voi enää vaihtaa' })
+
+  const { pickupPointId } = req.body
+  if (!pickupPointId) return res.status(400).json({ error: 'Noutopiste vaaditaan' })
+
+  const updated = await prisma.order.update({ where: { id: order.id }, data: { pickupPointId: String(pickupPointId) } })
+  await notifyUser(order.sellerId, 'PICKUP_POINT_CHANGED', 'Ostaja vaihtoi noutopisteen', 'Ostaja valitsi uuden noutopisteen — voit nyt luoda lähetyksen uudelleen.', '/dashboard/tilaukset')
   res.json(updated)
 })
 

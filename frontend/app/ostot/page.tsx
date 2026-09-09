@@ -56,6 +56,11 @@ export default function OstotPage() {
   // tilauksen peruutus" 2026-09-09 — ennen tätä ainoat vaihtoehdot olivat maksaa tai antaa 2h
   // umpeutua (mikä bannaa 30 päiväksi heti ensimmäisellä kerralla).
   const [cancelConfirmFor, setCancelConfirmFor] = useState<string | null>(null)
+  // Noutopisteen vaihto kun alkuperäinen osoittautuu Postilla käytöstä poistetuksi (E41, ks.
+  // CLAUDE.md "Posti-lähetyksen E41-virhe" / "PATCH /orders/:id/pickup-point" 2026-09-09) —
+  // ennen tätä myyjä oli jumissa eikä ostajalla ollut mitään keinoa reagoida.
+  const [pickupChangeOpenFor, setPickupChangeOpenFor] = useState<string | null>(null)
+  const [newPickupPoint, setNewPickupPoint] = useState<Record<string, string>>({})
 
   useEffect(() => {
     postiApi.pickupPoints().then(setPickupPoints).catch(() => {})
@@ -145,6 +150,18 @@ export default function OstotPage() {
       await orderApi.cancel(orderId)
       await load()
     } catch (e: any) { setError(e.message ?? t.purchases.errCancelFailed) }
+    setBusy(null)
+  }
+
+  async function changePickupPoint(orderId: string) {
+    const pickupPointId = newPickupPoint[orderId]
+    if (!pickupPointId) { setError(t.purchases.errSelectPickup); return }
+    setBusy(orderId); setError('')
+    try {
+      await orderApi.updatePickupPoint(orderId, pickupPointId)
+      setPickupChangeOpenFor(null)
+      await load()
+    } catch (e: any) { setError(e.message ?? t.purchases.errPickupChangeFailed) }
     setBusy(null)
   }
 
@@ -290,6 +307,41 @@ export default function OstotPage() {
                               <span style={{ fontSize: 20, fontWeight: 800, color: C.accent, letterSpacing: 2 }}>{order.pickupCode}</span>
                               <span style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{t.purchases.pickupCodeHint}</span>
                             </div>
+                          </div>
+                        )}
+
+                        {/* Noutopisteen vaihto — näkyy vain postitus-tilauksille joille ei ole
+                            vielä luotu Posti-lähetystä. Ei aina auki (harvinainen tarve, ei saa
+                            haitata tavallista näkymää) — avautuu linkistä, tyypillisesti sen
+                            jälkeen kun ostaja saa PICKUP_POINT_INACTIVE-ilmoituksen. */}
+                        {section.key === 'PENDING_SHIPPING' && order.shippingSize === 'postitus' && !order.trackingNumber && (
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                            {pickupChangeOpenFor === order.id ? (
+                              <div>
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  <select value={newPickupPoint[order.id] ?? ''} onChange={e => setNewPickupPoint(s => ({ ...s, [order.id]: e.target.value }))} style={{ flex: 1, minWidth: 160, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', fontSize: 13, color: C.text, boxSizing: 'border-box' as const }}>
+                                    <option value="">{t.purchases.selectPickupPointPlaceholder}</option>
+                                    {filteredPickupPoints.map(p => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+                                  </select>
+                                  <button onClick={() => changePickupPoint(order.id)} disabled={busy === order.id} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 18px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy === order.id ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                                    {busy === order.id ? '...' : t.purchases.savePickupPoint}
+                                  </button>
+                                  <button onClick={() => setPickupChangeOpenFor(null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '8px 14px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                                    {t.purchases.cancel}
+                                  </button>
+                                </div>
+                                <input
+                                  value={pickupSearch}
+                                  onChange={e => setPickupSearch(e.target.value)}
+                                  placeholder={t.purchases.searchPickupPlaceholder}
+                                  style={{ width: '100%', boxSizing: 'border-box' as const, marginTop: 6, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '6px 10px', fontSize: 12, color: C.text }}
+                                />
+                              </div>
+                            ) : (
+                              <button onClick={() => setPickupChangeOpenFor(order.id)} style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: C.accent, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                                {t.purchases.changePickupPoint}
+                              </button>
+                            )}
                           </div>
                         )}
 

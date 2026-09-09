@@ -70,6 +70,7 @@ export const orderApi = {
   mine: () => request('/orders/mine'),
   selling: () => request('/orders/selling'),
   selectShipping: (orderId: string, pakettikokoId: string, pickupPointId?: string) => request(`/orders/${orderId}/select-shipping`, { method: 'POST', body: JSON.stringify({ pakettikokoId, pickupPointId }) }),
+  updatePickupPoint: (orderId: string, pickupPointId: string) => request(`/orders/${orderId}/pickup-point`, { method: 'PATCH', body: JSON.stringify({ pickupPointId }) }),
   pay: (orderId: string) => request(`/orders/${orderId}/pay`, { method: 'POST' }),
   cancel: (orderId: string) => request(`/orders/${orderId}/cancel`, { method: 'POST' }),
   addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),

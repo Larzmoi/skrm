@@ -224,6 +224,8 @@ const en = {
     cancelOrderButton: 'Cancel order', cancelOrderConfirmTitle: 'Cancel this order?',
     cancelOrderConfirmMessage: 'The item goes back on sale. This cannot be undone — if you want it later, you\'ll need to add it to your cart again. A voluntary cancellation does not affect your account.',
     errCancelFailed: 'Cancellation failed',
+    changePickupPoint: 'Change pickup point', savePickupPoint: 'Save',
+    errPickupChangeFailed: 'Failed to change pickup point',
   },
   dashboard: {
     hello: 'Hi', subtitle: 'Here is a summary of your activity',
