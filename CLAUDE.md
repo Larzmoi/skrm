@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Posti vaihdettu demo-ympäristöstä tuotantoon 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan pyynnöstä ("postin palvelun saisi myös nyt aktivoida") — sama periaate kuin Stripen live-avainten vaihdossa, kaikki tarvittavat tuotantotunnukset olivat jo valmiiksi `.env`:issä (`POSTI_CLIENT_ID`/`POSTI_CLIENT_SECRET`/`POSTI_GATEWAY_SECRET`, sopimusnumero 691317 kovakoodattuna fallbackina), ainoa tarvittava muutos oli jo aiemmin dokumentoitu: `POSTI_TEST_MODE=true` → `false` palvelimen `.env`:issä + `pm2 restart skrm-backend`.
+
+**Ennen vaihtoa siivottu pieni jäänne:** `.env`:issä oli kaksi `POSTI_GATEWAY_SECRET=`-riviä peräkkäin — ensimmäinen tyhjä (jäänne ajalta ennen kuin Postin tuki toimitti arvon, ks. "PUUTTUU VIELÄ"-kommentti sen vieressä), toinen oikea arvo. Node/dotenv käyttää aina VIIMEISINTÄ samannimistä muuttujaa, joten aktiivinen arvo oli jo koko ajan oikea — ei vaatinut korjausta, vain vahvistettu ennen vaihtoa (hash-vertailu, ei koskaan tulostettu itse arvoa).
+
+**Testattu turvallisesti ennen vaihtoa julkaisua:** tuotannon OAuth2-tunnukset (`POSTI_CLIENT_ID`/`SECRET`) toimivat oikeaa `gateway-auth.posti.fi`-tokenipäätepistettä vasten — `200`, kelvollinen `access_token` (2564 merkkiä, 1h voimassaolo). **Ei testattu pidemmälle** (ei luotu oikeaa lähetystä) — `createShippingOrder()`:n oma koodikommentti sanoo suoraan että tuotantotilassa se "luo oikean, laskutettavan lähetyksen" — tämä ei ole enää riskitön lukukutsu kuten demo-ympäristön testaus oli, joten ensimmäinen oikea lähetys jää odottamaan oikeaa myyjän seurantakoodin syöttöä/lähetyksen luontia tuotannossa, ei omaa synteettistä testiä.
+
+**Vaikutus:** `POST /orders/:id/create-shipment` (myyjä merkitsee postitus-tilauksen lähetetyksi) käyttää nyt oikeaa Postin tuotanto-API:a demo-datan sijaan — myyjän luoma lähetys/osoitetarra on nyt aidosti Postin järjestelmässä, ei enää demo-ympäristön testidataa. **Ei vaikuta nouto-tilauksiin** (eri koodipolku, `pickupCode`-mekanismi, ei koske Postia ollenkaan). Pickup Point -haku (`GET /posti/pickup-points`, checkoutin noutopistevalinta) oli jo ennestään aina tuotanto-hostia vasten riippumatta `POSTI_TEST_MODE`:sta, ei muuttunut.
+
+**Ei muuttunut, yhä oma erillinen rajoituksensa:** Sending Code API (labelless-koodi PDF-tarran sijaan) on yhä oma 403 (puuttuva tuote-/roolirekisteröinti Postin puolella, ks. "Sending Code API" -osio) — myyjän lähetykset tuottavat siis yhä PDF-osoitetarran, ei koodia, kunnes tämä erikseen ratkeaa Postin kanssa. Tämä ei estä postitusta, vain "ei tulostettavaa tarraa" -tavoite jää toistaiseksi saavuttamatta.
+
 ## Stripen minimimaksu, Tilitykset-sivun oikea data, ja Stripe-hallintapaneelin linkki 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja teki ensimmäisen oikean testioston (itseltään, kahdella eri Habahub-tilillä samaa korttia käyttäen, nouto vahvistettu) ja kolme löydöstä/kysymystä nousi esiin.
