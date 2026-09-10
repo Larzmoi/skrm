@@ -252,7 +252,7 @@ export default function Home() {
     return p
   }, [activeKat, activeAla, activeTyyppi, JSON.stringify(displayProducts)])
 
-  const allKats = [{ id: 'kaikki', nimi: { fi: 'Kaikki', en: 'All' } }, ...getNakyvatKategoriat()]
+  const allKats = [{ id: 'kaikki', nimi: { fi: t.selaa.allCategories, en: t.selaa.allCategories, sv: t.selaa.allCategories } }, ...getNakyvatKategoriat()]
 
 
   function hideHero() {
@@ -360,7 +360,7 @@ export default function Home() {
         {!isMobile && (
           <div style={{ width: 200, flexShrink: 0, padding: '16px 10px', borderRight: `1px solid ${C.border}`, position: 'sticky', top: 58, height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
             <button onClick={() => { setActiveKat('kaikki'); setActiveAla(''); setActiveTyyppi('') }} style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: activeKat === 'kaikki' ? 700 : 400, color: activeKat === 'kaikki' ? C.accent : C.textSub, background: activeKat === 'kaikki' ? C.accentLight : 'transparent', marginBottom: 2, display: 'flex', justifyContent: 'space-between' }}>
-              <span>Kaikki</span>
+              <span>{t.selaa.allCategories}</span>
               <span style={{ fontSize: 11, color: C.muted }}>{displayProducts.length}</span>
             </button>
             {getNakyvatKategoriat().map(kat => {
@@ -526,9 +526,9 @@ export default function Home() {
           {/* Tyhjä tila */}
           {filteredProducts.length === 0 && filteredShows.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>Ei tuotteita tai lähetyksiä tässä kategoriassa</div>
+              <div style={{ fontSize: 14, color: C.muted, marginBottom: 16 }}>{t.home.emptyCategory}</div>
               <button onClick={() => { setActiveKat('kaikki'); setActiveAla('') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
-                Näytä kaikki
+                {t.home.showAll}
               </button>
             </div>
           )}

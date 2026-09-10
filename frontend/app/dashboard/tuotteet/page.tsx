@@ -433,7 +433,7 @@ function TuotteetContent() {
               ensisijainen tapa lisätä tuote — vahvistettu epäselväksi mobiilitestauksessa
               2026-09-01 (kohta 12). */}
           <button onClick={() => { reset(); setShowForm(true); setBulkTab('file') }} style={{ background: 'none', border: 'none', color: C.textSub, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-            Tuo CSV/TXT-tiedostosta
+            {tp.bulkImportLink}
           </button>
           <button onClick={() => { reset(); setShowForm(true); setBulkTab('manual') }} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
             {tp.addProduct}

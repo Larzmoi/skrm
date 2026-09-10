@@ -3,13 +3,19 @@ import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAvatar } from '@/lib/avatar-context'
+import { useLang } from '@/lib/lang-context'
 import { userApi } from '@/lib/api'
 import StripeConnectCard from '@/components/StripeConnectCard'
 
+// Käännetty t.profilePage-nimiavaruudella 2026-09-10 (ks. CLAUDE.md käännösauditointi) - oli
+// aiemmin kokonaan hardkoodattua suomea, samaan tapaan kuin dashboard/tilitykset oli.
 export default function ProfiiliPage() {
   const { C } = useTheme()
   const { user, updateUser } = useAuth()
   const { avatar, setAvatar } = useAvatar()
+  const { t, lang } = useLang()
+  const p = t.profilePage
+  const dateLocale = lang === 'en' ? 'en-GB' : lang === 'sv' ? 'sv-SE' : 'fi-FI'
 
   const [name, setName] = useState(user?.name ?? '')
   const [bio, setBio] = useState(user?.bio ?? '')
@@ -64,7 +70,7 @@ export default function ProfiiliPage() {
       updateUser({ vacationUntil: updated.vacationUntil, vacationMessage: updated.vacationMessage })
       setShowVacForm(false)
     } catch (e: any) {
-      setVacationError(e.message ?? 'Tallennus epäonnistui')
+      setVacationError(e.message ?? p.errSaveFailed)
     }
     setVacationBusy(false)
   }
@@ -77,7 +83,7 @@ export default function ProfiiliPage() {
       setVacationUntil('')
       setVacationMsg('')
     } catch (e: any) {
-      setVacationError(e.message ?? 'Poisto epäonnistui')
+      setVacationError(e.message ?? p.errRemoveFailed)
     }
     setVacationBusy(false)
   }
@@ -88,7 +94,7 @@ export default function ProfiiliPage() {
       const updated = await userApi.updateProfile({ newsletterOptIn: !user?.newsletterOptIn })
       updateUser({ newsletterOptIn: updated.newsletterOptIn })
     } catch (e: any) {
-      setNewsletterError(e.message ?? 'Tallennus epäonnistui')
+      setNewsletterError(e.message ?? p.errSaveFailed)
     }
     setNewsletterBusy(false)
   }
@@ -115,7 +121,7 @@ export default function ProfiiliPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (e: any) {
-      setError(e.message ?? 'Tallennus epäonnistui')
+      setError(e.message ?? p.errSaveFailed)
     }
     setSaving(false)
   }
@@ -125,15 +131,15 @@ export default function ProfiiliPage() {
 
   return (
     <div style={{ color: C.text, maxWidth: 600 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>Profiili</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>{p.title}</h1>
 
       <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Perustiedot</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{p.basicInfoTitle}</h2>
         <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
           <div onClick={() => avatarRef.current?.click()} style={{ width: 72, height: 72, borderRadius: '50%', background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, color: C.accentText, flexShrink: 0, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
             {avatar ? <img src={avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.name?.[0]?.toUpperCase()}
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s' }} onMouseEnter={e => (e.currentTarget.style.opacity = '1')} onMouseLeave={e => (e.currentTarget.style.opacity = '0')}>
-              <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>Vaihda</span>
+              <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>{p.changeAvatar}</span>
             </div>
           </div>
           <input ref={avatarRef} type="file" accept="image/*" onChange={handleAvatar} style={{ display: 'none' }} />
@@ -144,59 +150,59 @@ export default function ProfiiliPage() {
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Nimi</label>
+          <label style={lbl}>{p.nameLabel}</label>
           <input value={name} onChange={e => setName(e.target.value)} style={inp} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Käyttäjänimi</label>
+          <label style={lbl}>{p.usernameLabel}</label>
           <input value={username} onChange={e => setUsername(e.target.value)} disabled={usernameLocked} style={usernameLocked ? { ...inp, opacity: 0.6, cursor: 'not-allowed' } : inp} />
           <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
             {usernameLocked
-              ? `Voit vaihtaa käyttäjänimen taas ${nextUsernameChange!.toLocaleDateString('fi-FI')}.`
-              : 'Käyttäjänimen voi vaihtaa kerran vuodessa.'}
+              ? p.usernameLockedNote.replace('{date}', nextUsernameChange!.toLocaleDateString(dateLocale))
+              : p.usernameFreeNote}
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Sähköposti</label>
+          <label style={lbl}>{p.emailLabel}</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inp} />
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>Bio</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder="Kerro itsestäsi..." style={{ ...inp, resize: 'vertical' as const }} />
+          <label style={lbl}>{p.bioLabel}</label>
+          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} placeholder={p.bioPlaceholder} style={{ ...inp, resize: 'vertical' as const }} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
         <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-          {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
+          {saved ? p.savedBtn : saving ? p.savingBtn : p.saveBtn}
         </button>
       </div>
 
       <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Yhteystiedot</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{p.contactInfoTitle}</h2>
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Puhelinnumero</label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="040 1234567" style={inp} />
+          <label style={lbl}>{p.phoneLabel}</label>
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder={p.phonePlaceholder} style={inp} />
         </div>
         <div style={{ marginBottom: 12 }}>
-          <label style={lbl}>Osoite</label>
-          <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Esimerkkikatu 1" style={inp} />
+          <label style={lbl}>{p.addressLabel}</label>
+          <input value={address} onChange={e => setAddress(e.target.value)} placeholder={p.addressPlaceholder} style={inp} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           <div>
-            <label style={lbl}>Postinumero</label>
-            <input value={postalCode} onChange={e => setPostalCode(e.target.value)} placeholder="00100" style={inp} />
+            <label style={lbl}>{p.postalCodeLabel}</label>
+            <input value={postalCode} onChange={e => setPostalCode(e.target.value)} placeholder={p.postalCodePlaceholder} style={inp} />
           </div>
           <div>
-            <label style={lbl}>Kaupunki</label>
-            <input value={city} onChange={e => setCity(e.target.value)} placeholder="Helsinki" style={inp} />
+            <label style={lbl}>{p.cityLabel}</label>
+            <input value={city} onChange={e => setCity(e.target.value)} placeholder={p.cityPlaceholder} style={inp} />
           </div>
         </div>
         <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>Y-tunnus (valinnainen, yritysmyyjille)</label>
+          <label style={lbl}>{p.businessIdLabel}</label>
           <input value={businessId} onChange={e => setBusinessId(e.target.value)} placeholder="1234567-8" style={inp} />
         </div>
         {error && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginBottom: 12, color: '#EF4444', fontSize: 13 }}>{error}</div>}
         <button onClick={saveProfile} disabled={saving} style={{ background: saved ? C.accentBright : C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-          {saved ? '✓ Tallennettu' : saving ? 'Tallennetaan...' : 'Tallenna'}
+          {saved ? p.savedBtn : saving ? p.savingBtn : p.saveBtn}
         </button>
       </div>
 
@@ -206,13 +212,13 @@ export default function ProfiiliPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: vacationOn || showVacForm ? 16 : 0 }}>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: vacationOn ? '#F59E0B' : C.text, marginBottom: 4 }}>
-              Lomamoodi
+              {p.vacationTitle}
             </h2>
-            <p style={{ fontSize: 13, color: C.muted }}>Lähetysaika pitenee 7 päivään.</p>
+            <p style={{ fontSize: 13, color: C.muted }}>{p.vacationDesc}</p>
           </div>
           {!showVacForm && (
             <button onClick={() => vacationOn ? disableVacation() : setShowVacForm(true)} disabled={vacationBusy} style={{ background: C.accentSolid, color: C.accentText, border: `1px solid ${C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy ? 'default' : 'pointer', opacity: vacationBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
-              {vacationOn ? 'Poista lomamoodi' : 'Ota käyttöön'}
+              {vacationOn ? p.vacationDisable : p.vacationEnable}
             </button>
           )}
         </div>
@@ -221,9 +227,9 @@ export default function ProfiiliPage() {
 
         {vacationOn && !showVacForm && (
           <div style={{ background: '#FFF8E8', border: '1px solid #F59E0B33', borderRadius: 8, padding: '12px 14px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>Lomamoodi on päällä</div>
-            <div style={{ fontSize: 13, color: C.textSub }}>Lähetysaika on tällä hetkellä 7 päivää normaalin 4 vuorokauden sijaan. Näkyy myös julkisessa profiilissasi.</div>
-            {vacationUntil && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Päättyy: {vacationUntil}</div>}
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#F59E0B', marginBottom: 4 }}>{p.vacationOnTitle}</div>
+            <div style={{ fontSize: 13, color: C.textSub }}>{p.vacationOnDesc}</div>
+            {vacationUntil && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{p.vacationEndsLabel} {vacationUntil}</div>}
             {vacationMsg && <div style={{ fontSize: 12, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>"{vacationMsg}"</div>}
           </div>
         )}
@@ -231,19 +237,19 @@ export default function ProfiiliPage() {
         {showVacForm && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={lbl}>Loma päättyy</label>
+              <label style={lbl}>{p.vacationEndDateLabel}</label>
               <input type="date" value={vacationUntil} onChange={e => setVacationUntil(e.target.value)} style={inp} />
             </div>
             <div>
-              <label style={lbl}>Viesti ostajille (valinnainen)</label>
-              <textarea value={vacationMsg} onChange={e => setVacationMsg(e.target.value)} placeholder="esim. Olen lomalla 10.8. asti, tilaukset lähtevät viimeistään 11.8." rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+              <label style={lbl}>{p.vacationMsgLabel}</label>
+              <textarea value={vacationMsg} onChange={e => setVacationMsg(e.target.value)} placeholder={p.vacationMsgPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={saveVacation} disabled={vacationBusy || !vacationUntil} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '9px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: vacationBusy || !vacationUntil ? 'default' : 'pointer', opacity: vacationBusy || !vacationUntil ? 0.7 : 1 }}>
-                Tallenna
+                {p.saveBtn}
               </button>
               <button onClick={() => setShowVacForm(false)} disabled={vacationBusy} style={{ background: C.surface2, color: C.muted, border: `1px solid ${C.border}`, padding: '9px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
-                Peruuta
+                {p.cancelBtn}
               </button>
             </div>
           </div>
@@ -254,12 +260,12 @@ export default function ProfiiliPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 4 }}>
-              Uutiskirje
+              {p.newsletterTitle}
             </h2>
-            <p style={{ fontSize: 13, color: C.muted }}>Myyntivinkkejä ja päivityksiä suoraan sähköpostiisi.</p>
+            <p style={{ fontSize: 13, color: C.muted }}>{p.newsletterDesc}</p>
           </div>
           <button onClick={toggleNewsletter} disabled={newsletterBusy} style={{ background: user?.newsletterOptIn ? C.surface2 : C.accentSolid, color: user?.newsletterOptIn ? C.muted : C.accentText, border: `1px solid ${user?.newsletterOptIn ? C.border : C.accent}`, padding: '8px 16px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: newsletterBusy ? 'default' : 'pointer', opacity: newsletterBusy ? 0.7 : 1, marginLeft: 16, whiteSpace: 'nowrap' }}>
-            {user?.newsletterOptIn ? 'Peru tilaus' : 'Tilaa uutiskirje'}
+            {user?.newsletterOptIn ? p.newsletterUnsubscribe : p.newsletterSubscribe}
           </button>
         </div>
         {newsletterError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '9px 12px', marginTop: 12, color: '#EF4444', fontSize: 13 }}>{newsletterError}</div>}

@@ -1,19 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useTheme } from '@/lib/theme-context'
+import { useLang } from '@/lib/lang-context'
 import { orderApi } from '@/lib/api'
 import StripeConnectCard from '@/components/StripeConnectCard'
 
 // Tilaukset joiden takana on todella tapahtunut Stripe-maksu — PENDING_PAYMENT ja CANCELLED
 // jätetään pois, koska niistä ei ole vielä (tai ei koskaan) veloitettu mitään.
 const PAID_STATUSES = ['PENDING_SHIPPING', 'SHIPPED', 'DELIVERED', 'DISPUTED']
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING_SHIPPING: 'Odottaa lähetystä',
-  SHIPPED: 'Lähetetty',
-  DELIVERED: 'Toimitettu',
-  DISPUTED: 'Reklamoitu',
-}
 
 interface OrderRow {
   id: string
@@ -27,6 +21,14 @@ interface OrderRow {
 
 export default function TilityksetPage() {
   const { C } = useTheme()
+  const { t, lang } = useLang()
+  const p = t.payoutsPage
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING_SHIPPING: p.statusPendingShipping,
+    SHIPPED: p.statusShipped,
+    DELIVERED: p.statusDelivered,
+    DISPUTED: p.statusDisputed,
+  }
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -40,29 +42,29 @@ export default function TilityksetPage() {
   return (
     <div style={{ color: C.text }}>
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Tilitykset</h1>
-        <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>Myyntisi ja tilitykset</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{p.title}</h1>
+        <p style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>{p.subtitle}</p>
       </div>
 
       <StripeConnectCard />
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>Ladataan...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: C.muted }}>{p.loading}</div>
       ) : orders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>Ei tilityksiä vielä</div>
-          <div style={{ fontSize: 14, color: C.muted }}>Tilityksesi näkyvät täällä, kun ensimmäinen kauppa on maksettu.</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 8 }}>{p.emptyTitle}</div>
+          <div style={{ fontSize: 14, color: C.muted }}>{p.emptyBody}</div>
         </div>
       ) : (
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Tapahtumat</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{p.transactionsTitle}</h2>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.surface, borderBottom: `1px solid ${C.border}` }}>
-                  {['Tuote', 'Ostaja', 'Myyntihinta', 'Palkkio', 'Netto', 'Tila', 'Päivä'].map(h => (
+                  {[p.colProduct, p.colBuyer, p.colPrice, p.colCommission, p.colNet, p.colStatus, p.colDate].map(h => (
                     <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: C.muted, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -82,7 +84,7 @@ export default function TilityksetPage() {
                       <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{ background: o.status === 'DELIVERED' ? C.accentLight : C.surface2, color: o.status === 'DELIVERED' ? C.accent : C.muted, padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{STATUS_LABELS[o.status] ?? o.status}</span>
                       </td>
-                      <td style={{ padding: '12px 16px', color: C.muted, whiteSpace: 'nowrap' }}>{new Date(o.createdAt).toLocaleDateString('fi-FI')}</td>
+                      <td style={{ padding: '12px 16px', color: C.muted, whiteSpace: 'nowrap' }}>{new Date(o.createdAt).toLocaleDateString(lang === 'en' ? 'en-GB' : lang === 'sv' ? 'sv-SE' : 'fi-FI')}</td>
                     </tr>
                   )
                 })}
@@ -93,7 +95,7 @@ export default function TilityksetPage() {
       )}
 
       <div style={{ marginTop: 16, padding: '12px 16px', background: C.surface, borderRadius: 8, fontSize: 12, color: C.muted }}>
-        Välityspalkkio on 3,5%, vähintään 0,30€ ja enintään 35€ per kauppa — ainoa summa joka vähennetään osuudestasi. Stripen maksunkäsittelymaksu veloitetaan ostajalta erikseen checkoutissa, ei sinulta. Rahat siirtyvät Stripen kautta suoraan myyntitilillesi maksuhetkellä — tarkka saldo ja tilitysten aikataulu näkyvät omassa Stripe-hallintapaneelissasi ("Jatka onboardingia"/"Avaa Stripe-hallintapaneeli" -linkki yllä).
+        {p.footerNote}
       </div>
     </div>
   )

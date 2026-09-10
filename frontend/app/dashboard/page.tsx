@@ -140,7 +140,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{t.dashboard.upcomingShowsTitle}</h2>
             <button onClick={() => setShowForm(s => !s)} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-              + Ajasta
+              {t.dashboard.schedule}
             </button>
           </div>
 
