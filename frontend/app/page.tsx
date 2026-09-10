@@ -250,11 +250,12 @@ export default function Home() {
           alapuolella mutta ennen heroa/kaikkea muuta sisältöä. Sisältö AdSlot-taulusta,
           admin muokkaa /admin-paneelista - renderöi null jos ei konfiguroitu/pois päältä. */}
       {ad && (
-        // Mobiilipadding nostettu 14px:stä 22px:ään - omistajan pyyntö 2026-09-10: mainoslaatikon
-        // pitää näkyä selvästi kapeampana kuin näyttö, ei täyttä leveyttä samalla paddingilla
-        // kuin muu sisältö (joka käyttää 14px:ää, ks. pääsisältö-div alempana) - tarkoituksella
-        // ERI (isompi) arvo tässä yhdessä paikassa, jotta ero on huomattava, ei sama kuin muu sivu.
-        <div style={{ maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 22px 0' : '20px 24px 0' }}>
+        // Korjattu 2026-09-10: edellinen yritys (22px sivupadding, "kapeampi kuin näyttö")
+        // meni väärään suuntaan - omistaja haluaa mainoslaatikon KOKO näytön levyisenä
+        // mobiilissa, ei kapeampana. 0px sivupadding mobiilissa = laatikko koskettaa molempia
+        // reunoja. Yläpaddingia (14px) ei kosketa, se on pystysuuntaista tilaa navbariin
+        // nähden, ei sivuleveyteen liittyvä.
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 0 0' : '20px 24px 0' }}>
           <AdBanner C={C} isMobile={isMobile} t={t} ad={ad} />
         </div>
       )}
