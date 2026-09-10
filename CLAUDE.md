@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## MP4-tallennus epäonnistui + kuvaa ei saanut poistettua — nginxin 1MB-oletusraja 2026-09-10 — ✅ LÖYDETTY JA KORJATTU
+
+Omistaja raportoi: MP4-lataus epäonnistui EIKÄ vanhaa kuvaa saanut poistettua mainosbannerista. Kaksi oiretta, YKSI juurisyy.
+
+**Juurisyy:** edellisessä osiossa ("Mainosbanneriin loop-GIF/MP4") nostin `express.json({limit:'20mb'})`:n backendissä, mutta unohdin että **nginx istuu Expressin edessä omalla, täysin erillisellä body-kokorajallaan** — ja `/etc/nginx/sites-available/habahub`:ssa ei ollut KOSKAAN asetettu `client_max_body_size`:a mihinkään, joten nginx käytti omaa oletustaan, **1MB**. Jokainen video sisältävä `PATCH /api/admin/ad` -pyyntö (video base64-koodattuna helposti 5-10MB) hylättiin siis nginxin toimesta `413 Request Entity Too Long` -virheellä ENNEN kuin pyyntö edes tavoitti Expressin — Expressin 20mb-raja ei koskaan päässyt edes vaikuttamaan. **Tämä selittää myös kuvan poisto -ongelman:** admin-lomakkeen "Tallenna"-nappi lähettää KAIKKI kentät (myös `imageUrl:null`) YHTENÄ pyyntönä — kun video-kentän koko kaatoi koko pyynnön nginx-tasolla, myöskään mukana ollut kuvan poisto ei koskaan päässyt tallentumaan, vaikka ne olivat käyttäjän näkökulmasta kaksi eri toimenpidettä.
+
+**Korjaus:** `client_max_body_size 20M;` lisätty `/etc/nginx/sites-available/habahub`:n `/api/` location-lohkoon (sama 20mb-raja kuin Expressillä jo on) — varmuuskopio otettu ennen muutosta (`habahub.bak-20260910`), `nginx -t` vahvisti konfiguraation ehjäksi ennen `systemctl reload nginx`:ää (ei täyttä restarttia, ei katkoa palvelua).
+
+**Testattu tuotannossa oikealla kokorajatestillä ennen kuin julistettiin korjatuksi:** kertakäyttöinen 10min admin-JWT (samalla periaatteella kuin projektin muutkin kertaluontoiset diagnostiikkatestit) + oikea `PATCH /api/admin/ad` 9,4MB:n testihyötykuormalla (dummy-data `videoUrl`-kentässä, ei oikea video — pelkkä tavumäärä ratkaisee nginx/Express-rajat, ei sisältö) → **HTTP 200**, ei enää 413. Sama pyyntö olisi ennen korjausta pysähtynyt nginxin 1MB-rajaan. Testidata siivottu heti (`videoUrl:null`), ja **samalla korjattu omistajan alkuperäinen pyyntö oikeasti**: `imageUrl:null` tallennettu onnistuneesti — vanha kuva on nyt poistettu mainosbannerista, vahvistettu sekä admin- että julkisesta `GET /ad`-vastauksesta.
+
+**Käytännön tila nyt:** mainosbanneri on tyhjä (ei kuvaa, ei videota — näyttää oletusikonin, tarkoituksenmukainen tyhjä tila). Omistaja voi nyt ladata oikean MP4:n/GIF:n uudelleen `/admin`-paneelista — kokorajan korjaus koskee kaikkia tulevia yrityksiä, ei vain testiä.
+
 ## Mainosbanneriin loop-GIF/MP4 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö: `/admin`-paneelin "Mainos"-välilehdelle mahdollisuus laittaa lyhyt, itsestään loopaava GIF tai MP4 staattisen kuvan sijaan.
