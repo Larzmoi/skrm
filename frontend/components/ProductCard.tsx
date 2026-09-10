@@ -61,40 +61,30 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
           </div>
         )}
       </div>
-      <div style={{ padding: isMobile ? '9px 10px' : '11px 13px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+      {isMobile ? (
+        // Mobiililla oma rivi jokaiselle tiedolle - LUKITTU tähän muotoon 2026-09-10, ks.
+        // CLAUDE.md "Etusivun mobiilikortit". Aiempi kahden pystypalstan (nimi/hinta vasemmalla,
+        // myyjä/paikkakunta oikealla flex-shrink:0-palstassa) malli ahtautui kapealla kortilla
+        // niin ettei kumpikaan palsta koskaan saanut riittävästi tilaa - tekstit menivät
+        // päällekkäin/katkesivat. Yksi pystysuuntainen sarake, jokainen rivi omanaan, ratkaisee
+        // tämän kokonaan koska mitään ei enää tarvitse mahtua vierekkäin samalle riville.
+        <div style={{ padding: '9px 10px', display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{
             fontFamily: 'var(--font-display), -apple-system, sans-serif',
-            fontSize: isMobile ? 12.5 : 13.5, fontWeight: 600, color: C.text, marginBottom: 6, lineHeight: 1.32,
+            fontSize: 12.5, fontWeight: 600, color: C.text, lineHeight: 1.32,
             overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
           }}>
             {name}
           </div>
           <div style={{
             fontFamily: 'var(--font-display), -apple-system, sans-serif',
-            fontVariantNumeric: 'tabular-nums', fontSize: isMobile ? 15 : 17, fontWeight: 800, color: C.text, letterSpacing: '-0.01em',
+            fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em',
           }}>
             {price.toLocaleString('fi-FI')}€
           </div>
-          {sellerBusinessId && (
-            <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
-              {t.product.vatIncluded}
-            </div>
-          )}
-          {gradingCompany && grade ? (
-            <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
-              {gradingCompany} {grade}
-            </span>
-          ) : condition && (
-            <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
-              {condition}
-            </span>
-          )}
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {sellerUsername && (
-            <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
-              @{sellerUsername}
+            <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{sellerUsername}</span>
               {sellerVerified && (
                 <span title={t.product.verifiedUser} style={{ display: 'inline-flex', flexShrink: 0 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -105,14 +95,77 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
               )}
             </div>
           )}
+          {city && <div style={{ fontSize: 11, color: C.muted }}>{city}</div>}
+          {sellerBusinessId && <div style={{ fontSize: 10, color: C.muted }}>{t.product.vatIncluded}</div>}
           {sellerBusinessId && (
-            <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 2, display: 'inline-block' }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', alignSelf: 'flex-start' }}>
               {t.product.businessSeller}
             </div>
           )}
-          {city && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{city}</div>}
+          {gradingCompany && grade ? (
+            <span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5, alignSelf: 'flex-start' }}>
+              {gradingCompany} {grade}
+            </span>
+          ) : condition && (
+            <span style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5, alignSelf: 'flex-start' }}>
+              {condition}
+            </span>
+          )}
         </div>
-      </div>
+      ) : (
+        <div style={{ padding: '11px 13px', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontFamily: 'var(--font-display), -apple-system, sans-serif',
+              fontSize: 13.5, fontWeight: 600, color: C.text, marginBottom: 6, lineHeight: 1.32,
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
+            }}>
+              {name}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display), -apple-system, sans-serif',
+              fontVariantNumeric: 'tabular-nums', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.01em',
+            }}>
+              {price.toLocaleString('fi-FI')}€
+            </div>
+            {sellerBusinessId && (
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
+                {t.product.vatIncluded}
+              </div>
+            )}
+            {gradingCompany && grade ? (
+              <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
+                {gradingCompany} {grade}
+              </span>
+            ) : condition && (
+              <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10.5, fontWeight: 600, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, padding: '2px 7px', borderRadius: 5 }}>
+                {condition}
+              </span>
+            )}
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            {sellerUsername && (
+              <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
+                @{sellerUsername}
+                {sellerVerified && (
+                  <span title={t.product.verifiedUser} style={{ display: 'inline-flex', flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="12" fill="#3B82F6" />
+                      <path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+            )}
+            {sellerBusinessId && (
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', marginTop: 2, display: 'inline-block' }}>
+                {t.product.businessSeller}
+              </div>
+            )}
+            {city && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{city}</div>}
+          </div>
+        </div>
+      )}
     </Link>
   )
 }

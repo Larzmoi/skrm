@@ -28,11 +28,20 @@ function IconLink({ href, label, badge, C, size = 19 }: { href: string; label: s
   )
 }
 
-function LogoMark({ C, size = 32, fontSize = 20 }: { C: any; size?: number; fontSize?: number }) {
+// allowShrink: mobiilin yläpalkissa Logo istuu flex:1-kääreessä yhdessä usean kiinteän
+// levyisen napin (teema/kieli/ilmoitukset/viestit/kori/hallintapaneeli) kanssa - Linkin
+// oma flexShrink:0 (oletus, säilyy desktopilla) esti sen KOSKAAN kutistumasta, jolloin koko
+// rivi vuoti yli kapeilla näytöillä/selaimilla ja vika näytti aina siltä että VIIMEINEN nappi
+// (hallintapaneeli) "vuotaa" - todellisuudessa mikään ei antanut periksi ennen sitä. Löytyi
+// omistajan raportoimasta selainkohtaisesta vaihtelusta (ks. CLAUDE.md "Mobiilinavigaation
+// ylivuoto" 2026-09-10). allowShrink sallii tekstin typistyä (...) viimeisenä keinona sen
+// sijaan että koko rivi työntäisi hallintapaneeli-napin näytön ulkopuolelle/vaikeasti
+// klikattavaksi - ei vaikuta desktopiin eikä normaalitapauksessa (riittävästi tilaa) mihinkään.
+function LogoMark({ C, size = 32, fontSize = 20, allowShrink = false }: { C: any; size?: number; fontSize?: number; allowShrink?: boolean }) {
   return (
-    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+    <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: allowShrink ? 1 : 0, minWidth: allowShrink ? 0 : undefined, overflow: allowShrink ? 'hidden' : undefined }}>
       <div style={{ width: size, height: size, borderRadius: '50%', background: `${C.accentSolid}26`, border: `1px solid ${C.accentSolid}66`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, flexShrink: 0 }}>H</div>
-      <span style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize, letterSpacing: '-0.5px', color: C.text, whiteSpace: 'nowrap' }}>Habahub</span>
+      <span style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 800, fontSize, letterSpacing: '-0.5px', color: C.text, whiteSpace: 'nowrap', ...(allowShrink ? { overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 } : {}) }}>Habahub</span>
     </Link>
   )
 }
@@ -61,8 +70,8 @@ export default function Navbar() {
   if (isMobile) {
     return (
       <nav className={glassClass} style={{ position: 'sticky', top: 0, zIndex: 100, overflow: 'hidden', borderRadius: '0 0 20px 20px', borderTop: 'none' }}>
-        <div style={{ padding: '0 12px', height: 52, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1 }}><LogoMark C={C} size={28} fontSize={17} /></div>
+        <div style={{ padding: '0 12px', height: 52, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ flex: 1, minWidth: 0 }}><LogoMark C={C} size={28} fontSize={17} allowShrink /></div>
           <ThemeToggle />
 
           {/* Kielenvalinta - puuttui aiemmin kokonaan mobiili-navbarista (ks. CLAUDE.md
