@@ -57,6 +57,7 @@ export const userApi = {
   getPublishToken: () => request('/users/me/publish-token', { method: 'POST' }),
   getStripeStatus: (): Promise<{ connected: boolean; transfersEnabled: boolean; payoutsEnabled: boolean }> => request('/users/me/stripe-status'),
   getStripeOnboardingLink: (): Promise<{ url: string }> => request('/users/me/stripe-onboarding', { method: 'POST' }),
+  getStripeDashboardLink: (): Promise<{ url: string }> => request('/users/me/stripe-dashboard-link'),
 }
 
 export const cartApi = {

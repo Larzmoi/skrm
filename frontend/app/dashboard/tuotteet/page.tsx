@@ -266,8 +266,8 @@ function TuotteetContent() {
       const quantity = parseInt(rawQty.replace(/[^\d]/g, ''), 10)
       const condition = bulkTyyppi === 'irtokortit' ? rawCondition.trim().toUpperCase() : rawCondition
       const description = comment || undefined
-      if (!rawName || isNaN(price) || price <= 0) {
-        items.push({ name: rawName || '(tuntematon)', condition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, description, errors: 'Virheellinen hinta' })
+      if (!rawName || isNaN(price) || price < 0.5) {
+        items.push({ name: rawName || '(tuntematon)', condition, startPrice: isNaN(price) ? undefined : price, quantity: isNaN(quantity) ? 1 : quantity, description, errors: isNaN(price) || price <= 0 ? 'Virheellinen hinta' : 'Hinta alle 0,50€ (Stripen maksujen alaraja)' })
         i = idx + 2
         continue
       }
@@ -288,6 +288,7 @@ function TuotteetContent() {
   async function save() {
     if (!name.trim()) { setError(tp.enterName); return }
     if (!startPrice || Number(startPrice) <= 0) { setError(tp.enterPrice); return }
+    if (Number(startPrice) < 0.5 || (buyNowPrice && Number(buyNowPrice) < 0.5)) { setError(tp.minPriceError); return }
     if (!allowPickup && !allowShipping) { setError(tp.selectAtLeastOneDelivery); return }
     if (showDeliveryAdvanced && allowPickup && !noutoPolicyAccepted) { setError(tp.acceptPickupTerms); return }
     setError(''); setErrorCode(''); setSaving(true)

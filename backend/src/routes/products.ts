@@ -170,12 +170,24 @@ async function requireVerifiedSeller(userId: string) {
   return !!seller?.verified
 }
 
+// Stripen EUR-maksujen ehdoton alaraja — löytyi 2026-09-10 omistajan testiostosta, jossa
+// checkout epäonnistui koska tilauksen loppusumma jäi tämän alle (Stripe hylkää koko
+// PaymentIntentin, ei vain varoita). Sama raja koskee kaikkea mikä voi päätyä ostajan
+// maksettavaksi sellaisenaan: tuotteen lähtö-/ostohinta täällä, ja tarjoukset (ks. offers.ts).
+const MIN_PRICE_EUROS = 0.5
+
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!(await requireVerifiedSeller(req.userId!))) {
     return res.status(403).json({ error: 'Myyminen vaatii vahvistetun maksutilin. Siirry Tilitykset-sivulle vahvistaaksesi tilisi.', code: 'SELLER_NOT_VERIFIED' })
   }
   const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, reverseHolo, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
+  if (Number(startPrice) < MIN_PRICE_EUROS) {
+    return res.status(400).json({ error: `Hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
+  }
+  if (buyNowPrice && Number(buyNowPrice) < MIN_PRICE_EUROS) {
+    return res.status(400).json({ error: `"Osta heti" -hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
+  }
 
   // showId tuli suoraan pyynnön bodystä ilman omistajuustarkistusta - kuka tahansa kirjautunut
   // käyttäjä pystyi liittämään oman tuotteensa TOISEN myyjän lähetyksen jonoon (löytyi
@@ -262,9 +274,12 @@ router.post('/bulk', authMiddleware, async (req: AuthRequest, res: Response) => 
   for (const p of products) {
     const name = typeof p?.name === 'string' ? p.name.trim() : ''
     const startPrice = Number(p?.startPrice)
-    if (!name || !isFinite(startPrice) || startPrice <= 0) {
+    if (!name || !isFinite(startPrice) || startPrice < MIN_PRICE_EUROS) {
       skipped++
-      results.push({ name: name || '(tuntematon)', skipped: true, error: 'Puuttuva nimi tai virheellinen hinta' })
+      const priceError = isFinite(startPrice) && startPrice > 0 && startPrice < MIN_PRICE_EUROS
+        ? `Hinta alle ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)`
+        : 'Puuttuva nimi tai virheellinen hinta'
+      results.push({ name: name || '(tuntematon)', skipped: true, error: priceError })
       continue
     }
     const quantity = Number(p?.quantity)
@@ -300,6 +315,12 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
   const categoryChanged = newCategory !== product.category || newAlakategoria !== product.alakategoria || newTyyppi !== product.tyyppi
   if (categoryChanged && product.saleType === 'auction' && product.currentBid != null) {
     return res.status(400).json({ error: 'Kategoriaa ei voi enää muuttaa — huutokauppa on jo käynnissä' })
+  }
+  if (req.body.startPrice && Number(req.body.startPrice) < MIN_PRICE_EUROS) {
+    return res.status(400).json({ error: `Hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
+  }
+  if (req.body.buyNowPrice && Number(req.body.buyNowPrice) < MIN_PRICE_EUROS) {
+    return res.status(400).json({ error: `"Osta heti" -hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
   }
 
   const updated = await prisma.product.update({

@@ -8,6 +8,10 @@ const router = Router()
 
 const OFFER_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000 // sama 2h kuin muutkin ostajan aktiiviset ostot (LUKITTU)
 
+// Sama Stripe-alaraja kuin products.ts:ssä (ks. sen kommentti) - hyväksytty tarjous muuttuu
+// suoraan Orderiksi ja maksetaan Stripen kautta, joten tarjoushinta ei voi jäädä tämän alle.
+const MIN_PRICE_EUROS = 0.5
+
 async function isUserBanned(userId: string) {
   return prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } })
 }
@@ -19,6 +23,9 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   const numAmount = Number(amount)
   if (!productId || !isFinite(numAmount) || numAmount <= 0) {
     return res.status(400).json({ error: 'productId ja kelvollinen amount vaaditaan' })
+  }
+  if (numAmount < MIN_PRICE_EUROS) {
+    return res.status(400).json({ error: `Tarjouksen tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
   }
 
   const ban = await isUserBanned(req.userId!)
@@ -135,6 +142,7 @@ router.post('/:id/counter', authMiddleware, async (req: AuthRequest, res: Respon
   const { counterAmount } = req.body
   const numCounter = Number(counterAmount)
   if (!isFinite(numCounter) || numCounter <= 0) return res.status(400).json({ error: 'Kelvollinen counterAmount vaaditaan' })
+  if (numCounter < MIN_PRICE_EUROS) return res.status(400).json({ error: `Vastatarjouksen tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
 
   const offer = await prisma.offer.findUnique({ where: { id: String(req.params.id) }, include: { product: true } })
   if (!offer) return res.status(404).json({ error: 'Tarjousta ei löydy' })

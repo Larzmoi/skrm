@@ -347,6 +347,14 @@ model Order {
   stripeSessionId       String? // Checkout Sessionin ID - luodaan POST /orders/:id/pay:ssa
   stripePaymentIntentId String? // PaymentIntentin ID, saadaan checkout.session.completed-webhookista.
                                  // Tarvitaan hyvityksiin (stripe.refunds.create({ payment_intent })).
+  commissionCents       Int?    // Habahubin todellinen komissio-osuus SENTTEINÄ, tallennettu POST
+                                 // /orders/:id/pay:ssa samalla hetkellä kun se lasketaan
+                                 // application_fee_amount:ia varten (ks. lib/stripe.ts) - EI
+                                 // laskettu uudelleen jälkikäteen, koska myyjän efektiivinen
+                                 // komissioprosentti (14pv-promo/admin-ylikirjoitus) voi muuttua
+                                 // ajan myötä eikä silloin enää vastaisi maksuhetkellä TODELLA
+                                 // veloitettua summaa. Käytetään Tilitykset-sivun (dashboard/
+                                 // tilitykset) rivikohtaiseen näyttöön - ks. CLAUDE.md.
   shippingWindowEnd DateTime?   // 6h yhdistämisikkuna
   paymentDeadline   DateTime?   // 2h maksuaika live-ostoille
   trackingCode      String?

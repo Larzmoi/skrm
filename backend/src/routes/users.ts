@@ -5,7 +5,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, regenerateStreamKey, roomNameForSeller, createViewerToken, createPublisherToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 import { notifyUser } from '../lib/notify'
 import { syncNewsletterContact } from '../lib/resend'
-import { createConnectedAccount, createOnboardingLink, getAccountStatus } from '../lib/stripe'
+import { createConnectedAccount, createOnboardingLink, getAccountStatus, createDashboardLoginLink } from '../lib/stripe'
 
 const router = Router()
 
@@ -267,6 +267,22 @@ router.post('/me/stripe-onboarding', authMiddleware, async (req: AuthRequest, re
     res.json({ url })
   } catch (e: any) {
     res.status(400).json({ error: e.message ?? 'Stripe-tilin luonti epäonnistui' })
+  }
+})
+
+// GET /users/me/stripe-dashboard-link — kertakäyttöinen kirjautumislinkki myyjän OMAAN Stripe
+// Express-hallintapaneeliin (saldo, tilityshistoria, pankkitiedot) - ainoa paikka josta myyjä
+// näkee TODELLISEN, ajantasaisen saldonsa, koska Habahubin oma Tilitykset-sivu näyttää vain
+// omat tilausrivimme, ei Stripen puolen tilitysaikataulua/saldoa. Vaatii tilin olevan jo
+// olemassa - ei luo uutta (eri kuin /stripe-onboarding, joka luo tarvittaessa).
+router.get('/me/stripe-dashboard-link', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { stripeAccountId: true } })
+  if (!user?.stripeAccountId) return res.status(400).json({ error: 'Stripe-tiliä ei ole vielä yhdistetty' })
+  try {
+    const url = await createDashboardLoginLink(user.stripeAccountId)
+    res.json({ url })
+  } catch (e: any) {
+    res.status(400).json({ error: e.message ?? 'Hallintapaneelin avaus epäonnistui' })
   }
 })
 

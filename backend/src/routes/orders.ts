@@ -149,7 +149,10 @@ router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) 
       orderId: order.id, items, shippingEuros: order.shippingPrice, buyerEmail: order.buyer.email,
       sellerStripeAccountId: order.seller.stripeAccountId, commissionCents,
     })
-    await prisma.order.update({ where: { id: order.id }, data: { stripeSessionId: session.sessionId } })
+    // commissionCents tallennetaan TÄSSÄ, samalla laskennalla joka meni application_fee_amount:iin
+    // - ei lasketa uudelleen myöhemmin, koska myyjän efektiivinen komissioprosentti (14pv-promo/
+    // admin-ylikirjoitus) voi muuttua ajan myötä eikä silloin enää vastaisi todellista veloitusta.
+    await prisma.order.update({ where: { id: order.id }, data: { stripeSessionId: session.sessionId, commissionCents } })
     return res.json({ order, redirectUrl: session.redirectUrl })
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })

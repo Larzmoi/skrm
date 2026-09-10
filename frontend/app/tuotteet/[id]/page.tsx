@@ -125,6 +125,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
     const amount = Number(offerAmount)
     if (!isFinite(amount) || amount <= 0) return
+    if (amount < 0.5) { setOfferError(t.product.minPriceError ?? 'Tarjouksen tulee olla vähintään 0,50€'); return }
     setOfferError(''); setOfferBusy(true)
     try {
       await offerApi.create(product.id, amount)

@@ -120,6 +120,17 @@ export async function createOnboardingLink(accountId: string): Promise<string> {
   return link.url
 }
 
+// Kertakäyttöinen kirjautumislinkki myyjän omaan Stripe Express -hallintapaneeliin (saldo,
+// tilityshistoria, pankkitiedot) - accounts.createLoginLink() on v1-API:n metodi, mutta
+// hyväksyy v2-tilin ID:n sellaisenaan (ks. docs.stripe.com/connect/accounts-v2 "Certain
+// features don't yet directly support v2 Accounts... you can still pass the ID of a v2
+// Account to an Accounts v1 API endpoint" - login-linkit eivät ole tuon sivun v1-only-
+// listalla, joten tämän oletetaan toimivan samoin kuin Account Links teki v2-tileille).
+export async function createDashboardLoginLink(accountId: string): Promise<string> {
+  const link = await stripe.accounts.createLoginLink(accountId)
+  return link.url
+}
+
 // Tilin tila - kaksi ERI kapasiteettia, tarkoituksella eroteltu (löytyi tuotantotestissä
 // 2026-09-09): stripe_transfers = voiko destination-charge YLIPÄÄTÄÄN ohjata rahaa tälle
 // tilille (tämä on se joka estää POST /orders/:id/pay:n jos puuttuu, ks. checkTransfersReady

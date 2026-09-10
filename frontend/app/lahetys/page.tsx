@@ -905,6 +905,7 @@ export default function LahetysPage() {
     if (!qaName.trim() || !qaPrice) return
     const price = Number(qaPrice.replace(',', '.'))
     if (!price || price <= 0) { setQaError('Anna kelvollinen hinta'); return }
+    if (price < 0.5) { setQaError('Hinnan tulee olla vähintään 0,50€ (Stripen maksujen alaraja)'); return }
     // Tyhjä kenttä -> ei välitetä bidIncrement:iä, backend/frontend molemmat tulkitsevat
     // puuttuvan arvon 1€ oletuskorotukseksi (sama fallback kuin dashboardin täydellä
     // lomakkeella, ks. CLAUDE.md "Mobiili-läpikäynti" kohta 8).
@@ -1090,7 +1091,7 @@ export default function LahetysPage() {
               </div>
             )}
             <input value={qaName} onChange={e => { setQaName(e.target.value); setQaPresetId(null) }} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
-            <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta € (väh. 0,50€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder="Minimikorotus € (oletus 1€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             {/* Kunto - aiemmin ainoa tapa saada kunto asetettua pikalisäyksessä oli ladata
                 esiasetus (jolloin kunto tuli mukana piilokenttänä) - myyjä ei voinut itse

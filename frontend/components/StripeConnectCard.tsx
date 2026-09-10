@@ -33,6 +33,22 @@ export default function StripeConnectCard() {
     }
   }
 
+  // Ainoa paikka josta myyjä näkee TODELLISEN, ajantasaisen Stripe-saldonsa ja tilityshistoriansa
+  // - Habahubin oma Tilitykset-sivu näyttää vain omat tilausrivimme, ei Stripen puolen
+  // tilitysaikataulua. Kertakäyttöinen linkki, haetaan vasta klikkauksesta (ei kerran mounttiin
+  // asti kestävä, Stripe vanhentaa sen nopeasti) ja avataan uuteen välilehteen.
+  async function openDashboard() {
+    setBusy(true)
+    setError('')
+    try {
+      const { url } = await userApi.getStripeDashboardLink()
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (e: any) {
+      setError(e.message ?? 'Hallintapaneelin avaus epäonnistui')
+    }
+    setBusy(false)
+  }
+
   if (!status) return null
 
   return (
@@ -48,7 +64,11 @@ export default function StripeConnectCard() {
               : 'Yhdistä Stripe-tilisi ennen kuin voit vastaanottaa maksuja ostajilta. Ei vaadi Y-tunnusta.'}
           </div>
         </div>
-        {!status.transfersEnabled && (
+        {status.transfersEnabled ? (
+          <button onClick={openDashboard} disabled={busy} style={{ background: C.surface2, color: C.text, border: `1px solid ${C.border}`, padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+            {busy ? 'Avataan...' : 'Avaa Stripe-hallintapaneeli'}
+          </button>
+        ) : (
           <button onClick={connect} disabled={busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap' }}>
             {busy ? 'Ohjataan...' : status.connected ? 'Jatka onboardingia' : 'Yhdistä Stripe-tili'}
           </button>
