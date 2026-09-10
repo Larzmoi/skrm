@@ -19,7 +19,7 @@ const fi = {
     heroTrustCommission: '3,5% provisio, 0,30–35€', heroTrustFreeSignup: 'Ilmainen rekisteröityminen',
     heroHide: 'Piilota',
     promoTitle: 'Ei listaus- eikä kuukausimaksuja',
-    promoBody: 'Maksat vain 3,5 % kun tuote oikeasti myydään, 0,30–35 €. Aloita myyminen tänään.',
+    promoBody: 'Maksat vain 3,5 % kun tuote oikeasti myydään, enintään 35 €. Aloita myyminen tänään.',
     promoCta: 'Ryhdy myyjäksi',
     upcomingPreBidOpen: 'Ennakkotarjoukset ovat jo auki',
     watchShow: 'Katso lähetys',

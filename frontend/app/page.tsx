@@ -142,8 +142,12 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
             <p style={{ fontSize: 13, color: '#CBD5E1', margin: 0, maxWidth: 480 }}>{ad.body}</p>
           </div>
         </div>
-        {/^https?:\/\//i.test(href)
-          ? <a href={href} target="_blank" rel="noopener noreferrer" className="hb-btn" style={ctaStyle}>{ctaContent}</a>
+        {/* mailto:/tel: käsitellään samana "ulkoisena" reittinä kuin http(s) - LISÄTTY 2026-09-10
+            omistajan mainostilan varausidean myötä (esim. "mailto:support@habahub.com"). Next.js:n
+            oma <Link> on tarkoitettu sivuston sisäisille reiteille, ei taattu toimimaan
+            luotettavasti mailto:-skeemalla kaikissa versioissa - ei jätetä tätä arvauksen varaan. */}
+        {/^(https?|mailto|tel):/i.test(href)
+          ? <a href={href} target={/^https?:/i.test(href) ? '_blank' : undefined} rel="noopener noreferrer" className="hb-btn" style={ctaStyle}>{ctaContent}</a>
           : <Link href={href} className="hb-btn" style={ctaStyle}>{ctaContent}</Link>
         }
       </div>

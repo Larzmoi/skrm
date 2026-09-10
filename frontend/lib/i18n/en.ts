@@ -19,7 +19,7 @@ const en = {
     heroTrustCommission: '3.5% fee, €0.30–35', heroTrustFreeSignup: 'Free to sign up',
     heroHide: 'Hide',
     promoTitle: 'No listing or monthly fees',
-    promoBody: 'You only pay 3.5% when the item actually sells, from €0.30 up to €35. Start selling today.',
+    promoBody: 'You only pay 3.5% when the item actually sells, up to €35. Start selling today.',
     promoCta: 'Become a seller',
     upcomingPreBidOpen: 'Pre-bidding is already open',
     watchShow: 'Watch show',

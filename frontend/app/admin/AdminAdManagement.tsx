@@ -115,8 +115,8 @@ export default function AdminAdManagement() {
             <input style={inputStyle} value={ad.ctaText} onChange={e => update('ctaText', e.target.value)} maxLength={40} placeholder="Selaa huutokauppoja" />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>Napin linkki (sivuston oma polku tai mikä tahansa ulkoinen osoite)</label>
-            <input style={inputStyle} value={ad.ctaHref} onChange={e => update('ctaHref', e.target.value)} placeholder="/huutokaupat tai https://..." />
+            <label style={labelStyle}>Napin linkki (sivuston oma polku, ulkoinen osoite, tai mailto: sähköpostille)</label>
+            <input style={inputStyle} value={ad.ctaHref} onChange={e => update('ctaHref', e.target.value)} placeholder="/huutokaupat tai https://... tai mailto:support@habahub.com" />
           </div>
         </div>
         <div>

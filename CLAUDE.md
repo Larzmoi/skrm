@@ -7,18 +7,6 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
-## MP4-tallennus epäonnistui + kuvaa ei saanut poistettua — nginxin 1MB-oletusraja 2026-09-10 — ✅ LÖYDETTY JA KORJATTU
-
-Omistaja raportoi: MP4-lataus epäonnistui EIKÄ vanhaa kuvaa saanut poistettua mainosbannerista. Kaksi oiretta, YKSI juurisyy.
-
-**Juurisyy:** edellisessä osiossa ("Mainosbanneriin loop-GIF/MP4") nostin `express.json({limit:'20mb'})`:n backendissä, mutta unohdin että **nginx istuu Expressin edessä omalla, täysin erillisellä body-kokorajallaan** — ja `/etc/nginx/sites-available/habahub`:ssa ei ollut KOSKAAN asetettu `client_max_body_size`:a mihinkään, joten nginx käytti omaa oletustaan, **1MB**. Jokainen video sisältävä `PATCH /api/admin/ad` -pyyntö (video base64-koodattuna helposti 5-10MB) hylättiin siis nginxin toimesta `413 Request Entity Too Long` -virheellä ENNEN kuin pyyntö edes tavoitti Expressin — Expressin 20mb-raja ei koskaan päässyt edes vaikuttamaan. **Tämä selittää myös kuvan poisto -ongelman:** admin-lomakkeen "Tallenna"-nappi lähettää KAIKKI kentät (myös `imageUrl:null`) YHTENÄ pyyntönä — kun video-kentän koko kaatoi koko pyynnön nginx-tasolla, myöskään mukana ollut kuvan poisto ei koskaan päässyt tallentumaan, vaikka ne olivat käyttäjän näkökulmasta kaksi eri toimenpidettä.
-
-**Korjaus:** `client_max_body_size 20M;` lisätty `/etc/nginx/sites-available/habahub`:n `/api/` location-lohkoon (sama 20mb-raja kuin Expressillä jo on) — varmuuskopio otettu ennen muutosta (`habahub.bak-20260910`), `nginx -t` vahvisti konfiguraation ehjäksi ennen `systemctl reload nginx`:ää (ei täyttä restarttia, ei katkoa palvelua).
-
-**Testattu tuotannossa oikealla kokorajatestillä ennen kuin julistettiin korjatuksi:** kertakäyttöinen 10min admin-JWT (samalla periaatteella kuin projektin muutkin kertaluontoiset diagnostiikkatestit) + oikea `PATCH /api/admin/ad` 9,4MB:n testihyötykuormalla (dummy-data `videoUrl`-kentässä, ei oikea video — pelkkä tavumäärä ratkaisee nginx/Express-rajat, ei sisältö) → **HTTP 200**, ei enää 413. Sama pyyntö olisi ennen korjausta pysähtynyt nginxin 1MB-rajaan. Testidata siivottu heti (`videoUrl:null`), ja **samalla korjattu omistajan alkuperäinen pyyntö oikeasti**: `imageUrl:null` tallennettu onnistuneesti — vanha kuva on nyt poistettu mainosbannerista, vahvistettu sekä admin- että julkisesta `GET /ad`-vastauksesta.
-
-**Käytännön tila nyt:** mainosbanneri on tyhjä (ei kuvaa, ei videota — näyttää oletusikonin, tarkoituksenmukainen tyhjä tila). Omistaja voi nyt ladata oikean MP4:n/GIF:n uudelleen `/admin`-paneelista — kokorajan korjaus koskee kaikkia tulevia yrityksiä, ei vain testiä.
-
 ## Mainosbanneriin loop-GIF/MP4 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö: `/admin`-paneelin "Mainos"-välilehdelle mahdollisuus laittaa lyhyt, itsestään loopaava GIF tai MP4 staattisen kuvan sijaan.
@@ -29,9 +17,29 @@ Omistajan pyyntö: `/admin`-paneelin "Mainos"-välilehdelle mahdollisuus laittaa
 
 **Ei vielä visuaalisesti vahvistettu selaimessa** (ei selaintyökalua tässä ympäristössä) — typecheck+build vihreä molemmilla puolilla, skeema migroitu tuotantoon (`npx prisma db push`), palvelin uudelleenkäynnistetty. Omistajan kannattaa kokeilla lataamalla oikea lyhyt GIF/MP4 `/admin`-paneelista ja tarkistaa etusivulla että se toistuu odotetusti.
 
+## Mainostilan myynti mainosbannerissa + mailto:-linkin tuki CTA-nappiin 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja kysyi: jos mainosbannerissa haluaa mainostaa "osta mainostilaa tästä", pitäisikö ohjata sähköpostiin (`support@habahub.com`) vai jokin muu tapa? **Vastaus: mailto:-linkki on riittävä ja oikeasuhtainen tähän** — bannerin CTA-napin linkkikenttä (`/admin`-paneelin "Napin linkki") hyväksyy jo minkä tahansa osoitteen, joten `mailto:support@habahub.com?subject=Mainostila` kelpaa suoraan ilman mitään uutta lomaketta/backendiä. Erillinen yhteydenottolomake olisi ylimitoitettu tälle matalataajuiselle, matalan volyymin käyttötarkoitukselle (mahdolliset mainostajat ottavat yhteyttä harvoin) — voidaan rakentaa myöhemmin jos tarve oikeasti kasvaa.
+
+**Tekninen varmistus ennen suosittelua:** CTA-napin renderöintilogiikka (`frontend/app/page.tsx`:n `AdBanner`) tunnisti aiemmin vain `http(s)://`-alkuiset osoitteet "ulkoisiksi" (`<a target="_blank">`), kaikki muu meni Next.js:n `<Link>`-komponentin läpi — tarkoitettu sivuston sisäisille reiteille, ei taattu toimimaan luotettavasti `mailto:`-skeemalla kaikissa Next.js-versioissa. **Korjattu:** tunnistus laajennettu kattamaan myös `mailto:`/`tel:`, molemmat renderöityvät nyt tavallisena `<a href>`:nä (ei `target="_blank"`:ia näille kahdelle, koska ne avaavat käyttöjärjestelmän oman sovelluksen eivätkä uutta välilehteä). Admin-lomakkeen kenttäselite päivitetty mainitsemaan `mailto:`-tuki.
+
+## MP4-tallennus epäonnistui + kuvaa ei saanut poistettua — nginxin 1MB-oletusraja 2026-09-10 — ✅ LÖYDETTY JA KORJATTU
+
+Omistaja raportoi: MP4-lataus epäonnistui EIKÄ vanhaa kuvaa saanut poistettua mainosbannerista. Kaksi oiretta, YKSI juurisyy.
+
+**Juurisyy:** edellisessä osiossa ("Mainosbanneriin loop-GIF/MP4") nostettiin `express.json({limit:'20mb'})` backendissä, mutta unohdettiin että **nginx istuu Expressin edessä omalla, täysin erillisellä body-kokorajallaan** — ja `/etc/nginx/sites-available/habahub`:ssa ei ollut KOSKAAN asetettu `client_max_body_size`:a mihinkään, joten nginx käytti omaa oletustaan, **1MB**. Jokainen video sisältävä `PATCH /api/admin/ad` -pyyntö (video base64-koodattuna helposti 5-10MB) hylättiin siis nginxin toimesta `413 Request Entity Too Long` -virheellä ENNEN kuin pyyntö edes tavoitti Expressin — Expressin 20mb-raja ei koskaan päässyt edes vaikuttamaan. **Tämä selittää myös kuvan poisto -ongelman:** admin-lomakkeen "Tallenna"-nappi lähettää KAIKKI kentät (myös `imageUrl:null`) YHTENÄ pyyntönä — kun video-kentän koko kaatoi koko pyynnön nginx-tasolla, myöskään mukana ollut kuvan poisto ei koskaan päässyt tallentumaan, vaikka ne olivat käyttäjän näkökulmasta kaksi eri toimenpidettä.
+
+**Korjaus:** `client_max_body_size 20M;` lisätty `/etc/nginx/sites-available/habahub`:n `/api/` location-lohkoon (sama 20mb-raja kuin Expressillä jo on) — varmuuskopio otettu ennen muutosta (`habahub.bak-20260910`), `nginx -t` vahvisti konfiguraation ehjäksi ennen `systemctl reload nginx`:ää (ei täyttä restarttia, ei katkoa palvelua).
+
+**Testattu tuotannossa oikealla kokorajatestillä ennen kuin julistettiin korjatuksi:** kertakäyttöinen 10min admin-JWT (samalla periaatteella kuin projektin muutkin kertaluontoiset diagnostiikkatestit) + oikea `PATCH /api/admin/ad` 9,4MB:n testihyötykuormalla (dummy-data `videoUrl`-kentässä, ei oikea video — pelkkä tavumäärä ratkaisee nginx/Express-rajat, ei sisältö) → **HTTP 200**, ei enää 413. Sama pyyntö olisi ennen korjausta pysähtynyt nginxin 1MB-rajaan. Testidata siivottu heti (`videoUrl:null`), ja **samalla korjattu omistajan alkuperäinen pyyntö oikeasti**: `imageUrl:null` tallennettu onnistuneesti — vanha kuva on nyt poistettu mainosbannerista, vahvistettu sekä admin- että julkisesta `GET /ad`-vastauksesta.
+
+**Käytännön tila nyt:** mainosbanneri on tyhjä (ei kuvaa, ei videota — näyttää oletusikonin, tarkoituksenmukainen tyhjä tila). Omistaja voi nyt ladata oikean MP4:n/GIF:n uudelleen `/admin`-paneelista — kokorajan korjaus koskee kaikkia tulevia yrityksiä, ei vain testiä.
+
 ## Maksunkäsittelymaksu ostajalle — Habahub ei enää absorboi Stripen kulua 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan päätös samana päivänä paljastuneen löydöksen jälkeen (ks. "Stripen minimimaksu, Tilitykset-sivun oikea data..." -osio, jossa selvisi että 0,50€ tilauksella Stripen oma käsittelymaksu oli 26 senttiä — enemmän kuin koko 3,5%-komissio kattaisi pienillä tuotteilla, vaikka 0,30€ minimikomissio jo lievitti tätä). **Päätös: Stripen ~1,5%+0,25€-maksunkäsittelymaksu veloitetaan nyt ostajalta erillisenä, näkyvänä checkout-rivinä sen sijaan että Habahub kattaisi sen omasta komissiostaan.**
+
+**✅ KORJATTU 2026-09-10 (huomattu heti saman päivitys sisällä, jäi hetkeksi huomaamatta yhdessä paikassa):** Etusivun promo-kortin (`frontend/lib/i18n/fi.ts` + en/sv, avain `promoBody`) teksti oli vielä hetken vanha ("Maksat vain 3,5 % kun tuote oikeasti myydään, 0,30–35 €...") kun käyttöehdot/FAQ/välityspalkkiot/Tilitykset oli jo päivitetty (ks. alla) — yksinkertaistettu takaisin muotoon "Maksat vain 3,5 % kun tuote oikeasti myydään, enintään 35 €. Aloita myyminen tänään." kaikissa kolmessa kielessä. `MIN_COMMISSION_EUROS` jätetty koodiin ylimääräisenä turvamarginaalina — ei koskaan käytännössä laukea enää nyt kun Stripen kulu katetaan erikseen ostajalta useimmilla hinnoilla, mutta ei haittaa jättää sitä.
 
 **Toteutus:**
 - `backend/src/lib/stripe.ts`: uusi `computeProcessingFeeCents(totalEuros)` = `totalEuros × 1,5 + 25` senttiä, laskettu KOKO tilauksen summasta (tuotteet+toimitus, sama peruste jolla Stripe itse laskee oman maksunsa). Lisätty omana "Maksunkäsittelymaksu"-rivinä Stripe Checkout Sessioniin JA `application_fee_amount`:iin — Habahub pitää nyt tämän summan, mikä suurin piirtein kumoaa Stripen todellisen, Habahubin omasta saldosta automaattisesti vähentyvän käsittelymaksun. Myyjän saama osuus ei muutu — yhä täsmälleen `productTotal − komissio`, ei senttiäkään toimituksesta tai käsittelymaksusta.

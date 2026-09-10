@@ -19,7 +19,7 @@ const sv = {
     heroTrustCommission: '3,5% provision, 0,30–35€', heroTrustFreeSignup: 'Gratis att registrera sig',
     heroHide: 'Dölj',
     promoTitle: 'Inga listnings- eller månadsavgifter',
-    promoBody: 'Du betalar bara 3,5 % när produkten faktiskt säljs, 0,30–35 €. Börja sälja idag.',
+    promoBody: 'Du betalar bara 3,5 % när produkten faktiskt säljs, högst 35 €. Börja sälja idag.',
     promoCta: 'Bli säljare',
     upcomingPreBidOpen: 'Förhandsbud är redan öppna',
     watchShow: 'Se sändningen',
