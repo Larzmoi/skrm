@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Maksunkäsittelymaksu ostajalle — Habahub ei enää absorboi Stripen kulua 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan päätös samana päivänä paljastuneen löydöksen jälkeen (ks. "Stripen minimimaksu, Tilitykset-sivun oikea data..." -osio, jossa selvisi että 0,50€ tilauksella Stripen oma käsittelymaksu oli 26 senttiä — enemmän kuin koko 3,5%-komissio kattaisi pienillä tuotteilla, vaikka 0,30€ minimikomissio jo lievitti tätä). **Päätös: Stripen ~1,5%+0,25€-maksunkäsittelymaksu veloitetaan nyt ostajalta erillisenä, näkyvänä checkout-rivinä sen sijaan että Habahub kattaisi sen omasta komissiostaan.**
+
+**Toteutus:**
+- `backend/src/lib/stripe.ts`: uusi `computeProcessingFeeCents(totalEuros)` = `totalEuros × 1,5 + 25` senttiä, laskettu KOKO tilauksen summasta (tuotteet+toimitus, sama peruste jolla Stripe itse laskee oman maksunsa). Lisätty omana "Maksunkäsittelymaksu"-rivinä Stripe Checkout Sessioniin JA `application_fee_amount`:iin — Habahub pitää nyt tämän summan, mikä suurin piirtein kumoaa Stripen todellisen, Habahubin omasta saldosta automaattisesti vähentyvän käsittelymaksun. Myyjän saama osuus ei muutu — yhä täsmälleen `productTotal − komissio`, ei senttiäkään toimituksesta tai käsittelymaksusta.
+- **Kriittinen UX-yksityiskohta:** koska ostoskori→maksu tapahtuu yhdellä klikkauksella (ei erillistä "tarkista tilaus" -väli-vaihetta Stripeen siirtymisen edellä), ostaja olisi muuten nähnyt YHDEN summan `/kori`:ssa ja TOISEN, korkeamman summan Stripen sivulla — näyttäisi rikkinäiseltä/epäluotettavalta. Sama kaava peilattu frontendiin (`frontend/lib/pakettikoot.ts`:n `computeProcessingFeeEuros()`, VAIN näyttöä varten, palvelin laskee ja veloittaa aina itse) — `/kori` ja `/ostot` näyttävät nyt täsmälleen sen summan jonka Stripe tulee veloittamaan, ennen kuin ostaja koskaan siirtyy Stripen sivulle.
+- **Ei retroaktiivista muutosta jo maksettuihin tilauksiin:** `/ostot`-sivun historiallinen summa (SHIPPED/DELIVERED-osiot) näyttää yhä vain `productTotal+shippingPrice`:n, EI lisää maksunkäsittelymaksua jälkikäteen — vain vielä maksamattomille (`PENDING_PAYMENT`) tilauksille näytetään ennakoiva, Stripen tulevaa veloitusta vastaava summa.
+- **Tekstit päivitetty selväksi kumpi osapuoli maksaa mitä** kaikissa kolmessa kielessä (käyttöehdot, FAQ, välityspalkkiot-sivu, Tilitykset-sivun huomautus) — aiempi teksti oli osittain harhaanjohtava/monitulkintainen sen suhteen veloitetaanko käsittelymaksu myyjältä vai ostajalta.
+
+**Testattu tuotannossa deployn jälkeen suoraan käännettyä koodia vasten:** `computeProcessingFeeCents(0.5) = 26` senttiä — täsmää TÄSMÄLLEEN omistajan oman aiemman 0,50€-testioston oikeaan, Stripeltä luettuun käsittelymaksuun (26 senttiä, ks. edellinen osio). Typecheck+build vihreä molemmilla puolilla.
+
 ## ALV-toggle yritysmyyjille — per-tuote, ei blanketti businessId-perusteinen 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö: yritysmyyjille (Y-tunnus asetettu) nappi tuotteen laadintaan josta saa hinnan sisältämään ALV:n — useimmat tuotteet ovat käytettyä tavaraa (ALV 0%), mutta joskus mukana on uusia tuotteita joista ALV pitää tilittää. Pyydettiin ensin selvittämään tukeeko Stripe tällaista ennen koodausta.
