@@ -250,12 +250,20 @@ export default function Home() {
           alapuolella mutta ennen heroa/kaikkea muuta sisältöä. Sisältö AdSlot-taulusta,
           admin muokkaa /admin-paneelista - renderöi null jos ei konfiguroitu/pois päältä. */}
       {ad && (
-        // Korjattu 2026-09-10: edellinen yritys (22px sivupadding, "kapeampi kuin näyttö")
-        // meni väärään suuntaan - omistaja haluaa mainoslaatikon KOKO näytön levyisenä
-        // mobiilissa, ei kapeampana. 0px sivupadding mobiilissa = laatikko koskettaa molempia
-        // reunoja. Yläpaddingia (14px) ei kosketa, se on pystysuuntaista tilaa navbariin
-        // nähden, ei sivuleveyteen liittyvä.
-        <div style={{ maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 0 0' : '20px 24px 0' }}>
+        // ⚠️ TODELLINEN JUURISYY LÖYTYI 2026-09-10 pitkän diagnoosin jälkeen - ei ollut
+        // koskaan välimuisti, vaan aito CSS-bugi joka ei näy millään palvelinpuolen
+        // tarkistuksella (curl ei renderöi CSS:ää). Tämä div on suoran ulomman
+        // `display:flex, flexDirection:'column'` -kääreen (rivi ~246) LAPSI - flexbox-
+        // spesifikaation mukaan `margin:'0 auto'` flex-itemillä risteysakselilla
+        // (pystysuuntaisessa flex-kontissa = vaaka-akseli) EI toimi kuten tavallisessa
+        // block-layoutissa: se korvaa oletus `align-items:stretch`-käytöksen ja pakottaa
+        // itemin kutistumaan sisältönsä levyiseksi, sitten keskittää sen auto-marginien
+        // avulla - täsmälleen se "kapea, keskitetty laatikko" jonka omistaja näki
+        // kuvakaappauksissa, riippumatta paddingista tai kuvasta. Alempi, jo ennestään
+        // oikein toimiva pääsisältö-kääre (rivi ~330) välttää tämän koska sillä on SEKÄ
+        // maxWidth+margin:auto ETTÄ eksplisiittinen width:'100%' - jälkimmäinen puuttui
+        // tästä. Lisätty nyt sama width:'100%' tähänkin.
+        <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 0 0' : '20px 24px 0' }}>
           <AdBanner C={C} isMobile={isMobile} t={t} ad={ad} />
         </div>
       )}
