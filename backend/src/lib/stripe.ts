@@ -126,7 +126,7 @@ export interface CreateCheckoutParams {
   shippingEuros: number
   buyerEmail: string
   sellerStripeAccountId: string
-  commissionCents: number // koko tilauksen komissio (vain tuoterivit, ei toimitus - LUKITTU-sääntö "ei provisiota postista")
+  commissionCents: number // VAIN tuoterivien komissio (3,5%/35€) - toimitus lisätään erikseen alla, ei tähän
 }
 
 export interface CheckoutSession {
@@ -136,7 +136,22 @@ export interface CheckoutSession {
 
 // Yksi Checkout Session koko tilaukselle (tuote+toimitus yhdessä, sama LUKITTU-sääntö kuin
 // Paytraililla - ks. CLAUDE.md "Paytrail", omistajan korjaus 2026-08-12 kahden erillisen
-// maksun sijaan). application_fee_amount lasketaan VAIN tuoteriveistä, ei toimituksesta.
+// maksun sijaan).
+//
+// ⚠️ KRIITTINEN RAHANJAKO-KORJAUS 2026-09-10 (löydetty ennen ensimmäistä oikeaa live-maksua,
+// ei koskaan ollut väärin tuotannossa oikealla rahalla): destination-charge-mallissa KOKO
+// maksettu summa (tuotteet+toimitus) siirtyy myyjän tilille MIINUS application_fee_amount -
+// vain application_fee_amount jää Habahubille. Aiempi versio laski application_fee_amount:iin
+// VAIN 3,5%/35€-komission (ks. LUKITTU-sääntö "ei provisiota postista" - tarkoitti ettei 3,5%
+// lasketa toimitusmaksun PÄÄLLE, ei sitä että toimitusmaksu saisi mennä myyjälle) - tämä olisi
+// tarkoittanut että koko 6,90€ toimitusmaksu olisi päätynyt MYYJÄLLE, ei Habahubille, vaikka
+// CLAUDE.md:n "Postihinnat"-sääntö on aina ollut että Habahub veloittaa 6,90€ ostajalta ja
+// maksaa Postille itse erikseen (oma kuluerä, oma ALV-vastuu) - toimitusmaksu on Habahubin
+// omaa liikevaihtoa, ei myyjän. Korjattu: application_fee_amount = komissio + KOKO toimitusmaksu,
+// jolloin myyjän tilille siirtyy aina täsmälleen productTotal - komissio, ei senttiäkään
+// toimituksesta. Nouto-tilauksille shippingEuros on jo 0 (ks. lib/shipping.ts, palvelinpuolinen
+// PAKETTIKOOT-taulukko - 'nouto' hinta 0, ei koskaan luoteta clientiltä) - ei vaadi erillistä
+// nouto/postitus-erottelua tässä, 0€ ei muuta mitään application_fee_amount-laskennassa.
 export async function createCheckoutSession(params: CreateCheckoutParams): Promise<CheckoutSession> {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = params.items.map(item => ({
     price_data: {
@@ -158,7 +173,7 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
     line_items: lineItems,
     customer_email: params.buyerEmail,
     payment_intent_data: {
-      application_fee_amount: params.commissionCents,
+      application_fee_amount: params.commissionCents + eurosToCents(params.shippingEuros),
       transfer_data: { destination: params.sellerStripeAccountId },
     },
     success_url: `${FRONTEND_URL}/ostot?payment=success&orderId=${params.orderId}`,
