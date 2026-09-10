@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Mainosbanneriin loop-GIF/MP4 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan pyyntö: `/admin`-paneelin "Mainos"-välilehdelle mahdollisuus laittaa lyhyt, itsestään loopaava GIF tai MP4 staattisen kuvan sijaan.
+
+**Uusi `AdSlot.videoUrl String?`** — EI kulje `resizeImage()`-käsittelyn läpi (canvas+`toDataURL`-kuvanpienennys tuhoaisi GIF-animaation yhteen still-kehykseen eikä osaa käsitellä videotiedostoja ollenkaan) — tallennetaan raakana base64 data-URL:na sellaisenaan. Admin-lomakkeen (`AdminAdManagement.tsx`) uusi toinen upload-kenttä (`accept="video/mp4,image/gif"`) rajaa tiedostokoon 8MB:iin raakana client-puolella (selkeä virheviesti jos ylittää) — base64-inflaatio (~33%) huomioiden lopullinen JSON-pyyntö mahtuu mukavasti palvelimen rajaan. **`backend/src/index.ts`:n `express.json()`-body-limit nostettu 10mb → 20mb** juuri tätä varten (muut reitit eivät koskaan ole lähelläkään vanhaa rajaa, ei riskiä niille).
+
+**Julkinen näyttö (`frontend/app/page.tsx`:n `AdBanner`):** kun `videoUrl` on asetettu, se korvaa `imageUrl`:n kokonaan bannerin taustana (ei näytetä molempia). MP4 (`data:video/`-etuliite) renderöityy `<video autoPlay loop muted playsInline>`:na, GIF (`data:image/gif`) tavallisena `<img>`:nä (loopaa natiivisti selaimessa ilman erillistä koodia). Sama tumma liukuväri (scrim) ja layout kuin staattisella kuvalla, ei muuta muuta bannerin rakennetta.
+
+**Ei vielä visuaalisesti vahvistettu selaimessa** (ei selaintyökalua tässä ympäristössä) — typecheck+build vihreä molemmilla puolilla, skeema migroitu tuotantoon (`npx prisma db push`), palvelin uudelleenkäynnistetty. Omistajan kannattaa kokeilla lataamalla oikea lyhyt GIF/MP4 `/admin`-paneelista ja tarkistaa etusivulla että se toistuu odotetusti.
+
 ## Maksunkäsittelymaksu ostajalle — Habahub ei enää absorboi Stripen kulua 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan päätös samana päivänä paljastuneen löydöksen jälkeen (ks. "Stripen minimimaksu, Tilitykset-sivun oikea data..." -osio, jossa selvisi että 0,50€ tilauksella Stripen oma käsittelymaksu oli 26 senttiä — enemmän kuin koko 3,5%-komissio kattaisi pienillä tuotteilla, vaikka 0,30€ minimikomissio jo lievitti tätä). **Päätös: Stripen ~1,5%+0,25€-maksunkäsittelymaksu veloitetaan nyt ostajalta erillisenä, näkyvänä checkout-rivinä sen sijaan että Habahub kattaisi sen omasta komissiostaan.**
