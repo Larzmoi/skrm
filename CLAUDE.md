@@ -19,6 +19,8 @@ Omistajan pyynnöstä ("postin palvelun saisi myös nyt aktivoida") — sama per
 
 **Ei muuttunut, yhä oma erillinen rajoituksensa:** Sending Code API (labelless-koodi PDF-tarran sijaan) on yhä oma 403 (puuttuva tuote-/roolirekisteröinti Postin puolella, ks. "Sending Code API" -osio) — myyjän lähetykset tuottavat siis yhä PDF-osoitetarran, ei koodia, kunnes tämä erikseen ratkeaa Postin kanssa. Tämä ei estä postitusta, vain "ei tulostettavaa tarraa" -tavoite jää toistaiseksi saavuttamatta.
 
+**⬜ ODOTTAA — omistaja lähettää sähköpostia Postille 2026-09-10 tästä 403:sta.** Tarkennettu kysymys valmiina: token-vastauksen `posti_fi.targets`-kenttä listaa vain `shippingapi`-kohteen, ei `2026-04`-kohdetta (Sending Code) — kysytään voiko Sending Code API -tuotteen lisätä samaan olemassa olevaan `shippingapi`-OAuth-sovellukseen, vai vaatiiko se oman erillisen rekisteröinnin. Kun vastaus/uusi rooli saadaan, testaa ensin `x-test-environment: true`:lla (turvallinen mock-data) ennen kuin kytketään oikeasti käyttöön.
+
 ## Stripen minimimaksu, Tilitykset-sivun oikea data, ja Stripe-hallintapaneelin linkki 2026-09-10 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja teki ensimmäisen oikean testioston (itseltään, kahdella eri Habahub-tilillä samaa korttia käyttäen, nouto vahvistettu) ja kolme löydöstä/kysymystä nousi esiin.
