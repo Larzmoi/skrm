@@ -78,7 +78,7 @@ Myyjä sitoutuu lähettämään myytyyn tuotteen 4 vuorokauden kuluessa kaupan s
 Myyjä vastaa siitä, että tuotteen kuvaus, kuvat ja muut tiedot vastaavat todellisuutta. Harhaanjohtavat kuvaukset voivat johtaa tilin sulkemiseen ja korvausvelvollisuuteen.
 
 5.5 Välityspalkkio
-HABAHUB perii onnistuneesta kaupasta välityspalkkion, joka on 3,5 % myyntihinnasta, kuitenkin vähintään 0,30 euroa ja enintään 35 euroa per kauppa. Lisäksi peritään maksupalveluntarjoajan (Stripe) maksunkäsittelymaksu (noin 1,5 % + 0,25 €), jolla ei ole enimmäismäärää. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
+HABAHUB perii Myyjältä onnistuneesta kaupasta välityspalkkion, joka on 3,5 % myyntihinnasta, kuitenkin vähintään 0,30 euroa ja enintään 35 euroa per kauppa. Lisäksi Ostajalta veloitetaan checkout-vaiheessa erillisenä rivinä maksupalveluntarjoajan (Stripe) maksunkäsittelymaksu (noin 1,5 % + 0,25 € koko tilauksen summasta), jolla ei ole enimmäismäärää — tämä ei vähennä Myyjän saamaa osuutta. Tarkemmat tiedot löytyvät välityspalkkiosivulta.
 
 5.6 Noutotuotteet
 Myyjä voi tarjota tuotteita noudettavaksi. Noutotuotteiden kaupassa HABAHUB ei tarjoa maksuturvaa eikä vastaa kaupan toteutumisesta. Kauppa tapahtuu suoraan ostajan ja myyjän välillä, ja he sopivat noutoajasta, -paikasta ja maksusta keskenään.
@@ -248,7 +248,7 @@ Säljaren åtar sig att skicka den sålda produkten inom 4 dygn från det att af
 Säljaren ansvarar för att produktens beskrivning, bilder och andra uppgifter motsvarar verkligheten. Vilseledande beskrivningar kan leda till att kontot stängs och till ersättningsskyldighet.
 
 5.5 Förmedlingsavgift
-HABAHUB tar ut en förmedlingsavgift på 3,5 % av försäljningspriset för en genomförd affär, dock minst 0,30 euro och högst 35 euro per affär. Dessutom tillkommer betaltjänstleverantörens (Stripe) transaktionsavgift (cirka 1,5 % + 0,25 €), som inte har något tak. Mer information finns på sidan om förmedlingsavgifter.
+HABAHUB tar ut en förmedlingsavgift av Säljaren för en genomförd affär, 3,5 % av försäljningspriset, dock minst 0,30 euro och högst 35 euro per affär. Dessutom debiteras Köparen i kassan en separat rad för betaltjänstleverantörens (Stripe) transaktionsavgift (cirka 1,5 % + 0,25 € av hela ordersumman), som inte har något tak — detta minskar inte Säljarens andel. Mer information finns på sidan om förmedlingsavgifter.
 
 5.6 Hämtningsprodukter
 Säljaren kan erbjuda produkter för avhämtning. Vid hämtningsaffärer erbjuder HABAHUB inget betalningsskydd och ansvarar inte för att affären genomförs. Affären sker direkt mellan köpare och säljare, som själva kommer överens om tid, plats och betalning för hämtningen.
@@ -409,7 +409,7 @@ The following may not be sold on the Service:
 The Seller commits to shipping the sold product within 4 days of the transaction and providing a tracking code to HABAHUB and the Buyer. If the Seller has activated Vacation Mode, the shipping period is 7 days.
 
 5.4 Commission
-HABAHUB charges a commission of 3.5% of the sale price, with a minimum of €0.30 and a maximum of €35 per transaction, for completed sales. Payment processing fees from the payment provider (Stripe, approximately 1.5% + €0.25) are charged separately with no cap.
+HABAHUB charges the Seller a commission of 3.5% of the sale price, with a minimum of €0.30 and a maximum of €35 per transaction, for completed sales. In addition, the Buyer is charged a separate line item at checkout for the payment provider's (Stripe) processing fee (approximately 1.5% + €0.25 of the full order amount), with no cap — this does not reduce the Seller's share.
 
 5.5 Pickup items
 The Seller may offer products for local pickup. For pickup transactions, HABAHUB does not provide payment protection and is not responsible for the completion of the transaction. The transaction takes place directly between the Buyer and Seller, who agree on the pickup time, location, and payment between themselves.

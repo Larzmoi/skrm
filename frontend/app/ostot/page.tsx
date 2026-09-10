@@ -7,6 +7,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import { orderApi, postiApi, PickupPoint, sortPickupPointsByProximity } from '@/lib/api'
+import { computeProcessingFeeEuros } from '@/lib/pakettikoot'
 import { StarRatingInput } from '@/components/StarRating'
 import { POSTI_TRACKING_STEPS, POSTI_STEP_LABELS, PostiTrackingStep } from '@/lib/postiTrackingSteps'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -273,7 +274,17 @@ export default function OstotPage() {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
-                            {order.shippingPrice != null ? orderTotal(order).toLocaleString('fi-FI') : order.productTotal.toLocaleString('fi-FI')}€
+                            {/* Maksunkäsittelymaksu näytetään VAIN vielä maksamattomille tilauksille
+                                (ennakoiva laskelma joka täsmää siihen mitä Stripe tulee veloittamaan,
+                                ks. CLAUDE.md "Maksunkäsittelymaksu ostajalle") - jo maksettujen
+                                tilausten historiallinen summa (productTotal+shippingPrice) EI muutu
+                                tällä, ettei näytettäisi väärää summaa tilaukselle joka maksettiin
+                                ennen tämän ominaisuuden käyttöönottoa. */}
+                            {order.shippingPrice != null
+                              ? (section.key === 'PENDING_PAYMENT'
+                                ? (orderTotal(order) + computeProcessingFeeEuros(orderTotal(order))).toLocaleString('fi-FI')
+                                : orderTotal(order).toLocaleString('fi-FI'))
+                              : order.productTotal.toLocaleString('fi-FI')}€
                             {order.shippingPrice == null && section.key === 'PENDING_PAYMENT' && <span style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}> {t.purchases.plusShipping}</span>}
                           </span>
 

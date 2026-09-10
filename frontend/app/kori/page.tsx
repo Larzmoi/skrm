@@ -9,6 +9,7 @@ import { useLang } from '@/lib/lang-context'
 import { useAuth } from '@/lib/auth-context'
 import { useCart } from '@/lib/cart-context'
 import { cartApi, orderApi, postiApi, PickupPoint, sortPickupPointsByProximity } from '@/lib/api'
+import { computeProcessingFeeEuros } from '@/lib/pakettikoot'
 
 function timeLeftLabel(ms: number) {
   if (ms <= 0) return '0:00'
@@ -114,7 +115,10 @@ export default function KoriPage() {
     } catch {}
   }
 
-  const grandTotal = groups.reduce((sum, g) => sum + g.total + shippingPriceFor(g), 0)
+  const grandTotal = groups.reduce((sum, g) => {
+    const sub = g.total + shippingPriceFor(g)
+    return sum + sub + computeProcessingFeeEuros(sub)
+  }, 0)
   const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0)
 
   return (
@@ -219,8 +223,8 @@ export default function KoriPage() {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                     <div style={{ fontSize: 13, color: C.muted }}>
-                      {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€
-                      <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice).toLocaleString('fi-FI')}€</div>
+                      {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€ + {t.kori.processingFee} {computeProcessingFeeEuros(group.total + shippingPrice).toLocaleString('fi-FI')}€
+                      <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice + computeProcessingFeeEuros(group.total + shippingPrice)).toLocaleString('fi-FI')}€</div>
                     </div>
                     <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId || options.length === 0} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: (paying === group.sellerId || options.length === 0) ? 'default' : 'pointer', opacity: (paying === group.sellerId || options.length === 0) ? 0.7 : 1 }}>
                       {paying === group.sellerId ? t.kori.processing : t.kori.pay}

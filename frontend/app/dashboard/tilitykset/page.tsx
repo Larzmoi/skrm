@@ -93,7 +93,7 @@ export default function TilityksetPage() {
       )}
 
       <div style={{ marginTop: 16, padding: '12px 16px', background: C.surface, borderRadius: 8, fontSize: 12, color: C.muted }}>
-        Välityspalkkio on 3,5%, vähintään 0,30€ ja enintään 35€ per kauppa + maksunkäsittelykulut. Rahat siirtyvät Stripen kautta suoraan myyntitilillesi maksuhetkellä — tarkka saldo ja tilitysten aikataulu näkyvät omassa Stripe-hallintapaneelissasi ("Jatka onboardingia"/"Avaa Stripe-hallintapaneeli" -linkki yllä).
+        Välityspalkkio on 3,5%, vähintään 0,30€ ja enintään 35€ per kauppa — ainoa summa joka vähennetään osuudestasi. Stripen maksunkäsittelymaksu veloitetaan ostajalta erikseen checkoutissa, ei sinulta. Rahat siirtyvät Stripen kautta suoraan myyntitilillesi maksuhetkellä — tarkka saldo ja tilitysten aikataulu näkyvät omassa Stripe-hallintapaneelissasi ("Jatka onboardingia"/"Avaa Stripe-hallintapaneeli" -linkki yllä).
       </div>
     </div>
   )

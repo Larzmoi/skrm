@@ -185,6 +185,18 @@ export interface CreateCheckoutParams {
   commissionCents: number // VAIN tuoterivien komissio (3,5%/35€) - toimitus lisätään erikseen alla, ei tähän
 }
 
+// Ostajalta veloitettava maksunkäsittelymaksu — LISÄTTY 2026-09-10, omistajan päätös. Aiemmin
+// Habahub kattoi Stripen oman ~1,5%+0,25€ EU-korttimaksun omasta komissiostaan (ks. yllä oleva
+// "Minimikomissio 0,30€" -korjaus, joka lievitti mutta ei poistanut tätä pienillä tuotteilla).
+// Nyt tämä veloitetaan ostajalta erillisenä, näkyvänä rivinä checkoutissa - lasketaan KOKO
+// tilauksen summasta (tuotteet+toimitus), koska Stripen oma korttimaksu lasketaan samoin koko
+// veloitetusta summasta. Sama kaava on peilattu frontendin lib/pakettikoot.ts:ssä NÄYTTÖÄ
+// varten (/kori, /ostot ennen maksua) - palvelin laskee ja veloittaa aina itse, ei koskaan
+// luota clientin arvoon.
+export function computeProcessingFeeCents(totalEuros: number): number {
+  return Math.round(totalEuros * 1.5 + 25)
+}
+
 export interface CheckoutSession {
   sessionId: string
   redirectUrl: string
@@ -223,13 +235,23 @@ export async function createCheckoutSession(params: CreateCheckoutParams): Promi
       quantity: 1,
     })
   }
+  const totalBeforeFeeEuros = params.items.reduce((sum, i) => sum + i.unitPriceEuros * i.quantity, 0) + params.shippingEuros
+  const processingFeeCents = computeProcessingFeeCents(totalBeforeFeeEuros)
+  lineItems.push({
+    price_data: { currency: 'eur', unit_amount: processingFeeCents, product_data: { name: 'Maksunkäsittelymaksu' } },
+    quantity: 1,
+  })
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: lineItems,
     customer_email: params.buyerEmail,
     payment_intent_data: {
-      application_fee_amount: params.commissionCents + eurosToCents(params.shippingEuros),
+      // Habahub pitää komission + koko toimitusmaksun (ks. yllä oleva "KRIITTINEN RAHANJAKO-
+      // KORJAUS") + nyt myös maksunkäsittelymaksun (ostaja maksaa sen, ei Habahub enää omasta
+      // pussistaan) - myyjän tilille siirtyy aina täsmälleen productTotal - komissio, ei
+      // senttiäkään toimituksesta eikä maksunkäsittelystä.
+      application_fee_amount: params.commissionCents + eurosToCents(params.shippingEuros) + processingFeeCents,
       transfer_data: { destination: params.sellerStripeAccountId },
     },
     success_url: `${FRONTEND_URL}/ostot?payment=success&orderId=${params.orderId}`,
