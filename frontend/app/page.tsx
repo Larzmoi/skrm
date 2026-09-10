@@ -107,9 +107,13 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
               : 'linear-gradient(90deg, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.5) 45%, rgba(15,23,42,0.92) 100%)')
           : 'none',
       }} />
-      <div style={{ position: 'absolute', top: 14, right: 18, zIndex: 1, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 4 }}>
-        {t.home.adLabel}
-      </div>
+      {/* "Habahub suosittelee" -badge - siirretty 2026-09-10 pois oikean yläkulman absoluuttisesta
+          asemoinnista (omistajan pyyntö: "laita kaikki samaan linjaan vasemmalta oikealle") osaksi
+          normaalia sisältövirtaa, samaan vasempaan reunaan eyebrow/otsikko/kuvauksen kanssa.
+          Väri vaihdettu läpinäkyvästä valkoisesta (ei erottunut kuvatustan päältä, omistajan
+          raportoima) kiinteäksi vihreäksi taustaksi + mustaksi tekstiksi - sama pari kuin muualla
+          sivustolla napeissa (accentSolid/accentText), aina riittävä kontrasti kuva-/väritaustasta
+          riippumatta. */}
       <div style={{
         position: 'relative', zIndex: 1, width: '100%',
         padding: isMobile ? '40px 20px 24px' : '28px 32px',
@@ -123,6 +127,9 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
             </div>
           )}
           <div>
+            <div style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.accentText, background: C.accentSolid, padding: '3px 9px', borderRadius: 4, marginBottom: 8 }}>
+              {t.home.adLabel}
+            </div>
             {ad.eyebrow && <div style={{ fontSize: 11, fontWeight: 700, color: hasImage ? '#fff' : C.accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{ad.eyebrow}</div>}
             <div style={{ fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: isMobile ? 18 : 24, color: '#fff', marginBottom: 5, textWrap: 'balance' as const }}>{ad.title}</div>
             <p style={{ fontSize: 13, color: '#CBD5E1', margin: 0, maxWidth: 480 }}>{ad.body}</p>
