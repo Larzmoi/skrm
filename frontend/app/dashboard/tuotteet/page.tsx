@@ -10,6 +10,7 @@ import { resizeImage } from '@/lib/imageUtils'
 import { useLang } from '@/lib/lang-context'
 import { PAKETTIKOOT } from '@/lib/pakettikoot'
 import { useIsMobile } from '@/lib/useIsMobile'
+import { useAuth } from '@/lib/auth-context'
 
 type SaleType = 'live' | 'buy_now' | 'both' | 'auction'
 
@@ -20,7 +21,7 @@ interface Product {
   gradingCompany?: string; grade?: string; reverseHolo?: boolean
   description?: string; imageUrl?: string; category?: string
   alakategoria?: string; tyyppi?: string; city?: string; allowPickup?: boolean; allowShipping?: boolean; status: string
-  currentBid?: number
+  currentBid?: number; vatIncluded?: boolean
 }
 
 // Perinteinen huutokauppa jolla on jo huutoja — kategoriaa ei saa enää vaihtaa (bidaajat löysivät/huusivat sen kategorian perusteella)
@@ -44,6 +45,7 @@ function TuotteetContent() {
     { id: 'kaytetty', nimi: tp.conditionUsed },
   ]
   const isMobile = useIsMobile()
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
@@ -77,6 +79,10 @@ function TuotteetContent() {
   const [allowPickup, setAllowPickupState] = useState(true)
   const [allowShipping, setAllowShipping] = useState(true)
   const [noutoPolicyAccepted, setNoutoPolicyAccepted] = useState(false)
+  // Vain yritysmyyjille (User.businessId asetettu) näkyvä ALV-sisältyvyystoggle, ks. CLAUDE.md
+  // "ALV-toggle yritysmyyjille" — oletus false, koska suurin osa myynnistä on käytettyä tavaraa
+  // (marginaaliverotus, ei ALV:tä näkyviin). Myyjä kytkee tämän päälle vain uusille tuotteille.
+  const [vatIncluded, setVatIncluded] = useState(false)
   function setAllowPickup(val: boolean) {
     setAllowPickupState(val)
     if (val) setNoutoPolicyAccepted(false) // tuore hyväksyntä vaaditaan aina kun nouto kytketään päälle
@@ -158,6 +164,7 @@ function TuotteetContent() {
     setCity('')
     setCondition(''); setGradingCompany(''); setGrade(''); setReverseHolo(false); setQuantity('1'); setDescription(''); setImages([])
     setAllowPickupState(true); setAllowShipping(true); setShowDeliveryAdvanced(false); setNoutoPolicyAccepted(false)
+    setVatIncluded(false)
     setStartPrice(''); setBuyNowPrice(''); setReservePrice(''); setBidIncrement('')
     setAuctionDuration(''); setAuctionDurationDays(3); setAuctionDurationHours(0); setError(''); setEditId(null)
     // Clear bulk state
@@ -181,6 +188,7 @@ function TuotteetContent() {
     setAllowPickupState(pAllowPickup); setAllowShipping(pAllowShipping)
     setShowDeliveryAdvanced(!pAllowPickup || !pAllowShipping)
     setNoutoPolicyAccepted(pAllowPickup)
+    setVatIncluded(!!p.vatIncluded)
     setStartPrice(String(p.startPrice))
     setBuyNowPrice(p.buyNowPrice ? String(p.buyNowPrice) : '')
     setReservePrice(p.reservePrice ? String(p.reservePrice) : '')
@@ -310,6 +318,10 @@ function TuotteetContent() {
       category: category || undefined,
       alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined, city: city.trim() || undefined,
       allowPickup, allowShipping,
+      // Vain merkitystä yritysmyyjälle (backend pakottaa aina falseksi jos ei businessId:tä) —
+      // lähetetään silti aina, ei vain kun user?.businessId, koska muokkauksessa (openEdit)
+      // olemassa oleva arvo pitää voida säilyä/nollata normaalisti muun lomakkeen tapaan.
+      vatIncluded,
       description: description.trim() || undefined, imageUrl: images.length > 0 ? images.join('|||') : undefined,
     }
 
@@ -804,6 +816,16 @@ function TuotteetContent() {
                     </div>
                   )}
                 </div>
+                {/* Vain yritysmyyjille (User.businessId asetettu) — ks. CLAUDE.md "ALV-toggle
+                    yritysmyyjille". Yksityismyyjä ei näe tätä ollenkaan, koska ei ole ALV-
+                    rekisteröity eikä voi koskaan väittää hintansa sisältävän ALV:tä. Oletus pois
+                    päältä, koska suurin osa myynnistä on käytettyä tavaraa (marginaaliverotus). */}
+                {user?.businessId && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 12.5, color: C.text, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={vatIncluded} onChange={e => setVatIncluded(e.target.checked)} style={{ width: 15, height: 15, cursor: 'pointer' }} />
+                    {tp.vatIncludedToggle}
+                  </label>
+                )}
               </div>
 
               {/* Toimitus — valinnainen lisäasetus, EI pakollinen valinta (ks. CLAUDE.md "Kaksi

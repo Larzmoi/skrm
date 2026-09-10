@@ -15,9 +15,15 @@ export interface ProductCardProps {
   gradingCompany?: string | null
   grade?: string | null
   sellerUsername?: string
-  // Ei-tyhjä = yritysmyyjä, näytetään ALV-läpinäkyvyysmerkintä hinnan alla (ks. CLAUDE.md
-  // "ALV yritysmyyjille") — puhtaasti tekstillinen lisäys, ei muuta price-proppia mihinkään.
+  // Ei-tyhjä = yritysmyyjä, näyttää "Yritysmyyjä"-badgen (DSA art. 31 -läpinäkyvyys) — EI liity
+  // ALV:iin, ks. sellerBusinessId ja vatIncluded alla ovat kaksi eri, riippumatonta merkintää.
   sellerBusinessId?: string | null
+  // Per-tuote ALV-sisältyvyysmerkintä (Product.vatIncluded) — LISÄTTY 2026-09-10, ks. CLAUDE.md
+  // "ALV-toggle yritysmyyjille". EI sama asia kuin sellerBusinessId: aiemmin ALV-teksti näytettiin
+  // aina KAIKILLE yritysmyyjän tuotteille pelkän businessId:n perusteella, mikä oli väärin — suurin
+  // osa myynnistä on käytettyä tavaraa (marginaaliverotus, ei ALV:tä näkyviin ostajalle), vain
+  // yksittäiset uudet tuotteet vaativat oikean merkinnän. Myyjä kytkee tämän päälle per tuote.
+  vatIncluded?: boolean
   // Admin-myöntämä "Vahvistettu käyttäjä" -merkki (User.verified) - pieni sininen checkmark
   // @käyttäjätunnuksen vieressä.
   sellerVerified?: boolean
@@ -34,7 +40,7 @@ export interface ProductCardProps {
 // visuaalinen uudistus 2026-08-31). hb-card/hb-card-img -luokat (globals.css) tuovat
 // kohonnan ja kuvan zoomauksen hoverilla; loput tyylistä pysyy C.xxx-teemajärjestelmässä
 // kuten muukin sivusto.
-export default function ProductCard({ id, href, name, imageUrl, price, condition, gradingCompany, grade, sellerUsername, sellerBusinessId, sellerVerified, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
+export default function ProductCard({ id, href, name, imageUrl, price, condition, gradingCompany, grade, sellerUsername, sellerBusinessId, vatIncluded, sellerVerified, city, isMobile, timeBadge, bidCount }: ProductCardProps) {
   const { C } = useTheme()
   const { t } = useLang()
   return (
@@ -96,7 +102,7 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
             </div>
           )}
           {city && <div style={{ fontSize: 11, color: C.muted }}>{city}</div>}
-          {sellerBusinessId && <div style={{ fontSize: 10, color: C.muted }}>{t.product.vatIncluded}</div>}
+          {vatIncluded && <div style={{ fontSize: 10, color: C.muted }}>{t.product.vatIncluded}</div>}
           {sellerBusinessId && (
             <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSub, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, padding: '1px 5px', alignSelf: 'flex-start' }}>
               {t.product.businessSeller}
@@ -128,7 +134,7 @@ export default function ProductCard({ id, href, name, imageUrl, price, condition
             }}>
               {price.toLocaleString('fi-FI')}€
             </div>
-            {sellerBusinessId && (
+            {vatIncluded && (
               <div style={{ fontSize: 10, color: C.muted, marginTop: 1 }}>
                 {t.product.vatIncluded}
               </div>

@@ -13,7 +13,7 @@ import { api, userApi } from '@/lib/api'
 interface Product {
   id: string; name: string; seller: { username: string; city?: string | null; businessId?: string | null; verified?: boolean | null }
   category?: string; alakategoria?: string; tyyppi?: string; condition?: string; gradingCompany?: string | null; grade?: string | null; startPrice: number; city?: string | null
-  imageUrl?: string; createdAt: string
+  imageUrl?: string; createdAt: string; vatIncluded?: boolean
 }
 
 function productCity(p: Product) { return p.city ?? p.seller?.city ?? null }
@@ -207,7 +207,7 @@ function SelaaContent() {
                 <ProductCard
                   key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
                   price={p.startPrice} condition={p.condition} gradingCompany={p.gradingCompany} grade={p.grade} sellerUsername={p.seller?.username}
-                  sellerBusinessId={p.seller?.businessId} sellerVerified={!!p.seller?.verified} city={productCity(p)} isMobile={isMobile}
+                  sellerBusinessId={p.seller?.businessId} vatIncluded={!!p.vatIncluded} sellerVerified={!!p.seller?.verified} city={productCity(p)} isMobile={isMobile}
                 />
               ))}
             </div>

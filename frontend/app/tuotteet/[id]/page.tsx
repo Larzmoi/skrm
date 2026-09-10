@@ -205,9 +205,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div style={{ fontSize: 32, fontWeight: 900, color: C.text, marginBottom: 4 }}>
                 {(product.buyNowPrice ?? product.startPrice).toLocaleString('fi-FI')}€
               </div>
-              {/* ALV-läpinäkyvyysmerkintä yritysmyyjille (User.businessId asetettu) - puhdas
-                  tekstilisäys, ei vaikuta hintaan. Ks. CLAUDE.md "ALV yritysmyyjille". */}
-              {product.seller?.businessId && (
+              {/* ALV-läpinäkyvyysmerkintä — Product.vatIncluded, EI pelkkä seller.businessId
+                  (ks. CLAUDE.md "ALV-toggle yritysmyyjille" 2026-09-10). Myyjä kytkee tämän päälle
+                  vain uusille tuotteille — suurin osa myynnistä on käytettyä tavaraa eikä sisällä
+                  näkyvää ALV:tä (marginaaliverotus). */}
+              {product.vatIncluded && (
                 <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>{t.product.vatIncluded}</div>
               )}
               {/* Toimitustapa-hinta/nouto-vihje — ks. CLAUDE.md "Kaksi UX-löydöstä 2026-09-02"

@@ -223,7 +223,7 @@ export default function Home() {
     return {
       id: p.id, name: p.name, price: p.startPrice,
       condition: p.condition ?? '', gradingCompany: p.gradingCompany ?? null, grade: p.grade ?? null,
-      seller: p.seller?.username ?? '', sellerBusinessId: p.seller?.businessId ?? null, sellerVerified: !!p.seller?.verified,
+      seller: p.seller?.username ?? '', sellerBusinessId: p.seller?.businessId ?? null, vatIncluded: !!p.vatIncluded, sellerVerified: !!p.seller?.verified,
       category: p.category ?? 'muu', alakategoria: p.alakategoria ?? '', tyyppi: p.tyyppi ?? '', thumbnail,
     }
   })
@@ -413,7 +413,7 @@ export default function Home() {
                 {filteredProducts.map(p => (
                   <ProductCard
                     key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.thumbnail}
-                    price={p.price} condition={p.condition} gradingCompany={p.gradingCompany} grade={p.grade} sellerUsername={p.seller} sellerBusinessId={p.sellerBusinessId} sellerVerified={p.sellerVerified} isMobile={isMobile}
+                    price={p.price} condition={p.condition} gradingCompany={p.gradingCompany} grade={p.grade} sellerUsername={p.seller} sellerBusinessId={p.sellerBusinessId} vatIncluded={p.vatIncluded} sellerVerified={p.sellerVerified} isMobile={isMobile}
                   />
                 ))}
               </div>
@@ -436,7 +436,7 @@ export default function Home() {
                   return (
                     <ProductCard
                       key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
-                      price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} sellerVerified={!!a.seller?.verified} isMobile={isMobile}
+                      price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} vatIncluded={!!a.vatIncluded} sellerVerified={!!a.seller?.verified} isMobile={isMobile}
                       timeBadge={{ text: auctionTimeLeft(remaining, t.auction.ended), urgent: remaining < 60 * 60 * 1000 }}
                     />
                   )

@@ -170,6 +170,15 @@ async function requireVerifiedSeller(userId: string) {
   return !!seller?.verified
 }
 
+// Yksityismyyjä (ei businessId:tä) ei voi koskaan väittää hintansa sisältävän ALV:tä - hän ei
+// ole ALV-rekisteröity. Pakottaa vatIncluded:in aina falseksi jos kutsujalla ei ole businessId:tä,
+// riippumatta mitä pyynnön body väittää. Ks. schema.prisma:n Product.vatIncluded-kommentti.
+async function resolveVatIncluded(userId: string, requested: unknown): Promise<boolean> {
+  if (requested !== true) return false
+  const seller = await prisma.user.findUnique({ where: { id: userId }, select: { businessId: true } })
+  return !!seller?.businessId
+}
+
 // Stripen EUR-maksujen ehdoton alaraja — löytyi 2026-09-10 omistajan testiostosta, jossa
 // checkout epäonnistui koska tilauksen loppusumma jäi tämän alle (Stripe hylkää koko
 // PaymentIntentin, ei vain varoita). Sama raja koskee kaikkea mikä voi päätyä ostajan
@@ -180,7 +189,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (!(await requireVerifiedSeller(req.userId!))) {
     return res.status(403).json({ error: 'Myyminen vaatii vahvistetun maksutilin. Siirry Tilitykset-sivulle vahvistaaksesi tilisi.', code: 'SELLER_NOT_VERIFIED' })
   }
-  const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, reverseHolo, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId } = req.body
+  const { name, saleType, startPrice, buyNowPrice, reservePrice, bidIncrement, auctionDuration, auctionDurationDays, auctionDurationHours, quantity, condition, gradingCompany, grade, reverseHolo, description, imageUrl, category, alakategoria, tyyppi, city, allowPickup, allowShipping, showId, vatIncluded } = req.body
   if (!name || !startPrice) return res.status(400).json({ error: 'Nimi ja hinta vaaditaan' })
   if (Number(startPrice) < MIN_PRICE_EUROS) {
     return res.status(400).json({ error: `Hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
@@ -212,6 +221,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     auctionEndsAt = new Date(Date.now() + totalHours * 60 * 60 * 1000)
   }
 
+  const resolvedVatIncluded = await resolveVatIncluded(req.userId!, vatIncluded)
+
   const product = await prisma.product.create({
     data: {
       name, saleType: saleType ?? 'live',
@@ -229,6 +240,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       imageUrl: imageUrl ?? null, category: category ?? null,
       alakategoria: alakategoria ?? null, tyyppi: tyyppi ?? null, city: city ?? null,
       allowPickup: allowPickup !== false, allowShipping: allowShipping !== false,
+      vatIncluded: resolvedVatIncluded,
       sellerId: req.userId!, showId: showId ?? null,
     },
   })
@@ -323,6 +335,8 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: `"Osta heti" -hinnan tulee olla vähintään ${MIN_PRICE_EUROS.toFixed(2)}€ (Stripen maksujen alaraja)` })
   }
 
+  const resolvedVatIncluded = await resolveVatIncluded(req.userId!, req.body.vatIncluded)
+
   const updated = await prisma.product.update({
     where: { id },
     data: {
@@ -340,6 +354,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       imageUrl: req.body.imageUrl ?? undefined, category: newCategory,
       alakategoria: newAlakategoria, tyyppi: newTyyppi, city: req.body.city ?? null,
       allowPickup: req.body.allowPickup !== false, allowShipping: req.body.allowShipping !== false,
+      vatIncluded: resolvedVatIncluded,
     },
   })
   res.json(updated)

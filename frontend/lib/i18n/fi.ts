@@ -281,6 +281,7 @@ const fi = {
     buyNowPriceLabel: 'Osta heti -hinta (€)', buyNowPricePlaceholder: 'Ohita huutokauppa',
     reservePriceLabel: 'Varaushinta (€)', reservePricePlaceholder: 'Piilotettu minimi', reservePriceHint: 'Ostajalle ei näytetä',
     bidIncrementLabel: 'Minimikorotus (€)', bidIncrementHint: 'Oletus 1€ — halvemmille tuotteille esim. 0,10€',
+    vatIncludedToggle: 'Uusi tuote — hinta sisältää ALV 25,5%',
     liveDurationLabel: 'Huutokaupan kesto (live-lähetyksessä)', liveDurationPlaceholder: 'sekunteina',
     auctionDurationLabel: 'Huutokaupan kesto', days: 'pv', hours: 'h',
     deliveryTitle: 'Toimitus', buyerPays: 'Ostaja maksaa',

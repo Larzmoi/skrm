@@ -235,6 +235,16 @@ model Product {
   // halutessaan rajata jommankumman pois valinnaisena lisäasetuksena tuotelomakkeessa.
   allowPickup     Boolean       @default(true)
   allowShipping   Boolean       @default(true)
+  // Per-tuote ALV-sisältyvyysmerkintä yritysmyyjille (User.businessId asetettu) — LISÄTTY
+  // 2026-09-10, ks. CLAUDE.md "ALV-toggle yritysmyyjille". Ennen tätä t.product.vatIncluded
+  // -teksti näytettiin AINA kaikille yritysmyyjän tuotteille pelkän businessId:n perusteella,
+  // mikä oli väärin — suurin osa myynnistä on käytettyä tavaraa (marginaaliverotus, ei ALV:tä
+  // näkyviin ostajalle), vain satunnainen uusi tuote vaatii oikean ALV-sisältyvyysmerkinnän.
+  // Oletus false (sama kuin ennen käytännössä oli useimmille tuotteille). Palvelinpuoli pakottaa
+  // tämän aina falseksi jos myyjällä ei ole businessId:tä (ks. requireVerifiedSeller-lähellä
+  // oleva tarkistus products.ts:ssä) — yksityismyyjä ei voi koskaan väittää hintansa sisältävän
+  // ALV:tä, koska ei ole ALV-rekisteröity.
+  vatIncluded     Boolean       @default(false)
   status          ProductStatus @default(PENDING)
   order           Int           @default(0)
   createdAt       DateTime      @default(now())

@@ -12,6 +12,7 @@ interface Auction {
   id: string; name: string; startPrice: number; currentBid: number | null; auctionEndsAt: string
   imageUrl?: string; category?: string; alakategoria?: string; tyyppi?: string; condition?: string; city?: string | null
   seller: { username: string; city?: string | null; businessId?: string | null; verified?: boolean | null }; _count?: { bids: number }
+  vatIncluded?: boolean
 }
 
 function auctionCity(a: Auction) { return a.city ?? a.seller?.city ?? null }
@@ -153,7 +154,7 @@ export default function HuutokaupatPage() {
                 return (
                   <ProductCard
                     key={a.id} id={a.id} href={`/huutokauppa/${a.id}`} name={a.name} imageUrl={a.imageUrl}
-                    price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} sellerVerified={!!a.seller?.verified}
+                    price={a.currentBid ?? a.startPrice} sellerUsername={a.seller?.username} sellerBusinessId={a.seller?.businessId} vatIncluded={!!a.vatIncluded} sellerVerified={!!a.seller?.verified}
                     city={auctionCity(a)} timeBadge={{ text: timeLeftLabel(remaining, t.auction.ended), urgent }} bidCount={a._count?.bids ?? 0}
                   />
                 )

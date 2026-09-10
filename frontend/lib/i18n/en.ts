@@ -268,6 +268,7 @@ const en = {
     buyNowPriceLabel: 'Buy-now price (€)', buyNowPricePlaceholder: 'Skip the auction',
     reservePriceLabel: 'Reserve price (€)', reservePricePlaceholder: 'Hidden minimum', reservePriceHint: 'Not shown to buyers',
     bidIncrementLabel: 'Minimum increment (€)', bidIncrementHint: 'Default €1 — e.g. €0.10 for cheaper items',
+    vatIncludedToggle: 'New item — price includes 25.5% VAT',
     liveDurationLabel: 'Auction duration (in live stream)', liveDurationPlaceholder: 'in seconds',
     auctionDurationLabel: 'Auction duration', days: 'd', hours: 'h',
     deliveryTitle: 'Shipping', buyerPays: 'Buyer pays',

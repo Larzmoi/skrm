@@ -268,6 +268,7 @@ const sv = {
     buyNowPriceLabel: 'Köp-nu-pris (€)', buyNowPricePlaceholder: 'Hoppa över auktionen',
     reservePriceLabel: 'Reservpris (€)', reservePricePlaceholder: 'Dolt minimum', reservePriceHint: 'Visas inte för köpare',
     bidIncrementLabel: 'Minsta höjning (€)', bidIncrementHint: 'Standard 1€ — t.ex. 0,10€ för billigare produkter',
+    vatIncludedToggle: 'Ny produkt — priset inkluderar 25,5% moms',
     liveDurationLabel: 'Auktionens varaktighet (under live-strömmen)', liveDurationPlaceholder: 'i sekunder',
     auctionDurationLabel: 'Auktionens varaktighet', days: 'd', hours: 'h',
     deliveryTitle: 'Leverans', buyerPays: 'Köparen betalar',
