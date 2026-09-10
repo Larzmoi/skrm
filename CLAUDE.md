@@ -693,6 +693,7 @@ Vanha `security_report.md` (2026-08-25, vanhentunut skrm.fi-domain-viittauksin) 
 - Sähköposti (Zoho tms.) rekisteröitävä uudelleen uudelle domainille (`support@habahub.com`), vanha `skrm.fi`-rekisteröinti ei siirry
 - Posti: odotetaan Tomin vastausta testiyhteyspyyntöön ennen kuin edetään Vaiheeseen 2 (lähetyksen luonti API v2:lla) — ks. "Lähetysintegraatio"-osio
 - Päätös: "Hyvitä"-napin liiketoimintalogiikka toimitetulle/vastaanotetulle tuotteelle — ks. "Iso testauskierros" kohta 14, liittyy myös luottamuspaneelin "ei peruutuksia" -tekstiin
+- **Päätös: Ilmoitusten otsikko/viesti ei käänny kielenvaihdolla** — omistajan pitää valita `preferredLanguage`-kenttä+backendin käännössanakirja (vain uudet ilmoitukset) vai tyyppi+parametrit talteen + renderöinti näyttöhetkellä (isompi, korjaa myös vanhat) — ks. tarkka selvitys "Koko sivuston i18n-läpikäynti käynnissä 2026-09-10" -osiosta. Ei koodattu kumpaakaan, odottaa päätöstä.
 
 **✅ Footerin siivous — TEHTY (kahdessa osassa, ks. "Neljä uutta löydöstä 2026-09-02" kohta 1):** palkkio/kielletyt-rivi + brändinimi/badge-rivi poistettu (toisen kanavan committi 2026-09-03), uutiskirje-osio poistettu ja korvattu oikeasti toimivalla profiilisivun kytkimellä 2026-09-03 (ks. "Uutiskirjetilaus" -osio) — jäljellä vain 4-kolumnin linkkiruudukko + copyright, kuten alun perin päätettiin.
 
