@@ -931,7 +931,7 @@ Löydetty ennakkotarjous-korjauksen testauksen sivutuotteena: `POST /products` o
 2026-09-01 löydetty: neljä committia oli tehty ja pushattu GitHubiin ilman että CLAUDE.md päivittyi samalla — tämä tarkoittaa VS Coden Claude -session ja tämän Claude.ai-keskustelun välillä voi syntyä viive dokumentaation ja koodin välillä. **Suositus jatkoa varten: tarkista GitHubin commit-historia (`git log --oneline -10`) aina silloin tällöin CLAUDE.md:n rinnalla**, ei pelkästään luoteta siihen että CLAUDE.md kertoo koko totuuden koodin tilasta.
 
 ## Liiketoimintasäännöt (LUKITTU — ei muuteta)
-- **Välityspalkkio — KORJATTU 2026-08-25: 3,5% max 35€** (aiempi "3%" oli kirjoitusvirhe joka oli levinnyt useaan tiedostoon — 3,5% on oikea prosentti, 35€ oli jo oikein useimmissa paikoissa) + Paytrail ~1,5% + 0,25€ (ei kattoa)
+- **Välityspalkkio — PÄIVITETTY 2026-09-10: 3,5%, väh. 0,30€, max 35€** (3,5% on oikea prosentti, 35€ kattoa ei muutettu — uusi on 0,30€ minimikomissio, ks. "Stripen minimimaksu..." -osio: alle n. 12,50€ hintaisilla tuotteilla 3,5% ei kattaisi Stripen omaa ~1,5%+0,25€-käsittelymaksua, minimi estää Habahubia tekemästä tappiota näillä myynneillä. Minimi koskee VAIN oletuslaskentaa — ei 14pv-tutustumispromoa eikä adminin asettamaa mukautettua komissiota, molemmat pysyvät tarkoituksellisina poikkeuksina) + Stripe ~1,5% + 0,25€ (ei kattoa, Habahub maksaa tämän omasta osuudestaan eikä se koskaan pienennä myyjän saamaa osuutta, ks. "Paytrail → Stripe Connect" -osio)
 - Kaikki huudot **sitovia** — ei peruutuksia
 - **Yhdistetty lähetys:** sama myyjä + 6h aikaikkuna = yksi tilaus, yksi postikulut (suurimman pakettikoon mukaan). 6h rajan jälkeen uusi erillinen tilaus.
 - **Maksuaika:** voitettu huuto tai ostos → 2h aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
@@ -944,9 +944,10 @@ Löydetty ennakkotarjous-korjauksen testauksen sivutuotteena: `POST /products` o
 - Pankkitunnistautuminen (Signicat) pakollinen ennen huutamista/myymistä (tulossa)
 - **Ikäraja: 15+** (huoltajan suostumuksella)
 
-## Välityspalkkiotaulukko — KORJATTU 2026-09-01 (poistettu 333€-rivi, lisätty 50/250/500€)
+## Välityspalkkiotaulukko — PÄIVITETTY 2026-09-10 (0,30€ minimikomissio lisätty)
 | Myyntihinta | HABAHUB-palkkio |
 |-------------|-------------|
+| 0,50€–8,57€ | 0,30€ (min) |
 | 10€ | 0,35€ |
 | 50€ | 1,75€ |
 | 100€ | 3,50€ |

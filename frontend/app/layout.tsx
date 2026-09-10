@@ -14,7 +14,7 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['300', '400', '
 
 export const metadata: Metadata = {
   title: 'Habahub — Live-huutokauppa',
-  description: 'Suomen paras live-huutokauppa. Provisio vain 3,5%, max 35€.',
+  description: 'Suomen paras live-huutokauppa. Provisio vain 3,5%, 0,30–35€.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

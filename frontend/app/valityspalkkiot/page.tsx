@@ -4,7 +4,12 @@ import Footer from '@/components/layout/Footer'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 
+// Alle n. 8,57€ myyntihinnoilla 3,5% jäisi alle 0,30€:n minimikomission — nämä kaksi
+// ensimmäistä riviä näyttävät sen konkreettisesti (ks. LUKITTU-sääntö, "Minimikomissio
+// 0,30€" 2026-09-10). 10€ ja siitä ylöspäin 3,5% jo ylittää minimin, ei muutu.
 const ROWS = [
+  { price: '1€', skrm: '0,30€ (min)' },
+  { price: '5€', skrm: '0,30€ (min)' },
   { price: '10€', skrm: '0,35€' },
   { price: '50€', skrm: '1,75€' },
   { price: '100€', skrm: '3,50€' },
@@ -33,7 +38,7 @@ export default function ValityspalkkiotPage() {
               <div style={{ background: C.accentLight, border: `1px solid ${C.accent}44`, borderRadius: 10, padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.fees.skrmFee}</div>
                 <div style={{ fontSize: 32, fontWeight: 900, color: C.accent, lineHeight: 1, marginBottom: 4 }}>3,5%</div>
-                <div style={{ fontSize: 13, color: C.muted }}>max <strong style={{ color: C.text }}>35€</strong> / {lang === 'fi' ? 'kauppa' : 'sale'}</div>
+                <div style={{ fontSize: 13, color: C.muted }}>{lang === 'fi' ? 'väh.' : 'min.'} <strong style={{ color: C.text }}>0,30€</strong>, max <strong style={{ color: C.text }}>35€</strong> / {lang === 'fi' ? 'kauppa' : 'sale'}</div>
               </div>
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 8 }}>{t.fees.paymentFee}</div>

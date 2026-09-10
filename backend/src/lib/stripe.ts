@@ -32,10 +32,32 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
 // Sama LUKITTU 3,5%/35€-sääntö kuin Paytraililla — siirretty sellaisenaan lib/paytrail.ts:stä,
 // logiikka ei riipu maksupalveluntarjoajasta.
+//
+// ⚠️ 0,30€ minimikomissio lisätty 2026-09-10, LUKITTU (omistajan päätös). Syy löytyi
+// omistajan omasta ensimmäisestä oikeasta testiostosta: 0,50€ tuotteen 3,5% on n. 2 senttiä,
+// kun Stripen oma käsittelymaksu (~1,5%+0,25€, EU-kortit) samalle summalle on n. 26 senttiä —
+// vahvistettu suoraan Stripen balance_transactionista kyseiselle oikealle maksulle. Habahubin
+// komissio ei kata Stripen omaa maksua ennen kuin tuotteen hinta on n. 12,50€ (3,5%×hinta ≥
+// 1,5%×hinta+0,25€ ⟺ hinta ≥ 12,50€) - kaikki tätä halvemmat myynnit olisivat olleet
+// Habahubille tappiollisia ilman tätä minimikomissiota.
+//
+// Minimi koskee VAIN oletuslaskentaa (customRatePercent/customCapEuros molemmat null, eli 3,5%/
+// 35€-oletus) - EI koske 14pv-tutustumispromoa eikä adminin asettamaa mukautettua komissiota,
+// koska molemmat ovat tarkoituksellisia, eksplisiittisiä poikkeuksia ("0% ensimmäiset 14
+// päivää", tietty sovittu alennus tietylle myyjälle) - minimikomissio ei saa hiljaa mitätöidä
+// niitä. Sama funktio lasketaan per tuoterivi (ks. kutsupaikka orders.ts:ssä, summataan
+// tilauksen kaikista riveistä) - minimi pätee siis per rivi, ei per koko tilaus, samalla
+// periaatteella kuin 3,5%/35€-oletuskin jo lasketaan.
+const MIN_COMMISSION_EUROS = 0.3
+
 export function computeCommissionCents(priceEuros: number, customRatePercent?: number | null, customCapEuros?: number | null): number {
+  const usingDefaultRate = customRatePercent == null
+  const usingDefaultCap = customCapEuros == null
   const rate = (customRatePercent != null && isFinite(customRatePercent) && customRatePercent >= 0) ? customRatePercent : 3.5
   const cap = (customCapEuros != null && isFinite(customCapEuros) && customCapEuros >= 0) ? customCapEuros : 35
-  return Math.round(Math.min(priceEuros * (rate / 100), cap) * 100)
+  const computed = Math.min(priceEuros * (rate / 100), cap)
+  const final = (usingDefaultRate && usingDefaultCap) ? Math.max(computed, MIN_COMMISSION_EUROS) : computed
+  return Math.round(final * 100)
 }
 
 // Rekisteröitymisen jälkeinen 0%-tutustumisjakso (ks. CLAUDE.md "14 päivän 0%-tutustumisjakso")
