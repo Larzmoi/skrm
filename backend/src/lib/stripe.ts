@@ -64,21 +64,44 @@ function eurosToCents(euros: number): number {
 // ei kirjoita tietokantaan). "recipient"-konfiguraatio + stripe_transfers-kapasiteetti
 // riittää vastaanottamaan destination-chargen siirrot, dashboard:"express" antaa
 // myyjälle Stripen oman brändätyn Express-hallintapaneelin (saldon/tilitysten seuranta).
+//
+// ⚠️ 2026-09-10, löydetty ensimmäisellä oikealla live-onboarding-yrityksellä (aiempi
+// pelkkä recipient.stripe_transfers -pyyntö toimi vielä 2026-09-09 mutta testitilassa -
+// live-tila hylkäsi sen suoraan): Stripe palauttaa "The stripe_balance.stripe_transfers
+// capability cannot be requested without the configuration.merchant.capabilities.
+// card_payments capability" - vahvistettu suoraan live-avainta vasten kertakäyttöisellä
+// diagnostiikkaskriptillä (luotu+poistettu kaksi testitiliä, ei jäänyt tuotantoon) ennen
+// koodausta, ei arvattu. Ratkaisu: pyydetään myös merchant.card_payments-kapasiteetti
+// rinnalla - EI tarkoita että myyjä alkaisi käsitellä korttimaksuja itse (Habahub tekee
+// yhä KAIKKI veloitukset omalla Checkout Sessionillaan destination-chargen kautta, ks.
+// createCheckoutSession), Stripe vain vaatii tämän parin olemassa olevaksi jotta
+// stripe_transfers voidaan ylipäätään myöntää live-tilassa.
+//
+// Tämä toi mukanaan KAKSI uutta "routine_onboarding"-vaatimusta joita recipient-only-tili
+// ei koskaan tarvinnut: configuration.merchant.mcc (toimialakoodi) ja
+// defaults.profile.business_url. Vahvistettu samalla diagnostiikkaskriptillä että KUMPIKAAN
+// ei koske myyjää - kun Habahub asettaa ne itse tässä (mcc 5945 "Hobby, Toy, and Game Shops",
+// business_url habahub.com), ne poistuvat kokonaan tilin requirements-listalta eikä Stripen
+// hostattu onboarding-lomake koskaan kysy niitä myyjältä. Jäljelle jäävät vaatimukset ovat
+// täsmälleen samat kuin ennenkin (nimi/osoite/syntymäaika/puhelin/pankkitili) - EI lisää
+// kitkaa yksityishenkilömyyjälle, ks. CLAUDE.md "Paytrail -> Stripe Connect".
 export async function createConnectedAccount(seller: { email: string; name: string }): Promise<string> {
   const account = await stripe.v2.core.accounts.create({
     contact_email: seller.email,
     display_name: seller.name,
     identity: { country: 'fi', entity_type: 'individual' },
+    dashboard: 'express',
     configuration: {
       recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
+      merchant: { capabilities: { card_payments: { requested: true } }, mcc: '5945' },
     },
-    dashboard: 'express',
     defaults: {
       currency: 'eur',
       // fees_collector/losses_collector: "application" = Habahub (ei Stripe) vastaa
       // negatiivisten saldojen riskistä - sama vastuunjako kuin Paytrailin Shop-in-Shopissa,
       // jossa SKRM oli aina se joka hallinnoi sub-merchant-suhdetta.
       responsibilities: { fees_collector: 'application', losses_collector: 'application' },
+      profile: { business_url: 'https://habahub.com' },
     },
   })
   return account.id
