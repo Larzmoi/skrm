@@ -38,6 +38,27 @@ export default function AdminAdManagement() {
     e.target.value = ''
   }
 
+  // Loopattava GIF/MP4 - LISÄTTY 2026-09-10, omistajan pyyntö. EI resizeImage()-käsittelyä:
+  // canvas+toDataURL tuhoaisi GIF-animaation (vain 1 kehys jäisi jäljelle) eikä osaa käsitellä
+  // videotiedostoja ollenkaan - tallennetaan raakana base64:na. Rajataan tiedostokoko client-
+  // puolella (8MB raaka -> n. 10,7MB base64) jotta lopullinen JSON-pyyntö mahtuu mukavasti
+  // palvelimen 20mb-rajaan (ks. backend/src/index.ts) muidenkin lomakekenttien kanssa.
+  const MAX_VIDEO_BYTES = 8 * 1024 * 1024
+  async function handleVideo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > MAX_VIDEO_BYTES) {
+      setError(`Tiedosto on liian iso (${(file.size / 1024 / 1024).toFixed(1)}MB) - enintään 8MB, pidä video lyhyenä ja pakattuna.`)
+      e.target.value = ''
+      return
+    }
+    setError('')
+    const reader = new FileReader()
+    reader.onload = () => update('videoUrl', reader.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
   async function save() {
     if (!ad) return
     setSaving(true)
@@ -45,7 +66,7 @@ export default function AdminAdManagement() {
     try {
       const updated = await adminApi.updateAd({
         enabled: ad.enabled, eyebrow: ad.eyebrow, title: ad.title, body: ad.body,
-        ctaText: ad.ctaText, ctaHref: ad.ctaHref, imageUrl: ad.imageUrl,
+        ctaText: ad.ctaText, ctaHref: ad.ctaHref, imageUrl: ad.imageUrl, videoUrl: ad.videoUrl,
       })
       setAd(updated)
       setSaved(true)
@@ -108,6 +129,25 @@ export default function AdminAdManagement() {
             {ad.imageUrl && (
               <button onClick={() => update('imageUrl', null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
                 Poista kuva
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Loop-video/GIF (valinnainen — lyhyt, itsestään toistuva video tai GIF. Korvaa yllä olevan kuvan jos asetettu, enintään 8MB.)</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ width: 220, height: 90, borderRadius: 10, background: C.surface, border: `1px solid ${C.border}`, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {ad.videoUrl ? (
+                ad.videoUrl.startsWith('data:video/')
+                  ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <img src={ad.videoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : <span style={{ fontSize: 11, color: C.dim }}>Ei videota</span>}
+            </div>
+            <input type="file" accept="video/mp4,image/gif" onChange={handleVideo} style={{ fontSize: 13, color: C.text }} />
+            {ad.videoUrl && (
+              <button onClick={() => update('videoUrl', null)} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.muted, padding: '6px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
+                Poista video
               </button>
             )}
           </div>

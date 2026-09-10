@@ -508,6 +508,12 @@ model AdSlot {
   ctaText   String   @default("")
   ctaHref   String   @default("/huutokaupat")
   imageUrl  String?
+  // Loopattava GIF/MP4 - LISÄTTY 2026-09-10, omistajan pyyntö. Base64 data-URL kuten imageUrl,
+  // mutta EI koskaan resizeImage()-käsittelyn läpi (canvas+toDataURL tuhoaisi GIF-animaation ja
+  // ei osaa käsitellä videotiedostoja ollenkaan) - tallennetaan sellaisenaan, admin-lomake
+  // varoittaa/rajaa tiedostokokoa client-puolella sen sijaan. Kun asetettu, korvaa imageUrl:n
+  // renderöinnissä (ei näytetä molempia yhtä aikaa) - ks. frontend/app/page.tsx:n AdBanner.
+  videoUrl  String?
   updatedAt DateTime @updatedAt
 }
 

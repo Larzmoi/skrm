@@ -76,7 +76,11 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), handleSt
 // kuin yllä, ERI Event Destination -rekisteröinti/signing secret (ks. lib/stripe.ts).
 app.post('/webhooks/stripe-accounts', express.raw({ type: 'application/json' }), handleStripeAccountWebhook)
 
-app.use(express.json({ limit: '10mb' }))
+// 10mb -> 20mb 2026-09-10: mainosbannerin loop-video/GIF (ks. AdSlot.videoUrl) on selvästi
+// isompi kuin yksittäinen resizeImage()-käsitelty kuva - base64-koodaus lisää vielä ~33%
+// tiedoston raakakokoon. Ei koskenut mihinkään olemassa olevaan reittiin, joilla tyypilliset
+// payloadit ovat aina olleet paljon tätä pienempiä.
+app.use(express.json({ limit: '20mb' }))
 
 // Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
 // (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle

@@ -222,7 +222,7 @@ router.get('/ad', async (_req, res) => {
 // PATCH /admin/ad — päivittää mainosbannerin sisällön. Kuva base64-merkkijonona samaan
 // tapaan kuin muuallakin sivustolla (ks. CLAUDE.md "Kuvat"-koodaussääntö).
 router.patch('/ad', async (req, res) => {
-  const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl } = req.body
+  const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl, videoUrl } = req.body
   const data: Record<string, unknown> = {}
   if (typeof enabled === 'boolean') data.enabled = enabled
   if (typeof eyebrow === 'string') data.eyebrow = eyebrow
@@ -231,6 +231,7 @@ router.patch('/ad', async (req, res) => {
   if (typeof ctaText === 'string') data.ctaText = ctaText
   if (typeof ctaHref === 'string') data.ctaHref = ctaHref
   if (typeof imageUrl === 'string' || imageUrl === null) data.imageUrl = imageUrl
+  if (typeof videoUrl === 'string' || videoUrl === null) data.videoUrl = videoUrl
   const ad = await prisma.adSlot.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } })
   res.json(ad)
 })

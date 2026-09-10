@@ -89,15 +89,22 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
   // <a>-tagina uuteen välilehteen, sisäinen polku (esim. "/huutokaupat") next/link:llä kuten ennen.
   const ctaContent = <>{ad.ctaText || t.home.adCta} →</>
   const ctaStyle = { whiteSpace: 'nowrap' as const, padding: '10px 22px', borderRadius: 999, background: C.accentSolid, color: C.accentText, fontWeight: 800, fontSize: 13, fontFamily: 'var(--font-display), sans-serif', flexShrink: 0, textDecoration: 'none' }
-  const hasImage = !!ad.imageUrl
-  // Kuva täyttää nyt KOKO laatikon (ei enää pieni 56px kuvake) - omistajan pyyntö 2026-09-07.
-  // Kuva on absoluuttisesti asemoitu tausta, tumma liukuväri (scrim) sen päällä pitää tekstin
-  // luettavana kuvan päällä väristä riippumatta, sisältö+CTA overlayna liukuvärin päällä.
-  // Laatikko myös korkeampi kuin ennen (minHeight) jotta kuva ehtii näkyä kunnolla.
+  // Loopattava GIF/MP4 (LISÄTTY 2026-09-10) ottaa aina etusijan staattiseen kuvaan nähden, jos
+  // molemmat on asetettu - admin-lomake ei näytä molempia yhtä aikaa (ks. AdminAdManagement.tsx).
+  const isVideo = !!ad.videoUrl && ad.videoUrl.startsWith('data:video/')
+  const hasImage = !!ad.imageUrl || !!ad.videoUrl
+  // Kuva/video täyttää nyt KOKO laatikon (ei enää pieni 56px kuvake) - omistajan pyyntö 2026-09-07.
+  // Tausta on absoluuttisesti asemoitu, tumma liukuväri (scrim) sen päällä pitää tekstin
+  // luettavana taustasta riippumatta, sisältö+CTA overlayna liukuvärin päällä.
+  // Laatikko myös korkeampi kuin ennen (minHeight) jotta tausta ehtii näkyä kunnolla.
   return (
     <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, minHeight: isMobile ? 260 : 320, display: 'flex', marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
-      {hasImage && (
-        <img src={ad.imageUrl!} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      {ad.videoUrl ? (
+        isVideo
+          ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <img src={ad.videoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : ad.imageUrl && (
+        <img src={ad.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       )}
       <div style={{
         position: 'absolute', inset: 0,

@@ -127,6 +127,9 @@ export interface AdSlot {
   id: string; enabled: boolean
   eyebrow: string; title: string; body: string; ctaText: string; ctaHref: string
   imageUrl: string | null
+  // Loopattava GIF/MP4 - LISÄTTY 2026-09-10. Kun asetettu, korvaa imageUrl:n bannerin
+  // taustana (ei näytetä molempia yhtä aikaa), ks. AdBanner-komponentti (frontend/app/page.tsx).
+  videoUrl: string | null
 }
 
 export const adApi = {
