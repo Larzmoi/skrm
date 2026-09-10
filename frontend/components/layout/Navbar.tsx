@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '@/lib/theme-context'
 import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
@@ -55,6 +55,23 @@ export default function Navbar() {
   const router = useRouter()
   const [showLangMenu, setShowLangMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(true)
+  // Kielivalikko renderöidään position:fixed:llä mitattuun ruutukoordinaattiin (ei enää
+  // position:absolute suhteessa nappiin) - LÖYDETTY JA KORJATTU 2026-09-10. Mobiilin <nav>:lla
+  // on overflow:'hidden' pyöristettyjen alakulmien vuoksi, mikä leikkasi valikon näkymättömiin
+  // riippumatta sen zIndex:9999:sta - CSS:n overflow-leikkaus tapahtuu aina z-indexistä
+  // riippumatta jos lapsi ylittää esi-isän rajat. position:fixed pakenee tämän (glass-panel-
+  // luokat käyttävät vain backdrop-filter:iä, ei filter/transform/perspective:iä, jotka
+  // loisivat fixed-elementeille uuden containing blockin) - toimii nyt kaikkialla, ei vain
+  // navbarin sisällä.
+  const langBtnRef = useRef<HTMLButtonElement>(null)
+  const [langMenuPos, setLangMenuPos] = useState<{ top: number; right: number } | null>(null)
+  function toggleLangMenu() {
+    if (!showLangMenu && langBtnRef.current) {
+      const rect = langBtnRef.current.getBoundingClientRect()
+      setLangMenuPos({ top: rect.bottom + 6, right: Math.max(8, window.innerWidth - rect.right) })
+    }
+    setShowLangMenu(s => !s)
+  }
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -77,11 +94,11 @@ export default function Navbar() {
           {/* Kielenvalinta - puuttui aiemmin kokonaan mobiili-navbarista (ks. CLAUDE.md
               "Uudet löydökset 2026-08-13, osa 3" kohta 14), oli koodattu vain desktop-haaraan */}
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowLangMenu(s => !s)} style={{ ...pillBtn, padding: '5px 9px', fontSize: 11, fontWeight: 700 }}>
+            <button ref={langBtnRef} onClick={toggleLangMenu} style={{ ...pillBtn, padding: '5px 9px', fontSize: 11, fontWeight: 700 }}>
               {currentLang?.code.toUpperCase()}
             </button>
-            {showLangMenu && (
-              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 60, borderRadius: 12, padding: '6px', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
+            {showLangMenu && langMenuPos && (
+              <div className={glassClass} style={{ position: 'fixed', top: langMenuPos.top, right: langMenuPos.right, borderRadius: 12, padding: '6px', minWidth: 120, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
                 {languages.map(l => (
                   <button key={l.code} onClick={() => { setLang(l.code); setShowLangMenu(false) }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, background: lang === l.code ? C.accentLight : 'transparent', color: lang === l.code ? C.accent : C.textSub, fontWeight: lang === l.code ? 700 : 400 }}>
                     {l.label}
@@ -163,11 +180,11 @@ export default function Navbar() {
 
           {/* Kielenvalinta */}
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowLangMenu(s => !s)} style={{ ...pillBtn, padding: '7px 12px', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button ref={langBtnRef} onClick={toggleLangMenu} style={{ ...pillBtn, padding: '7px 12px', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
               {currentLang?.code.toUpperCase()}
             </button>
-            {showLangMenu && (
-              <div className={glassClass} style={{ position: 'absolute', right: 0, top: 60, borderRadius: 14, padding: '6px', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
+            {showLangMenu && langMenuPos && (
+              <div className={glassClass} style={{ position: 'fixed', top: langMenuPos.top, right: langMenuPos.right, borderRadius: 14, padding: '6px', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.25)', zIndex: 9999 }}>
                 {languages.map(l => (
                   <button key={l.code} onClick={() => { setLang(l.code); setShowLangMenu(false) }} style={{ width: '100%', textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, background: lang === l.code ? C.accentLight : 'transparent', color: lang === l.code ? C.accent : C.textSub, fontWeight: lang === l.code ? 700 : 400 }}>
                     {l.label}

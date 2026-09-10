@@ -34,10 +34,12 @@ const dark = {
 type Theme = 'light' | 'dark'
 type C = typeof light
 interface ThemeCtx { theme: Theme; C: C; toggle: () => void }
-const ThemeContext = createContext<ThemeCtx>({ theme: 'dark', C: dark, toggle: () => {} })
+// Oletusteema vaihdettu vaaleaksi 2026-09-10, omistajan pyyntö - localStorage-tallennettu
+// käyttäjän oma valinta (habahub_theme) ohittaa tämän edelleen normaalisti.
+const ThemeContext = createContext<ThemeCtx>({ theme: 'light', C: light, toggle: () => {} })
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('dark')
+  const [theme, setTheme] = useState<Theme>('light')
 
   useEffect(() => {
     const saved = localStorage.getItem('habahub_theme') as Theme
