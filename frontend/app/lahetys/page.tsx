@@ -8,6 +8,7 @@ import { connectSocket, disconnectSocket } from '@/lib/socket'
 import { resizeImage } from '@/lib/imageUtils'
 import { getNakyvatKategoriat, getKatNimi, getAlaNimi } from '@/lib/kategoriat'
 import { presetApi, ProductPreset } from '@/lib/api'
+import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
@@ -1091,6 +1092,14 @@ export default function LahetysPage() {
             <input value={qaName} onChange={e => { setQaName(e.target.value); setQaPresetId(null) }} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta €" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder="Minimikorotus € (oletus 1€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            {/* Kunto - aiemmin ainoa tapa saada kunto asetettua pikalisäyksessä oli ladata
+                esiasetus (jolloin kunto tuli mukana piilokenttänä) - myyjä ei voinut itse
+                valita/muokata sitä käsin livenä. Omistajan pyynnöstä 2026-09-10 lisätty oikea
+                valitsin - esiasetuksen mahdollisesti tuoma arvo näkyy tässä ja on ylikirjoitettavissa. */}
+            <select value={qaCondition ?? ''} onChange={e => setQaCondition(e.target.value || undefined)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}>
+              <option value="" style={{ color: '#000' }}>Kunto (ei valittu)</option>
+              {CARDMARKET_KUNTOLUOKAT.map(k => <option key={k.id} value={k.id} style={{ color: '#000' }}>{k.nimi}</option>)}
+            </select>
             <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: '1px dashed rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
               {qaImage ? <img src={qaImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>+ Kuva</span>}
             </div>
