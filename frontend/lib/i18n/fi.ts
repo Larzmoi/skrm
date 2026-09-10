@@ -545,6 +545,7 @@ const fi = {
     createShowNeedTitle: 'Anna lähetykselle nimi', createShowGenericFailed: 'Lähetyksen luonti epäonnistui',
     goPublicFailed: 'Julkaisu epäonnistui', phonePublishFailed: 'Lähetyksen aloitus epäonnistui',
     editProductLink: 'Muokkaa tuotetta →', closeTitle: 'Sulje', backTitle: 'Takaisin', waitingForObs: 'Odotetaan OBS-yhteyttä...', liveIndicatorLabel: 'LÄHETYS KÄYNNISSÄ', cameraFallbackLabel: 'Kamera {id}',
+    cameraTestRequired: 'Paina "Testaa kamera" yllä ennen kuin voit luoda lähetyksen — kamera pitää testata ensin.',
   },
 }
 export default fi

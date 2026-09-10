@@ -532,6 +532,7 @@ const sv = {
     createShowNeedTitle: 'Ge sändningen ett namn', createShowGenericFailed: 'Det gick inte att skapa sändningen',
     goPublicFailed: 'Det gick inte att publicera', phonePublishFailed: 'Det gick inte att starta sändningen',
     editProductLink: 'Redigera produkt →', closeTitle: 'Stäng', backTitle: 'Tillbaka', waitingForObs: 'Väntar på OBS-anslutning...', liveIndicatorLabel: 'SÄNDNING PÅGÅR', cameraFallbackLabel: 'Kamera {id}',
+    cameraTestRequired: 'Tryck på "Testa kamera" ovan innan du kan skapa sändningen — kameran måste testas först.',
   },
 }
 export default sv

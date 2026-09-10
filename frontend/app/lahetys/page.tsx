@@ -412,6 +412,22 @@ export default function LahetysPage() {
     return () => ro.disconnect()
   })
 
+  // Sama periaate yläpalkille - kiinteä top-arvo (aiemmin isMobile?52:60) huutokaupan
+  // aikalaskurille ei tiennyt yläpalkin TODELLISTA korkeutta, joka vaihtelee kun
+  // Jaa/Moderointi/OBS/Aloita julkinen lähetys/Lopeta -napit kääriytyvät useammalle
+  // riville kapealla näytöllä - laskuri jäi silloin osittain yläpalkin peittoon.
+  const topBarRef = useRef<HTMLDivElement>(null)
+  const [topBarHeight, setTopBarHeight] = useState(60)
+  useEffect(() => {
+    const el = topBarRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const update = () => setTopBarHeight(el.offsetHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
+
   async function handleThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
@@ -1187,6 +1203,10 @@ export default function LahetysPage() {
   ]
 
   const pillBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 14, fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(6px)', whiteSpace: 'nowrap' }
+  // "Aloita julkinen lähetys" on konsolin tärkein yksittäinen painallus (ks. omistajan
+  // pyyntö) - erotettu omaksi, selvästi isommaksi/korostetummaksi tyylikseen sen sijaan
+  // että se hukkuisi samaan pieneen pillBtn-riviin kuin Jaa/Moderointi/OBS.
+  const goPublicBtnStyle: React.CSSProperties = { background: GREEN_DIM, border: 'none', color: '#fff', padding: '11px 24px', borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: `0 3px 14px ${GREEN}66`, whiteSpace: 'nowrap', flexShrink: 0 }
 
   // ===== Ei vielä lähetystä: esikatselu/asetusnäkymä (myös tämä täysnäkymässä, ei dashboard-kehystä) =====
   if (!isLive) {
@@ -1359,7 +1379,12 @@ export default function LahetysPage() {
                   </div>
                 )}
 
-                <button onClick={createShow} disabled={starting} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
+                {!camReady && (
+                  <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, padding: '10px 14px', marginBottom: 10, color: '#F59E0B', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+                    {sc.cameraTestRequired}
+                  </div>
+                )}
+                <button onClick={createShow} disabled={starting || !camReady} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: (starting || !camReady) ? 'not-allowed' : 'pointer', opacity: (starting || !camReady) ? 0.5 : 1 }}>
                   {starting ? sc.creatingBtn : sc.createShowBtn}
                 </button>
                 <div style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', marginTop: 8 }}>{sc.createShowHint}</div>
@@ -1400,7 +1425,7 @@ export default function LahetysPage() {
         <HlsPreview wsUrl={previewWsUrl} token={previewToken} onStats={setPreviewStats} />
 
         {/* Yläpalkki-overlay: tila + kesto/katsojat/myynti + toiminnot, videon YLÄREUNAN päällä */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', padding: isMobile ? '10px 10px 26px 10px' : '12px 16px 30px 16px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
+        <div ref={topBarRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%)', padding: isMobile ? '10px 10px 26px 10px' : '12px 16px 30px 16px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
             {showStatus === 'LIVE' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1430,7 +1455,7 @@ export default function LahetysPage() {
           <button onClick={() => setShowModTools(s => !s)} style={pillBtn}>{sc.moderationBtn}</button>
           <button onClick={() => setShowObsInfo(s => !s)} style={pillBtn}>{sc.obsBtn}</button>
           {showStatus === 'SCHEDULED' && (
-            <button onClick={goPublic} disabled={goingPublic} style={{ ...pillBtn, background: GREEN_DIM, opacity: goingPublic ? 0.7 : 1 }}>
+            <button onClick={goPublic} disabled={goingPublic} style={{ ...goPublicBtnStyle, opacity: goingPublic ? 0.7 : 1 }}>
               {goingPublic ? sc.publishingBtn : sc.goPublicBtn}
             </button>
           )}
@@ -1453,14 +1478,14 @@ export default function LahetysPage() {
         )}
 
         {auction.active && (
-          <div style={{ position: 'absolute', top: isMobile ? 52 : 60, left: '50%', transform: 'translateX(-50%)', zIndex: 5, background: 'rgba(0,0,0,0.75)', border: `1px solid ${timerColor}`, borderRadius: 8, padding: '5px 14px', textAlign: 'center' }}>
+          <div style={{ position: 'absolute', top: topBarHeight + 8, left: '50%', transform: 'translateX(-50%)', zIndex: 11, background: 'rgba(0,0,0,0.75)', border: `1px solid ${timerColor}`, borderRadius: 8, padding: '5px 14px', textAlign: 'center' }}>
             <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 900, color: timerColor }}>{fmt(auction.timer)}</div>
           </div>
         )}
 
         {/* Jono: kapea liukuva overlay-paneeli videon vasemmasta reunasta, oletuksena kiinni */}
-        <button onClick={() => setShowQueue(s => !s)} style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', zIndex: 15, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '0 8px 8px 0', padding: '10px 6px', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', writingMode: 'vertical-rl' as const }}>
-          Jono ({products.length})
+        <button onClick={() => setShowQueue(s => !s)} style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', zIndex: 15, background: GREEN_DIM, border: 'none', borderRadius: '0 10px 10px 0', padding: '18px 11px', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', writingMode: 'vertical-rl' as const, boxShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
+          {sc.queueLabel} ({products.length})
         </button>
         {showQueue && (
           // bottom (ei 0) jättää tilaa alapalkille ja mobiilin chat-overlaylle yläpuolelle -

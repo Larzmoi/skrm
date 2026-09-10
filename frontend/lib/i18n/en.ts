@@ -532,6 +532,7 @@ const en = {
     createShowNeedTitle: 'Give the stream a name', createShowGenericFailed: 'Failed to create stream',
     goPublicFailed: 'Failed to go public', phonePublishFailed: 'Failed to start broadcast',
     editProductLink: 'Edit product →', closeTitle: 'Close', backTitle: 'Back', waitingForObs: 'Waiting for OBS connection...', liveIndicatorLabel: 'BROADCAST LIVE', cameraFallbackLabel: 'Camera {id}',
+    cameraTestRequired: 'Press "Test camera" above before you can create the stream — the camera must be tested first.',
   },
 }
 export default en
