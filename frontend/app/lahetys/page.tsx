@@ -30,6 +30,7 @@ type FeedItem =
 // CLAUDE.md "Uudet löydökset 2026-08-13, osa 4" kohta 16) - samantyylinen kuin katsojan
 // puolen suurennusmodaali, plus linkki muokkaukseen koska tämä on myyjän oma konsoli.
 function QueueProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const { t } = useLang()
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
       <div style={{ background: '#0F0F0F', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, maxWidth: 420, width: '100%', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -44,7 +45,7 @@ function QueueProductModal({ product, onClose }: { product: Product; onClose: ()
           {product.description && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{product.description}</p>}
           <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 14 }}>{product.startPrice}€</div>
           <a href={`/dashboard/tuotteet?edit=${product.id}`} style={{ display: 'block', textAlign: 'center', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-            Muokkaa tuotetta →
+            {t.streamConsole.editProductLink}
           </a>
         </div>
       </div>
@@ -59,6 +60,7 @@ function QueueProductModal({ product, onClose }: { product: Product; onClose: ()
 // livenä. Esikatselussa ei ole vielä käynnissä olevaa streamia jota vahingossa katkaista, ja
 // LUKITTU täysnäkymä-sääntö vaatii jonkin paluureitin koska dashboard-kehys on piilotettu.
 function BackButton() {
+  const { t } = useLang()
   return (
     <Link
       href="/dashboard"
@@ -68,7 +70,7 @@ function BackButton() {
         background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`,
         color: DARK_TEXT, fontSize: 16, textDecoration: 'none',
       }}
-      title="Takaisin"
+      title={t.streamConsole.backTitle}
     >←</Link>
   )
 }
@@ -79,6 +81,7 @@ function BackButton() {
 type PreviewStats = { w: number; h: number; fps: number; kbps: number }
 
 function HlsPreview({ wsUrl, token, onStats }: { wsUrl: string; token: string; onStats?: (s: PreviewStats | null) => void }) {
+  const { t } = useLang()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [waiting, setWaiting] = useState(true)
   // Näkyvät laatutilastot (ks. CLAUDE.md "Uudet löydökset 2026-08-13, osa 5" kohta 23) —
@@ -191,7 +194,7 @@ function HlsPreview({ wsUrl, token, onStats }: { wsUrl: string; token: string; o
       <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
       {waiting && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 16 }}>
-          Odotetaan OBS-yhteyttä...
+          {t.streamConsole.waitingForObs}
         </div>
       )}
     </div>
@@ -237,6 +240,7 @@ const DARK_DIM = '#1E3324'
 
 export default function LahetysPage() {
   const { lang, t } = useLang()
+  const sc = t.streamConsole
   const { user } = useAuth()
   const isMobile = useIsMobile()
   const [products, setProducts] = useState<Product[]>([])
@@ -568,8 +572,8 @@ export default function LahetysPage() {
       setAuction({ productId: data.productId, currentBid: data.startPrice, leaderName: data.leaderName ?? null, timer: data.duration, active: true })
       const p = products.find(x => x.id === data.productId)
       const startText = data.leaderName
-        ? `Huutokauppa alkoi: ${p?.name ?? ''} — jatkuu ennakkotarjouksesta ${data.startPrice}€ (${data.leaderName})`
-        : `Huutokauppa alkoi: ${p?.name ?? ''} — lähtöhinta ${data.startPrice}€`
+        ? sc.auctionStartedContinued.replace('{name}', p?.name ?? '').replace('{price}', String(data.startPrice)).replace('{leader}', data.leaderName)
+        : sc.auctionStartedFresh.replace('{name}', p?.name ?? '').replace('{price}', String(data.startPrice))
       addFeed({ kind: 'system', id: `start-${Date.now()}`, text: startText })
     })
 
@@ -641,7 +645,7 @@ export default function LahetysPage() {
       const t = await navigator.mediaDevices.getUserMedia({ video: true })
       t.getTracks().forEach(x => x.stop())
       const all = await navigator.mediaDevices.enumerateDevices()
-      const cams = all.filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label || `Kamera ${d.deviceId.slice(0, 6)}` }))
+      const cams = all.filter(d => d.kind === 'videoinput').map(d => ({ deviceId: d.deviceId, label: d.label || sc.cameraFallbackLabel.replace('{id}', d.deviceId.slice(0, 6)) }))
       setDevices(cams)
       if (cams.length > 0) setSelectedDevice(cams[0].deviceId)
     } catch {}
@@ -670,10 +674,10 @@ export default function LahetysPage() {
       // toistuvasti ollut vaikea diagnosoida koska sama teksti näkyi ihan eri syistä
       // (luvat evätty / laite jo toisen sovelluksen kuten OBS:n käytössä / laitetta ei löydy).
       const reason =
-        err?.name === 'NotAllowedError' ? 'Selain esti pääsyn — tarkista selaimen kameraluvat.'
-        : err?.name === 'NotReadableError' ? 'Kamera on jo toisen sovelluksen käytössä (esim. OBS) — sulje se ja yritä uudelleen.'
-        : err?.name === 'NotFoundError' ? 'Kameraa ei löytynyt.'
-        : `Kameraan ei saada yhteyttä (${err?.name || 'tuntematon virhe'}).`
+        err?.name === 'NotAllowedError' ? sc.browserBlockedCamera
+        : err?.name === 'NotReadableError' ? sc.cameraInUse
+        : err?.name === 'NotFoundError' ? sc.cameraNotFound
+        : sc.cameraUnknownError.replace('{reason}', err?.name || 'unknown')
       setCamError(reason); setCamReady(false); return false
     }
   }
@@ -693,7 +697,7 @@ export default function LahetysPage() {
     setPhonePublishError('')
     if (!streamRef.current) {
       const ok = await startCamera(selectedDevice || undefined)
-      if (!ok || !streamRef.current) { setPhonePublishError('Kameraa ei saatu käyttöön'); return }
+      if (!ok || !streamRef.current) { setPhonePublishError(sc.cameraUnavailable); return }
     }
     try {
       const { userApi } = await import('@/lib/api')
@@ -709,7 +713,7 @@ export default function LahetysPage() {
       publishRoomRef.current = room
       setPhonePublishing(true)
     } catch (err: any) {
-      setPhonePublishError(err?.message ?? 'Lähetyksen aloitus epäonnistui')
+      setPhonePublishError(err?.message ?? sc.phonePublishFailed)
       setPhonePublishing(false)
     }
   }
@@ -723,7 +727,7 @@ export default function LahetysPage() {
   // Luo lähetyksen (status SCHEDULED) ja avaa yksityisen esikatselukonsolin — EI vielä julkinen.
   // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
   async function createShow() {
-    if (!title.trim()) { setStartError('Anna lähetykselle nimi'); return }
+    if (!title.trim()) { setStartError(sc.createShowNeedTitle); return }
     setStarting(true); setStartError(''); setStartErrorCode('')
     try {
       const { showApi } = await import('@/lib/api')
@@ -735,7 +739,7 @@ export default function LahetysPage() {
       setFeed([])
       setSoldAmounts({})
     } catch (e: any) {
-      setStartError(e.message ?? 'Lähetyksen luonti epäonnistui')
+      setStartError(e.message ?? sc.createShowGenericFailed)
       setStartErrorCode(e.code ?? '')
     }
     setStarting(false)
@@ -759,13 +763,13 @@ export default function LahetysPage() {
       setLiveSince(Date.now())
     } catch (e: any) {
       console.log(`[Lahetys/goPublic t+${Math.round(performance.now())}ms] epäonnistui`, e)
-      setStartError(e.message ?? 'Julkaisu epäonnistui')
+      setStartError(e.message ?? sc.goPublicFailed)
     }
     setGoingPublic(false)
   }
 
   function endShow() {
-    setConfirmDialog({ message: 'Haluatko varmasti lopettaa lähetyksen?', danger: true, onConfirm: () => { setConfirmDialog(null); doEndShow() } })
+    setConfirmDialog({ message: sc.endShowConfirm, danger: true, onConfirm: () => { setConfirmDialog(null); doEndShow() } })
   }
 
   async function doEndShow() {
@@ -827,7 +831,7 @@ export default function LahetysPage() {
   }
 
   function stub(label: string) {
-    setStubMsg(`${label} — tulossa pian`)
+    setStubMsg(`${label} ${sc.comingSoonSuffix}`)
     setTimeout(() => setStubMsg(''), 2000)
   }
 
@@ -852,7 +856,7 @@ export default function LahetysPage() {
 
   function regenerateKey() {
     setConfirmDialog({
-      message: 'Vanha stream key lakkaa toimimasta heti — OBS:n Stream-asetuksiin pitää syöttää uusi avain. Jatketaanko?',
+      message: sc.regenerateKeyConfirm,
       onConfirm: () => { setConfirmDialog(null); doRegenerateKey() },
     })
   }
@@ -887,7 +891,7 @@ export default function LahetysPage() {
 
   function muteUser(userId: string) {
     if (!show) return
-    setConfirmDialog({ message: 'Mykistetäänkö tämä käyttäjä tässä lähetyksessä?', onConfirm: () => { setConfirmDialog(null); doMuteUser(userId) } })
+    setConfirmDialog({ message: sc.muteUserConfirm, onConfirm: () => { setConfirmDialog(null); doMuteUser(userId) } })
   }
 
   function doMuteUser(userId: string) {
@@ -904,8 +908,8 @@ export default function LahetysPage() {
   async function quickAddProduct() {
     if (!qaName.trim() || !qaPrice) return
     const price = Number(qaPrice.replace(',', '.'))
-    if (!price || price <= 0) { setQaError('Anna kelvollinen hinta'); return }
-    if (price < 0.5) { setQaError('Hinnan tulee olla vähintään 0,50€ (Stripen maksujen alaraja)'); return }
+    if (!price || price <= 0) { setQaError(sc.invalidPrice); return }
+    if (price < 0.5) { setQaError(sc.minPriceError); return }
     // Tyhjä kenttä -> ei välitetä bidIncrement:iä, backend/frontend molemmat tulkitsevat
     // puuttuvan arvon 1€ oletuskorotukseksi (sama fallback kuin dashboardin täydellä
     // lomakkeella, ks. CLAUDE.md "Mobiili-läpikäynti" kohta 8).
@@ -923,7 +927,7 @@ export default function LahetysPage() {
       if (qaPresetId) presetApi.markUsed(qaPresetId).catch(() => {})
       clearQuickAdd()
     } catch (e: any) {
-      setQaError(e.message ?? 'Lisäys epäonnistui')
+      setQaError(e.message ?? sc.addFailed)
       setQaErrorCode(e.code ?? '')
     }
     setQaSaving(false)
@@ -972,38 +976,38 @@ export default function LahetysPage() {
 
   const quickActionsRow = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtnGhost : quickBtnGhostDisabled}>+10s</button>
-      <button onClick={() => stub('Kiinnitä')} style={quickBtnGhost}>Kiinnitä</button>
-      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtnPrimary : quickBtnGhostDisabled}>✓ Myyty</button>
-      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtnPrimary : quickBtnGhostDisabled}>Seuraava →</button>
-      <button onClick={() => stub('Giveaway')} style={quickBtnGhost}>Giveaway</button>
+      <button onClick={extendTimer} disabled={!auction.active} style={auction.active ? quickBtnGhost : quickBtnGhostDisabled}>{sc.extendBtn}</button>
+      <button onClick={() => stub(sc.pinBtn)} style={quickBtnGhost}>{sc.pinBtn}</button>
+      <button onClick={endAuction} disabled={!auction.active} style={auction.active ? quickBtnPrimary : quickBtnGhostDisabled}>{sc.soldBtn}</button>
+      <button onClick={nextProduct} disabled={!auctionDoneForCurrent || isLast} style={(auctionDoneForCurrent && !isLast) ? quickBtnPrimary : quickBtnGhostDisabled}>{sc.nextBtn}</button>
+      <button onClick={() => stub(sc.giveawayBtn)} style={quickBtnGhost}>{sc.giveawayBtn}</button>
     </div>
   )
 
   const obsCardContent = (
     <>
-      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 10 }}>OBS-asetukset</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 10 }}>{sc.obsSettingsTitle}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl || 'Ladataan...'}</div>
-          <button onClick={() => copy(streamUrl, 'server')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : 'Kopioi'}</button>
+          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamUrl || sc.loadingText}</div>
+          <button onClick={() => copy(streamUrl, 'server')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'server' ? '✓' : sc.copyBtn}</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey || 'Ladataan...'}</div>
-          <button onClick={() => copy(streamKey, 'key')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : 'Kopioi'}</button>
+          <div style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '7px 10px', fontSize: 12, color: DARK_TEXT_SUB, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{streamKey || sc.loadingText}</div>
+          <button onClick={() => copy(streamKey, 'key')} style={{ background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '7px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>{copied === 'key' ? '✓' : sc.copyBtn}</button>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: DARK_MUTED, marginTop: 8 }}>Aseta nämä OBS:n Asetukset → Stream -kohtaan (Service: Custom). Tämä avain on pysyvä ja sama kaikissa tulevissa lähetyksissäsi. Katso tarkat ohjeet <a href="/faq#myyja" style={{ color: GREEN_DIM }}>FAQ:sta</a>.</div>
-      <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Generoi uusi avain</button>
+      <div style={{ fontSize: 11, color: DARK_MUTED, marginTop: 8 }}>{sc.obsInstructions} <a href="/faq#myyja" style={{ color: GREEN_DIM }}>{sc.faqLinkText}</a>.</div>
+      <button onClick={regenerateKey} style={{ marginTop: 10, background: 'none', border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{sc.regenerateKeyBtn}</button>
     </>
   )
 
   const modToolsContent = (
     <>
-      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 6 }}>Kielletyt sanat</div>
-      <div style={{ fontSize: 11, color: DARK_MUTED, marginBottom: 8 }}>Viestit joissa esiintyy jokin näistä sanoista piilotetaan katsojilta — sinä ja moderaattorit näette ne yhä. Yksi sana per rivi.</div>
-      <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={'esim.\nhuijaus\nkielletty sana'} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 10px', color: DARK_TEXT, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
-      <button onClick={saveMutedWords} style={{ marginTop: 8, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? 'Tallennettu' : 'Tallenna'}</button>
+      <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 6 }}>{sc.mutedWordsTitle}</div>
+      <div style={{ fontSize: 11, color: DARK_MUTED, marginBottom: 8 }}>{sc.mutedWordsDesc}</div>
+      <textarea value={mutedWordsInput} onChange={e => setMutedWordsInput(e.target.value)} rows={3} placeholder={sc.mutedWordsPlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 10px', color: DARK_TEXT, fontSize: 12, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box' }} />
+      <button onClick={saveMutedWords} style={{ marginTop: 8, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{mutedWordsSaved ? sc.savedBtn : sc.saveBtn}</button>
     </>
   )
 
@@ -1016,13 +1020,13 @@ export default function LahetysPage() {
 
   const queuePanelContent = (
     <>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, flexShrink: 0 }}>Jono ({activeQueueProducts.length})</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, flexShrink: 0 }}>{sc.queueLabel} ({activeQueueProducts.length})</div>
       {activeQueueProducts.length > 5 && (
-        <input value={queueSearch} onChange={e => setQueueSearch(e.target.value)} placeholder="Hae nimellä tai sijainnilla..." style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '6px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8, flexShrink: 0 }} />
+        <input value={queueSearch} onChange={e => setQueueSearch(e.target.value)} placeholder={sc.searchPlaceholder} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '6px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8, flexShrink: 0 }} />
       )}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {q && visibleQueueProducts.length === 0 && (
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', padding: '8px 4px' }}>Ei osumia</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', padding: '8px 4px' }}>{sc.noMatches}</div>
         )}
         {visibleQueueProducts.map((p) => {
           const i = products.indexOf(p)
@@ -1040,14 +1044,14 @@ export default function LahetysPage() {
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
               {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
               <span style={{ fontSize: 12, color: active ? GREEN : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              <button onClick={e => { e.stopPropagation(); setProductDetailId(p.id) }} title="Näytä isompana / muokkaa" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer', padding: 2, flexShrink: 0 }}>⤢</button>
+              <button onClick={e => { e.stopPropagation(); setProductDetailId(p.id) }} title={sc.showLargerTitle} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer', padding: 2, flexShrink: 0 }}>⤢</button>
             </div>
           )
         })}
 
         {soldQueueProducts.length > 0 && (
           <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>Myydyt ({soldQueueProducts.length})</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>{sc.soldLabel} ({soldQueueProducts.length})</div>
             {soldQueueProducts.map(p => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.5, flexShrink: 0 }}>
                 {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
@@ -1063,15 +1067,15 @@ export default function LahetysPage() {
         {showPresetPicker ? (
           <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <input value={presetSearch} onChange={e => setPresetSearch(e.target.value)} placeholder="Hae esiasetuksista..." autoFocus style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+              <input value={presetSearch} onChange={e => setPresetSearch(e.target.value)} placeholder={sc.presetsSearchPlaceholder} autoFocus style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
               <button onClick={() => { setShowPresetPicker(false); setPresetSearch('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 16, flexShrink: 0 }}>✕</button>
             </div>
             <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {presetsLoading ? (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>Haetaan...</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>{sc.loadingEllipsis}</div>
               ) : presets.length === 0 ? (
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '10px 0' }}>
-                  Ei esiasetuksia — luo niitä <a href="/dashboard/esiasetukset" target="_blank" style={{ color: GREEN }}>Esiasetukset-sivulla</a>
+                  {sc.noPresets} <a href="/dashboard/esiasetukset" target="_blank" style={{ color: GREEN }}>{sc.presetsPageLink}</a>
                 </div>
               ) : presets.map(p => (
                 <button key={p.id} onClick={() => pickPreset(p)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 6, padding: '6px 8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
@@ -1086,19 +1090,19 @@ export default function LahetysPage() {
           <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 10 }}>
             {qaPresetId && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.12)', border: `1px solid ${GREEN_DIM}`, borderRadius: 6, padding: '5px 8px', marginBottom: 6, fontSize: 11, color: GREEN }}>
-                <span style={{ flex: 1 }}>Esiasetuksesta täytetty</span>
+                <span style={{ flex: 1 }}>{sc.filledFromPreset}</span>
                 <button onClick={() => { setQaPresetId(null); setQaCondition(undefined); setQaCategory(undefined); setQaAlakategoria(undefined); setQaTyyppi(undefined); setQaDescription(undefined) }} style={{ background: 'none', border: 'none', color: GREEN, cursor: 'pointer', fontSize: 13 }}>✕</button>
               </div>
             )}
-            <input value={qaName} onChange={e => { setQaName(e.target.value); setQaPresetId(null) }} placeholder="Tuotteen nimi" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
-            <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder="Lähtöhinta € (väh. 0,50€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
-            <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder="Minimikorotus € (oletus 1€)" style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input value={qaName} onChange={e => { setQaName(e.target.value); setQaPresetId(null) }} placeholder={sc.productNamePlaceholder} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input type="text" inputMode="decimal" value={qaPrice} onChange={e => setQaPrice(e.target.value)} placeholder={sc.startPricePlaceholder} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
+            <input type="text" inputMode="decimal" value={qaBidIncrement} onChange={e => setQaBidIncrement(e.target.value)} placeholder={sc.bidIncrementPlaceholder} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
             {/* Kunto - aiemmin ainoa tapa saada kunto asetettua pikalisäyksessä oli ladata
                 esiasetus (jolloin kunto tuli mukana piilokenttänä) - myyjä ei voinut itse
                 valita/muokata sitä käsin livenä. Omistajan pyynnöstä 2026-09-10 lisätty oikea
                 valitsin - esiasetuksen mahdollisesti tuoma arvo näkyy tässä ja on ylikirjoitettavissa. */}
             <select value={qaCondition ?? ''} onChange={e => setQaCondition(e.target.value || undefined)} style={{ width: '100%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, padding: '7px 9px', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}>
-              <option value="" style={{ color: '#000' }}>Kunto (ei valittu)</option>
+              <option value="" style={{ color: '#000' }}>{sc.conditionNotSelected}</option>
               {CARDMARKET_KUNTOLUOKAT.map(k => <option key={k.id} value={k.id} style={{ color: '#000' }}>{k.nimi}</option>)}
             </select>
             <div onClick={() => qaImageRef.current?.click()} style={{ width: '100%', aspectRatio: '1', maxHeight: 60, borderRadius: 6, border: '1px dashed rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden' }}>
@@ -1110,20 +1114,20 @@ export default function LahetysPage() {
                 <span>{qaError}</span>
                 {qaErrorCode === 'SELLER_NOT_VERIFIED' && (
                   <Link href="/dashboard/tilitykset" style={{ background: '#EF4444', color: '#fff', padding: '3px 10px', borderRadius: 5, fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', textDecoration: 'none' }}>
-                    Siirry Tilitykset-sivulle
+                    {sc.goToPayoutsLink}
                   </Link>
                 )}
               </div>
             )}
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => { clearQuickAdd(); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Peruuta</button>
-              <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>Lisää</button>
+              <button onClick={() => { clearQuickAdd(); setQaError('') }} style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: '#ccc', padding: '7px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>{sc.cancelBtn}</button>
+              <button onClick={quickAddProduct} disabled={qaSaving || !qaName.trim() || !qaPrice} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: qaSaving || !qaName.trim() || !qaPrice ? 0.6 : 1 }}>{sc.addBtn}</button>
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <button onClick={() => setShowQuickAdd(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Lisää tuote</button>
-            <button onClick={() => setShowPresetPicker(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>⌗ Esiasetuksista</button>
+            <button onClick={() => setShowQuickAdd(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{sc.addProductBtn}</button>
+            <button onClick={() => setShowPresetPicker(true)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px dashed rgba(255,255,255,0.2)', color: '#ccc', padding: '8px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{sc.fromPresetsBtn}</button>
           </div>
         )}
       </div>
@@ -1133,7 +1137,7 @@ export default function LahetysPage() {
   const chatFeedContent = (
     <>
       <div ref={feedRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {feed.length === 0 && <div style={{ color: DARK_MUTED, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Ei viestejä vielä</div>}
+        {feed.length === 0 && <div style={{ color: DARK_MUTED, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>{sc.noMessages}</div>}
         {feed.map(item => {
           if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', padding: '4px 0' }}>{item.text}</div>
           // Huudot eivät ole enää omia laatikoitaan — aktiivisen huudon aikana niitä tulee
@@ -1144,14 +1148,14 @@ export default function LahetysPage() {
           if (item.kind === 'bid') return (
             <div key={item.id} style={{ fontSize: 12 }}>
               <span style={{ color: GREEN_DIM, fontWeight: 700 }}>{item.username} </span>
-              <span style={{ color: DARK_TEXT_SUB }}>huusi </span>
+              <span style={{ color: DARK_TEXT_SUB }}>{sc.bidVerb} </span>
               <span style={{ color: GREEN, fontWeight: 800 }}>{item.amount}€</span>
             </div>
           )
           if (item.kind === 'purchase') return (
             <div key={item.id} style={{ padding: '7px 9px', background: GREEN_BG, border: `1px solid ${GREEN}55`, borderRadius: 7, fontSize: 12 }}>
               <span style={{ color: GREEN, fontWeight: 700 }}>{item.username}</span>
-              <span style={{ color: DARK_TEXT }}> osti </span>
+              <span style={{ color: DARK_TEXT }}> {sc.purchaseVerb} </span>
               <span style={{ color: DARK_TEXT, fontWeight: 700 }}>{item.productName}</span>
               <span style={{ color: GREEN, fontWeight: 800 }}> {item.amount}€</span>
             </div>
@@ -1162,24 +1166,24 @@ export default function LahetysPage() {
                 <span style={{ fontWeight: 700, color: DARK_TEXT }}>{item.username}: </span>
                 <span style={{ color: DARK_TEXT_SUB, overflowWrap: 'break-word' }}>{item.message}</span>
               </div>
-              <button onClick={() => deleteMessage(item.id)} title="Poista" style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>✕</button>
-              <button onClick={() => muteUser(item.userId)} title="Mykistä" style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: 0, flexShrink: 0 }}>MYKISTÄ</button>
+              <button onClick={() => deleteMessage(item.id)} title={sc.deleteTitle} style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 11, padding: 0, flexShrink: 0 }}>✕</button>
+              <button onClick={() => muteUser(item.userId)} title={sc.muteTitle} style={{ background: 'none', border: 'none', color: DARK_DIM, cursor: 'pointer', fontSize: 10, fontWeight: 700, padding: 0, flexShrink: 0 }}>{sc.muteLabel}</button>
             </div>
           )
         })}
       </div>
       <div style={{ padding: '8px 10px', borderTop: `1px solid ${DARK_BORDER}`, display: 'flex', gap: 6, flexShrink: 0 }}>
-        <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 18, padding: '7px 12px', color: DARK_TEXT, fontSize: 12, outline: 'none', minWidth: 0 }} />
+        <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={sc.chatPlaceholder} style={{ flex: 1, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 18, padding: '7px 12px', color: DARK_TEXT, fontSize: 12, outline: 'none', minWidth: 0 }} />
         <button onClick={sendChat} style={{ background: GREEN_DIM, border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13 }}>➤</button>
       </div>
     </>
   )
 
   const topStats = [
-    { label: 'Kesto', value: fmtDuration(elapsedSeconds) },
-    { label: 'Katsojia', value: String(viewers) },
-    { label: 'Myynti', value: `${todaySales.toLocaleString('fi-FI')}€` },
-    { label: 'Myyty', value: `${soldItems.length} kpl` },
+    { label: sc.durationStatLabel, value: fmtDuration(elapsedSeconds) },
+    { label: sc.viewersStatLabel, value: String(viewers) },
+    { label: sc.salesStatLabel, value: `${todaySales.toLocaleString('fi-FI')}€` },
+    { label: sc.soldStatLabel, value: `${soldItems.length} ${sc.soldUnitSuffix}` },
   ]
 
   const pillBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 14, fontSize: 11, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(6px)', whiteSpace: 'nowrap' }
@@ -1192,15 +1196,15 @@ export default function LahetysPage() {
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: isMobile ? '60px 20px 40px' : '60px 32px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: DARK_TEXT }}>Lähetys</h1>
-              <p style={{ color: DARK_MUTED, fontSize: 13, marginTop: 4 }}>{products.length} tuotetta jonossa</p>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: DARK_TEXT }}>{sc.title}</h1>
+              <p style={{ color: DARK_MUTED, fontSize: 13, marginTop: 4 }}>{sc.productsInQueue.replace('{n}', String(products.length))}</p>
             </div>
-            <button onClick={() => setShowSettings(s => !s)} style={{ background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Asetukset</button>
+            <button onClick={() => setShowSettings(s => !s)} style={{ background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '8px 16px', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>{sc.settingsBtn}</button>
           </div>
 
           {showSettings && (
             <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 12, padding: '18px', marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 12 }}>Oletuskesto per tuote</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: DARK_TEXT, marginBottom: 12 }}>{sc.defaultDurationLabel}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
                 {[60, 120, 180, 300, 600].map(s => (
                   <button key={s} onClick={() => setAuctionDuration(s)} style={{ background: auctionDuration === s ? GREEN_DIM : DARK_SURFACE2, border: `1px solid ${auctionDuration === s ? GREEN_DIM : DARK_BORDER}`, color: auctionDuration === s ? '#fff' : DARK_MUTED, padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', fontWeight: auctionDuration === s ? 700 : 400 }}>
@@ -1208,14 +1212,14 @@ export default function LahetysPage() {
                   </button>
                 ))}
               </div>
-              <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(Number(e.target.value))} placeholder="tai syötä oma (sekunteina)" style={{ width: 200, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none' }} />
+              <input type="number" value={auctionDuration} onChange={e => setAuctionDuration(Number(e.target.value))} placeholder={sc.customDurationPlaceholder} style={{ width: 200, background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 6, padding: '8px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none' }} />
             </div>
           )}
 
           {products.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <div style={{ fontSize: 14, color: DARK_MUTED, marginBottom: 16 }}>Ei tuotteita — lisää tuotteita ensin</div>
-              <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
+              <div style={{ fontSize: 14, color: DARK_MUTED, marginBottom: 16 }}>{sc.noProductsTitle}</div>
+              <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>{sc.addProductsLink}</a>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
@@ -1225,11 +1229,11 @@ export default function LahetysPage() {
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('phone') }}
                     style={{ flex: 1, background: publishMode === 'phone' ? GREEN_DIM : DARK_SURFACE, border: `1px solid ${publishMode === 'phone' ? GREEN_DIM : DARK_BORDER}`, color: publishMode === 'phone' ? '#fff' : DARK_MUTED, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                  >Ilman OBS:aa</button>
+                  >{sc.modePhone}</button>
                   <button
                     onClick={() => { publishModeTouched.current = true; setPublishMode('obs') }}
                     style={{ flex: 1, background: publishMode === 'obs' ? GREEN_DIM : DARK_SURFACE, border: `1px solid ${publishMode === 'obs' ? GREEN_DIM : DARK_BORDER}`, color: publishMode === 'obs' ? '#fff' : DARK_MUTED, padding: '9px 12px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                  >OBS:lla</button>
+                  >{sc.modeObs}</button>
                 </div>
 
                 {publishMode === 'obs' && (
@@ -1243,12 +1247,12 @@ export default function LahetysPage() {
                   {!camReady && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
                       <div style={{ fontSize: 36, marginBottom: 8 }}>●</div>
-                      <div style={{ fontSize: 14 }}>Kamera ei ole päällä</div>
+                      <div style={{ fontSize: 14 }}>{sc.cameraOffLabel}</div>
                     </div>
                   )}
                   {camReady && (
                     <div style={{ position: 'absolute', top: 10, left: 10, background: phonePublishing ? '#EF4444' : GREEN_DIM, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 4 }}>
-                      {phonePublishing ? 'LÄHETYS KÄYNNISSÄ' : 'ESIKATSELU'}
+                      {phonePublishing ? sc.liveIndicatorLabel : sc.previewLabel}
                     </div>
                   )}
                 </div>
@@ -1256,49 +1260,49 @@ export default function LahetysPage() {
                 {publishMode === 'phone' ? (
                   <>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>}
+                      {!camReady && <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{sc.testCameraBtn}</button>}
                       {camReady && !phonePublishing && (
                         <>
-                          <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta kamera</button>
-                          <button onClick={startPhonePublish} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Aloita kameralähetys</button>
+                          <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{sc.stopCameraBtn}</button>
+                          <button onClick={startPhonePublish} style={{ flex: 1, background: GREEN_DIM, border: 'none', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{sc.startPhoneBroadcastBtn}</button>
                         </>
                       )}
-                      {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta kameralähetys</button>}
+                      {phonePublishing && <button onClick={() => { stopPhonePublish(); stopCamera() }} style={{ flex: 1, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#EF4444', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{sc.stopPhoneBroadcastBtn}</button>}
                     </div>
-                    <div style={{ fontSize: 11, color: DARK_MUTED }}>{phonePublishing ? 'Kamerasi kuva menee nyt suoraan lähetykseen — ei tarvitse OBS:aa.' : 'Aloita kamera, ja paina sitten "Aloita kameralähetys" julkaistaksesi kuvan suoraan tästä laitteesta ilman OBS:aa.'}</div>
+                    <div style={{ fontSize: 11, color: DARK_MUTED }}>{phonePublishing ? sc.phoneBroadcastLiveHint : sc.phoneBroadcastIdleHint}</div>
                     {phonePublishError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{phonePublishError}</div>}
                   </>
                 ) : (
                   <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
                     {!camReady
-                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Testaa kamera</button>
-                      : <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Sammuta esikatselu</button>
+                      ? <button onClick={() => startCamera(selectedDevice || undefined)} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_TEXT, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{sc.testCameraBtn}</button>
+                      : <button onClick={stopCamera} style={{ flex: 1, background: DARK_SURFACE, border: `1px solid ${DARK_BORDER}`, color: DARK_MUTED, padding: '10px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{sc.stopPreviewBtn}</button>
                     }
                   </div>
                 )}
-                {publishMode === 'obs' && <div style={{ fontSize: 11, color: DARK_MUTED }}>Tämä on vain esikatselu sinulle — itse lähetys striimataan OBS:lla (ohjeet näkyvät kun aloitat lähetyksen)</div>}
+                {publishMode === 'obs' && <div style={{ fontSize: 11, color: DARK_MUTED }}>{sc.obsPreviewOnlyHint}</div>}
                 {camError && <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginTop: 10, color: '#EF4444', fontSize: 13 }}>{camError}</div>}
               </div>
 
               {/* Oikea: lähetyksen tiedot -lomake */}
               <div>
                 <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Lähetyksen nimi *</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon-kortteja livenä" style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.broadcastNameLabel}</label>
+                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={sc.broadcastNamePlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Kategoria</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.categoryLabel}</label>
                       <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
-                        <option value="">Valitse...</option>
+                        <option value="">{sc.selectPlaceholder}</option>
                         {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{getKatNimi(k, lang as any)}</option>)}
                       </select>
                     </div>
                     {(getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat ?? []).length > 0 && (
                       <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Alakategoria</label>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.subcategoryLabel}</label>
                         <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
-                          <option value="">Valitse...</option>
+                          <option value="">{sc.selectPlaceholder}</option>
                           {getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat.map(a => <option key={a.id} value={a.id}>{getAlaNimi(a, lang as any)}</option>)}
                         </select>
                       </div>
@@ -1306,17 +1310,17 @@ export default function LahetysPage() {
                   </div>
 
                   <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
-                  <input value={city} onChange={e => setCity(e.target.value)} placeholder="esim. Helsinki" style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                  <input value={city} onChange={e => setCity(e.target.value)} placeholder={sc.cityPlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
 
-                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Kameralähde (esikatselu)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.cameraSourceLabel}</label>
                   {devices.length === 0
-                    ? <div style={{ fontSize: 13, color: DARK_MUTED, marginBottom: 12 }}>Paina "Testaa kamera" salliaksesi käytön</div>
+                    ? <div style={{ fontSize: 13, color: DARK_MUTED, marginBottom: 12 }}>{sc.pressTestCameraHint}</div>
                     : <select value={selectedDevice} onChange={e => { setSelectedDevice(e.target.value); if (camReady) startCamera(e.target.value) }} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
                         {devices.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label}</option>)}
                       </select>
                   }
 
-                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>Markkinointikuva (valinnainen)</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.thumbnailLabel}</label>
                   <div
                     onClick={() => thumbnailRef.current?.click()}
                     style={{
@@ -1337,7 +1341,7 @@ export default function LahetysPage() {
                     ) : (
                       <div style={{ textAlign: 'center', color: DARK_MUTED }}>
                         <div style={{ fontSize: 24, marginBottom: 4 }}>+</div>
-                        <div style={{ fontSize: 12 }}>Lisää markkinointikuva</div>
+                        <div style={{ fontSize: 12 }}>{sc.addThumbnailLabel}</div>
                       </div>
                     )}
                   </div>
@@ -1349,16 +1353,16 @@ export default function LahetysPage() {
                     <span>{startError}</span>
                     {startErrorCode === 'SELLER_NOT_VERIFIED' && (
                       <Link href="/dashboard/tilitykset" style={{ background: '#EF4444', color: '#fff', padding: '6px 14px', borderRadius: 6, fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', textDecoration: 'none' }}>
-                        Siirry Tilitykset-sivulle
+                        {sc.goToPayoutsLink}
                       </Link>
                     )}
                   </div>
                 )}
 
                 <button onClick={createShow} disabled={starting} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: starting ? 'default' : 'pointer', opacity: starting ? 0.7 : 1 }}>
-                  {starting ? 'Luodaan...' : 'Luo lähetys ja testaa yhteys'}
+                  {starting ? sc.creatingBtn : sc.createShowBtn}
                 </button>
-                <div style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', marginTop: 8 }}>Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.</div>
+                <div style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', marginTop: 8 }}>{sc.createShowHint}</div>
               </div>
             </div>
           )}
@@ -1377,11 +1381,11 @@ export default function LahetysPage() {
   if (!currentProduct) {
     return (
       <div style={{ height: '100dvh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: DARK_BG, color: DARK_TEXT, padding: 20, textAlign: 'center' }}>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>Jono on tyhjä</div>
-        <div style={{ fontSize: 13, color: DARK_MUTED, maxWidth: 360 }}>Kaikki tuotteet on myyty tai poistettu jonosta. Lisää uusia tuotteita jatkaaksesi, tai lopeta lähetys.</div>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>{sc.emptyQueueTitle}</div>
+        <div style={{ fontSize: 13, color: DARK_MUTED, maxWidth: 360 }}>{sc.emptyQueueBody}</div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>Lisää tuotteita</a>
-          <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Lopeta lähetys</button>
+          <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13 }}>{sc.addProductsBtn}</a>
+          <button onClick={endShow} style={{ background: 'rgba(239,68,68,0.85)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>{sc.endShowBtn}</button>
         </div>
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
       </div>
@@ -1401,12 +1405,12 @@ export default function LahetysPage() {
             {showStatus === 'LIVE' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 6px #EF4444' }} />
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>LIVE{!connected ? ' — yhdistetään...' : ''}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>LIVE{!connected ? sc.connectingSuffix : ''}</span>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: GREEN }} />
-                <span style={{ fontSize: 12, fontWeight: 800, color: GREEN }}>ESIKATSELU</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: GREEN }}>{sc.previewLabel}</span>
               </div>
             )}
             {previewStats && (
@@ -1422,15 +1426,15 @@ export default function LahetysPage() {
             </div>
           ))}
           <div style={{ flex: 1 }} />
-          <button onClick={shareStream} style={pillBtn}>{copied === 'share' ? '✓ Kopioitu' : 'Jaa striimi'}</button>
-          <button onClick={() => setShowModTools(s => !s)} style={pillBtn}>Moderointi</button>
-          <button onClick={() => setShowObsInfo(s => !s)} style={pillBtn}>OBS</button>
+          <button onClick={shareStream} style={pillBtn}>{copied === 'share' ? sc.linkCopied : sc.shareBtn}</button>
+          <button onClick={() => setShowModTools(s => !s)} style={pillBtn}>{sc.moderationBtn}</button>
+          <button onClick={() => setShowObsInfo(s => !s)} style={pillBtn}>{sc.obsBtn}</button>
           {showStatus === 'SCHEDULED' && (
             <button onClick={goPublic} disabled={goingPublic} style={{ ...pillBtn, background: GREEN_DIM, opacity: goingPublic ? 0.7 : 1 }}>
-              {goingPublic ? 'Julkaistaan...' : 'Aloita julkinen lähetys'}
+              {goingPublic ? sc.publishingBtn : sc.goPublicBtn}
             </button>
           )}
-          <button onClick={endShow} style={{ ...pillBtn, background: 'rgba(239,68,68,0.85)' }}>Lopeta</button>
+          <button onClick={endShow} style={{ ...pillBtn, background: 'rgba(239,68,68,0.85)' }}>{sc.endBtn}</button>
         </div>
 
         {(showObsInfo || showModTools) && (
@@ -1442,7 +1446,7 @@ export default function LahetysPage() {
                 korkeutta). Vahvistettu bugiksi mobiilitestauksessa 2026-09-01. */}
             <div onClick={() => { setShowObsInfo(false); setShowModTools(false) }} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
             <div style={{ position: 'absolute', top: isMobile ? 56 : 60, right: 12, zIndex: 20, width: isMobile ? 'calc(100% - 24px)' : 320, background: 'rgba(15,15,15,0.92)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 16px', color: '#fff' }}>
-              <button onClick={() => { setShowObsInfo(false); setShowModTools(false) }} aria-label="Sulje" style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: 700, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
+              <button onClick={() => { setShowObsInfo(false); setShowModTools(false) }} aria-label={sc.closeTitle} style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)', fontSize: 16, fontWeight: 700, cursor: 'pointer', padding: 4, lineHeight: 1 }}>✕</button>
               {showObsInfo ? obsCardContent : modToolsContent}
             </div>
           </>
@@ -1475,7 +1479,7 @@ export default function LahetysPage() {
             {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: isMobile ? 40 : 48, height: isMobile ? 40 : 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: `2px solid ${GREEN_DIM}` }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 800, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{auction.active ? 'Nykyinen huuto' : 'Lähtöhinta'}{auction.leaderName ? ` · ${auction.leaderName} johtaa` : ''}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{auction.active ? sc.currentBidLabel : sc.startPriceLabel}{auction.leaderName ? ` · ${sc.leaderSuffix.replace('{name}', auction.leaderName)}` : ''}</div>
             </div>
             <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 900, color: auction.active && auction.leaderName ? GREEN : '#fff', flexShrink: 0 }}>{auction.active ? auction.currentBid : effectiveStartPrice}€</div>
           </div>
@@ -1483,7 +1487,7 @@ export default function LahetysPage() {
           {!auction.active && !isSold && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Lähtöhinta:</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{sc.startPriceInputLabel}</span>
                 <input
                   type="number"
                   min={0.01}
@@ -1496,7 +1500,7 @@ export default function LahetysPage() {
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>€</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Kesto:</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{sc.durationInputLabel}</span>
                 {[30, 60, 120].map(s => (
                   <button key={s} onClick={() => setDurationOverride(s)} style={{ background: effectiveDuration === s ? GREEN_DIM : 'rgba(255,255,255,0.12)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: effectiveDuration === s ? 700 : 400, cursor: 'pointer' }}>
                     {s >= 60 ? `${s / 60}min` : `${s}s`}
@@ -1509,11 +1513,11 @@ export default function LahetysPage() {
                   style={{ width: 64, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 6, padding: '4px 8px', color: '#fff', fontSize: 11, outline: 'none' }}
                 />
               </div>
-              <button onClick={startAuction} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>Aloita huutokauppa ({fmt(effectiveDuration)})</button>
+              <button onClick={startAuction} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '10px', borderRadius: 8, fontWeight: 800, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>{sc.startAuctionBtn.replace('{time}', fmt(effectiveDuration))}</button>
             </>
           )}
-          {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>Seuraava tuote →</button>}
-          {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: GREEN, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Kaikki tuotteet käyty läpi!</div>}
+          {auctionDoneForCurrent && !isLast && <button onClick={nextProduct} style={{ width: '100%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>{sc.nextProductBtn}</button>}
+          {auctionDoneForCurrent && isLast && <div style={{ textAlign: 'center', color: GREEN, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>{sc.allDoneLabel}</div>}
 
           {quickActionsRow}
           {stubMsg && <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{stubMsg}</div>}
@@ -1523,7 +1527,7 @@ export default function LahetysPage() {
       {/* ===== CHAT: kapea sarake oikealla desktopilla (~25-26%); mobiilissa ei omaa saraketta, chat on osa overlayta ===== */}
       {!isMobile && (
         <div style={{ flex: '0 0 25%', minWidth: 260, height: '100%', background: DARK_PANEL_BG, borderLeft: `1px solid ${DARK_BORDER}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${DARK_BORDER}`, fontSize: 12, fontWeight: 700, color: DARK_MUTED, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0 }}>Chat</div>
+          <div style={{ padding: '12px 14px', borderBottom: `1px solid ${DARK_BORDER}`, fontSize: 12, fontWeight: 700, color: DARK_MUTED, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0 }}>{sc.chatTitle}</div>
           {chatFeedContent}
         </div>
       )}
@@ -1550,21 +1554,21 @@ export default function LahetysPage() {
               if (item.kind === 'system') return <div key={item.id} style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>{item.text}</div>
               if (item.kind === 'purchase') return (
                 <div key={item.id} style={{ background: 'rgba(46,204,113,0.4)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start' }}>
-                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{item.username} osti {item.productName} · {item.amount}€</span>
+                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 700 }}>{item.username} {sc.purchaseVerb} {item.productName} · {item.amount}€</span>
                 </div>
               )
               return (
                 <div key={item.id} style={{ background: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: '4px 9px', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', maxWidth: '85%' }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: GREEN_DIM }}>{item.username} </span>
                   {item.kind === 'bid'
-                    ? <><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>huusi </span><span style={{ fontSize: 11, color: GREEN, fontWeight: 800 }}>{item.amount}€</span></>
+                    ? <><span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>{sc.bidVerb} </span><span style={{ fontSize: 11, color: GREEN, fontWeight: 800 }}>{item.amount}€</span></>
                     : <span style={{ fontSize: 11, color: '#fff' }}>{item.message}</span>}
                 </div>
               )
             })}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 6, pointerEvents: 'auto' }}>
-            <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder="Kirjoita viesti..." style={{ flex: 1, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '7px 12px', color: '#fff', fontSize: 12, outline: 'none', minWidth: 0 }} />
+            <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChat()} placeholder={sc.chatPlaceholder} style={{ flex: 1, background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 20, padding: '7px 12px', color: '#fff', fontSize: 12, outline: 'none', minWidth: 0 }} />
             <button onClick={sendChat} style={{ background: GREEN_DIM, border: 'none', borderRadius: '50%', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 12 }}>➤</button>
           </div>
         </div>
