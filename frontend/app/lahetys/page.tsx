@@ -1217,7 +1217,7 @@ export default function LahetysPage() {
               <a href="/dashboard/tuotteet" style={{ background: GREEN_DIM, color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 7, fontWeight: 700, fontSize: 14 }}>→ Lisää tuotteita</a>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0,1fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
               {/* Vasen: julkaisutavan valinta + kamera-esikatselu */}
               <div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>

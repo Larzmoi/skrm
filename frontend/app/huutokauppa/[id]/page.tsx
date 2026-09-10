@@ -133,7 +133,7 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
           <span style={{ color: C.text }}>{product.name}</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 380px', gap: isMobile ? 24 : 40 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 380px', gap: isMobile ? 24 : 40 }}>
 
           <div>
             <div style={{ borderRadius: 12, overflow: 'hidden', background: C.surface, aspectRatio: '1' }}>

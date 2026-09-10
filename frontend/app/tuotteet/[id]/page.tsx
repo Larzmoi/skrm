@@ -164,7 +164,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <span style={{ color: C.text, fontWeight: 500 }}>{product.name}</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 380px', gap: isMobile ? 24 : 40, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 380px', gap: isMobile ? 24 : 40, alignItems: 'start' }}>
 
           {/* Kuvat */}
           <div>

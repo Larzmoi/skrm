@@ -114,7 +114,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Pikatoiminnot — selkeästi erillään: live-lähetys vs. tuotteiden hallinta */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 14, marginBottom: 20 }}>
         <Link href="/lahetys" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none', background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 12, padding: '18px 20px' }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: C.accentSolid, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: C.accentText, flexShrink: 0 }}>◉</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -133,7 +133,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 20 }}>
 
         {/* Lähetykset */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px' }}>

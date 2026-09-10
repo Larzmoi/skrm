@@ -549,7 +549,7 @@ function TuotteetContent() {
             <div style={{ background: C.cardBg, border: `1px solid ${C.accent}`, borderRadius: 12, padding: 16, marginTop: 14 }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 12 }}>Ennen tallennusta ({parsedPreview.length} tuotetta)</h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
                 {parsedPreview.map((p: any, idx: number) => (
                   <div key={idx} style={{ background: C.surface, borderRadius: 7, border: `1px solid ${C.border}`, padding: '12px' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 4 }}>{p.name}</div>
@@ -651,7 +651,7 @@ function TuotteetContent() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '150px 1fr', gap: 16, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '150px 1fr', gap: 16, marginBottom: 14 }}>
                 {/* Kuva */}
                 <div>
                   <label style={lbl}>{tp.imageLabel}</label>

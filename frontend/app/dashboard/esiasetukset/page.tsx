@@ -280,7 +280,7 @@ export default function EsiasetuksetPage() {
       ) : presets.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: C.muted, fontSize: 14 }}>{tp.empty}</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
           {presets.map(p => (
             <div key={p.id} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: 12, display: 'flex', gap: 10 }}>
               <div style={{ width: 44, height: 44, borderRadius: 7, overflow: 'hidden', flexShrink: 0, background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
