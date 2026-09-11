@@ -49,10 +49,9 @@ function LoginForm() {
           </button>
           <Link href="/unohtuiko-salasana" style={{ textAlign: 'center', fontSize: 13, color: C.muted, textDecoration: 'none' }}>{t.auth.forgotPassword}</Link>
         </div>
-        {/* Rekisteröityminen väliaikaisesti pois käytöstä — poista kommentointi kun otetaan takaisin käyttöön */}
-        {/* <div style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: C.muted }}>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: C.muted }}>
           {t.auth.noAccount} <Link href="/register" style={{ color: C.accent, fontWeight: 600 }}>{t.auth.createAccount}</Link>
-        </div> */}
+        </div>
       </div>
     </div>
   )

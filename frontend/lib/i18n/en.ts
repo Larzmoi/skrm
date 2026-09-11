@@ -21,7 +21,7 @@ const en = {
     heroHide: 'Hide',
     promoTitle: 'No listing or monthly fees',
     promoBody: 'You only pay 3.5% when the item actually sells, up to €35. Start selling today.',
-    promoCta: 'Become a seller',
+    promoCta: 'Register here',
     upcomingPreBidOpen: 'Pre-bidding is already open',
     watchShow: 'Watch show',
     adLabel: 'Habahub recommends',

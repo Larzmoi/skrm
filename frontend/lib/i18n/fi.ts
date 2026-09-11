@@ -21,7 +21,7 @@ const fi = {
     heroHide: 'Piilota',
     promoTitle: 'Ei listaus- eikä kuukausimaksuja',
     promoBody: 'Maksat vain 3,5 % kun tuote oikeasti myydään, enintään 35 €. Aloita myyminen tänään.',
-    promoCta: 'Ryhdy myyjäksi',
+    promoCta: 'Rekisteröidy tästä',
     upcomingPreBidOpen: 'Ennakkotarjoukset ovat jo auki',
     watchShow: 'Katso lähetys',
     adLabel: 'Habahub suosittelee',
