@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Chat-historia näkyviin liittyville katsojille kesken livea 2026-09-11 — ✅ TEHTY JA TESTATTU OIKEALLA SOCKET-YHTEYDELLÄ
+
+Omistaja kysyi: voisiko koko liven aikana käydyn chatin saada näkyviin vaikka liittyisi kesken kaiken — vai miten se on tällä hetkellä toteutettu?
+
+**Nykytila oli: täysin ei ollenkaan.** Chat on aina ollut puhdas broadcast-toiminto (`socket.ts`:n `chat_message`-käsittelijä lähettää suoraan `io.to(room).emit(...)`, ei mitään tietokantamallia eikä muistissa säilyvää historiaa) — katsoja joka liittyy kesken lähetyksen näki tismalleen nolla aiempaa viestiä, vain sen jälkeen lähetetyt.
+
+**Toteutus, kevyt (ei liian iso urakka):** uusi in-memory `chatHistory`-Map `socket.ts`:ssä (`showId -> viimeisimmät 200 viestiä`), samalla periaatteella kuin tiedostossa jo olevat `mutedWords`/`moderators`/`removedFromShow`-Mapit (ei pysyvää tietokantamallia, ei säily backendin uudelleenkäynnistyksen yli — hyväksyttävä rajaus koska sama koskee jo näitä muita, ja jokainen uusi lähetys saa joka tapauksessa tuoreen showId:n). Jokainen `chat_message` lisää itsensä historiaan, `delete_chat_message` poistaa sen sieltä myös (ettei myöhemmin liittyvä näe moderaattorin juuri piilottamaa viestiä). `join_show` lähettää historian VAIN juuri liittyneelle socketille (`socket.emit`, ei broadcast) heti liittymisen yhteydessä. Sekä katsojan `/live/[showId]` että myyjän oman `/lahetys`-konsolin socket-kuuntelijät yhdistävät (`id`:n perusteella, ei korvaa suoraan) saapuvan historian paikalliseen feed-tilaan — sama korjaus hyödyttää myös myyjää, jos hänen oma konsolinsa lataa itsensä uudestaan kesken lähetyksen (esim. sivun päivitys).
+
+**Testattu oikealla socket.io-yhteydellä tuotantoa vasten, ei vain koodikatselmuksella:** kertakäyttöinen testi loi väliaikaisen `SCHEDULED`-Show'n, yhdisti kaksi erillistä socket-yhteyttä samalla testitilillä — ensimmäinen liittyi ja lähetti erottuvan testiviestin, toinen liittyi VASTA sen jälkeen — ja vahvisti että toinen socket sai `chat_history`-tapahtuman jossa testiviesti oli mukana (`Test message found in history: true`). Testi-Show siivottu heti perään.
+
+**Deployn sivuhuomio, sama kuvio kuin edellisessä muutoksessa:** repo oli taas hetken yksityinen kesken deployn (toinen kanava, ks. "Työskentelytapa"-osio), `git pull` epäonnistui palvelimella samalla tavalla kuin aiemmin. Ratkaistu samalla, jo opitulla tavalla: kolme muuttunutta lähdetiedostoa kopioitu `scp`:llä, rivinvaihdot normalisoitu (`sed 's/\r$//'`) heti kopioinnin yhteydessä (opittu edellisestä kerrasta — vältti kokonaan aiemman CRLF-diffin), vahvistettu md5-summalla identtisiksi paikallisten kanssa ennen rakennusta. Kun repo palautuu julkiseksi, seuraava `git pull` synkronoi palvelimen historian ilman konflikteja koska sisältö on jo sama.
+
+Typecheck+build vihreä molemmilla puolilla, deployattu, vahvistettu oikealla kaksois-socket-testillä tuotannossa.
+
 ## Live-taustan kohinatekstuuri 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
 
 Omistaja raportoi: livessä näkyy taustalla ärsyttävä rakeinen kuva, kysyttiin voisiko sen vaihtaa yksiväriseksi (musta/tumman harmaa).
