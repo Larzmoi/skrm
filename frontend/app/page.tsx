@@ -99,12 +99,16 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
   // Laatikko myös korkeampi kuin ennen (minHeight) jotta tausta ehtii näkyä kunnolla.
   return (
     <div style={{ position: 'relative', overflow: 'hidden', background: '#0F172A', border: '1px solid #1E293B', borderRadius: 20, minHeight: isMobile ? 260 : 320, display: 'flex', marginBottom: 32, boxShadow: '0 20px 40px -20px rgba(0,0,0,0.4)' }}>
+      {/* borderRadius toistettu myös itse media-elementissä (ei vain kääre-divissä) - pelkkä
+          kääreen overflow:hidden ei aina riitä, koska video promotoituu omaksi, laitteisto-
+          kiihdytetyksi compositing-kerroksekseen (erityisesti Android/Chrome), joka voi jättää
+          esi-isän border-radius-rajauksen huomiotta ja vuotaa pyöristettyjen kulmien yli. */}
       {ad.videoUrl ? (
         isVideo
-          ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <img src={ad.videoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
+          : <img src={ad.videoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
       ) : ad.imageUrl && (
-        <img src={ad.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={ad.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
       )}
       <div style={{
         position: 'absolute', inset: 0,
@@ -281,7 +285,7 @@ export default function Home() {
         // oikein toimiva pääsisältö-kääre (rivi ~330) välttää tämän koska sillä on SEKÄ
         // maxWidth+margin:auto ETTÄ eksplisiittinen width:'100%' - jälkimmäinen puuttui
         // tästä. Lisätty nyt sama width:'100%' tähänkin.
-        <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 0 0' : '20px 24px 0' }}>
+        <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 14px 0' : '20px 24px 0' }}>
           <AdBanner C={C} isMobile={isMobile} t={t} ad={ad} />
         </div>
       )}
