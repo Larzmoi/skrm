@@ -7,6 +7,17 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Rekisteröitymisen IP-rajoitus 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan pyyntö: estä yhtä laitetta luomasta montaa eri tiliä. **Ei toteutettu kovana estona** — kysytty ensin kaksi kysymystä (`AskUserQuestion`), koska Suomen mobiiliverkot (ja moni kotireititin) jakavat saman julkisen IP:n (CGNAT) usean toisistaan riippumattoman oikean asiakkaan kesken; tiukka "1 tili per IP ikuisesti" -sääntö olisi estänyt oikeitakin, eri ihmisiä samalta operaattorilta. Omistaja valitsi: **max 2-3 tiliä per IP vapaasti, sen jälkeen salli rekisteröityminen mutta merkitse tili tarkistettavaksi** (ei siis koskaan kova esto).
+
+**Toteutus:**
+- Uudet `User.registrationIp`/`flaggedDuplicateIp`-kentät. `POST /auth/register` laskee kuinka monta olemassa olevaa tiliä jakaa saman IP:n (`MAX_ACCOUNTS_PER_IP_BEFORE_FLAG = 3`) — 4. ja siitä eteenpäin tallentuvat `flaggedDuplicateIp:true`:na, rekisteröityminen ei koskaan epäonnistu tämän takia.
+- **IP-tunnistus käyttää samaa luotettavaa mekanismia kuin rate limiterit** (Cloudflaren `CF-Connecting-IP`-otsikko, `ipKeyGenerator`:n IPv6-/56-normalisointi estämässä kiertämisen vaihtamalla IPv6-osoitetta) — `clientKey()`-funktio eriytetty `index.ts`:stä omaksi jaetuksi tiedostokseen `backend/src/lib/clientIp.ts`, jotta `routes/auth.ts` voi käyttää täsmälleen samaa logiikkaa sen sijaan että keksittäisiin toinen, mahdollisesti eri tuloksen antava IP-tunnistus.
+- **Admin-paneeliin liputuksen tarkistustyökalut:** uusi "Näytä vain liputetut (IP-duplikaatti)" -suodatinvalinta käyttäjälistassa (`GET /admin/users?flaggedOnly=true`), keltainen "IP-DUPLIKAATTI"-badge liputetun käyttäjän kortissa, rekisteröitymis-IP näkyvissä (monospace) + "Merkitse tarkistetuksi" -nappi joka tyhjentää lipun (`PATCH /admin/users/:id`, uusi `flaggedDuplicateIp`-kenttä muiden osittaispäivitysten joukossa).
+
+**Testattu tuotannossa oikealla rekisteröitymisvirtauksella (ei vain synteettisellä skriptillä):** neljä oikeaa `POST /auth/register`-kutsua samasta IP:stä (tämän ympäristön oma IP) → ensimmäiset kolme `flaggedDuplicateIp:false`, neljäs `true`, kaikilla neljällä sama `registrationIp` (vahvisti myös IPv6-/56-normalisoinnin toimivan: `2001:99a:475:6e00::/56`). `flaggedOnly=true`-suodatin palautti oikein vain liputetun tilin, `PATCH .../flaggedDuplicateIp:false` tyhjensi lipun ja tili katosi suodatetusta listasta. Kaikki neljä testitiliä siivottu pois `prisma.user.deleteMany()`:lla testin jälkeen. `prisma db push` ajettu tuotantoon ennen testiä (pelkkä lisäys, ei vaikuttanut olemassa oleviin käyttäjiin — kaikkien vanhojen tilien `registrationIp` on `null`, `flaggedDuplicateIp` `false`).
+
 ## Promo-kortin otsikko jatkojalostettu, CTA pyöreämmäksi, piilotus kirjautuneilta 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Jatkoa edelliseen tekstiuudistukseen — omistaja koki uuden otsikon vielä laimeaksi. Annettu neljä vaihtoehtoa (`AskUserQuestion`), omistaja valitsi:
