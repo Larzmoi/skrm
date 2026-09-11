@@ -507,6 +507,8 @@ const fi = {
     goToPayoutsLink: 'Siirry Tilitykset-sivulle', creatingBtn: 'Luodaan...',
     createShowBtn: 'Luo lähetys ja testaa yhteys',
     createShowHint: 'Tämä ei vielä näy katsojille — vasta erillinen "Aloita julkinen lähetys" -painallus tekee lähetyksestä julkisen.',
+    continueScheduledBtn: 'Jatka ajastettuun lähetykseen',
+    resumeScheduledBanner: 'Tämä lähetys on jo ajastettu — nimi/kategoria/kaupunki on lukittu ajastuksen mukaisiksi. Testaa kamera ennen kuin jatkat.',
     browserBlockedCamera: 'Selain esti pääsyn — tarkista selaimen kameraluvat.',
     cameraInUse: 'Kamera on jo toisen sovelluksen käytössä (esim. OBS) — sulje se ja yritä uudelleen.',
     cameraNotFound: 'Kameraa ei löytynyt.', cameraUnknownError: 'Kameraan ei saada yhteyttä ({reason}).',
@@ -548,7 +550,7 @@ const fi = {
     createShowNeedTitle: 'Anna lähetykselle nimi', createShowGenericFailed: 'Lähetyksen luonti epäonnistui',
     goPublicFailed: 'Julkaisu epäonnistui', phonePublishFailed: 'Lähetyksen aloitus epäonnistui',
     editProductLink: 'Muokkaa tuotetta →', closeTitle: 'Sulje', backTitle: 'Takaisin', waitingForObs: 'Odotetaan OBS-yhteyttä...', liveIndicatorLabel: 'LÄHETYS KÄYNNISSÄ', cameraFallbackLabel: 'Kamera {id}',
-    cameraTestRequired: 'Paina "Testaa kamera" yllä ennen kuin voit luoda lähetyksen — kamera pitää testata ensin.',
+    cameraTestRequired: 'Paina "Testaa kamera" yllä ennen kuin voit jatkaa — kamera pitää testata ensin.',
   },
 }
 export default fi

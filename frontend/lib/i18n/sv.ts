@@ -494,6 +494,8 @@ const sv = {
     goToPayoutsLink: 'Gå till Utbetalningar-sidan', creatingBtn: 'Skapar...',
     createShowBtn: 'Skapa sändning och testa anslutning',
     createShowHint: 'Detta syns ännu inte för tittare — endast en separat tryckning på "Starta offentlig sändning" gör sändningen offentlig.',
+    continueScheduledBtn: 'Fortsätt till schemalagd sändning',
+    resumeScheduledBanner: 'Denna sändning är redan schemalagd — namn/kategori/stad är låsta till de schemalagda värdena. Testa kameran innan du fortsätter.',
     browserBlockedCamera: 'Webbläsaren blockerade åtkomsten — kontrollera webbläsarens kamerabehörigheter.',
     cameraInUse: 'Kameran används redan av en annan app (t.ex. OBS) — stäng den och försök igen.',
     cameraNotFound: 'Ingen kamera hittades.', cameraUnknownError: 'Kameran kan inte nås ({reason}).',
@@ -535,7 +537,7 @@ const sv = {
     createShowNeedTitle: 'Ge sändningen ett namn', createShowGenericFailed: 'Det gick inte att skapa sändningen',
     goPublicFailed: 'Det gick inte att publicera', phonePublishFailed: 'Det gick inte att starta sändningen',
     editProductLink: 'Redigera produkt →', closeTitle: 'Stäng', backTitle: 'Tillbaka', waitingForObs: 'Väntar på OBS-anslutning...', liveIndicatorLabel: 'SÄNDNING PÅGÅR', cameraFallbackLabel: 'Kamera {id}',
-    cameraTestRequired: 'Tryck på "Testa kamera" ovan innan du kan skapa sändningen — kameran måste testas först.',
+    cameraTestRequired: 'Tryck på "Testa kamera" ovan innan du kan fortsätta — kameran måste testas först.',
   },
 }
 export default sv

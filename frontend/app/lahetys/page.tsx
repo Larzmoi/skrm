@@ -251,6 +251,11 @@ export default function LahetysPage() {
   const [thumbnail, setThumbnail] = useState<string | null>(null)
   const [show, setShow] = useState<ShowInfo | null>(null)
   const [showStatus, setShowStatus] = useState<ShowStatus>(null)
+  // ID:llinen viite jo olemassa olevaan SCHEDULED-lähetykseen (esim. luotu dashboardin
+  // ajastuslomakkeella) - kun tämä on asetettu, "Testaa kamera" -näkymä esitäytetään sen
+  // tiedoilla eikä createShow() luo uutta Show-riviä, vain siirtää konsoliin. Ks. CLAUDE.md
+  // "Ajastetun lähetyksen klikkaus vei suoraan livekonsoliin ilman kameratestiä".
+  const [pendingShowId, setPendingShowId] = useState<string | null>(null)
   const [goingPublic, setGoingPublic] = useState(false)
   const [streamKey, setStreamKey] = useState('')
   const [streamUrl, setStreamUrl] = useState('')
@@ -480,11 +485,29 @@ export default function LahetysPage() {
         .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
       if (active) {
-        setShow({ id: active.id, title: active.title })
-        setShowStatus(active.status)
-        setIsLive(true)
-        if (active.status === 'LIVE' && active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
-        if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+        if (active.status === 'LIVE') {
+          // Julkinen lähetys on jo käynnissä - myyjä JO striimaa (OBS/puhelin on jo
+          // yhdistetty), joten tähän tilaan pitää päästä suoraan takaisin riippumatta
+          // siitä miten sivulle päädyttiin - ei kameratestiä uudestaan.
+          setShow({ id: active.id, title: active.title })
+          setShowStatus('LIVE')
+          setIsLive(true)
+          if (active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
+          if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+        } else {
+          // SCHEDULED-lähetys (esim. dashboardin ajastuslomakkeella luotu) - EI hypätä suoraan
+          // livekonsoliin, koska kameraa/OBS:aa ei ole vielä testattu eikä yhdistetty mihinkään.
+          // Jäädään esikatselu-/asetusnäkymään (isLive=false) esitäytettynä olemassa olevan
+          // lähetyksen tiedoilla - konsoliin siirrytään vasta kameran testauksen jälkeen
+          // (ks. createShow()). Ilman tätä video-alue (HlsPreview) näytti tyhjää, koska mikään
+          // ei ollut koskaan alkanut julkaista kuvaa sinne.
+          setPendingShowId(active.id)
+          setTitle(active.title)
+          if (active.category) setCategory(active.category)
+          if (active.alakategoria) setAlakategoria(active.alakategoria)
+          if (active.city) setCity(active.city)
+          if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+        }
       }
     } catch {}
   }
@@ -742,13 +765,19 @@ export default function LahetysPage() {
 
   // Luo lähetyksen (status SCHEDULED) ja avaa yksityisen esikatselukonsolin — EI vielä julkinen.
   // Myyjä testaa OBS-yhteyden täällä rauhassa, katsojat eivät näe mitään ennen "Aloita julkinen lähetys".
+  // Jos pendingShowId on asetettu (ajastettu lähetys on jo olemassa, ks. checkForActiveShow),
+  // EI luoda uutta Show-riviä — siirrytään vain konsoliin, koska kamera on juuri testattu.
   async function createShow() {
     if (!title.trim()) { setStartError(sc.createShowNeedTitle); return }
     setStarting(true); setStartError(''); setStartErrorCode('')
     try {
-      const { showApi } = await import('@/lib/api')
-      const created = await showApi.create({ title: title.trim(), category: category || undefined, alakategoria: alakategoria || undefined, city: city.trim() || undefined, thumbnailUrl: thumbnail ?? undefined })
-      setShow({ id: created.id, title: created.title })
+      if (pendingShowId) {
+        setShow({ id: pendingShowId, title: title.trim() })
+      } else {
+        const { showApi } = await import('@/lib/api')
+        const created = await showApi.create({ title: title.trim(), category: category || undefined, alakategoria: alakategoria || undefined, city: city.trim() || undefined, thumbnailUrl: thumbnail ?? undefined })
+        setShow({ id: created.id, title: created.title })
+      }
       setShowStatus('SCHEDULED')
       setIsLive(true)
       setViewers(0)
@@ -802,7 +831,7 @@ export default function LahetysPage() {
     disconnectSocket()
     stopCamera()
     stopPhonePublish()
-    setIsLive(false); setShow(null); setShowStatus(null); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? '')
+    setIsLive(false); setShow(null); setShowStatus(null); setThumbnail(null); setTitle(''); setCategory(''); setAlakategoria(''); setCity(user?.city ?? ''); setPendingShowId(null)
     setCurrentProductId(null); setSoldItems([]); setSoldAmounts({}); setFeed([]); setLiveSince(null); setViewers(0); setShowObsInfo(false); setShowModTools(false); setShowQueue(false)
     setAuction({ productId: null, currentBid: 0, leaderName: null, timer: 0, active: false })
   }
@@ -1306,14 +1335,23 @@ export default function LahetysPage() {
 
               {/* Oikea: lähetyksen tiedot -lomake */}
               <div>
+                {/* Jo ajastettu lähetys (esim. dashboardin ajastuslomakkeella) - nimi/kategoria/
+                    kaupunki tulevat suoraan siitä lähetyksestä eikä niitä voi muokata täällä
+                    (ei erillistä PATCH-reittiä lähetyksen tietojen päivitykseen) - vain kamera
+                    pitää testata ennen konsoliin siirtymistä. */}
+                {pendingShowId && (
+                  <div style={{ background: 'rgba(74,222,128,0.1)', border: `1px solid ${GREEN_DIM}66`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: GREEN, fontSize: 12, fontWeight: 600 }}>
+                    {sc.resumeScheduledBanner}
+                  </div>
+                )}
                 <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.broadcastNameLabel}</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder={sc.broadcastNamePlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                  <input value={title} onChange={e => setTitle(e.target.value)} disabled={!!pendingShowId} placeholder={sc.broadcastNamePlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: pendingShowId ? DARK_MUTED : DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12, cursor: pendingShowId ? 'not-allowed' : 'text' }} />
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.categoryLabel}</label>
-                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                      <select value={category} onChange={e => { setCategory(e.target.value); setAlakategoria('') }} disabled={!!pendingShowId} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: pendingShowId ? DARK_MUTED : DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box', cursor: pendingShowId ? 'not-allowed' : 'pointer' }}>
                         <option value="">{sc.selectPlaceholder}</option>
                         {getNakyvatKategoriat().map(k => <option key={k.id} value={k.id}>{getKatNimi(k, lang as any)}</option>)}
                       </select>
@@ -1321,7 +1359,7 @@ export default function LahetysPage() {
                     {(getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat ?? []).length > 0 && (
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.subcategoryLabel}</label>
-                        <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}>
+                        <select value={alakategoria} onChange={e => setAlakategoria(e.target.value)} disabled={!!pendingShowId} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: pendingShowId ? DARK_MUTED : DARK_TEXT, fontSize: 13, outline: 'none', marginBottom: 12, boxSizing: 'border-box', cursor: pendingShowId ? 'not-allowed' : 'pointer' }}>
                           <option value="">{sc.selectPlaceholder}</option>
                           {getNakyvatKategoriat().find(k => k.id === category)?.alakategoriat.map(a => <option key={a.id} value={a.id}>{getAlaNimi(a, lang as any)}</option>)}
                         </select>
@@ -1330,7 +1368,7 @@ export default function LahetysPage() {
                   </div>
 
                   <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{t.selaa.city}</label>
-                  <input value={city} onChange={e => setCity(e.target.value)} placeholder={sc.cityPlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+                  <input value={city} onChange={e => setCity(e.target.value)} disabled={!!pendingShowId} placeholder={sc.cityPlaceholder} style={{ width: '100%', background: DARK_SURFACE2, border: `1px solid ${DARK_BORDER}`, borderRadius: 7, padding: '9px 12px', color: pendingShowId ? DARK_MUTED : DARK_TEXT, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 12, cursor: pendingShowId ? 'not-allowed' : 'text' }} />
 
                   <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.cameraSourceLabel}</label>
                   {devices.length === 0
@@ -1342,21 +1380,23 @@ export default function LahetysPage() {
 
                   <label style={{ fontSize: 12, fontWeight: 600, color: DARK_MUTED, display: 'block', marginBottom: 8 }}>{sc.thumbnailLabel}</label>
                   <div
-                    onClick={() => thumbnailRef.current?.click()}
+                    onClick={() => { if (!pendingShowId) thumbnailRef.current?.click() }}
                     style={{
                       width: '100%', aspectRatio: '21/9', borderRadius: 10,
                       border: `2px dashed ${thumbnail ? GREEN_DIM : DARK_BORDER}`, background: DARK_SURFACE2,
-                      cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', position: 'relative',
+                      cursor: pendingShowId ? 'not-allowed' : 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', position: 'relative', opacity: pendingShowId ? 0.7 : 1,
                     }}
                   >
                     {thumbnail ? (
                       <>
                         <img src={thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button
-                          onClick={e => { e.stopPropagation(); setThumbnail(null) }}
-                          style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14 }}
-                        >✕</button>
+                        {!pendingShowId && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setThumbnail(null) }}
+                            style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14 }}
+                          >✕</button>
+                        )}
                       </>
                     ) : (
                       <div style={{ textAlign: 'center', color: DARK_MUTED }}>
@@ -1385,7 +1425,7 @@ export default function LahetysPage() {
                   </div>
                 )}
                 <button onClick={createShow} disabled={starting || !camReady} style={{ width: '100%', background: GREEN_DIM, color: '#fff', border: 'none', padding: '12px', borderRadius: 9, fontWeight: 800, fontSize: 15, cursor: (starting || !camReady) ? 'not-allowed' : 'pointer', opacity: (starting || !camReady) ? 0.5 : 1 }}>
-                  {starting ? sc.creatingBtn : sc.createShowBtn}
+                  {starting ? sc.creatingBtn : (pendingShowId ? sc.continueScheduledBtn : sc.createShowBtn)}
                 </button>
                 <div style={{ fontSize: 11, color: DARK_MUTED, textAlign: 'center', marginTop: 8 }}>{sc.createShowHint}</div>
               </div>

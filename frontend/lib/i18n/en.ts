@@ -494,6 +494,8 @@ const en = {
     goToPayoutsLink: 'Go to Payouts page', creatingBtn: 'Creating...',
     createShowBtn: 'Create stream and test connection',
     createShowHint: 'This is not yet visible to viewers — only a separate "Go live publicly" press makes the stream public.',
+    continueScheduledBtn: 'Continue to scheduled stream',
+    resumeScheduledBanner: 'This stream is already scheduled — the name/category/city are locked to the scheduled values. Test your camera before continuing.',
     browserBlockedCamera: 'Browser blocked access — check your browser camera permissions.',
     cameraInUse: 'The camera is already in use by another app (e.g. OBS) — close it and try again.',
     cameraNotFound: 'No camera found.', cameraUnknownError: 'Cannot reach the camera ({reason}).',
@@ -535,7 +537,7 @@ const en = {
     createShowNeedTitle: 'Give the stream a name', createShowGenericFailed: 'Failed to create stream',
     goPublicFailed: 'Failed to go public', phonePublishFailed: 'Failed to start broadcast',
     editProductLink: 'Edit product →', closeTitle: 'Close', backTitle: 'Back', waitingForObs: 'Waiting for OBS connection...', liveIndicatorLabel: 'BROADCAST LIVE', cameraFallbackLabel: 'Camera {id}',
-    cameraTestRequired: 'Press "Test camera" above before you can create the stream — the camera must be tested first.',
+    cameraTestRequired: 'Press "Test camera" above before you can continue — the camera must be tested first.',
   },
 }
 export default en
