@@ -126,7 +126,7 @@ const fi = {
     acceptPrivacy: 'Olen lukenut ja hyväksyn', privacyLink: 'tietosuojaselosteen',
     acceptPolicy: 'Ymmärrän kaupankäyntipolitiikan:',
     policyPoint1: 'Kaikki ostot ja huudot ovat sitovia — suoramyynnissä, live-huutokaupassa ja perinteisessä huutokaupassa',
-    policyPoint2: 'Voitetusta huudosta tai ostoksesta on 2 tuntia aikaa maksaa',
+    policyPoint2: 'Voitetusta huudosta tai ostoksesta on 12 tuntia aikaa maksaa',
     policyPoint3: 'Jo ensimmäinen maksamaton tilaus johtaa 30 päivän automaattibanniin ilman poikkeuksia',
     policyPoint4: 'Yhdistetty lähetys: sama myyjä 6h sisällä = yksi postikuluvalinta',
     acceptRequired: 'Hyväksy käyttöehdot, tietosuojaseloste ja kaupankäyntipolitiikka',

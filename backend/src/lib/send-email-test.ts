@@ -16,7 +16,7 @@ async function main() {
   await sendWelcomeEmail(to, 'Testikäyttäjä', 'testika')
   await sendOrderConfirmationEmail(to, 'Testikäyttäjä', 'TEST-ORDER-001', 'Testikortti', 29.9)
   await sendShippingNotificationEmail(to, 'Testikäyttäjä', 'Testikortti', 'TEST123456789FI')
-  await sendAuctionWonEmail(to, 'Testikäyttäjä', 'Testikortti', 24.5, 2)
+  await sendAuctionWonEmail(to, 'Testikäyttäjä', 'Testikortti', 24.5, 12)
   console.log(`Testikutsut suoritettu: ${to}`)
 }
 

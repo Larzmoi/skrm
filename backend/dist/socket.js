@@ -9,9 +9,9 @@ const prisma_1 = require("./db/prisma");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const notify_1 = require("./lib/notify");
 const auctionOrder_1 = require("./lib/auctionOrder");
-// Ostaja aktiivisesti läsnä livessä huutaessaan — normaali 2h maksuaika, ei perinteisen
-// huutokaupan passiivisen voiton 24h (ks. CLAUDE.md maksuaika-poikkeus).
-const LIVE_AUCTION_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000;
+// Ostaja aktiivisesti läsnä livessä huutaessaan — maksuaika 2h -> 12h omistajan pyynnöstä
+// 2026-09-11, ei perinteisen huutokaupan passiivisen voiton 24h (ks. CLAUDE.md maksuaika-poikkeus).
+const LIVE_AUCTION_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000;
 // Merkitsee live-huutokaupan tuotteen myydyksi, luo Order-rivin voittajalle ja ilmoittaa -
 // sama createOrderForAuctionWin-logiikka jota closeAuctions.ts ja auctions.ts:n buy-now jo
 // käyttävät, mutta tämän tiedoston oma live-huutojärjestelmä ei koskaan kutsunut sitä.
@@ -23,7 +23,7 @@ async function finalizeLiveAuctionSale(sellerId, productId, price, winnerId) {
         data: { status: 'SOLD', finalPrice: price },
     });
     await (0, auctionOrder_1.createOrderForAuctionWin)(winnerId, sellerId, productId, price, LIVE_AUCTION_PAYMENT_WINDOW_MS);
-    await (0, notify_1.notifyUser)(winnerId, 'ORDER_WON', 'Voitit huudon!', `Voitit tuotteen "${product.name}" hintaan ${price}€. Sinulla on 2h aikaa maksaa.`, '/ostot');
+    await (0, notify_1.notifyUser)(winnerId, 'ORDER_WON', 'Voitit huudon!', `Voitit tuotteen "${product.name}" hintaan ${price}€. Sinulla on 12h aikaa maksaa.`, '/ostot');
 }
 const auctions = new Map();
 // Kertoo onko tuote juuri nyt käynnissä olevan live-huutokaupan aktiivinen lot - products.ts:n

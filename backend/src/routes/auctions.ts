@@ -5,7 +5,7 @@ import { notifyUser } from '../lib/notify'
 import { createOrderForAuctionWin } from '../lib/auctionOrder'
 import { sendAuctionWonEmail } from '../lib/resend'
 
-const BUY_NOW_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000 // ostaja aktiivisesti läsnä klikatessaan — normaali 2h maksuaika
+const BUY_NOW_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000 // ostaja aktiivisesti läsnä klikatessaan — maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11
 
 const router = Router()
 
@@ -196,7 +196,7 @@ router.post('/:id/buy-now', authMiddleware, async (req: AuthRequest, res: Respon
   })
 
   await createOrderForAuctionWin(req.userId!, product.sellerId, productId, product.buyNowPrice, BUY_NOW_PAYMENT_WINDOW_MS)
-  await notifyUser(req.userId!, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 2h aikaa maksaa.`, '/ostot')
+  await notifyUser(req.userId!, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 12h aikaa maksaa.`, '/ostot')
   await notifyUser(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} ostettiin heti hintaan ${product.buyNowPrice}€`, '/dashboard/tilaukset')
   // Sähköposti push-ilmoituksen rinnalle (ks. CLAUDE.md, sähköpostit-integraatio 2026-09-03).
   // Idempotentti: yllä oleva update asettaa auctionEndsAt:n menneisyyteen (nyt-hetkeen), joten
@@ -204,7 +204,7 @@ router.post('/:id/buy-now', authMiddleware, async (req: AuthRequest, res: Respon
   // (ks. `if (product.auctionEndsAt && product.auctionEndsAt <= new Date())` yllä) ennen kuin
   // pääsee tänne asti.
   const buyer = await prisma.user.findUnique({ where: { id: req.userId! }, select: { email: true, name: true } })
-  if (buyer) void sendAuctionWonEmail(buyer.email, buyer.name, product.name, product.buyNowPrice, 2)
+  if (buyer) void sendAuctionWonEmail(buyer.email, buyer.name, product.name, product.buyNowPrice, 12)
 
   res.json({ ok: true, price: product.buyNowPrice })
 })

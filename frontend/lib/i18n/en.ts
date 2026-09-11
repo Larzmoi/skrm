@@ -124,7 +124,7 @@ const en = {
     acceptPrivacy: 'I have read and accept the', privacyLink: 'privacy policy',
     acceptPolicy: 'I understand the trading policy:',
     policyPoint1: 'All purchases and bids are binding — for direct sales, live auctions, and timed auctions',
-    policyPoint2: 'You have 2 hours to pay after winning a bid or making a purchase',
+    policyPoint2: 'You have 12 hours to pay after winning a bid or making a purchase',
     policyPoint3: 'Even a single unpaid order results in an automatic 30-day ban, no exceptions',
     policyPoint4: 'Combined shipment: same seller within 6h = one shipping choice',
     acceptRequired: 'Please accept the terms of service, privacy policy, and trading policy',

@@ -6,8 +6,12 @@ const auth_1 = require("../middleware/auth");
 const shipping_1 = require("../lib/shipping");
 const notify_1 = require("../lib/notify");
 const router = (0, express_1.Router)();
-const LIVE_ITEM_WINDOW_MS = 2 * 60 * 60 * 1000; // 2h
+const LIVE_ITEM_WINDOW_MS = 2 * 60 * 60 * 1000; // 2h — kori-rivin varausikkuna ENNEN checkoutia, eri asia kuin maksuaika (ei muutettu 2026-09-11)
 const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
+// Maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11 (ks. CLAUDE.md) — ostajan aika maksaa
+// AINA kun Order on jo luotu (checkout/voitto/hyväksytty tarjous), ei koske yllä olevaa
+// LIVE_ITEM_WINDOW_MS:ää joka on eri, aiempi vaihe (korin varaus ennen checkoutia).
+const PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000;
 // Live-ostosten CartItemit vanhenevat 2h addedAt:sta. Poistaa vanhentuneet
 // ja palauttaa niiden määrän takaisin tuotteen saatavaan varastoon.
 async function reapExpiredCartItems(buyerId) {
@@ -207,7 +211,7 @@ router.post('/checkout', auth_1.authMiddleware, async (req, res) => {
                 buyerId, sellerId: String(sellerId),
                 status: 'PENDING_PAYMENT',
                 productTotal: subtotal,
-                paymentDeadline: new Date(Date.now() + 2 * 60 * 60 * 1000),
+                paymentDeadline: new Date(Date.now() + PAYMENT_WINDOW_MS),
                 shippingWindowEnd: new Date(Date.now() + SHIPPING_MERGE_WINDOW_MS),
                 items: { create: items.map(i => ({ productId: i.productId, price: i.price, quantity: i.quantity })) },
             },

@@ -6,7 +6,7 @@ const auth_1 = require("../middleware/auth");
 const notify_1 = require("../lib/notify");
 const auctionOrder_1 = require("../lib/auctionOrder");
 const router = (0, express_1.Router)();
-const OFFER_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000; // sama 2h kuin muutkin ostajan aktiiviset ostot (LUKITTU)
+const OFFER_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000; // sama 12h kuin muutkin ostajan aktiiviset ostot (LUKITTU, 2h -> 12h 2026-09-11)
 // Sama Stripe-alaraja kuin products.ts:ssä (ks. sen kommentti) - hyväksytty tarjous muuttuu
 // suoraan Orderiksi ja maksetaan Stripen kautta, joten tarjoushinta ei voi jäädä tämän alle.
 const MIN_PRICE_EUROS = 0.5;
@@ -106,7 +106,7 @@ router.post('/:id/accept', auth_1.authMiddleware, async (req, res) => {
         }),
     ]);
     await (0, auctionOrder_1.createOrderForAuctionWin)(offer.buyerId, product.sellerId, product.id, price, OFFER_PAYMENT_WINDOW_MS);
-    await (0, notify_1.notifyUser)(offer.buyerId, 'OFFER_ACCEPTED', 'Tarjouksesi hyväksyttiin!', `Tarjouksesi ${price}€ tuotteesta ${product.name} hyväksyttiin. Sinulla on 2h aikaa maksaa.`, '/ostot');
+    await (0, notify_1.notifyUser)(offer.buyerId, 'OFFER_ACCEPTED', 'Tarjouksesi hyväksyttiin!', `Tarjouksesi ${price}€ tuotteesta ${product.name} hyväksyttiin. Sinulla on 12h aikaa maksaa.`, '/ostot');
     await Promise.all(othersToDecline.map(o => (0, notify_1.notifyUser)(o.buyerId, 'OFFER_DECLINED', 'Tarjous ei mennyt läpi', `${product.name} myytiin toiselle ostajalle.`, `/tuotteet/${product.id}`).catch(() => { })));
     res.json({ ok: true, price });
 });

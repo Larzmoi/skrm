@@ -124,7 +124,7 @@ const sv = {
     acceptPrivacy: 'Jag har läst och accepterar', privacyLink: 'integritetspolicy',
     acceptPolicy: 'Jag förstår köpingspolitiken:',
     policyPoint1: 'Alla köp och anbud är bindande — för direktförsäljning, liveauktioner och tidsbestämda auktioner',
-    policyPoint2: 'Du har 2 timmar att betala efter att ha vunnit ett anbud eller gjort ett köp',
+    policyPoint2: 'Du har 12 timmar att betala efter att ha vunnit ett anbud eller gjort ett köp',
     policyPoint3: 'Redan en enda obetald order leder till en automatisk 30-dagars ban utan undantag',
     policyPoint4: 'Kombinerad leverans: samma säljare inom 6h = ett val av fraktmetod',
     acceptRequired: 'Vänligen acceptera tjänstets villkor, integritetspolicy och köpingspolitiken',

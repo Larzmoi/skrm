@@ -6,7 +6,7 @@ const auth_1 = require("../middleware/auth");
 const notify_1 = require("../lib/notify");
 const auctionOrder_1 = require("../lib/auctionOrder");
 const resend_1 = require("../lib/resend");
-const BUY_NOW_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000; // ostaja aktiivisesti läsnä klikatessaan — normaali 2h maksuaika
+const BUY_NOW_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000; // ostaja aktiivisesti läsnä klikatessaan — maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11
 const router = (0, express_1.Router)();
 // Viime hetken pidennys ("anti-snipe") — omistajan pyynnöstä 2026-09-11 muutettu 2min/2min:stä
 // 1min/1min:iin (ks. CLAUDE.md): jos huutokaupassa on 60s tai vähemmän jäljellä kun huuto
@@ -176,7 +176,7 @@ router.post('/:id/buy-now', auth_1.authMiddleware, async (req, res) => {
         },
     });
     await (0, auctionOrder_1.createOrderForAuctionWin)(req.userId, product.sellerId, productId, product.buyNowPrice, BUY_NOW_PAYMENT_WINDOW_MS);
-    await (0, notify_1.notifyUser)(req.userId, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 2h aikaa maksaa.`, '/ostot');
+    await (0, notify_1.notifyUser)(req.userId, 'ORDER_WON', 'Ostit tuotteen!', `Ostit tuotteen ${product.name} hintaan ${product.buyNowPrice}€. Sinulla on 12h aikaa maksaa.`, '/ostot');
     await (0, notify_1.notifyUser)(product.sellerId, 'AUCTION_SOLD', 'Tuotteesi myytiin!', `${product.name} ostettiin heti hintaan ${product.buyNowPrice}€`, '/dashboard/tilaukset');
     // Sähköposti push-ilmoituksen rinnalle (ks. CLAUDE.md, sähköpostit-integraatio 2026-09-03).
     // Idempotentti: yllä oleva update asettaa auctionEndsAt:n menneisyyteen (nyt-hetkeen), joten
@@ -185,7 +185,7 @@ router.post('/:id/buy-now', auth_1.authMiddleware, async (req, res) => {
     // pääsee tänne asti.
     const buyer = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { email: true, name: true } });
     if (buyer)
-        void (0, resend_1.sendAuctionWonEmail)(buyer.email, buyer.name, product.name, product.buyNowPrice, 2);
+        void (0, resend_1.sendAuctionWonEmail)(buyer.email, buyer.name, product.name, product.buyNowPrice, 12);
     res.json({ ok: true, price: product.buyNowPrice });
 });
 // Automaattihuutojen käsittely — ratkaisee koko huutosodan yhdellä laskennalla:

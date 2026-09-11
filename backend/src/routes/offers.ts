@@ -6,7 +6,7 @@ import { createOrderForAuctionWin } from '../lib/auctionOrder'
 
 const router = Router()
 
-const OFFER_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000 // sama 2h kuin muutkin ostajan aktiiviset ostot (LUKITTU)
+const OFFER_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000 // sama 12h kuin muutkin ostajan aktiiviset ostot (LUKITTU, 2h -> 12h 2026-09-11)
 
 // Sama Stripe-alaraja kuin products.ts:ssä (ks. sen kommentti) - hyväksytty tarjous muuttuu
 // suoraan Orderiksi ja maksetaan Stripen kautta, joten tarjoushinta ei voi jäädä tämän alle.
@@ -112,7 +112,7 @@ router.post('/:id/accept', authMiddleware, async (req: AuthRequest, res: Respons
 
   await createOrderForAuctionWin(offer.buyerId, product.sellerId, product.id, price, OFFER_PAYMENT_WINDOW_MS)
 
-  await notifyUser(offer.buyerId, 'OFFER_ACCEPTED', 'Tarjouksesi hyväksyttiin!', `Tarjouksesi ${price}€ tuotteesta ${product.name} hyväksyttiin. Sinulla on 2h aikaa maksaa.`, '/ostot')
+  await notifyUser(offer.buyerId, 'OFFER_ACCEPTED', 'Tarjouksesi hyväksyttiin!', `Tarjouksesi ${price}€ tuotteesta ${product.name} hyväksyttiin. Sinulla on 12h aikaa maksaa.`, '/ostot')
 
   await Promise.all(othersToDecline.map(o =>
     notifyUser(o.buyerId, 'OFFER_DECLINED', 'Tarjous ei mennyt läpi', `${product.name} myytiin toiselle ostajalle.`, `/tuotteet/${product.id}`).catch(() => {})
