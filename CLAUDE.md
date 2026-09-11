@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Live-taustan kohinatekstuuri 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
+
+Omistaja raportoi: livessä näkyy taustalla ärsyttävä rakeinen kuva, kysyttiin voisiko sen vaihtaa yksiväriseksi (musta/tumman harmaa).
+
+**Juurisyy:** `.bg-noise` (`globals.css`) on koko sivustolle `ClientLayout.tsx`:ssä lisätty kiinteä, koko ruudun kokoinen SVG-fraktaalikohinaoverlay — `position:fixed; inset:0; z-index:40; pointer-events:none`, 3 %:n opasiteetilla. Koska sivun sisältö (kaikki lapset) on kääritty vain `z-index:10`:een, kohina piirtyy KIRJAIMELLISESTI KAIKEN päälle, myös livevideon. Tavallisilla kortti-/tekstisivuilla 3 % on käytännössä huomaamaton, mutta liikkuvan videokuvan päällä sama kohina näkyy selvästi "rakeisena suodattimena" — täsmää raportoituun oireeseen.
+
+**Korjaus:** `ClientLayout.tsx` lukee nyt `usePathname()`:n ja jättää `.bg-noise`-overlayn kokonaan renderöimättä `/live/*`- ja `/lahetys`-reiteillä — molemmilla on jo valmiiksi kiinteä tumma tausta (`#080808`), joten kohinan poisto paljastaa suoraan yksivärisen tumman taustan, juuri niin kuin pyydettiin. Muu sivusto pitää kohinan ennallaan — se on tarkoituksellinen osa "Visuaalinen tyylipäivitys" -linjaa, ei poisteta sieltä.
+
+Typecheck+build vihreä, deployattu (tällä kertaa tavallisella `git pull`:lla — GitHubin jäähdytysaika oli lauennut).
+
 ## Perinteisen huutokaupan sivun kuvagalleria ei toiminut 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
 
 Omistaja raportoi: kun huutokauppakohteeseen lisää kaksi eri kuvaa, toinen kuva ei vaihdu isoksi pääkuvaksi kun ostajana yrittää selata niitä — suoramyyntituotteilla vastaava toimii oikein.
