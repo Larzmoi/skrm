@@ -678,6 +678,19 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       setChat(c => [...c, { id: data.id ?? String(Date.now()), userId: data.userId, username: data.username, message: data.message, hidden: data.hidden }])
     })
 
+    // Koko kuluvan lähetyksen chat-historia, lähetetään vain juuri liittyneelle katsojalle
+    // (ks. socket.ts join_show) - omistajan pyyntö: katsoja näkee koko livechat vaikka
+    // liittyisi kesken kaiken, ei vain sen jälkeiset viestit. Yhdistetään (ei korvata
+    // suoraan) mahdollisten jo ehtineiden uusien viestien kanssa id:n perusteella, jos
+    // historia ja ensimmäinen uusi viesti sattuisivat saapumaan lähes yhtä aikaa.
+    socket.on('chat_history', (data: { messages: any[] }) => {
+      const history: ChatMsg[] = (data.messages ?? []).map((m: any) => ({ id: m.id, userId: m.userId, username: m.username, message: m.message, hidden: m.hidden }))
+      setChat(c => {
+        const ids = new Set(history.map(m => m.id))
+        return [...history, ...c.filter(m => !ids.has(m.id))]
+      })
+    })
+
     socket.on('chat_message_deleted', (data: { messageId: string }) => {
       setChat(c => c.filter(m => m.id !== data.messageId))
     })
@@ -773,6 +786,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
       socket.off('connect')
       socket.off('disconnect')
       socket.off('chat_message')
+      socket.off('chat_history')
       socket.off('chat_message_deleted')
       socket.off('your_status')
       socket.off('viewer_list')

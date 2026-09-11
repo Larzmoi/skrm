@@ -49,6 +49,14 @@ const moderators = new Map(); // showId -> moderaattorien userId:t
 const removedFromShow = new Map(); // showId -> tästä livestä poistettujen userId:t (EI sivustolaajuinen banni)
 const mutedWords = new Map(); // showId -> myyjän kieltämät sanat (pieninä kirjaimina)
 const viewerIdentities = new Map(); // showId -> socketId -> katsojan identiteetti (Watching-lista varten)
+// Chat-historia kuluvan lähetyksen ajalta — omistajan pyyntö: katsojan pitäisi nähdä koko
+// livechat vaikka liittyisi kesken kaiken, ei vain sen jälkeiset viestit. Sama in-memory-
+// periaate kuin muutkin tämän tiedoston per-show-Mapit (ei pysyvää tietokantamallia, ei
+// säily backendin uudelleenkäynnistyksen yli — hyväksyttävää, koska sama rajaus koskee
+// jo mm. mutedWords/moderators-tilaa, ja jokainen uusi lähetys saa joka tapauksessa oman
+// tuoreen showId:n). Rajattu 200 viimeisimpään viestiin per lähetys muistin kasvun estämiseksi.
+const CHAT_HISTORY_LIMIT = 200;
+const chatHistory = new Map();
 function isSellerOrMod(showId, sellerId, userId) {
     if (sellerId && sellerId === userId)
         return true;
@@ -144,6 +152,10 @@ function setupSocket(io) {
                     active: state.active,
                 });
             }
+            // Chat-historia VAIN juuri liittyneelle socketille (ei broadcast koko huoneeseen) -
+            // katsoja näkee koko kuluvan lähetyksen chatin heti liittyessään, ei vain sen jälkeiset
+            // viestit. Ks. yllä oleva chatHistory-Map.
+            socket.emit('chat_history', { messages: chatHistory.get(showId) ?? [] });
             broadcastViewerCount(io, showId);
             broadcastViewerList(io, showId, show?.sellerId);
         });
@@ -173,14 +185,20 @@ function setupSocket(io) {
                     return;
                 const trimmed = message.trim().slice(0, 200);
                 const words = await getMutedWords(showId);
-                io.to(`show:${showId}`).emit('chat_message', {
+                const payload = {
                     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     userId: user.id,
                     username: user.username,
                     message: trimmed,
                     hidden: containsMutedWord(words, trimmed),
                     timestamp: Date.now(),
-                });
+                };
+                io.to(`show:${showId}`).emit('chat_message', payload);
+                const history = chatHistory.get(showId) ?? [];
+                history.push(payload);
+                if (history.length > CHAT_HISTORY_LIMIT)
+                    history.splice(0, history.length - CHAT_HISTORY_LIMIT);
+                chatHistory.set(showId, history);
             }
             catch { }
         });
@@ -192,6 +210,11 @@ function setupSocket(io) {
                 if (!show || !isSellerOrMod(showId, show.sellerId, decoded.userId))
                     return;
                 io.to(`show:${showId}`).emit('chat_message_deleted', { messageId });
+                // Poistettu viesti pois historiasta myös - muuten myöhemmin liittyvä katsoja näkisi
+                // sen silti chat_history-toistossa, vaikka moderaattori juuri piilotti sen kaikilta.
+                const history = chatHistory.get(showId);
+                if (history)
+                    chatHistory.set(showId, history.filter(m => m.id !== messageId));
             }
             catch { }
         });

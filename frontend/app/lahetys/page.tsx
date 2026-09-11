@@ -651,6 +651,18 @@ export default function LahetysPage() {
       addFeed({ kind: 'chat', id: data.id ?? `chat-${Date.now()}`, userId: data.userId, username: data.username, message: data.message })
     })
 
+    // Koko kuluvan lähetyksen chat-historia (ks. socket.ts join_show + CLAUDE.md) -
+    // täyttää myyjän oman feedin uudestaan jos konsoli liittyy huoneeseen uudestaan
+    // kesken lähetyksen (esim. sivun uudelleenlataus tai paluu-navigointi), jolloin
+    // paikallinen feed-tila olisi muuten tyhjä vaikka lähetys on jatkunut jo hetken.
+    socket.on('chat_history', (data: { messages: any[] }) => {
+      const history: FeedItem[] = (data.messages ?? []).map((m: any) => ({ kind: 'chat' as const, id: m.id, userId: m.userId, username: m.username, message: m.message }))
+      setFeed(f => {
+        const ids = new Set(history.map(h => h.id))
+        return [...history, ...f.filter(item => !ids.has(item.id))].slice(-199)
+      })
+    })
+
     socket.on('chat_message_deleted', (data: { messageId: string }) => {
       setFeed(f => f.filter(item => item.id !== data.messageId))
     })
@@ -667,7 +679,7 @@ export default function LahetysPage() {
       socket.off('connect'); socket.off('disconnect')
       socket.off('auction_state')
       socket.off('auction_started'); socket.off('new_bid'); socket.off('timer_tick'); socket.off('auction_ended')
-      socket.off('viewer_count'); socket.off('chat_message'); socket.off('chat_message_deleted'); socket.off('muted_words_saved')
+      socket.off('viewer_count'); socket.off('chat_message'); socket.off('chat_history'); socket.off('chat_message_deleted'); socket.off('muted_words_saved')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show])
