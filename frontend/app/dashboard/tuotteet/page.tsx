@@ -349,7 +349,10 @@ function TuotteetContent() {
         // omistajalla itsellään on tuotannossa useita vanhoja ajastettuja lähetyksiä
         // samanaikaisesti, joten väärä arvaus olisi todellinen riski, ei vain teoreettinen.
         // Moniselitteisessä tapauksessa myyjä avaa /lahetys-konsolin normaalisti kuten ennenkin.
-        if (saleType !== 'buy_now') {
+        // 'auction' (perinteinen huutokauppa) suljettu pois myös tästä turhan kutsun välttämiseksi -
+        // backend (POST /shows/:id/claim-products) ei enää ikinä liitä auction-tuotteita mihinkään
+        // Show'hun, ks. CLAUDE.md "perinteisen huutokaupan kohteet näkyivät livessä".
+        if (saleType !== 'buy_now' && saleType !== 'auction') {
           showApi.mine().then((shows: any[]) => {
             const candidates = shows.filter(s => s.status === 'SCHEDULED' || s.status === 'LIVE')
             if (candidates.length === 1) showApi.claimProducts(candidates[0].id).catch(() => {})

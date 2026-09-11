@@ -194,8 +194,15 @@ router.post('/:id/claim-products', auth_1.authMiddleware, async (req, res) => {
     const show = await prisma_1.prisma.show.findUnique({ where: { id: String(req.params.id) } });
     if (!show || show.sellerId !== req.userId)
         return res.status(403).json({ error: 'Ei oikeutta' });
+    // saleType 'auction' (perinteinen, ajastettu huutokauppa, ks. CLAUDE.md "Perinteinen
+    // huutokauppa") EI KOSKAAN kuulu live-lähetyksen jonoon - se juoksee täysin itsenäisesti
+    // omalla determinoidulla päättymisajallaan (closeAuctions.ts), eikä sillä ole mitään
+    // tekemistä myyjän live-striimin kanssa. Ilman tätä poissulkua tämä "claima kaikki
+    // odottavat tuotteet" -kutsu liitti myös perinteiset huutokauppatuotteet vahingossa
+    // Show'hun, jolloin ne näkyivät katsojan Shop-paneelissa livessä - vahvistettu oikeaksi
+    // tuotannon datasta (4 tuotetta väärin liitettynä), ei vain teoreettinen.
     await prisma_1.prisma.product.updateMany({
-        where: { sellerId: req.userId, status: 'PENDING' },
+        where: { sellerId: req.userId, status: 'PENDING', saleType: { not: 'auction' } },
         data: { showId: show.id },
     });
     (0, notify_1.emitToShow)(show.id, 'products_updated', {});

@@ -12,7 +12,7 @@ import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
-interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number }
+interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number; saleType?: string }
 interface VideoDevice { deviceId: string; label: string }
 interface ShowInfo { id: string; title: string }
 type ShowStatus = 'SCHEDULED' | 'LIVE' | null
@@ -515,7 +515,10 @@ export default function LahetysPage() {
   useEffect(() => {
     import('@/lib/api').then(({ api, userApi }) => {
       api.getMyProducts().then((p: Product[]) => {
-        setProducts(p.filter(x => x.status === 'PENDING'))
+        // saleType 'auction' (perinteinen, ajastettu huutokauppa) ei koskaan kuulu live-jonoon -
+        // se juoksee itsenäisesti omalla determinoidulla päättymisajallaan, ei liity mitenkään
+        // livestriimiin. Ks. CLAUDE.md, sama poissulku kuin POST /shows/:id/claim-products:ssa.
+        setProducts(p.filter(x => x.status === 'PENDING' && x.saleType !== 'auction'))
       }).catch(() => {})
       // OBS-asetukset (RTMP-palvelin + pysyvä stream key) haetaan heti sivulle tultaessa —
       // ei vasta kun lähetys on jo luotu tai livenä. Ks. CLAUDE.md "esikatselu ennen julkista näkyvyyttä".
