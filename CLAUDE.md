@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Perinteisen huutokaupan anti-snipe — vahvistus + 2min→1min 2026-09-11 — ✅ TARKISTETTU, MUUTETTU JA TESTATTU OIKEALLA HUUDOLLA
+
+Omistaja kysyi: onko perinteisissä (ei-live) huutokauppakohteissa anti-snipe-suojaus, ja jos ei, pyysi lisäämään 1min version (60s tai vähemmän jäljellä → pidennä 60s:iin).
+
+**Vastaus: kyllä, oli jo olemassa** — `backend/src/routes/auctions.ts`:n `POST /:id/bid` sisältää `SNIPE_WINDOW_MS`/`SNIPE_EXTENSION_MS`-vakiot, mutta ne olivat **2 minuuttia**, ei 1 minuuttia. Muutettu molemmat `60 * 1000`:ksi (60s) — pyydetty käytös täsmälleen: jos huudettaessa on 60s tai vähemmän jäljellä, huutoaika asetetaan 60 sekuntiin siitä hetkestä.
+
+**Ei koskettu:** live-huutokaupan (`socket.ts`) oma, täysin erillinen anti-snipe (+10s jos 10s tai alle jäljellä) — eri konteksti (nopeatempoinen livehuuto, ei päiviä kestävä perinteinen huutokauppa), omistaja kysyi nimenomaan "normaaleista huutokauppakohteista".
+
+**Testattu oikealla huudolla tuotantoa vasten, ei vain koodikatselmuksella:** kertakäyttöinen testi loi väliaikaisen huutokauppatuotteen jolla oli 30s jäljellä, teki oikean `POST /auctions/:id/bid`-kutsun toisella testitilillä suoraan palvelimen omaan `localhost:4000`:iin — `auctionEndsAt` päivittyi täsmälleen 60,0 sekuntiin huudon hetkestä. Testidata siivottu heti perään.
+
 ## Chat-historia näkyviin liittyville katsojille kesken livea 2026-09-11 — ✅ TEHTY JA TESTATTU OIKEALLA SOCKET-YHTEYDELLÄ
 
 Omistaja kysyi: voisiko koko liven aikana käydyn chatin saada näkyviin vaikka liittyisi kesken kaiken — vai miten se on tällä hetkellä toteutettu?
