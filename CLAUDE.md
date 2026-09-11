@@ -7,6 +7,21 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Maksuaika 2h → 12h kaikkialla 2026-09-11 — ✅ TEHTY JA TESTATTU OIKEALLA CHECKOUTILLA — MUUTTAA LUKITTU-SÄÄNTÖÄ
+
+**⚠️ Tämä muuttaa aiemman "Liiketoimintasäännöt"-osion LUKITTU-sääntöä ("Maksuaika: ... → 2h aikaa maksaa") — omistajan eksplisiittinen, tietoinen päätös, ei tulkinta.** Uusi sääntö: aktiivisen ostajan maksuaika (voitettu live-huuto, Osta heti, hyväksytty tarjous, tavallinen ostoskorin checkout) on nyt **12 tuntia**, ei 2 tuntia.
+
+**Muutettu kaikkialla missä 2h-maksuaikaa käytettiin/mainittiin:**
+- Backend-vakiot: `PAYMENT_WINDOW_MS` (uusi, `cart.ts`:n `POST /cart/checkout`), `BUY_NOW_PAYMENT_WINDOW_MS` (`auctions.ts`), `LIVE_AUCTION_PAYMENT_WINDOW_MS` (`socket.ts`), `OFFER_PAYMENT_WINDOW_MS` (`offers.ts`) — kaikki `2 * 60 * 60 * 1000` → `12 * 60 * 60 * 1000`.
+- Kolme `notifyUser()`-ilmoitustekstiä ("Sinulla on Xh aikaa maksaa") samoissa kolmessa tiedostossa (auctions.ts/socket.ts/offers.ts) + `sendAuctionWonEmail()`:n tuntiparametri `auctions.ts`:n Osta heti -kutsussa, sekä kertakäyttöisen `send-email-test.ts`-diagnostiikkaskriptin vastaava arvo (konsistenssin vuoksi).
+- Frontend: rekisteröitymislomakkeen `policyPoint2`-teksti (fi/en/sv) ja käyttöehtojen maksuvelvollisuuskohta (fi/en/sv, `kayttoehdot/content.ts`). `/ostot`-sivun laskuri EI vaatinut koodimuutosta — se laskee aina suoraan `Order.paymentDeadline`:sta, vain vanhentunut koodikommentti korjattu.
+
+**Tietoisesti EI koskettu, kaksi eri syytä:**
+1. **Perinteisen huutokaupan PASSIIVISEN voiton 24h-poikkeus** (`closeAuctions.ts`) — eri, jo aiemmin tarkoituksella pidempi sääntö ostajalle joka ei ollut aktiivisesti läsnä huutokaupan päättyessä. Ei ollut koskaan "2h", omistajan kysymys/pyyntö koski nimenomaan sitä mikä ON tähän asti ollut 2h. 24h on yhä pidempi kuin uusi 12h-perustaso, joten poikkeuksen looginen tarkoitus (passiiviselle voittajalle enemmän aikaa) säilyy.
+2. **Korin `LIVE_ITEM_WINDOW_MS` (2h)** (`cart.ts`) — tämä on ERI mekanismi: kuinka kauan maksamaton korilisäys (esim. livessä "Osta heti" klikattu mutta ei vielä checkoutattu) pysyy varattuna ennen kuin varasto vapautuu — tapahtuu ENNEN Orderin luontia, ei ole "maksuaika" ollenkaan. Jätetty koskemattomaksi.
+
+**Testattu oikealla checkout-kutsulla tuotantoa vasten:** kertakäyttöinen testi loi tuotteen, lisäsi sen korille (`POST /cart/add`) ja teki oikean `POST /cart/checkout`-kutsun palvelimen omaan `localhost:4000`:iin toisella testitilillä — palautunut `Order.paymentDeadline` osoitti täsmälleen ~11,98h nykyhetkestä. Testidata (tuote+tilaus) siivottu heti perään, mukaan lukien yksi epäonnistuneesta ensimmäisestä testiajosta (väärä vastausmuoto oletettu) jäänyt orpo tuote, tarkistettu erikseen ettei mitään jäänyt roikkumaan.
+
 ## Perinteisen huutokaupan anti-snipe — vahvistus + 2min→1min 2026-09-11 — ✅ TARKISTETTU, MUUTETTU JA TESTATTU OIKEALLA HUUDOLLA
 
 Omistaja kysyi: onko perinteisissä (ei-live) huutokauppakohteissa anti-snipe-suojaus, ja jos ei, pyysi lisäämään 1min version (60s tai vähemmän jäljellä → pidennä 60s:iin).
@@ -1238,8 +1253,8 @@ Löydetty ennakkotarjous-korjauksen testauksen sivutuotteena: `POST /products` o
 - **Maksunkäsittelymaksu (ostajalta) — MUUTETTU 2026-09-10: veloitetaan nyt ostajalta erillisenä checkout-rivinä, EI enää Habahubin omasta osuudesta.** Stripe ~1,5% + 0,25€ koko tilauksen summasta (tuotteet+toimitus), ei kattoa. Ks. "Maksunkäsittelymaksu ostajalle" -osio — omistajan päätös, korvaa aiemman "Habahub maksaa tämän omasta osuudestaan" -mallin.
 - Kaikki huudot **sitovia** — ei peruutuksia
 - **Yhdistetty lähetys:** sama myyjä + 6h aikaikkuna = yksi tilaus, yksi postikulut (suurimman pakettikoon mukaan). 6h rajan jälkeen uusi erillinen tilaus.
-- **Maksuaika:** voitettu huuto tai ostos → 2h aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
-  - **Poikkeus:** perinteisen (ajastetun) huutokaupan **passiivinen voitto** (huutokauppa päättyy itsestään, esim. yöllä) → **24h** maksuaikaa, koska voittaja ei ole aktiivisesti läsnä silloin. "Osta heti" (buy-now) ja live-huuto pysyvät 2h:ssa, koska ostaja on aktiivisesti paikalla klikatessaan. Päätetty 2026-08-07.
+- **Maksuaika — MUUTETTU 2026-09-11, oli aiemmin 2h:** voitettu huuto tai ostos → **12h** aikaa maksaa → kaikki maksutavat (MobilePay, Google Pay, verkkopankki, kortti) → ei pakollista kortintallennusta
+  - **Poikkeus:** perinteisen (ajastetun) huutokaupan **passiivinen voitto** (huutokauppa päättyy itsestään, esim. yöllä) → **24h** maksuaikaa, koska voittaja ei ole aktiivisesti läsnä silloin. "Osta heti" (buy-now) ja live-huuto pysyvät 12h:ssa, koska ostaja on aktiivisesti paikalla klikatessaan. Alkuperäinen 2h/24h-jako päätetty 2026-08-07, aktiivinen puoli nostettu 12h:iin 2026-09-11 (ks. "Maksuaika 2h → 12h kaikkialla" -osio).
 - **Rekisteröityminen:** käyttäjän on hyväksyttävä käyttöehdot, tietosuoja ja kaupankäyntipolitiikka erillisillä checkboxeilla ennen kuin voi luoda tilin. Checkboxit pakollisia — ei oletuksena rastitettu.
 - **Banni — TIUKENNETTU 2026-08-13:** JO ENSIMMÄINEN maksamaton tilaus → automaattinen 30 päivän banni heti. Jokainen seuraava rike → uusi 30 päivän banni. Ei poikkeuksia, ei kolmen kerran varoitusrajaa enää. ("Oppivat olemaan" — omistajan perustelu, tarkoituksella tiukka.)
 - Maksuturva: maksu pidätetään kunnes myyjä toimittaa seurantakoodin
