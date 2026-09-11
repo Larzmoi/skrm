@@ -7,6 +7,15 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Mainosbannerin kulmavuoto + mobiilin leveysero 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja raportoi kuvakaappauksella kaksi asiaa etusivun mainosbannerista (video/GIF-tausta):
+
+1. **Video vuoti pyöristettyjen kulmien yli.** Kääre-`<div>`:llä on jo `overflow:'hidden'` + `borderRadius:20`, mutta se ei aina riitä videolle — video promotoituu omaksi, laitteistokiihdytetyksi compositing-kerroksekseen (erityisesti Android/Chrome-yhdistelmällä, kuten kuvakaappauksessa), joka voi jättää esi-isän border-radius-rajauksen huomiotta. **Korjaus:** sama `borderRadius:20` toistettu suoraan itse `<video>`/`<img>`-elementissä (`frontend/app/page.tsx`, `AdBanner`), ei vain kääreessä — kaksinkertainen rajaus varmistaa clipin toimivan riippumatta compositing-kerroksesta.
+2. **Mainosbanneri oli mobiilissa edestä laidasta laitaan, promo-kortti sen alla ei.** Bannerin oma kääre käytti `padding: isMobile ? '14px 0 0' : '20px 24px 0'` — 0px sivuilla mobiilissa, kun taas pääsisältöalue (jossa promo-kortti/tuotelista on) käyttää `'16px 14px'`:ää. **Korjaus:** mobiilin sivupadding `0`→`14px`, banneri on nyt samanlevyinen kuin sen alla oleva kortti, kuten omistaja pyysi.
+
+Typecheck+build vihreä, deployattu. Ei visuaalisesti vahvistettu selaimessa (ei selaintyökalua tässä ympäristössä) — omistajan kannattaa tarkistaa samalla Android-puhelimella.
+
 ## Neljä mobiili-UX-korjausta /lahetys-konsoliin 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 1. **Kamera pakotettu testattavaksi ennen lähetyksen luontia.** "Luo lähetys ja testaa yhteys" -nappi (`createShow`) oli aiemmin käytettävissä riippumatta `camReady`-tilasta — myyjä pystyi siis luomaan lähetyksen koskaan testaamatta kameraa (`getUserMedia()`-lupakysely ei koskaan välttämättä laukeaisi ennen livetilaan siirtymistä). Nappi on nyt `disabled={starting || !camReady}`, ja kun `!camReady`, sen yläpuolelle ilmestyy selkeä keltainen pakollinen kehote (`t.streamConsole.cameraTestRequired`, uusi avain fi/en/sv) — koskee sekä "Ilman OBS:aa" että "OBS:lla" -tilaa, koska molemmat käyttävät samaa jaettua kamera-esikatselua/`camReady`-tilaa.
