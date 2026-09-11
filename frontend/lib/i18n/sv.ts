@@ -397,7 +397,7 @@ const sv = {
     liveExpiredNotice: 'En eller flera liveköp togs bort från varukorgen när tiden tog slut.',
     payFailed: 'Betalning misslyckades', free: '(gratis)',
     liveTimeLeft: 'Live-köp — tid att betala', timeUp: 'Tiden är uppe',
-    products: 'Produkter', shipping: 'leverans', processingFee: 'betalningshantering', pay: 'Betalning', processing: 'Behandlas...',
+    products: 'Produkter', shipping: 'leverans', processingFee: 'betalningshantering', pay: 'Betalning', payAll: 'Betala allt', processing: 'Behandlas...',
     total: 'Totalt', items: 'produkter', allSellers: 'alla säljare',
     deliveryConflict: 'Dessa produkters leveransmetoder är i konflikt (en tillåter bara frakt, den andra bara hämtning) — kontakta säljaren.',
   },

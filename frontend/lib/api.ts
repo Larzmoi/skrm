@@ -73,6 +73,9 @@ export const orderApi = {
   selectShipping: (orderId: string, pakettikokoId: string, pickupPointId?: string) => request(`/orders/${orderId}/select-shipping`, { method: 'POST', body: JSON.stringify({ pakettikokoId, pickupPointId }) }),
   updatePickupPoint: (orderId: string, pickupPointId: string) => request(`/orders/${orderId}/pickup-point`, { method: 'PATCH', body: JSON.stringify({ pickupPointId }) }),
   pay: (orderId: string) => request(`/orders/${orderId}/pay`, { method: 'POST' }),
+  // Yhdistetty ostoskorimaksu (ks. CLAUDE.md "Yhdistetty ostoskorimaksu" 2026-09-11) - useampi
+  // myyjän Order maksetaan yhdellä Stripe Checkout Sessionilla, /kori-sivun "Maksa kaikki".
+  payMultiple: (orderIds: string[]) => request('/orders/pay-multiple', { method: 'POST', body: JSON.stringify({ orderIds }) }),
   cancel: (orderId: string) => request(`/orders/${orderId}/cancel`, { method: 'POST' }),
   addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),
   createShipment: (orderId: string) => request(`/orders/${orderId}/create-shipment`, { method: 'POST' }),

@@ -410,7 +410,7 @@ const fi = {
     liveExpiredNotice: 'Yksi tai useampi live-osto poistui korista ajan loputtua.',
     payFailed: 'Maksu epäonnistui', free: '(ilmainen)',
     liveTimeLeft: 'Live-osto — maksuaikaa', timeUp: 'Aika loppui',
-    products: 'Tuotteet', shipping: 'toimitus', processingFee: 'maksunkäsittely', pay: 'Maksa', processing: 'Käsitellään...',
+    products: 'Tuotteet', shipping: 'toimitus', processingFee: 'maksunkäsittely', pay: 'Maksa', payAll: 'Maksa kaikki', processing: 'Käsitellään...',
     total: 'Yhteensä', items: 'tuotetta', allSellers: 'kaikki myyjät',
     deliveryConflict: 'Näiden tuotteiden toimitustavat ovat ristiriidassa keskenään (yksi sallii vain postituksen, toinen vain noudon) — ota yhteyttä myyjään.',
   },

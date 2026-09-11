@@ -136,34 +136,79 @@ async function handleStripeWebhook(req, res) {
     }
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const orderId = session.metadata?.orderId;
-        if (!orderId)
-            return res.status(200).send('ok'); // tuntematon metadata - ei voida käsitellä, mutta kuitataan ettei Stripe yritä uudelleen loputtomiin
-        const order = await prisma_1.prisma.order.findUnique({
-            where: { id: orderId },
+        const paymentIntentId = session.payment_intent;
+        if (!paymentIntentId)
+            return res.status(200).send('ok'); // ei koskaan pitäisi tapahtua onnistuneelle maksulle, mutta kuitataan ettei Stripe yritä uudelleen loputtomiin
+        // ⚠️ ARKKITEHTUURIMUUTOS 2026-09-11 (ks. CLAUDE.md "Yhdistetty ostoskorimaksu"): haetaan
+        // KAIKKI tähän Checkout Sessioniin liittyvät Orderit stripeSessionId:n kautta, ei enää
+        // session.metadata.orderId:tä. Yhdistetyssä ostoskorimaksussa YKSI Session voi kattaa
+        // USEAMMAN Orderin (eri myyjät) - stripeSessionId asetettiin jokaiselle POST /orders/:id/pay
+        // tai POST /orders/pay-multiple -kutsussa ENNEN kuin ostaja ohjattiin Stripelle, joten se on
+        // aina jo tallessa kun tämä webhook saapuu. Toimii identtisesti myös vanhalle yhden Orderin
+        // maksulle (taulukossa vain yksi rivi).
+        const orders = await prisma_1.prisma.order.findMany({
+            where: { stripeSessionId: session.id, status: 'PENDING_PAYMENT' },
             include: {
                 buyer: { select: { email: true, name: true } },
+                seller: { select: { id: true, stripeAccountId: true } },
                 items: { include: { product: { select: { name: true } } } },
             },
         });
-        if (!order)
+        // Tyhjä tulos on NORMAALIA idempotenssin ansiosta (ks. alla) - Stripe voi kutsua tätä useita
+        // kertoja samasta tapahtumasta (dokumentoitu käytös), ja toisella kutsulla kaikki tämän
+        // session.id:n Orderit ovat jo PENDING_SHIPPING:nä eikä where-ehto löydä enää mitään.
+        if (orders.length === 0)
             return res.status(200).send('ok');
-        // Idempotenssi: Stripe voi kutsua tätä useita kertoja samasta tapahtumasta (dokumentoitu
-        // käytös) - tarkista ettei tilausta ole jo viety eteenpäin ennen kuin päivitetään/
-        // ilmoitetaan. Yksi tilaus = yksi maksu (tuote+toimitus yhdessä), joten yksi onnistunut
-        // webhook riittää. Sama ehto suojaa myös tilausvahvistussähköpostia (ks. CLAUDE.md,
-        // sähköpostit-integraatio 2026-09-03) - toistokutsu näkee order.status:in jo
-        // PENDING_SHIPPING:nä eikä lähetä uudestaan.
-        if (order.status === 'PENDING_PAYMENT') {
-            const total = order.productTotal + (order.shippingPrice ?? 0);
-            await prisma_1.prisma.order.update({
-                where: { id: order.id },
-                data: { status: 'PENDING_SHIPPING', paymentDeadline: null, stripePaymentIntentId: session.payment_intent ?? null },
-            });
-            await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset');
-            const productNames = order.items.map(i => i.product.name).join(', ');
-            void (0, resend_1.sendOrderConfirmationEmail)(order.buyer.email, order.buyer.name, order.id, productNames, total);
+        // Charge haetaan KERRAN, jaetaan kaikkien tämän session.id:n Orderien Transfer-kutsujen
+        // source_transactioniksi (ks. lib/stripe.ts createSellerTransfer) - kaikki orderit jakavat
+        // saman PaymentIntentin/chargen yhdistetyssä maksussa.
+        let chargeId;
+        try {
+            chargeId = await (0, stripe_1.getLatestChargeId)(paymentIntentId);
         }
+        catch (e) {
+            console.error('[stripe webhook] chargen haku epäonnistui, ei voida luoda transfereita:', e.message);
+            return res.status(500).send('charge not ready'); // Stripe yrittää uudelleen myöhemmin
+        }
+        // Jokainen Order käsitellään ERIKSEEN, virhe yhdessä ei saa estää muiden onnistumista -
+        // esim. yksi myyjä voi olla menettänyt Stripe-tilinsä transfersEnabled-tilan juuri ennen
+        // maksua vaikka tarkistettiin jo POST /orders/pay-multiple:ssa. anyFailure kerää tämän
+        // tiedon lopuksi - jos yksikin epäonnistui, palautetaan ei-200 jotta Stripe yrittää koko
+        // webhookia uudelleen (idempotenssin ansiosta re-yritys koskee vain vielä PENDING_PAYMENT-
+        // tilassa olevia rivejä, jo onnistuneet eivät käsitellä toiseen kertaan).
+        let anyFailure = false;
+        for (const order of orders) {
+            try {
+                if (!order.seller.stripeAccountId)
+                    throw new Error('Myyjän Stripe-tili puuttuu');
+                const commissionCents = order.commissionCents ?? 0;
+                const transferAmountEuros = order.productTotal - commissionCents / 100;
+                const transferId = await (0, stripe_1.createSellerTransfer)({
+                    chargeId,
+                    sellerStripeAccountId: order.seller.stripeAccountId,
+                    amountEuros: transferAmountEuros,
+                });
+                const total = order.productTotal + (order.shippingPrice ?? 0);
+                await prisma_1.prisma.order.update({
+                    where: { id: order.id },
+                    data: { status: 'PENDING_SHIPPING', paymentDeadline: null, stripePaymentIntentId: paymentIntentId, stripeTransferId: transferId },
+                });
+                await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset');
+                const productNames = order.items.map(i => i.product.name).join(', ');
+                void (0, resend_1.sendOrderConfirmationEmail)(order.buyer.email, order.buyer.name, order.id, productNames, total);
+            }
+            catch (e) {
+                anyFailure = true;
+                console.error(`[stripe webhook] Transferin luonti epäonnistui Orderille ${order.id} (myyjä ${order.sellerId}):`, e.message);
+                // Näkyy adminille /ilmoitukset-sivulla (sama malli kuin ADMIN_LOST_PACKAGE_REVIEW,
+                // ks. jobs/deliveryTimeline.ts) - Stripe yrittää webhookia uudelleen automaattisesti,
+                // mutta admin saa silti heti tiedon jos jokin vaatisi manuaalista puuttumista.
+                const admins = await prisma_1.prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
+                await Promise.all(admins.map(a => (0, notify_1.notifyUser)(a.id, 'ADMIN_TRANSFER_FAILED', 'Maksun jako myyjälle epäonnistui', `Tilaus ${order.id} (myyjä ${order.sellerId}) - Stripe-siirron luonti epäonnistui: ${e.message}. Ostaja on maksanut, mutta myyjän osuutta ei ole vielä siirretty. Stripe yrittää automaattisesti uudelleen.`, '/dashboard/tilaukset').catch(() => { })));
+            }
+        }
+        if (anyFailure)
+            return res.status(500).send('one or more transfers failed, retry');
     }
     // Muut tapahtumatyypit (esim. checkout.session.async_payment_failed) - ei toimenpiteitä
     // toistaiseksi, ostaja voi yrittää maksaa uudelleen /ostot-sivulta, tai payment-expired-

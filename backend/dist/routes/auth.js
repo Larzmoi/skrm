@@ -10,7 +10,15 @@ const crypto_1 = __importDefault(require("crypto"));
 const prisma_1 = require("../db/prisma");
 const passwordReset_1 = require("../lib/passwordReset");
 const resend_1 = require("../lib/resend");
+const clientIp_1 = require("../lib/clientIp");
 const router = (0, express_1.Router)();
+// IP-pohjainen duplikaattitilien tunnistus (ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus"
+// 2026-09-11, omistajan päätös kahden kysytyn vaihtoehdon välillä). Sama IP saa rekisteröidä
+// rajattoman määrän tilejä - rekisteröitymistä EI koskaan estetä - mutta 4. tili ja siitä
+// eteenpäin merkitään flaggedDuplicateIp:llä admin-paneelin tarkistusta varten. Ei tiukempaa
+// (esim. kova esto), koska CGNAT/mobiiliverkot jakavat usein saman julkisen IP:n monen aidon,
+// toisistaan riippumattoman käyttäjän kesken - kova esto olisi voinut hylätä oikeita asiakkaita.
+const MAX_ACCOUNTS_PER_IP_BEFORE_FLAG = 3;
 router.post('/register', async (req, res) => {
     const { email, password, name, username, termsAccepted, privacyAccepted, policyAccepted } = req.body;
     if (!email || !password || !name || !username) {
@@ -22,8 +30,11 @@ router.post('/register', async (req, res) => {
     try {
         const hash = await bcrypt_1.default.hash(password, 12);
         const now = new Date();
+        const ip = (0, clientIp_1.clientKey)(req);
+        const accountsFromSameIp = await prisma_1.prisma.user.count({ where: { registrationIp: ip } });
+        const flaggedDuplicateIp = accountsFromSameIp >= MAX_ACCOUNTS_PER_IP_BEFORE_FLAG;
         const user = await prisma_1.prisma.user.create({
-            data: { email, passwordHash: hash, name, username, termsAcceptedAt: now, privacyAcceptedAt: now, policyAcceptedAt: now },
+            data: { email, passwordHash: hash, name, username, termsAcceptedAt: now, privacyAcceptedAt: now, policyAcceptedAt: now, registrationIp: ip, flaggedDuplicateIp },
         });
         const token = jsonwebtoken_1.default.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
         // Idempotentti käyttäjän luonnin kautta: sähköposti/käyttäjänimi on uniikki (P2002 alla

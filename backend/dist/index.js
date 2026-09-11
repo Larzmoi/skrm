@@ -38,10 +38,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const express_rate_limit_1 = __importStar(require("express-rate-limit"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const http_1 = require("http");
 const socket_io_1 = require("socket.io");
 const dotenv = __importStar(require("dotenv"));
+const clientIp_1 = require("./lib/clientIp");
 const auth_1 = __importDefault(require("./routes/auth"));
 const products_1 = __importDefault(require("./routes/products"));
 const shows_1 = __importDefault(require("./routes/shows"));
@@ -108,7 +109,11 @@ app.post('/webhooks/stripe', express_1.default.raw({ type: 'application/json' })
 // CLAUDE.md "PÄÄTÖS 2026-09-09: SIGNICAT/CRIIPTO HYLÄTTY") - sama raaka-runko-vaatimus
 // kuin yllä, ERI Event Destination -rekisteröinti/signing secret (ks. lib/stripe.ts).
 app.post('/webhooks/stripe-accounts', express_1.default.raw({ type: 'application/json' }), webhooks_1.handleStripeAccountWebhook);
-app.use(express_1.default.json({ limit: '10mb' }));
+// 10mb -> 20mb 2026-09-10: mainosbannerin loop-video/GIF (ks. AdSlot.videoUrl) on selvästi
+// isompi kuin yksittäinen resizeImage()-käsitelty kuva - base64-koodaus lisää vielä ~33%
+// tiedoston raakakokoon. Ei koskenut mihinkään olemassa olevaan reittiin, joilla tyypilliset
+// payloadit ovat aina olleet paljon tätä pienempiä.
+app.use(express_1.default.json({ limit: '20mb' }));
 // Rate limiting — CodeQL löysi 64 "Missing rate limiting" -varoitusta backend-reiteiltä
 // (ks. CLAUDE.md "Rate limiting puuttuu kokonaan"). Kaksi tasoa: yleinen raja koko API:lle
 // (nginx poistaa /api/-etuliitteen ennen tätä sovellusta, joten tämä KOSKEE koko julkista
@@ -126,23 +131,20 @@ app.use(express_1.default.json({ limit: '10mb' }));
 // (tai saman IP:n takana olevan kotitalouden/toimiston) normaaliin käyttöön, rajoittaa silti
 // selvästi poikkeavan, jatkuvan automaattisen raapimisen/skannauksen.
 //
-// Molemmat käyttävät samaa keyGeneratoria: Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei
-// voi väärentää sitä - Cloudflare kirjoittaa sen aina itse yhteyden perusteella), req.ip
-// vain varapolkuna niille harvoille pyynnöille jotka eivät kulje Cloudflaren kautta (esim.
-// palvelimen omat sisäiset kutsut). Katso yllä oleva kommentti miksi pelkkä trust proxy
-// -hyppylaskenta EI riittänyt tässä pino ssa. ipKeyGenerator normalisoi IPv6-osoitteet
-// /56-aliverkkoon niin ettei sama kävijä pääse kiertämään rajaa vaihtamalla IPv6-osoitetta.
-function clientKey(req) {
-    const cf = req.headers['cf-connecting-ip'];
-    const ip = (typeof cf === 'string' && cf) ? cf : (req.ip ?? req.socket.remoteAddress ?? 'unknown');
-    return (0, express_rate_limit_1.ipKeyGenerator)(ip);
-}
+// Molemmat käyttävät samaa keyGeneratoria (clientKey, eriytetty lib/clientIp.ts:ään 2026-09-11
+// jotta rekisteröitymisen IP-duplikaattitunnistus voi käyttää samaa logiikkaa, ks. routes/auth.ts):
+// Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei voi väärentää sitä - Cloudflare kirjoittaa
+// sen aina itse yhteyden perusteella), req.ip vain varapolkuna niille harvoille pyynnöille jotka
+// eivät kulje Cloudflaren kautta (esim. palvelimen omat sisäiset kutsut). Katso yllä oleva
+// kommentti miksi pelkkä trust proxy -hyppylaskenta EI riittänyt tässä pino ssa. ipKeyGenerator
+// normalisoi IPv6-osoitteet /56-aliverkkoon niin ettei sama kävijä pääse kiertämään rajaa
+// vaihtamalla IPv6-osoitetta.
 const globalLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
     max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: clientKey,
+    keyGenerator: clientIp_1.clientKey,
     message: { error: 'Liian monta pyyntöä, yritä myöhemmin uudelleen' },
 });
 const authLimiter = (0, express_rate_limit_1.default)({
@@ -150,7 +152,7 @@ const authLimiter = (0, express_rate_limit_1.default)({
     max: 8,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: clientKey,
+    keyGenerator: clientIp_1.clientKey,
     message: { error: 'Liian monta yritystä, yritä myöhemmin uudelleen' },
 });
 app.use(globalLimiter);

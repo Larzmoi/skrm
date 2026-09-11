@@ -176,13 +176,19 @@ export interface CheckoutLineItem {
   quantity: number
 }
 
-export interface CreateCheckoutParams {
+// Yksi Order per myyjä (ks. cart.ts:n per-sellerId checkout) - yhdistetyn ostoskorimaksun
+// (ks. CLAUDE.md "Yhdistetty ostoskorimaksu" 2026-09-11) tapauksessa useampi tällainen
+// yhdistyy YHDEKSI Checkout Sessioniksi createCheckoutSession()-kutsussa.
+export interface CheckoutOrderInput {
   orderId: string
+  sellerName: string // näkyy toimitusrivin nimessä kun mukana on useampi myyjä, ks. alla
   items: CheckoutLineItem[]
   shippingEuros: number
+}
+
+export interface CreateCheckoutParams {
+  orders: CheckoutOrderInput[]
   buyerEmail: string
-  sellerStripeAccountId: string
-  commissionCents: number // VAIN tuoterivien komissio (3,5%/35€) - toimitus lisätään erikseen alla, ei tähän
 }
 
 // Ostajalta veloitettava maksunkäsittelymaksu — LISÄTTY 2026-09-10, omistajan päätös. Aiemmin
@@ -202,64 +208,99 @@ export interface CheckoutSession {
   redirectUrl: string
 }
 
-// Yksi Checkout Session koko tilaukselle (tuote+toimitus yhdessä, sama LUKITTU-sääntö kuin
-// Paytraililla - ks. CLAUDE.md "Paytrail", omistajan korjaus 2026-08-12 kahden erillisen
-// maksun sijaan).
+// Yksi Checkout Session KOKO ostoskorille, yhdistäen mahdollisesti useamman myyjän Orderit
+// (ks. CLAUDE.md "Yhdistetty ostoskorimaksu" 2026-09-11) - tuote+toimitus yhdessä per myyjä,
+// sama LUKITTU-sääntö kuin ennenkin (omistajan korjaus 2026-08-12 kahden erillisen maksun
+// sijaan), laajennettu nyt kattamaan useamman myyjän KERRALLA yhdessä maksussa.
 //
-// ⚠️ KRIITTINEN RAHANJAKO-KORJAUS 2026-09-10 (löydetty ennen ensimmäistä oikeaa live-maksua,
-// ei koskaan ollut väärin tuotannossa oikealla rahalla): destination-charge-mallissa KOKO
-// maksettu summa (tuotteet+toimitus) siirtyy myyjän tilille MIINUS application_fee_amount -
-// vain application_fee_amount jää Habahubille. Aiempi versio laski application_fee_amount:iin
-// VAIN 3,5%/35€-komission (ks. LUKITTU-sääntö "ei provisiota postista" - tarkoitti ettei 3,5%
-// lasketa toimitusmaksun PÄÄLLE, ei sitä että toimitusmaksu saisi mennä myyjälle) - tämä olisi
-// tarkoittanut että koko 6,90€ toimitusmaksu olisi päätynyt MYYJÄLLE, ei Habahubille, vaikka
-// CLAUDE.md:n "Postihinnat"-sääntö on aina ollut että Habahub veloittaa 6,90€ ostajalta ja
-// maksaa Postille itse erikseen (oma kuluerä, oma ALV-vastuu) - toimitusmaksu on Habahubin
-// omaa liikevaihtoa, ei myyjän. Korjattu: application_fee_amount = komissio + KOKO toimitusmaksu,
-// jolloin myyjän tilille siirtyy aina täsmälleen productTotal - komissio, ei senttiäkään
-// toimituksesta. Nouto-tilauksille shippingEuros on jo 0 (ks. lib/shipping.ts, palvelinpuolinen
-// PAKETTIKOOT-taulukko - 'nouto' hinta 0, ei koskaan luoteta clientiltä) - ei vaadi erillistä
-// nouto/postitus-erottelua tässä, 0€ ei muuta mitään application_fee_amount-laskennassa.
+// ⚠️ ARKKITEHTUURIMUUTOS 2026-09-11: destination charge (payment_intent_data.transfer_data.
+// destination) tukee VAIN YHTÄ kohdetiliä per PaymentIntent - ei riitä kun ostoskorissa on
+// useamman myyjän tuotteita samassa maksussa. Vaihdettu Stripen "separate charges and
+// transfers" -malliin (vahvistettu suoraan docs.stripe.com/connect/separate-charges-and-
+// transfers:sta ennen koodausta, ei arvattu): KOKO summa laskeutuu ensin Habahubin OMALLE
+// Stripe-saldolle (ei transfer_data/application_fee_amount ollenkaan tässä), ja VASTA
+// checkout.session.completed-webhookissa luodaan ERILLINEN stripe.transfers.create()-kutsu
+// per myyjä/Order (ks. webhooks.ts + getLatestChargeId/createSellerTransfer alempana).
+// Stripen dokumentaatio vahvistaa nimenomaisesti: "You can split a single charge between
+// multiple transfers" - source_transaction-parametri (charge ID) sallii tämän ilman että
+// tarvitsee odottaa saldon "vapautumista", ja useampi transfer voi jakaa saman source_
+// transactionin niin kauan kuin summat eivät ylitä alkuperäistä chargea.
+//
+// Komissio EI enää mene Stripelle ollenkaan checkout-vaiheessa (ei application_fee_amount) -
+// se on nyt puhtaasti sisäinen laskenta joka määrää KUNKIN myyjän Transfer-summan webhookissa
+// (productTotal - kyseisen myyjän oma komissio). Toimitusmaksu ja maksunkäsittelymaksu jäävät
+// automaattisesti kokonaan Habahubin saldolle, koska niitä ei koskaan siirretä kenellekään -
+// sama lopputulos kuin vanhassa application_fee_amount-laskennassa, vain toteutettu toisin päin.
 export async function createCheckoutSession(params: CreateCheckoutParams): Promise<CheckoutSession> {
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = params.items.map(item => ({
-    price_data: {
-      currency: 'eur',
-      unit_amount: eurosToCents(item.unitPriceEuros),
-      product_data: { name: item.name },
-    },
-    quantity: item.quantity,
-  }))
-  if (params.shippingEuros > 0) {
-    lineItems.push({
-      price_data: { currency: 'eur', unit_amount: eurosToCents(params.shippingEuros), product_data: { name: 'Toimitus' } },
-      quantity: 1,
-    })
+  const multiSeller = params.orders.length > 1
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
+  for (const order of params.orders) {
+    for (const item of order.items) {
+      lineItems.push({
+        price_data: { currency: 'eur', unit_amount: eurosToCents(item.unitPriceEuros), product_data: { name: item.name } },
+        quantity: item.quantity,
+      })
+    }
+    if (order.shippingEuros > 0) {
+      // Myyjän nimi mukaan toimitusrivin nimeen VAIN kun ostoskorissa on useampi myyjä -
+      // yhden myyjän tilaukselle sama "Toimitus"-teksti kuin ennenkin, ei turhaa toistoa.
+      const label = multiSeller ? `Toimitus – ${order.sellerName}` : 'Toimitus'
+      lineItems.push({
+        price_data: { currency: 'eur', unit_amount: eurosToCents(order.shippingEuros), product_data: { name: label } },
+        quantity: 1,
+      })
+    }
   }
-  const totalBeforeFeeEuros = params.items.reduce((sum, i) => sum + i.unitPriceEuros * i.quantity, 0) + params.shippingEuros
+  const totalBeforeFeeEuros = params.orders.reduce(
+    (sum, o) => sum + o.items.reduce((s, i) => s + i.unitPriceEuros * i.quantity, 0) + o.shippingEuros, 0,
+  )
   const processingFeeCents = computeProcessingFeeCents(totalBeforeFeeEuros)
   lineItems.push({
     price_data: { currency: 'eur', unit_amount: processingFeeCents, product_data: { name: 'Maksunkäsittelymaksu' } },
     quantity: 1,
   })
 
+  // EI orderId:tä success/cancel-URL:ssa enää - vahvistettu ettei frontend (/ostot) koskaan
+  // lukenut sitä (vain ?payment=success/cancel-parametria), joten se oli aina pelkkä koriste.
+  // Yhdistetyssä maksussa yhtä orderId:tä ei voisi edes valita mielekkäästi useamman joukosta.
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: lineItems,
     customer_email: params.buyerEmail,
-    payment_intent_data: {
-      // Habahub pitää komission + koko toimitusmaksun (ks. yllä oleva "KRIITTINEN RAHANJAKO-
-      // KORJAUS") + nyt myös maksunkäsittelymaksun (ostaja maksaa sen, ei Habahub enää omasta
-      // pussistaan) - myyjän tilille siirtyy aina täsmälleen productTotal - komissio, ei
-      // senttiäkään toimituksesta eikä maksunkäsittelystä.
-      application_fee_amount: params.commissionCents + eurosToCents(params.shippingEuros) + processingFeeCents,
-      transfer_data: { destination: params.sellerStripeAccountId },
-    },
-    success_url: `${FRONTEND_URL}/ostot?payment=success&orderId=${params.orderId}`,
-    cancel_url: `${FRONTEND_URL}/ostot?payment=cancel&orderId=${params.orderId}`,
-    metadata: { orderId: params.orderId },
+    success_url: `${FRONTEND_URL}/ostot?payment=success`,
+    cancel_url: `${FRONTEND_URL}/ostot?payment=cancel`,
   })
   if (!session.url) throw new Error('Stripe ei palauttanut maksuosoitetta')
   return { sessionId: session.id, redirectUrl: session.url }
+}
+
+// Haetaan PaymentIntentin viimeisin charge - tarvitaan Transferin source_transaction-
+// parametriksi (ks. createSellerTransfer alla). Kutsutaan webhookista checkout.session.
+// completed -tapahtuman payment_intent-ID:llä.
+export async function getLatestChargeId(paymentIntentId: string): Promise<string> {
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId)
+  const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id
+  if (!chargeId) throw new Error(`PaymentIntentillä ${paymentIntentId} ei ole vielä valmista chargea`)
+  return chargeId
+}
+
+// Yksi myyjäkohtainen Transfer, sidottu alkuperäiseen chargeen source_transaction:illa -
+// vahvistettu Stripen dokumentaatiosta (docs.stripe.com/connect/separate-charges-and-
+// transfers): "You can create multiple transfers with the same source_transaction, as long
+// as the sum of the transfers doesn't exceed the source charge" ja "the transfer request
+// returns success regardless of your available balance if the related charge hasn't settled
+// yet" - eli tämä ei koskaan epäonnistu riittämättömän saldon takia heti maksun jälkeen,
+// toisin kuin ilman source_transactionia tehty transfer olisi voinut ennen varojen
+// "vapautumista". Palauttaa Transferin ID:n - tallennetaan Order.stripeTransferId:iin
+// hyvitystä varten (ks. refundPayment alla).
+export async function createSellerTransfer(params: { chargeId: string; sellerStripeAccountId: string; amountEuros: number }): Promise<string> {
+  const transfer = await stripe.transfers.create({
+    amount: eurosToCents(params.amountEuros),
+    currency: 'eur',
+    destination: params.sellerStripeAccountId,
+    source_transaction: params.chargeId,
+  })
+  return transfer.id
 }
 
 // EI KOSKAAN luoteta webhook-ilmoitukseen ilman tätä - vahvistaa että pyyntö tuli oikeasti
@@ -298,16 +339,49 @@ export function verifyAccountEventSignature(rawBody: Buffer, signature: string):
   return stripe.parseEventNotification(rawBody, signature, secret)
 }
 
-// Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).
-// reverse_transfer palauttaa myyjän saaman osuuden takaisin meille, refund_application_fee
-// palauttaa myös meidän komissio-osuutemme - Stripe suhteuttaa molemmat automaattisesti
-// hyvitettyyn summaan jos kyseessä on osittainen hyvitys (vahvistettu Stripen
-// dokumentaatiosta 2026-09-09: "Otherwise, you refund a proportional amount of the
-// application fee" - EI vaadi manuaalista komissiolaskentaa toisin kuin Paytraililla).
-export async function refundPayment(paymentIntentId: string, amountEuros?: number): Promise<{ status: string }> {
+// ⚠️ HYVITYSLOGIIKKA MUUTTUI 2026-09-11 "separate charges and transfers" -siirron myötä.
+// Vanha reverse_transfer:true/refund_application_fee:true toimi VAIN destination-chargeissa,
+// joissa PaymentIntentillä on täsmälleen yksi transfer/application_fee sidottuna siihen
+// itseensä - Stripe hoiti suhteutuksen automaattisesti. Nyt PaymentIntent voi kattaa USEAMMAN
+// Orderin (eri myyjät) yhdistetyssä maksussa, joten "reversoi TÄMÄN PaymentIntentin transfer"
+// ei ole enää mielekäs käsite - jokaisella Orderilla on oma erillinen Transfer-objektinsa.
+// Stripen oma dokumentaatio on tässä yksiselitteinen: "refunding a charge has no impact on
+// any associated transfers... reconcile any amount owed back by reducing subsequent transfer
+// amounts or by reversing transfers" - hyvitys ja transferin peruminen ovat AINA kaksi
+// erillistä, meidän itse orkestroimaa kutsua tästä eteenpäin, ei koskaan automaattista.
+//
+// refundAmountEuros on AINA PAKOLLINEN (ei enää valinnainen "koko PaymentIntent" -oletus) -
+// koska PaymentIntent voi kattaa useamman Orderin summan, "hyvitä koko PaymentIntent" olisi
+// voinut vahingossa hyvittää TOISEN myyjän/tilauksen rahat takaisin ostajalle. Kutsujan
+// (routes/orders.ts) on aina laskettava täsmälleen TÄMÄN Orderin oma osuus.
+//
+// transferId puuttuu (null) vanhoilta, ENNEN 2026-09-11 destination-chargella maksetuilta
+// tilauksilta (niillä ei koskaan ollut omaa Transfer-objektia, koko siirto tapahtui Stripen
+// sisäisesti osana PaymentIntentiä) - näille käytetään yhä VANHAA reverse_transfer/
+// refund_application_fee-mekanismia (toimii oikein VAIN destination-chargelle, ei koskaan
+// yhdistetylle usean Orderin maksulle - mutta legacy-tilaus on aina yhden Orderin, yhden
+// PaymentIntentin maksu, joten se on tässä turvallista). Uusille (stripeTransferId asetettu)
+// tehdään erillinen reversal+refund, ks. yllä oleva kommentti.
+export async function refundPayment(params: {
+  paymentIntentId: string
+  refundAmountEuros: number
+  transferId: string | null
+  transferReversalAmountEuros?: number // jätä pois = peru KOKO transfer (turvallista, 1:1 tämän Orderin kanssa)
+}): Promise<{ status: string }> {
+  if (params.transferId) {
+    await stripe.transfers.createReversal(params.transferId, {
+      ...(params.transferReversalAmountEuros != null ? { amount: eurosToCents(params.transferReversalAmountEuros) } : {}),
+    })
+    const refund = await stripe.refunds.create({
+      payment_intent: params.paymentIntentId,
+      amount: eurosToCents(params.refundAmountEuros),
+    })
+    return { status: refund.status ?? 'unknown' }
+  }
+  // Legacy-polku (ks. yllä) - sama kutsu kuin ennen 2026-09-11 arkkitehtuurimuutosta.
   const refund = await stripe.refunds.create({
-    payment_intent: paymentIntentId,
-    ...(amountEuros != null ? { amount: eurosToCents(amountEuros) } : {}),
+    payment_intent: params.paymentIntentId,
+    amount: eurosToCents(params.refundAmountEuros),
     reverse_transfer: true,
     refund_application_fee: true,
   })

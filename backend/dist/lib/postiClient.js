@@ -17,7 +17,7 @@
 // (uudet API-roolit lisätty tiliin, ei enää 403) ja KYTKETTY create-shipment-reittiin - koodi
 // on nyt ensisijainen tulos, PDF vain varapolku jos koodin haku epäonnistuisi.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.POSTI_CONTRACT_NUMBER = exports.POSTI_TEST_MODE = exports.WEIGHT_KG_BY_PAKETTIKOKO = exports.PACKAGE_CODE_BY_PAKETTIKOKO = exports.SERVICE_ID_BY_PAKETTIKOKO = void 0;
+exports.POSTI_CONTRACT_NUMBER = exports.POSTI_TEST_MODE = exports.POSTI_WEIGHT_KG = exports.POSTI_PACKAGE_CODE = exports.POSTI_SERVICE_ID = void 0;
 exports.createShippingOrder = createShippingOrder;
 exports.fetchLabelPdf = fetchLabelPdf;
 exports.getSendingCode = getSendingCode;
@@ -38,18 +38,15 @@ const POSTI_CONTRACT_NUMBER = POSTI_TEST_MODE ? (process.env.POSTI_TEST_CONTRACT
 exports.POSTI_CONTRACT_NUMBER = POSTI_CONTRACT_NUMBER;
 // Vaaditaan JOKAISEEN kutsuun paitsi token-hakuun - ei vielä vastaanotettu omistajalta.
 const POSTI_GATEWAY_SECRET = process.env.POSTI_GATEWAY_SECRET || '';
-exports.SERVICE_ID_BY_PAKETTIKOKO = {
-    PIENI: 'PO2102',
-    ISO: 'PO2103',
-};
-exports.PACKAGE_CODE_BY_PAKETTIKOKO = {
-    PIENI: 'PKT',
-    ISO: 'PKT',
-};
-exports.WEIGHT_KG_BY_PAKETTIKOKO = {
-    PIENI: 1,
-    ISO: 5,
-};
+// Aiemmin myyjä valitsi pakettikoon (PIENI/ISO) lähetyksen luontivaiheessa, kahdella eri
+// serviceId:llä (PO2102/PO2103). Poistettu 2026-09-11 omistajan pyynnöstä - vain YKSI kiinteä
+// pakettikoko kaikelle, ei enää valintaa. Käytössä on PO2103/"PKT", koska se on ainoa Postin
+// omasta curl-esimerkistä vahvistettu arvo (PO2102 oli aina vain vahvistamaton arvaus, Postin
+// esimerkki käytti vain ISO:a) - sama arvo jolla koko flow todistettiin toimivaksi päästä
+// päähän 2026-09-04 (ks. CLAUDE.md "Lähetysintegraatio").
+exports.POSTI_SERVICE_ID = 'PO2103';
+exports.POSTI_PACKAGE_CODE = 'PKT';
+exports.POSTI_WEIGHT_KG = 5;
 let cachedToken = null;
 async function getAccessToken() {
     if (cachedToken && cachedToken.expiresAt > Date.now() + 30000)

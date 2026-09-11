@@ -397,7 +397,7 @@ const en = {
     liveExpiredNotice: 'One or more live purchases were removed from the cart after time ran out.',
     payFailed: 'Payment failed', free: '(free)',
     liveTimeLeft: 'Live purchase — time to pay', timeUp: 'Time is up',
-    products: 'Products', shipping: 'shipping', processingFee: 'processing fee', pay: 'Pay', processing: 'Processing...',
+    products: 'Products', shipping: 'shipping', processingFee: 'processing fee', pay: 'Pay', payAll: 'Pay all', processing: 'Processing...',
     total: 'Total', items: 'items', allSellers: 'all sellers',
     deliveryConflict: "These products' delivery methods conflict (one only allows shipping, the other only pickup) — contact the seller.",
   },

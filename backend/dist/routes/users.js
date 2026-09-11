@@ -264,4 +264,21 @@ router.post('/me/stripe-onboarding', auth_1.authMiddleware, async (req, res) => 
         res.status(400).json({ error: e.message ?? 'Stripe-tilin luonti epäonnistui' });
     }
 });
+// GET /users/me/stripe-dashboard-link — kertakäyttöinen kirjautumislinkki myyjän OMAAN Stripe
+// Express-hallintapaneeliin (saldo, tilityshistoria, pankkitiedot) - ainoa paikka josta myyjä
+// näkee TODELLISEN, ajantasaisen saldonsa, koska Habahubin oma Tilitykset-sivu näyttää vain
+// omat tilausrivimme, ei Stripen puolen tilitysaikataulua/saldoa. Vaatii tilin olevan jo
+// olemassa - ei luo uutta (eri kuin /stripe-onboarding, joka luo tarvittaessa).
+router.get('/me/stripe-dashboard-link', auth_1.authMiddleware, async (req, res) => {
+    const user = await prisma_1.prisma.user.findUnique({ where: { id: req.userId }, select: { stripeAccountId: true } });
+    if (!user?.stripeAccountId)
+        return res.status(400).json({ error: 'Stripe-tiliä ei ole vielä yhdistetty' });
+    try {
+        const url = await (0, stripe_1.createDashboardLoginLink)(user.stripeAccountId);
+        res.json({ url });
+    }
+    catch (e) {
+        res.status(400).json({ error: e.message ?? 'Hallintapaneelin avaus epäonnistui' });
+    }
+});
 exports.default = router;

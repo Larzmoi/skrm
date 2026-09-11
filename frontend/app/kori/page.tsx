@@ -30,7 +30,7 @@ export default function KoriPage() {
   const [now, setNow] = useState(Date.now())
   const [selectedSize, setSelectedSize] = useState<Record<string, string>>({})
   const [selectedPickupPoint, setSelectedPickupPoint] = useState<Record<string, string>>({})
-  const [paying, setPaying] = useState<string | null>(null)
+  const [payingAll, setPayingAll] = useState(false)
   const [notice, setNotice] = useState('')
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([])
   const [pickupSearch, setPickupSearch] = useState('')
@@ -86,14 +86,27 @@ export default function KoriPage() {
     return pakettikoot.find(p => p.id === id)?.hinta ?? 0
   }
 
-  async function payGroup(sellerId: string, pakettikokoId: string) {
-    setPaying(sellerId)
+  // Yhdistetty ostoskorimaksu (ks. CLAUDE.md "Yhdistetty ostoskorimaksu" 2026-09-11) - kaikki
+  // myyjäryhmät maksetaan YHDELLÄ Stripe Checkout Sessionilla yhden "Maksa kaikki" -painalluksen
+  // takaa, korvaa aiemmat per-myyjä "Maksa"-napit. Käy ryhmät läpi PERÄKKÄIN (ei rinnakkain) -
+  // yksinkertaisempi virheenkäsittely, ei riskiä että jaetun ostoskorin poisto-transaktiot
+  // (ks. backend/cart.ts checkout) törmäisivät keskenään.
+  async function payAll() {
+    setPayingAll(true)
+    setNotice('')
     try {
-      // Tuote ja toimitus maksetaan aina yhdessä, yhtenä Stripe Checkout Sessionina - toimitustapa
-      // pitää siis olla valittuna ENNEN maksun aloitusta (ks. CLAUDE.md "Paytrail -> Stripe").
-      const { order } = await cartApi.checkout(sellerId)
-      await orderApi.selectShipping(order.id, pakettikokoId, pakettikokoId === 'postitus' ? selectedPickupPoint[sellerId] : undefined)
-      const { redirectUrl } = await orderApi.pay(order.id)
+      const orderIds: string[] = []
+      for (const group of groups) {
+        const pakettikokoId = sizeFor(group)
+        if (!pakettikokoId) throw new Error(t.kori.deliveryConflict)
+        // Tuote ja toimitus maksetaan aina yhdessä, samaan tapaan kuin ennenkin per myyjä - vain
+        // itse maksun aloitus (viimeinen rivi tämän silmukan jälkeen) yhdistyy nyt yhdeksi
+        // Stripe Checkout Sessioniksi kaikille myyjille kerralla.
+        const { order } = await cartApi.checkout(group.sellerId)
+        await orderApi.selectShipping(order.id, pakettikokoId, pakettikokoId === 'postitus' ? selectedPickupPoint[group.sellerId] : undefined)
+        orderIds.push(order.id)
+      }
+      const { redirectUrl } = await orderApi.payMultiple(orderIds)
       if (redirectUrl) {
         // Ulkoinen Stripe Checkout -osoite - koko sivun navigointi, ei Next.js-routeria
         window.location.href = redirectUrl
@@ -105,7 +118,7 @@ export default function KoriPage() {
       setNotice(e.message ?? t.kori.payFailed)
       setTimeout(() => setNotice(''), 5000)
     }
-    setPaying(null)
+    setPayingAll(false)
   }
 
   async function removeItem(itemId: string) {
@@ -120,6 +133,10 @@ export default function KoriPage() {
     return sum + sub + computeProcessingFeeEuros(sub)
   }, 0)
   const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0)
+  // "Maksa kaikki" estetään jos MIKÄ TAHANSA ryhmä on aidosti ristiriitainen (ks. options.length
+  // === 0 -kommentti alla) - ei voi muodostaa yhtenäistä maksua jos yksikin Order jäisi ilman
+  // kelvollista toimitustapaa.
+  const hasDeliveryConflict = groups.some(g => optionsFor(g).length === 0)
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
@@ -221,22 +238,24 @@ export default function KoriPage() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
                     <div style={{ fontSize: 13, color: C.muted }}>
                       {t.kori.products} {group.total.toLocaleString('fi-FI')}€ + {t.kori.shipping} {shippingPrice.toLocaleString('fi-FI')}€ + {t.kori.processingFee} {computeProcessingFeeEuros(group.total + shippingPrice).toLocaleString('fi-FI')}€
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{(group.total + shippingPrice + computeProcessingFeeEuros(group.total + shippingPrice)).toLocaleString('fi-FI')}€</div>
                     </div>
-                    <button onClick={() => payGroup(group.sellerId, size)} disabled={paying === group.sellerId || options.length === 0} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: (paying === group.sellerId || options.length === 0) ? 'default' : 'pointer', opacity: (paying === group.sellerId || options.length === 0) ? 0.7 : 1 }}>
-                      {paying === group.sellerId ? t.kori.processing : t.kori.pay}
-                    </button>
                   </div>
                 </div>
               )
             })}
 
-            <div style={{ background: C.surface, borderRadius: 10, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, color: C.muted }}>{t.kori.total} ({totalItems} {t.kori.items}, {t.kori.allSellers})</span>
-              <span style={{ fontSize: 18, fontWeight: 900, color: C.text }}>{grandTotal.toLocaleString('fi-FI')}€</span>
+            <div style={{ background: C.surface, borderRadius: 10, padding: '16px 20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+              <div>
+                <span style={{ fontSize: 13, color: C.muted, display: 'block' }}>{t.kori.total} ({totalItems} {t.kori.items}, {t.kori.allSellers})</span>
+                <span style={{ fontSize: 20, fontWeight: 900, color: C.text }}>{grandTotal.toLocaleString('fi-FI')}€</span>
+              </div>
+              <button onClick={payAll} disabled={payingAll || hasDeliveryConflict} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '12px 26px', borderRadius: 8, fontWeight: 700, fontSize: 15, cursor: (payingAll || hasDeliveryConflict) ? 'default' : 'pointer', opacity: (payingAll || hasDeliveryConflict) ? 0.7 : 1 }}>
+                {payingAll ? t.kori.processing : t.kori.payAll}
+              </button>
             </div>
           </div>
         )}

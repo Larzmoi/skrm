@@ -7,8 +7,12 @@ exports.computeCommissionCents = computeCommissionCents;
 exports.getEffectiveCommissionOverride = getEffectiveCommissionOverride;
 exports.createConnectedAccount = createConnectedAccount;
 exports.createOnboardingLink = createOnboardingLink;
+exports.createDashboardLoginLink = createDashboardLoginLink;
 exports.getAccountStatus = getAccountStatus;
+exports.computeProcessingFeeCents = computeProcessingFeeCents;
 exports.createCheckoutSession = createCheckoutSession;
+exports.getLatestChargeId = getLatestChargeId;
+exports.createSellerTransfer = createSellerTransfer;
 exports.verifyWebhookSignature = verifyWebhookSignature;
 exports.verifyAccountEventSignature = verifyAccountEventSignature;
 exports.refundPayment = refundPayment;
@@ -42,10 +46,31 @@ const stripe = new stripe_1.default(process.env.STRIPE_SECRET_KEY || '');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 // Sama LUKITTU 3,5%/35€-sääntö kuin Paytraililla — siirretty sellaisenaan lib/paytrail.ts:stä,
 // logiikka ei riipu maksupalveluntarjoajasta.
+//
+// ⚠️ 0,30€ minimikomissio lisätty 2026-09-10, LUKITTU (omistajan päätös). Syy löytyi
+// omistajan omasta ensimmäisestä oikeasta testiostosta: 0,50€ tuotteen 3,5% on n. 2 senttiä,
+// kun Stripen oma käsittelymaksu (~1,5%+0,25€, EU-kortit) samalle summalle on n. 26 senttiä —
+// vahvistettu suoraan Stripen balance_transactionista kyseiselle oikealle maksulle. Habahubin
+// komissio ei kata Stripen omaa maksua ennen kuin tuotteen hinta on n. 12,50€ (3,5%×hinta ≥
+// 1,5%×hinta+0,25€ ⟺ hinta ≥ 12,50€) - kaikki tätä halvemmat myynnit olisivat olleet
+// Habahubille tappiollisia ilman tätä minimikomissiota.
+//
+// Minimi koskee VAIN oletuslaskentaa (customRatePercent/customCapEuros molemmat null, eli 3,5%/
+// 35€-oletus) - EI koske 14pv-tutustumispromoa eikä adminin asettamaa mukautettua komissiota,
+// koska molemmat ovat tarkoituksellisia, eksplisiittisiä poikkeuksia ("0% ensimmäiset 14
+// päivää", tietty sovittu alennus tietylle myyjälle) - minimikomissio ei saa hiljaa mitätöidä
+// niitä. Sama funktio lasketaan per tuoterivi (ks. kutsupaikka orders.ts:ssä, summataan
+// tilauksen kaikista riveistä) - minimi pätee siis per rivi, ei per koko tilaus, samalla
+// periaatteella kuin 3,5%/35€-oletuskin jo lasketaan.
+const MIN_COMMISSION_EUROS = 0.3;
 function computeCommissionCents(priceEuros, customRatePercent, customCapEuros) {
+    const usingDefaultRate = customRatePercent == null;
+    const usingDefaultCap = customCapEuros == null;
     const rate = (customRatePercent != null && isFinite(customRatePercent) && customRatePercent >= 0) ? customRatePercent : 3.5;
     const cap = (customCapEuros != null && isFinite(customCapEuros) && customCapEuros >= 0) ? customCapEuros : 35;
-    return Math.round(Math.min(priceEuros * (rate / 100), cap) * 100);
+    const computed = Math.min(priceEuros * (rate / 100), cap);
+    const final = (usingDefaultRate && usingDefaultCap) ? Math.max(computed, MIN_COMMISSION_EUROS) : computed;
+    return Math.round(final * 100);
 }
 // Rekisteröitymisen jälkeinen 0%-tutustumisjakso (ks. CLAUDE.md "14 päivän 0%-tutustumisjakso")
 // — siirretty sellaisenaan, ei muutu maksupalveluntarjoajan vaihdon myötä.
@@ -67,21 +92,44 @@ function eurosToCents(euros) {
 // ei kirjoita tietokantaan). "recipient"-konfiguraatio + stripe_transfers-kapasiteetti
 // riittää vastaanottamaan destination-chargen siirrot, dashboard:"express" antaa
 // myyjälle Stripen oman brändätyn Express-hallintapaneelin (saldon/tilitysten seuranta).
+//
+// ⚠️ 2026-09-10, löydetty ensimmäisellä oikealla live-onboarding-yrityksellä (aiempi
+// pelkkä recipient.stripe_transfers -pyyntö toimi vielä 2026-09-09 mutta testitilassa -
+// live-tila hylkäsi sen suoraan): Stripe palauttaa "The stripe_balance.stripe_transfers
+// capability cannot be requested without the configuration.merchant.capabilities.
+// card_payments capability" - vahvistettu suoraan live-avainta vasten kertakäyttöisellä
+// diagnostiikkaskriptillä (luotu+poistettu kaksi testitiliä, ei jäänyt tuotantoon) ennen
+// koodausta, ei arvattu. Ratkaisu: pyydetään myös merchant.card_payments-kapasiteetti
+// rinnalla - EI tarkoita että myyjä alkaisi käsitellä korttimaksuja itse (Habahub tekee
+// yhä KAIKKI veloitukset omalla Checkout Sessionillaan destination-chargen kautta, ks.
+// createCheckoutSession), Stripe vain vaatii tämän parin olemassa olevaksi jotta
+// stripe_transfers voidaan ylipäätään myöntää live-tilassa.
+//
+// Tämä toi mukanaan KAKSI uutta "routine_onboarding"-vaatimusta joita recipient-only-tili
+// ei koskaan tarvinnut: configuration.merchant.mcc (toimialakoodi) ja
+// defaults.profile.business_url. Vahvistettu samalla diagnostiikkaskriptillä että KUMPIKAAN
+// ei koske myyjää - kun Habahub asettaa ne itse tässä (mcc 5945 "Hobby, Toy, and Game Shops",
+// business_url habahub.com), ne poistuvat kokonaan tilin requirements-listalta eikä Stripen
+// hostattu onboarding-lomake koskaan kysy niitä myyjältä. Jäljelle jäävät vaatimukset ovat
+// täsmälleen samat kuin ennenkin (nimi/osoite/syntymäaika/puhelin/pankkitili) - EI lisää
+// kitkaa yksityishenkilömyyjälle, ks. CLAUDE.md "Paytrail -> Stripe Connect".
 async function createConnectedAccount(seller) {
     const account = await stripe.v2.core.accounts.create({
         contact_email: seller.email,
         display_name: seller.name,
         identity: { country: 'fi', entity_type: 'individual' },
+        dashboard: 'express',
         configuration: {
             recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } },
+            merchant: { capabilities: { card_payments: { requested: true } }, mcc: '5945' },
         },
-        dashboard: 'express',
         defaults: {
             currency: 'eur',
             // fees_collector/losses_collector: "application" = Habahub (ei Stripe) vastaa
             // negatiivisten saldojen riskistä - sama vastuunjako kuin Paytrailin Shop-in-Shopissa,
             // jossa SKRM oli aina se joka hallinnoi sub-merchant-suhdetta.
             responsibilities: { fees_collector: 'application', losses_collector: 'application' },
+            profile: { business_url: 'https://habahub.com' },
         },
     });
     return account.id;
@@ -96,6 +144,16 @@ async function createOnboardingLink(accountId) {
         return_url: `${FRONTEND_URL}/dashboard/tilitykset`,
         type: 'account_onboarding',
     });
+    return link.url;
+}
+// Kertakäyttöinen kirjautumislinkki myyjän omaan Stripe Express -hallintapaneeliin (saldo,
+// tilityshistoria, pankkitiedot) - accounts.createLoginLink() on v1-API:n metodi, mutta
+// hyväksyy v2-tilin ID:n sellaisenaan (ks. docs.stripe.com/connect/accounts-v2 "Certain
+// features don't yet directly support v2 Accounts... you can still pass the ID of a v2
+// Account to an Accounts v1 API endpoint" - login-linkit eivät ole tuon sivun v1-only-
+// listalla, joten tämän oletetaan toimivan samoin kuin Account Links teki v2-tileille).
+async function createDashboardLoginLink(accountId) {
+    const link = await stripe.accounts.createLoginLink(accountId);
     return link.url;
 }
 // Tilin tila - kaksi ERI kapasiteettia, tarkoituksella eroteltu (löytyi tuotantotestissä
@@ -114,39 +172,107 @@ async function getAccountStatus(accountId) {
         transfersEnabled: capabilities?.stripe_transfers?.status === 'active',
     };
 }
-// Yksi Checkout Session koko tilaukselle (tuote+toimitus yhdessä, sama LUKITTU-sääntö kuin
-// Paytraililla - ks. CLAUDE.md "Paytrail", omistajan korjaus 2026-08-12 kahden erillisen
-// maksun sijaan). application_fee_amount lasketaan VAIN tuoteriveistä, ei toimituksesta.
+// Ostajalta veloitettava maksunkäsittelymaksu — LISÄTTY 2026-09-10, omistajan päätös. Aiemmin
+// Habahub kattoi Stripen oman ~1,5%+0,25€ EU-korttimaksun omasta komissiostaan (ks. yllä oleva
+// "Minimikomissio 0,30€" -korjaus, joka lievitti mutta ei poistanut tätä pienillä tuotteilla).
+// Nyt tämä veloitetaan ostajalta erillisenä, näkyvänä rivinä checkoutissa - lasketaan KOKO
+// tilauksen summasta (tuotteet+toimitus), koska Stripen oma korttimaksu lasketaan samoin koko
+// veloitetusta summasta. Sama kaava on peilattu frontendin lib/pakettikoot.ts:ssä NÄYTTÖÄ
+// varten (/kori, /ostot ennen maksua) - palvelin laskee ja veloittaa aina itse, ei koskaan
+// luota clientin arvoon.
+function computeProcessingFeeCents(totalEuros) {
+    return Math.round(totalEuros * 1.5 + 25);
+}
+// Yksi Checkout Session KOKO ostoskorille, yhdistäen mahdollisesti useamman myyjän Orderit
+// (ks. CLAUDE.md "Yhdistetty ostoskorimaksu" 2026-09-11) - tuote+toimitus yhdessä per myyjä,
+// sama LUKITTU-sääntö kuin ennenkin (omistajan korjaus 2026-08-12 kahden erillisen maksun
+// sijaan), laajennettu nyt kattamaan useamman myyjän KERRALLA yhdessä maksussa.
+//
+// ⚠️ ARKKITEHTUURIMUUTOS 2026-09-11: destination charge (payment_intent_data.transfer_data.
+// destination) tukee VAIN YHTÄ kohdetiliä per PaymentIntent - ei riitä kun ostoskorissa on
+// useamman myyjän tuotteita samassa maksussa. Vaihdettu Stripen "separate charges and
+// transfers" -malliin (vahvistettu suoraan docs.stripe.com/connect/separate-charges-and-
+// transfers:sta ennen koodausta, ei arvattu): KOKO summa laskeutuu ensin Habahubin OMALLE
+// Stripe-saldolle (ei transfer_data/application_fee_amount ollenkaan tässä), ja VASTA
+// checkout.session.completed-webhookissa luodaan ERILLINEN stripe.transfers.create()-kutsu
+// per myyjä/Order (ks. webhooks.ts + getLatestChargeId/createSellerTransfer alempana).
+// Stripen dokumentaatio vahvistaa nimenomaisesti: "You can split a single charge between
+// multiple transfers" - source_transaction-parametri (charge ID) sallii tämän ilman että
+// tarvitsee odottaa saldon "vapautumista", ja useampi transfer voi jakaa saman source_
+// transactionin niin kauan kuin summat eivät ylitä alkuperäistä chargea.
+//
+// Komissio EI enää mene Stripelle ollenkaan checkout-vaiheessa (ei application_fee_amount) -
+// se on nyt puhtaasti sisäinen laskenta joka määrää KUNKIN myyjän Transfer-summan webhookissa
+// (productTotal - kyseisen myyjän oma komissio). Toimitusmaksu ja maksunkäsittelymaksu jäävät
+// automaattisesti kokonaan Habahubin saldolle, koska niitä ei koskaan siirretä kenellekään -
+// sama lopputulos kuin vanhassa application_fee_amount-laskennassa, vain toteutettu toisin päin.
 async function createCheckoutSession(params) {
-    const lineItems = params.items.map(item => ({
-        price_data: {
-            currency: 'eur',
-            unit_amount: eurosToCents(item.unitPriceEuros),
-            product_data: { name: item.name },
-        },
-        quantity: item.quantity,
-    }));
-    if (params.shippingEuros > 0) {
-        lineItems.push({
-            price_data: { currency: 'eur', unit_amount: eurosToCents(params.shippingEuros), product_data: { name: 'Toimitus' } },
-            quantity: 1,
-        });
+    const multiSeller = params.orders.length > 1;
+    const lineItems = [];
+    for (const order of params.orders) {
+        for (const item of order.items) {
+            lineItems.push({
+                price_data: { currency: 'eur', unit_amount: eurosToCents(item.unitPriceEuros), product_data: { name: item.name } },
+                quantity: item.quantity,
+            });
+        }
+        if (order.shippingEuros > 0) {
+            // Myyjän nimi mukaan toimitusrivin nimeen VAIN kun ostoskorissa on useampi myyjä -
+            // yhden myyjän tilaukselle sama "Toimitus"-teksti kuin ennenkin, ei turhaa toistoa.
+            const label = multiSeller ? `Toimitus – ${order.sellerName}` : 'Toimitus';
+            lineItems.push({
+                price_data: { currency: 'eur', unit_amount: eurosToCents(order.shippingEuros), product_data: { name: label } },
+                quantity: 1,
+            });
+        }
     }
+    const totalBeforeFeeEuros = params.orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.unitPriceEuros * i.quantity, 0) + o.shippingEuros, 0);
+    const processingFeeCents = computeProcessingFeeCents(totalBeforeFeeEuros);
+    lineItems.push({
+        price_data: { currency: 'eur', unit_amount: processingFeeCents, product_data: { name: 'Maksunkäsittelymaksu' } },
+        quantity: 1,
+    });
+    // EI orderId:tä success/cancel-URL:ssa enää - vahvistettu ettei frontend (/ostot) koskaan
+    // lukenut sitä (vain ?payment=success/cancel-parametria), joten se oli aina pelkkä koriste.
+    // Yhdistetyssä maksussa yhtä orderId:tä ei voisi edes valita mielekkäästi useamman joukosta.
     const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         line_items: lineItems,
         customer_email: params.buyerEmail,
-        payment_intent_data: {
-            application_fee_amount: params.commissionCents,
-            transfer_data: { destination: params.sellerStripeAccountId },
-        },
-        success_url: `${FRONTEND_URL}/ostot?payment=success&orderId=${params.orderId}`,
-        cancel_url: `${FRONTEND_URL}/ostot?payment=cancel&orderId=${params.orderId}`,
-        metadata: { orderId: params.orderId },
+        success_url: `${FRONTEND_URL}/ostot?payment=success`,
+        cancel_url: `${FRONTEND_URL}/ostot?payment=cancel`,
     });
     if (!session.url)
         throw new Error('Stripe ei palauttanut maksuosoitetta');
     return { sessionId: session.id, redirectUrl: session.url };
+}
+// Haetaan PaymentIntentin viimeisin charge - tarvitaan Transferin source_transaction-
+// parametriksi (ks. createSellerTransfer alla). Kutsutaan webhookista checkout.session.
+// completed -tapahtuman payment_intent-ID:llä.
+async function getLatestChargeId(paymentIntentId) {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
+    if (!chargeId)
+        throw new Error(`PaymentIntentillä ${paymentIntentId} ei ole vielä valmista chargea`);
+    return chargeId;
+}
+// Yksi myyjäkohtainen Transfer, sidottu alkuperäiseen chargeen source_transaction:illa -
+// vahvistettu Stripen dokumentaatiosta (docs.stripe.com/connect/separate-charges-and-
+// transfers): "You can create multiple transfers with the same source_transaction, as long
+// as the sum of the transfers doesn't exceed the source charge" ja "the transfer request
+// returns success regardless of your available balance if the related charge hasn't settled
+// yet" - eli tämä ei koskaan epäonnistu riittämättömän saldon takia heti maksun jälkeen,
+// toisin kuin ilman source_transactionia tehty transfer olisi voinut ennen varojen
+// "vapautumista". Palauttaa Transferin ID:n - tallennetaan Order.stripeTransferId:iin
+// hyvitystä varten (ks. refundPayment alla).
+async function createSellerTransfer(params) {
+    const transfer = await stripe.transfers.create({
+        amount: eurosToCents(params.amountEuros),
+        currency: 'eur',
+        destination: params.sellerStripeAccountId,
+        source_transaction: params.chargeId,
+    });
+    return transfer.id;
 }
 // EI KOSKAAN luoteta webhook-ilmoitukseen ilman tätä - vahvistaa että pyyntö tuli oikeasti
 // Stripeltä (sama periaate kuin Paytrailin HMAC-tarkistus, eri toteutustapa). Vaatii RAA'AN
@@ -184,16 +310,44 @@ function verifyAccountEventSignature(rawBody, signature) {
         throw new Error('STRIPE_ACCOUNT_EVENTS_SECRET puuttuu');
     return stripe.parseEventNotification(rawBody, signature, secret);
 }
-// Hyvitys, koko tai osittainen (amountEuros pois jättäminen = koko maksun hyvitys).
-// reverse_transfer palauttaa myyjän saaman osuuden takaisin meille, refund_application_fee
-// palauttaa myös meidän komissio-osuutemme - Stripe suhteuttaa molemmat automaattisesti
-// hyvitettyyn summaan jos kyseessä on osittainen hyvitys (vahvistettu Stripen
-// dokumentaatiosta 2026-09-09: "Otherwise, you refund a proportional amount of the
-// application fee" - EI vaadi manuaalista komissiolaskentaa toisin kuin Paytraililla).
-async function refundPayment(paymentIntentId, amountEuros) {
+// ⚠️ HYVITYSLOGIIKKA MUUTTUI 2026-09-11 "separate charges and transfers" -siirron myötä.
+// Vanha reverse_transfer:true/refund_application_fee:true toimi VAIN destination-chargeissa,
+// joissa PaymentIntentillä on täsmälleen yksi transfer/application_fee sidottuna siihen
+// itseensä - Stripe hoiti suhteutuksen automaattisesti. Nyt PaymentIntent voi kattaa USEAMMAN
+// Orderin (eri myyjät) yhdistetyssä maksussa, joten "reversoi TÄMÄN PaymentIntentin transfer"
+// ei ole enää mielekäs käsite - jokaisella Orderilla on oma erillinen Transfer-objektinsa.
+// Stripen oma dokumentaatio on tässä yksiselitteinen: "refunding a charge has no impact on
+// any associated transfers... reconcile any amount owed back by reducing subsequent transfer
+// amounts or by reversing transfers" - hyvitys ja transferin peruminen ovat AINA kaksi
+// erillistä, meidän itse orkestroimaa kutsua tästä eteenpäin, ei koskaan automaattista.
+//
+// refundAmountEuros on AINA PAKOLLINEN (ei enää valinnainen "koko PaymentIntent" -oletus) -
+// koska PaymentIntent voi kattaa useamman Orderin summan, "hyvitä koko PaymentIntent" olisi
+// voinut vahingossa hyvittää TOISEN myyjän/tilauksen rahat takaisin ostajalle. Kutsujan
+// (routes/orders.ts) on aina laskettava täsmälleen TÄMÄN Orderin oma osuus.
+//
+// transferId puuttuu (null) vanhoilta, ENNEN 2026-09-11 destination-chargella maksetuilta
+// tilauksilta (niillä ei koskaan ollut omaa Transfer-objektia, koko siirto tapahtui Stripen
+// sisäisesti osana PaymentIntentiä) - näille käytetään yhä VANHAA reverse_transfer/
+// refund_application_fee-mekanismia (toimii oikein VAIN destination-chargelle, ei koskaan
+// yhdistetylle usean Orderin maksulle - mutta legacy-tilaus on aina yhden Orderin, yhden
+// PaymentIntentin maksu, joten se on tässä turvallista). Uusille (stripeTransferId asetettu)
+// tehdään erillinen reversal+refund, ks. yllä oleva kommentti.
+async function refundPayment(params) {
+    if (params.transferId) {
+        await stripe.transfers.createReversal(params.transferId, {
+            ...(params.transferReversalAmountEuros != null ? { amount: eurosToCents(params.transferReversalAmountEuros) } : {}),
+        });
+        const refund = await stripe.refunds.create({
+            payment_intent: params.paymentIntentId,
+            amount: eurosToCents(params.refundAmountEuros),
+        });
+        return { status: refund.status ?? 'unknown' };
+    }
+    // Legacy-polku (ks. yllä) - sama kutsu kuin ennen 2026-09-11 arkkitehtuurimuutosta.
     const refund = await stripe.refunds.create({
-        payment_intent: paymentIntentId,
-        ...(amountEuros != null ? { amount: eurosToCents(amountEuros) } : {}),
+        payment_intent: params.paymentIntentId,
+        amount: eurosToCents(params.refundAmountEuros),
         reverse_transfer: true,
         refund_application_fee: true,
     });

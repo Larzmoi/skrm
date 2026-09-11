@@ -92,71 +92,127 @@ router.post('/:id/select-shipping', authMiddleware, async (req: AuthRequest, res
   res.json({ order: updated })
 })
 
-// POST /orders/:id/pay — käynnistää YHDEN Stripe Checkout Sessionin koko tilaukselle
-// (tuote + toimitus yhdessä — vaatii että toimitustapa on jo valittu, ks. select-shipping
-// yllä). Korvaa Paytrailin (ks. CLAUDE.md "Paytrail -> Stripe" 2026-09-09).
-router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const order = await prisma.order.findUnique({
-    where: { id: String(req.params.id) },
+// Yhteinen ydinlogiikka POST /orders/:id/pay (yksi tilaus, ks. alempana - säilytetty
+// taaksepäinyhteensopivana esim. /ostot-sivun huutokauppavoittojen maksuille) ja POST
+// /orders/pay-multiple (useampi tilaus/myyjä yhdessä maksussa, ks. CLAUDE.md "Yhdistetty
+// ostoskorimaksu" 2026-09-11, /kori-sivun "Maksa kaikki") välillä - sama validointi ja
+// Stripe-kutsu riippumatta yhdestä vai useammasta tilauksesta, KAIKKI-TAI-EI-MITÄÄN: jos
+// yksikin tilauksista epäonnistuu validoinnissa, EI luoda Stripe Checkout Sessionia
+// ollenkaan (ei osittaista maksua osalle myyjistä).
+// HUOM: palautusmuoto on { redirectUrl, error, status } eikä discriminoitu union ({ok:true|false})
+// - tsconfig.json:ssa on "strict": false, jolloin TS:n control-flow-narrowing ei toimi luotettavasti
+// boolean-literaalidiskriminantilla (vahvistettu erikseen: sama koodi toimii oikein strict:true:lla,
+// mutta ei tässä projektissa). Nollattavat kentät + pelkkä totuusarvotarkistus (`if (result.error)`)
+// välttää narrowing-riippuvuuden kokonaan.
+async function initiateCheckout(orderIds: string[], buyerId: string): Promise<
+  { redirectUrl: string | null; error: string | null; status: number }
+> {
+  if (orderIds.length === 0) return { redirectUrl: null, error: 'Ei tilauksia maksettavaksi', status: 400 }
+
+  const orders = await prisma.order.findMany({
+    where: { id: { in: orderIds } },
     include: {
       items: { include: { product: { select: { name: true } } } },
       buyer: { select: { email: true } },
       // Myyjän mahdolliset admin-asettamat komissiopoikkeukset (ks. CLAUDE.md/INTEGRATION.md
       // 2026-09-02) haetaan TÄSTÄ - ei koskaan luoteta frontendiltä tulevaan arvoon. createdAt
       // tarvitaan 14 päivän 0%-tutustumisjakson laskentaan (ks. getEffectiveCommissionOverride).
-      // stripeAccountId tarvitaan destination-chargen kohteeksi - ilman sitä ei ole minne
-      // ohjata myyjän osuutta.
-      seller: { select: { customCommissionRate: true, customCommissionCap: true, createdAt: true, stripeAccountId: true } },
+      // stripeAccountId tarvitaan Transferin kohteeksi (ks. lib/stripe.ts createSellerTransfer,
+      // luodaan vasta webhookissa maksun onnistuttua - ei enää destination charge).
+      seller: { select: { name: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, stripeAccountId: true } },
     },
   })
-  if (!order || order.buyerId !== req.userId) return res.status(403).json({ error: 'Ei oikeutta' })
-  if (order.status !== 'PENDING_PAYMENT') return res.status(400).json({ error: 'Ei odottavaa maksua' })
-  if (order.shippingPrice == null) return res.status(400).json({ error: 'Valitse ensin toimitustapa' })
-  if (!order.seller.stripeAccountId) return res.status(400).json({ error: 'Myyjä ei ole vielä yhdistänyt Stripe-tiliään maksujen vastaanottamiseen' })
-  // Tarkistetaan ETUKÄTEEN onko destination-chargen kohdetili valmis vastaanottamaan siirtoja
-  // - löydetty tuotantotestissä 2026-09-09: ilman tätä Stripe hylkää Checkout Sessionin
-  // luonnin raa'alla englanninkielisellä virheellä ("destination account needs to have...
-  // stripe_transfers capability") jos myyjän onboarding on kesken. Selkeämpi suomenkielinen
-  // virhe tässä on parempi UX ostajalle kuin Stripen oma tekninen virheviesti.
-  // ⚠️ Oma try/catch TÄRKEÄ tässä (löytyi vasta tuotanto-avainten vaihdon yhteydessä 2026-09-09):
-  // getAccountStatus() ei ollut aiemmin minkään catch-lohkon sisällä - jos stripeAccountId on
-  // testitilassa luotu (esim. sk_test_-avaimella tehty onboarding), sk_live_-avain ei löydä sitä
-  // ollenkaan ("No such account") ja Stripe-kirjasto heittää poikkeuksen. Ilman tätä catchia koko
-  // pyyntö olisi kaatunut käsittelemättömään 500-virheeseen jokaiselle myyjälle jonka Stripe-tili
-  // on jäänyt vanhaan tilaan kesken testi->tuotanto-siirtymän.
-  let transfersEnabled = false
-  try {
-    const status = await getAccountStatus(order.seller.stripeAccountId)
-    transfersEnabled = status.transfersEnabled
-  } catch (e: any) {
-    console.error('[stripe] getAccountStatus epäonnistui, tili todennäköisesti vanhentunut/väärässä tilassa:', order.seller.stripeAccountId, e.message)
+  if (orders.length !== orderIds.length) return { redirectUrl: null, error: 'Ei oikeutta', status: 403 }
+  for (const order of orders) {
+    if (order.buyerId !== buyerId) return { redirectUrl: null, error: 'Ei oikeutta', status: 403 }
+    if (order.status !== 'PENDING_PAYMENT') return { redirectUrl: null, error: 'Ei odottavaa maksua', status: 400 }
+    if (order.shippingPrice == null) return { redirectUrl: null, error: 'Valitse ensin toimitustapa', status: 400 }
+    if (!order.seller.stripeAccountId) return { redirectUrl: null, error: 'Myyjä ei ole vielä yhdistänyt Stripe-tiliään maksujen vastaanottamiseen', status: 400 }
   }
-  if (!transfersEnabled) return res.status(400).json({ error: 'Myyjän Stripe-onboarding on vielä kesken, tilausta ei voi maksaa juuri nyt' })
+
+  // Tarkistetaan ETUKÄTEEN onko jokaisen myyjän tili valmis vastaanottamaan siirtoja - löydetty
+  // tuotantotestissä 2026-09-09 (silloin vielä destination-chargelle, sama tarkistus pätee yhä
+  // Transferille): ilman tätä Stripe/oma koodimme kaatuisi teknisempään virheeseen myöhemmin.
+  // Rinnakkain (Promise.all) - ei tarvitse odottaa yhtä myyjää kerrallaan jos ostoskorissa on
+  // useampi. ⚠️ Oma try/catch TÄRKEÄ (löytyi tuotanto-avainten vaihdon yhteydessä 2026-09-09):
+  // vanhassa testitilassa luotu stripeAccountId ei löydy live-avaimella ("No such account").
+  const transferReadiness = await Promise.all(orders.map(async order => {
+    try {
+      const status = await getAccountStatus(order.seller.stripeAccountId!)
+      return status.transfersEnabled
+    } catch (e: any) {
+      console.error('[stripe] getAccountStatus epäonnistui, tili todennäköisesti vanhentunut/väärässä tilassa:', order.seller.stripeAccountId, e.message)
+      return false
+    }
+  }))
+  if (transferReadiness.some(ready => !ready)) {
+    return { redirectUrl: null, error: 'Yhden tai useamman myyjän Stripe-onboarding on vielä kesken, tilausta ei voi maksaa juuri nyt', status: 400 }
+  }
 
   // HUOM status 400, ei 502/500 - Cloudflare korvaa 502/503/504-vastausten rungon omalla
   // geneerisellä virhesivullaan (ohittaa alkuperäisen JSON-bodyn kokonaan), havaittu
   // testauksessa refund-reitillä. 400 kulkee läpi sellaisenaan.
   try {
-    const { rate: effectiveRate, cap: effectiveCap } = getEffectiveCommissionOverride(order.seller)
-    // Komissio lasketaan VAIN tuoteriveistä (ei toimituksesta, LUKITTU-sääntö) - yhtenä
-    // application_fee_amount:ina koko tilaukselle, koska Order.sellerId on aina yksittäinen
-    // (ei tarvitse per-rivi-komissiota kuten Paytrailin Shop-in-Shopissa).
-    const commissionCents = order.items.reduce(
-      (sum, i) => sum + computeCommissionCents(i.price * i.quantity, effectiveRate, effectiveCap), 0,
-    )
-    const items = order.items.map(i => ({ name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity }))
+    // Komissio lasketaan VAIN tuoteriveistä (ei toimituksesta, LUKITTU-sääntö), ERIKSEEN per
+    // Order/myyjä - jokaisella myyjällä voi olla oma customCommissionRate/Cap tai oma 14pv-
+    // tutustumispromon tila, joten yhtä yhteistä komissiota ei voi laskea koko ostoskorille.
+    const commissionByOrderId = new Map<string, number>()
+    for (const order of orders) {
+      const { rate: effectiveRate, cap: effectiveCap } = getEffectiveCommissionOverride(order.seller)
+      const commissionCents = order.items.reduce(
+        (sum, i) => sum + computeCommissionCents(i.price * i.quantity, effectiveRate, effectiveCap), 0,
+      )
+      commissionByOrderId.set(order.id, commissionCents)
+    }
+
     const session = await createCheckoutSession({
-      orderId: order.id, items, shippingEuros: order.shippingPrice, buyerEmail: order.buyer.email,
-      sellerStripeAccountId: order.seller.stripeAccountId, commissionCents,
+      buyerEmail: orders[0].buyer.email,
+      orders: orders.map(order => ({
+        orderId: order.id,
+        sellerName: order.seller.name,
+        items: order.items.map(i => ({ name: i.product.name, unitPriceEuros: i.price, quantity: i.quantity })),
+        shippingEuros: order.shippingPrice!,
+      })),
     })
-    // commissionCents tallennetaan TÄSSÄ, samalla laskennalla joka meni application_fee_amount:iin
-    // - ei lasketa uudelleen myöhemmin, koska myyjän efektiivinen komissioprosentti (14pv-promo/
-    // admin-ylikirjoitus) voi muuttua ajan myötä eikä silloin enää vastaisi todellista veloitusta.
-    await prisma.order.update({ where: { id: order.id }, data: { stripeSessionId: session.sessionId, commissionCents } })
-    return res.json({ order, redirectUrl: session.redirectUrl })
+
+    // commissionCents tallennetaan TÄSSÄ per Order, samalla laskennalla joka meni Transferin
+    // summan pohjaksi - ei lasketa uudelleen myöhemmin, koska myyjän efektiivinen komissio-
+    // prosentti (14pv-promo/admin-ylikirjoitus) voi muuttua ajan myötä eikä silloin enää
+    // vastaisi todella veloitettua summaa. Eri commissionCents per rivi -> ei yksi updateMany,
+    // vaan rinnakkaiset yksittäiset update-kutsut (kaikki samaan stripeSessionId:iin).
+    await Promise.all(orders.map(order => prisma.order.update({
+      where: { id: order.id },
+      data: { stripeSessionId: session.sessionId, commissionCents: commissionByOrderId.get(order.id)! },
+    })))
+
+    return { redirectUrl: session.redirectUrl, error: null, status: 200 }
   } catch (e: any) {
-    return res.status(400).json({ error: e.message ?? 'Maksun aloitus epäonnistui' })
+    return { redirectUrl: null, error: e.message ?? 'Maksun aloitus epäonnistui', status: 400 }
   }
+}
+
+// POST /orders/:id/pay — käynnistää Stripe Checkout Sessionin YHDELLE tilaukselle (tuote +
+// toimitus yhdessä — vaatii että toimitustapa on jo valittu, ks. select-shipping yllä).
+// Säilytetty /ostot-sivun yksittäisten (esim. huutokauppavoitto) maksujen käyttöön - ks.
+// POST /orders/pay-multiple alempana yhdistetylle ostoskorimaksulle usealta myyjältä kerralla.
+router.post('/:id/pay', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const result = await initiateCheckout([String(req.params.id)], req.userId!)
+  if (result.error) return res.status(result.status).json({ error: result.error })
+  return res.json({ redirectUrl: result.redirectUrl })
+})
+
+// POST /orders/pay-multiple — yhdistetty ostoskorimaksu (ks. CLAUDE.md "Yhdistetty ostoskori-
+// maksu" 2026-09-11): useampi Order (eri myyjiltä, /kori-sivun ryhmät) maksetaan YHDELLÄ
+// Stripe Checkout Sessionilla. Jokainen Order pysyy omana rivinään - vain toimitustapa on
+// edelleen per-myyjä-valinta (ks. select-shipping), tuote+toimitus per Order lasketaan yhteen
+// yhdeksi kokonaissummaksi jonka ostaja maksaa kerralla. Rahanjako tapahtuu vasta
+// checkout.session.completed-webhookissa (ks. webhooks.ts), erillisenä Transfer-objektina
+// jokaiselle myyjälle - ei tässä reitissä.
+router.post('/pay-multiple', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const orderIds: string[] = Array.isArray(req.body?.orderIds) ? req.body.orderIds.map(String) : []
+  const result = await initiateCheckout(orderIds, req.userId!)
+  if (result.error) return res.status(result.status).json({ error: result.error })
+  return res.json({ redirectUrl: result.redirectUrl })
 })
 
 // POST /orders/:id/cancel — ostaja peruuttaa OMAN, vielä maksamattoman tilauksensa
@@ -216,13 +272,34 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
 
   try {
     if (itemIds.length === 0) {
-      // Koko maksu (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail -> Stripe")
-      await refundPayment(order.stripePaymentIntentId)
+      // Koko tilaus (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail -> Stripe").
+      // refundAmountEuros on AINA vain TÄMÄN Orderin oma osuus - PaymentIntent voi kattaa
+      // useamman Orderin yhdistetyssä ostoskorimaksussa 2026-09-11 alkaen (ks. CLAUDE.md
+      // "Yhdistetty ostoskorimaksu") - "hyvitä koko PaymentIntent" olisi voinut vahingossa
+      // hyvittää myös TOISEN myyjän/tilauksen rahat takaisin ostajalle.
+      await refundPayment({
+        paymentIntentId: order.stripePaymentIntentId,
+        refundAmountEuros: order.productTotal + (order.shippingPrice ?? 0),
+        transferId: order.stripeTransferId,
+        // transferReversalAmountEuros jätetty pois - koko transfer perutaan, turvallista koska
+        // Transfer on 1:1 tämän yhden Orderin kanssa (ei jaettu muiden tilausten kanssa).
+      })
     } else {
       const items = order.items.filter(i => itemIds.includes(i.id))
       if (items.length === 0) return res.status(400).json({ error: 'Tuntemattomat tuoterivit' })
       const amountEuros = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-      await refundPayment(order.stripePaymentIntentId, amountEuros)
+      // Osittaishyvitys - peru VAIN vastaava suhteellinen osuus myyjän Transferista (Stripe ei
+      // enää tee tätä automaattisesti "separate charges and transfers" -mallissa, ks.
+      // lib/stripe.ts:n refundPayment-kommentti). Suhde lasketaan tuotearvosta (ei toimituksesta,
+      // sama rajaus kuin ennenkin - osittaishyvitys ei koskaan kata toimitusmaksua).
+      const fraction = order.productTotal > 0 ? amountEuros / order.productTotal : 0
+      const transferAmountEuros = order.productTotal - (order.commissionCents ?? 0) / 100
+      await refundPayment({
+        paymentIntentId: order.stripePaymentIntentId,
+        refundAmountEuros: amountEuros,
+        transferId: order.stripeTransferId,
+        transferReversalAmountEuros: order.stripeTransferId ? Math.round(transferAmountEuros * fraction * 100) / 100 : undefined,
+      })
     }
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Stripeltä' })

@@ -90,10 +90,10 @@ async function findActiveBan(userId) {
 // hakua käytetään vain jo näkyvän listan suodattamiseen. Lisätty sivutus koska pelkkä `take: 10`
 // ei riitä kun käyttäjämäärä kasvaa satoihin.
 router.get('/users', async (req, res) => {
-    const { search } = req.query;
+    const { search, flaggedOnly } = req.query;
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30));
-    const where = search && String(search).trim().length >= 2
+    const searchWhere = search && String(search).trim().length >= 2
         ? {
             OR: [
                 { username: { contains: String(search).trim(), mode: 'insensitive' } },
@@ -102,10 +102,13 @@ router.get('/users', async (req, res) => {
             ],
         }
         : {};
+    // flaggedOnly - ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus" 2026-09-11 - antaa adminin
+    // löytää IP-duplikaattiepäilyt ilman että pitää selata koko käyttäjälistaa läpi.
+    const where = flaggedOnly === 'true' ? { ...searchWhere, flaggedDuplicateIp: true } : searchWhere;
     const [users, total] = await Promise.all([
         prisma_1.prisma.user.findMany({
             where,
-            select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, verified: true },
+            select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, verified: true, flaggedDuplicateIp: true, registrationIp: true },
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * pageSize,
             take: pageSize,
@@ -116,10 +119,10 @@ router.get('/users', async (req, res) => {
     res.json({ users: enriched, total, page, pageSize });
 });
 // PATCH /admin/users/:id — osittainen päivitys (canStream/customCommissionRate/
-// customCommissionCap/verified). Kaikki kentät valinnaisia, vain annetut päivitetään.
+// customCommissionCap/verified/flaggedDuplicateIp). Kaikki kentät valinnaisia, vain annetut päivitetään.
 router.patch('/users/:id', async (req, res) => {
     const userId = String(req.params.id);
-    const { canStream, customCommissionRate, customCommissionCap, verified } = req.body;
+    const { canStream, customCommissionRate, customCommissionCap, verified, flaggedDuplicateIp } = req.body;
     const existing = await prisma_1.prisma.user.findUnique({ where: { id: userId } });
     if (!existing)
         return res.status(404).json({ error: 'Käyttäjää ei löydy' });
@@ -128,6 +131,11 @@ router.patch('/users/:id', async (req, res) => {
         data.canStream = canStream;
     if (typeof verified === 'boolean')
         data.verified = verified;
+    // Adminin "Merkitse tarkistetuksi" -nappi (ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus") -
+    // vain false-suuntaan käytännössä (tarkistuksen jälkeen), mutta ei estetä true:kaan jos
+    // admin haluaisi liputtaa jonkin manuaalisesti.
+    if (typeof flaggedDuplicateIp === 'boolean')
+        data.flaggedDuplicateIp = flaggedDuplicateIp;
     if (customCommissionRate !== undefined) {
         if (customCommissionRate !== null && (typeof customCommissionRate !== 'number' || !isFinite(customCommissionRate) || customCommissionRate < 0)) {
             return res.status(400).json({ error: 'Virheellinen komissioprosentti' });
@@ -143,7 +151,7 @@ router.patch('/users/:id', async (req, res) => {
     const updated = await prisma_1.prisma.user.update({
         where: { id: userId },
         data,
-        select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, verified: true },
+        select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, verified: true, flaggedDuplicateIp: true, registrationIp: true },
     });
     res.json({ ...updated, activeBan: await findActiveBan(userId) });
 });
@@ -183,17 +191,23 @@ router.post('/users/:id/send-password-reset', async (req, res) => {
     await (0, passwordReset_1.createAndSendPasswordResetToken)(user);
     res.json({ ok: true });
 });
-// GET /admin/ad — palauttaa mainosbannerin nykyisen sisällön (myös enabled=false-tilassa,
-// toisin kuin julkinen GET /ad) esitäyttääkseen admin-lomakkeen. Luo tyhjän oletusrivin jos
-// yhtään ei ole vielä tallennettu, ettei frontendin tarvitse käsitellä null-tilaa erikseen.
+// GET /admin/ad — listaa KAIKKI mainokset (myös enabled=false-tilassa, toisin kuin julkinen
+// GET /ad), luontijärjestyksessä. Karuselliksi muutettu 2026-09-11 (ks. CLAUDE.md "Mainostila
+// karuselliksi") - ei enää yksittäisen "main"-rivin upsert, useampi mainos sallittu rinnakkain.
 router.get('/ad', async (_req, res) => {
-    const ad = await prisma_1.prisma.adSlot.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } });
+    const ads = await prisma_1.prisma.adSlot.findMany({ orderBy: { createdAt: 'asc' } });
+    res.json(ads);
+});
+// POST /admin/ad — luo uuden, tyhjän mainoksen (enabled:false oletuksena - ei aktivoidu
+// vahingossa tyhjänä ennen kuin omistaja täyttää ja tallentaa sisällön).
+router.post('/ad', async (_req, res) => {
+    const ad = await prisma_1.prisma.adSlot.create({ data: {} });
     res.json(ad);
 });
-// PATCH /admin/ad — päivittää mainosbannerin sisällön. Kuva base64-merkkijonona samaan
+// PATCH /admin/ad/:id — päivittää yhden mainoksen sisällön. Kuva base64-merkkijonona samaan
 // tapaan kuin muuallakin sivustolla (ks. CLAUDE.md "Kuvat"-koodaussääntö).
-router.patch('/ad', async (req, res) => {
-    const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl } = req.body;
+router.patch('/ad/:id', async (req, res) => {
+    const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl, videoUrl } = req.body;
     const data = {};
     if (typeof enabled === 'boolean')
         data.enabled = enabled;
@@ -209,7 +223,24 @@ router.patch('/ad', async (req, res) => {
         data.ctaHref = ctaHref;
     if (typeof imageUrl === 'string' || imageUrl === null)
         data.imageUrl = imageUrl;
-    const ad = await prisma_1.prisma.adSlot.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } });
-    res.json(ad);
+    if (typeof videoUrl === 'string' || videoUrl === null)
+        data.videoUrl = videoUrl;
+    try {
+        const ad = await prisma_1.prisma.adSlot.update({ where: { id: String(req.params.id) }, data });
+        res.json(ad);
+    }
+    catch {
+        res.status(404).json({ error: 'Mainosta ei löytynyt' });
+    }
+});
+// DELETE /admin/ad/:id — poistaa mainoksen pysyvästi.
+router.delete('/ad/:id', async (req, res) => {
+    try {
+        await prisma_1.prisma.adSlot.delete({ where: { id: String(req.params.id) } });
+        res.json({ ok: true });
+    }
+    catch {
+        res.status(404).json({ error: 'Mainosta ei löytynyt' });
+    }
 });
 exports.default = router;

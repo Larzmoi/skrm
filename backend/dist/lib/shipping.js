@@ -5,7 +5,7 @@ exports.getShippingPrice = getShippingPrice;
 // Sama taulukko kuin frontend/app/dashboard/tuotteet/page.tsx:n PAKETTIKOOT — hinta lasketaan
 // aina täältä palvelinpuolella, ei luoteta clientin lähettämään hintaan.
 exports.PAKETTIKOOT = [
-    { id: 'postitus', nimi: 'Postitus 6,9€', hinta: 6.90 },
+    { id: 'postitus', nimi: 'Postitus 7,9€', hinta: 7.90 },
     { id: 'nouto', nimi: 'Nouto myyjältä', hinta: 0 },
 ];
 function getShippingPrice(pakettikokoId) {

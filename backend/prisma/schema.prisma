@@ -77,6 +77,7 @@ enum NotificationType {
   ORDER_CANCELLED_BY_BUYER
   PICKUP_POINT_INACTIVE
   PICKUP_POINT_CHANGED
+  ADMIN_TRANSFER_FAILED
 }
 
 enum ReportStatus {
@@ -365,7 +366,15 @@ model Order {
                                  // tilauksilla, korvattu alla olevilla Stripe-vastineilla.
   stripeSessionId       String? // Checkout Sessionin ID - luodaan POST /orders/:id/pay:ssa
   stripePaymentIntentId String? // PaymentIntentin ID, saadaan checkout.session.completed-webhookista.
-                                 // Tarvitaan hyvityksiin (stripe.refunds.create({ payment_intent })).
+                                 // Tarvitaan hyvityksiin (stripe.refunds.create({ payment_intent })). Voi
+                                 // olla SAMA useammalla Orderilla 2026-09-11 alkaen (yhdistetty ostoskori-
+                                 // maksu, ks. CLAUDE.md) - yksi maksu, monta Orderia, sama PaymentIntent.
+  stripeTransferId      String? // TÄMÄN Orderin oma erillinen Stripe Transfer -objekti myyjälle (ks.
+                                 // lib/stripe.ts createSellerTransfer, "separate charges and transfers"
+                                 // -malli 2026-09-11) - EI enää yhteinen PaymentIntentin kanssa kuten
+                                 // vanha destination charge -malli. Tarvitaan hyvityksissä transferin
+                                 // perumiseen (stripe.transfers.createReversal) - null vanhoilla, ennen
+                                 // tätä muutosta destination-chargella maksetuilla tilauksilla.
   commissionCents       Int?    // Habahubin todellinen komissio-osuus SENTTEINÄ, tallennettu POST
                                  // /orders/:id/pay:ssa samalla hetkellä kun se lasketaan
                                  // application_fee_amount:ia varten (ks. lib/stripe.ts) - EI
