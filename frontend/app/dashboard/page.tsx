@@ -11,9 +11,6 @@ import { formatShowTime } from '@/lib/formatShowTime'
 
 interface ScheduledShow { id: string; title: string; category: string | null; status: string; scheduledAt: string | null; thumbnailUrl: string | null }
 
-const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
-const MINUTES = ['00', '15', '30', '45']
-
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t, lang } = useLang()
@@ -24,8 +21,7 @@ export default function DashboardPage() {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [date, setDate] = useState('')
-  const [hour, setHour] = useState('18')
-  const [minute, setMinute] = useState('00')
+  const [time, setTime] = useState('18:00')
   const [thumbnail, setThumbnail] = useState<string | null>(null)
   const [scheduling, setScheduling] = useState(false)
   const [productCount, setProductCount] = useState(0)
@@ -64,9 +60,9 @@ export default function DashboardPage() {
     if (!title || !date) return
     setScheduling(true)
     try {
-      await showApi.create({ title, category: category || undefined, scheduledAt: `${date}T${hour}:${minute}`, thumbnailUrl: thumbnail ?? undefined })
+      await showApi.create({ title, category: category || undefined, scheduledAt: `${date}T${time}`, thumbnailUrl: thumbnail ?? undefined })
       await loadShows()
-      setTitle(''); setCategory(''); setDate(''); setHour('18'); setMinute('00'); setThumbnail(null)
+      setTitle(''); setCategory(''); setDate(''); setTime('18:00'); setThumbnail(null)
       if (thumbnailRef.current) thumbnailRef.current.value = ''
       setShowForm(false); setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -150,18 +146,7 @@ export default function DashboardPage() {
                 <div><label style={lbl}>{t.dashboard.showTitle}</label><input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon Base Set" style={inp} /></div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div><label style={lbl}>{t.dashboard.showDate}</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} /></div>
-                  <div>
-                    <label style={lbl}>{t.dashboard.showTime}</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <select value={hour} onChange={e => setHour(e.target.value)} style={inp}>
-                        {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                      </select>
-                      <span style={{ color: C.muted }}>:</span>
-                      <select value={minute} onChange={e => setMinute(e.target.value)} style={inp}>
-                        {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
+                  <div><label style={lbl}>{t.dashboard.showTime}</label><input type="time" value={time} onChange={e => setTime(e.target.value)} style={inp} /></div>
                 </div>
                 <div>
                   <label style={lbl}>Markkinointikuva (valinnainen)</label>
