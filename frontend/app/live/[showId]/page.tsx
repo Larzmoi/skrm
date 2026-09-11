@@ -24,7 +24,12 @@ interface AuctionState {
   active: boolean
 }
 
-interface ShowProduct { id: string; name: string; condition?: string; gradingCompany?: string | null; grade?: string | null; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string; currentBid?: number | null; currentBidderId?: string | null; bidIncrement?: number | null }
+// saleType/quantity lisätty 2026-09-11 (ks. CLAUDE.md "Suoramyyntituotteet livessä" -osio) -
+// Product.quantity oli jo tietokannassa/API-vastauksessa valmiiksi (GET /shows/:id ei rajaa
+// tuotteen kenttiä select:llä), vain frontendin oma tyyppi/renderöinti puuttui kokonaan.
+// saleType erottaa PUHTAAN suoramyyntituotteen ('buy_now', ei koskaan huudettavissa) muista
+// myyntitavoista ('live'/'auction'/'both') - tarvitaan BidPanelin oikean näkymän valintaan.
+interface ShowProduct { id: string; name: string; condition?: string; gradingCompany?: string | null; grade?: string | null; description?: string; startPrice: number; buyNowPrice?: number; imageUrl?: string; status: string; currentBid?: number | null; currentBidderId?: string | null; bidIncrement?: number | null; saleType?: string; quantity?: number }
 
 // "PSA 9" gradatulle kortille, muuten geneerinen/Cardmarket-kunto sellaisenaan (ks. CLAUDE.md
 // "WhatsApp-palaute 2026-09-02" kohta 1, Product.gradingCompany/grade).
@@ -224,9 +229,53 @@ interface BidPanelProps {
   onPlaceBid: () => void
   nextProductName?: string
   onProductClick?: () => void
+  onBuyNow: (productId: string, quantity?: number) => void
+  buyQty: Record<string, number>
+  setBuyQty: React.Dispatch<React.SetStateAction<Record<string, number>>>
 }
 
-function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd, isMobile, onPlaceBid, nextProductName, onProductClick }: BidPanelProps) {
+function BidPanel({ C, t, bidError, currentProduct, currentLot, auction, isLeading, ended, timerColor, bidAmount, setBidAmount, slideTrackRef, bidSuccess, sliding, connected, maxSlideX, slideX, onSlideStart, onSlideMove, onSlideEnd, isMobile, onPlaceBid, nextProductName, onProductClick, onBuyNow, buyQty, setBuyQty }: BidPanelProps) {
+  // Puhdas suoramyyntituote (saleType 'buy_now') ei ole KOSKAAN huudettavissa - aiemmin tämä
+  // näkyi silti auktio-suuntautuneena "Odota huutokauppaa" -näkymänä koska paneeli ei tiennyt
+  // mitään myyntitavasta (ks. CLAUDE.md "Suoramyyntituotteet livessä" kohta 3). Oma, selvästi
+  // erillinen näkymä: ei mitään huutoon viittaavaa (ei LOT-numeroa, ei nykyistä huutoa, ei
+  // ajastinta), pelkkä jäljellä oleva määrä + Osta heti -toiminto.
+  if (currentProduct.saleType === 'buy_now') {
+    const qty = currentProduct.quantity ?? 1
+    const selected = Math.min(buyQty[currentProduct.id] ?? 1, Math.max(1, qty))
+    return (
+      <div style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '12px 14px 14px' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, cursor: onProductClick ? 'pointer' : 'default' }} onClick={onProductClick}>
+          <div style={{ width: 44, height: 44, borderRadius: 7, overflow: 'hidden', flexShrink: 0, background: '#1A1A1A' }}>
+            {currentProduct.imageUrl && <img src={currentProduct.imageUrl.split('|||')[0]} alt={currentProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentProduct.name}</div>
+            <div style={{ fontSize: 11, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {conditionLabel(currentProduct)}{nextProductName && <span> · Seuraavaksi: {nextProductName}</span>}
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0 }}>{currentProduct.buyNowPrice}€</div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ fontSize: 13, color: '#888', fontWeight: 600 }}>{t.live.remainingStock.replace('{n}', String(qty))}</div>
+          {qty > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={() => setBuyQty(q => ({ ...q, [currentProduct.id]: Math.max(1, selected - 1) }))} style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: '#fff', fontSize: 16, cursor: 'pointer' }}>−</button>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff', minWidth: 20, textAlign: 'center' }}>{selected}</span>
+              <button onClick={() => setBuyQty(q => ({ ...q, [currentProduct.id]: Math.min(qty, selected + 1) }))} style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid #2A2A2A', background: '#1A1A1A', color: C.accentBright, fontSize: 16, cursor: 'pointer' }}>+</button>
+            </div>
+          )}
+        </div>
+
+        <button onClick={() => onBuyNow(currentProduct.id, selected)} style={{ width: '100%', height: 48, borderRadius: 10, border: 'none', background: C.accentSolid, color: C.accentText, fontSize: 14, fontWeight: 800, cursor: 'pointer', marginTop: 10 }}>
+          {t.live.buyNowQty.replace('{n}', String(selected))}
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div style={{ background: '#0A0A0A', borderTop: '1px solid #1A1A1A', padding: '12px 14px 14px' }}>
       {bidError && <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, padding: '8px 12px', marginBottom: 10, color: '#EF4444', fontSize: 13 }}>{bidError}</div>}
@@ -398,16 +447,19 @@ function ChatArea({ dark, isMobile, t, C, chatRef, chat, chatInput, setChatInput
 
 interface ShopPanelProps {
   C: any
+  t: any
   products: ShowProduct[]
   activeProductId: string | null
   search: string; setSearch: (v: string) => void
   filter: 'all' | 'buynow'; setFilter: (v: 'all' | 'buynow') => void
   sort: 'default' | 'price_asc' | 'price_desc'; setSort: (v: 'default' | 'price_asc' | 'price_desc') => void
-  onBuyNow: (productId: string) => void
+  onBuyNow: (productId: string, quantity?: number) => void
   onProductClick: (product: ShowProduct) => void
+  buyQty: Record<string, number>
+  setBuyQty: React.Dispatch<React.SetStateAction<Record<string, number>>>
 }
 
-function ShopPanel({ C, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onProductClick }: ShopPanelProps) {
+function ShopPanel({ C, t, products, activeProductId, search, setSearch, filter, setFilter, sort, setSort, onBuyNow, onProductClick, buyQty, setBuyQty }: ShopPanelProps) {
   let list = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
   if (filter === 'buynow') list = list.filter(p => !!p.buyNowPrice)
   if (sort === 'price_asc') list = [...list].sort((a, b) => a.startPrice - b.startPrice)
@@ -457,11 +509,32 @@ function ShopPanel({ C, products, activeProductId, search, setSearch, filter, se
                   {isActive && <div style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>NOW</div>}
                 </div>
               </div>
+              {/* Jäljellä oleva määrä - Product.quantity oli jo API-vastauksessa, vain
+                  näyttö puuttui (ks. CLAUDE.md "Suoramyyntituotteet livessä"). Näytetään vain
+                  kun kenttä on saatavilla JA tuotetta on useampi kuin yksi - yksittäiskappale
+                  ei tarvitse "1 kpl jäljellä" -mainintaa, se on oletus. */}
+              {p.quantity != null && p.quantity > 1 && !isSold && (
+                <div style={{ fontSize: 10, color: '#888', marginBottom: 6 }}>{t.live.remainingStock.replace('{n}', String(p.quantity))}</div>
+              )}
               {!isSold && (
                 rowPreBiddable || p.buyNowPrice ? (
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     {rowPreBiddable && <button onClick={e => { e.stopPropagation(); onProductClick(p) }} style={{ flex: 1, background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#ccc', padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Pre-bid</button>}
-                    {p.buyNowPrice && <button onClick={e => { e.stopPropagation(); onBuyNow(p.id) }} style={{ flex: 1, background: C.accentSolid, border: 'none', color: C.accentText, padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>}
+                    {p.buyNowPrice && (
+                      <>
+                        {/* Määrän valitsin - vain kun tuotetta on enemmän kuin 1 kpl jäljellä
+                            (ks. CLAUDE.md "Suoramyyntituotteet livessä" kohta 2). Yksinkertainen
+                            +/- -stepperi, sama periaate kuin BidPanelin huutosumma-stepperissä. */}
+                        {p.quantity != null && p.quantity > 1 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                            <button onClick={() => setBuyQty(q => ({ ...q, [p.id]: Math.max(1, (q[p.id] ?? 1) - 1) }))} style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #2A2A2A', background: '#1A1A1A', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                            <span style={{ fontSize: 11, color: '#fff', minWidth: 14, textAlign: 'center' }}>{buyQty[p.id] ?? 1}</span>
+                            <button onClick={() => setBuyQty(q => ({ ...q, [p.id]: Math.min(p.quantity!, (q[p.id] ?? 1) + 1) }))} style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #2A2A2A', background: '#1A1A1A', color: C.accentBright, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                          </div>
+                        )}
+                        <button onClick={e => { e.stopPropagation(); onBuyNow(p.id, buyQty[p.id] ?? 1) }} style={{ flex: 1, background: C.accentSolid, border: 'none', color: C.accentText, padding: '6px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Osta heti {p.buyNowPrice}€</button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   // Vain juuri nyt aktiivisena olevalle lotille - huudetaan livenä
@@ -542,6 +615,9 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   const [shopSearch, setShopSearch] = useState('')
   const [shopFilter, setShopFilter] = useState<'all' | 'buynow'>('all')
   const [shopSort, setShopSort] = useState<'default' | 'price_asc' | 'price_desc'>('default')
+  // Ostajan valitsema määrä per tuote (ks. CLAUDE.md "Suoramyyntituotteet livessä" kohta 2) -
+  // jaettu ShopPanelin rivien ja BidPanelin pääkohteen näkymän kesken, avaimena productId.
+  const [buyQty, setBuyQty] = useState<Record<string, number>>({})
   const [toast, setToast] = useState('')
 
   const slideTrackRef = useRef<HTMLDivElement>(null)
@@ -731,11 +807,14 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
   // ovat yhä olemassa socket.ts:ssä, valmiina uudelleenkäytettäväksi kun korvaava
   // moderaattorin nimeämis-UI (ennen liveä, ei klikkaamalla) rakennetaan.
 
-  async function buyNow(productId: string) {
+  // quantity valinnainen (oletus 1, taaksepäinyhteensopiva) - ks. CLAUDE.md "Suoramyyntituotteet
+  // livessä" kohta 2. cartApi.add() ja backendin POST /cart/add tukivat useampaa kappaletta jo
+  // valmiiksi (atominen varastotarkistus), vain tämä kutsupaikka välitti aina kiinteän 1:n.
+  async function buyNow(productId: string, quantity: number = 1) {
     if (!user) { router.push(`/login?redirect=/live/${showId}`); return }
     try {
       const { cartApi } = await import('@/lib/api')
-      await cartApi.add(productId, 'live', 1)
+      await cartApi.add(productId, 'live', quantity)
       await refreshCart()
       router.push('/kori')
     } catch (e: any) {
@@ -838,7 +917,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
               <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
             </div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
+            <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
           </div>
         </div>
 
@@ -916,6 +995,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               connected={connected} maxSlideX={maxSlideX} slideX={slideX}
               onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
               isMobile={true} onPlaceBid={placeBid} nextProductName={nextProduct?.name} onProductClick={() => setModalProduct(currentProduct)}
+              onBuyNow={buyNow} buyQty={buyQty} setBuyQty={setBuyQty}
             />
         </div>
         {showReport && <ReportModal targetType="show" targetId={showId} onClose={() => setShowReport(false)} />}
@@ -965,7 +1045,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         {!isTablet && (
           <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
-            <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
+            <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
           </div>
         )}
 
@@ -1007,7 +1087,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
               </div>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <ShopPanel C={C} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} />
+                <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
               </div>
             </div>
           )}
@@ -1018,6 +1098,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             connected={connected} maxSlideX={maxSlideX} slideX={slideX}
             onSlideStart={onSlideStart} onSlideMove={onSlideMove} onSlideEnd={onSlideEnd}
             isMobile={false} onPlaceBid={placeBid} nextProductName={nextProduct?.name} onProductClick={() => setModalProduct(currentProduct)}
+            onBuyNow={buyNow} buyQty={buyQty} setBuyQty={setBuyQty}
           />
         </div>
 

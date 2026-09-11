@@ -36,6 +36,7 @@ const sv = {
     waitAuction: 'Väntar på auktion', viewers: 'tittare',
     youWon: 'Du vann!', auctionEndedNoWinner: 'Auktionen avslutades — inga anbud',
     leaveShow: '✕ Avbryt', connecting: 'Ansluter...',
+    remainingStock: '{n} st kvar i lager', buyNowQty: 'Köp nu, {n} st',
     waitingForStream: 'Väntar på att strömmen ska starta...', noProducts: 'Inga produkter i kö',
     streamEnded: 'Strömmen avslutades',
     showsCount: 'strömmar',
