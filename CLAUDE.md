@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Perinteisen huutokaupan sivun kuvagalleria ei toiminut 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
+
+Omistaja raportoi: kun huutokauppakohteeseen lisää kaksi eri kuvaa, toinen kuva ei vaihdu isoksi pääkuvaksi kun ostajana yrittää selata niitä — suoramyyntituotteilla vastaava toimii oikein.
+
+**Juurisyy vahvistettu koodista suoraan:** `huutokauppa/[id]/page.tsx`:n pääkuva oli kovakoodattu aina `images[0]`:ksi, ja pikkukuvien rivi renderöitiin ilman minkäänlaista `onClick`-käsittelijää — pikkukuvat olivat siis puhtaasti koristeellisia, klikkaus ei tehnyt mitään. Suoramyyntisivu (`tuotteet/[id]/page.tsx`) toimii jo oikein: sillä on oma `activeImg`-tila joka vaihtuu pikkukuvaa klikattaessa, plus koko ruudun zoom-modaali jossa on omat pikkukuvansa.
+
+**Korjaus:** kopioitu täsmälleen sama, jo toimivaksi todettu kuvagalleria-logiikka huutokauppasivulle — uudet `activeImg`/`zoomed`-tilat, pääkuva käyttää `images[activeImg]`:ia, pikkukuvat saivat `onClick={() => setActiveImg(i)}` + aktiivisen kuvan korostuksen (`C.accent`-reunus), pääkuvan klikkaus avaa saman koko ruudun zoom-modaalin omine pikkukuvineen kuin suoramyyntisivulla.
+
+**Deployn sivuhuomio, ratkaistu turvallisesti ilman `--hard`-resetiä:** GitHubin oma jäähdytysaika esti repon palauttamisen julkiseksi edellisen (ks. edellinen osio) korjauksen aikana — repo palautui julkiseksi vasta tämän korjauksen kohdalla, jolloin palvelimen `git pull` törmäsi aiemmin `scp`:llä kopioituihin tiedostoihin "paikallisina muutoksina" (Windows-CRLF-rivinvaihdot tekivät niistä git diff:ssä näennäisesti eri sisältöisiä kuin origin/main, vaikka olivat jo sisällöltään identtisiä). Rivinvaihdot normalisoitu (`sed 's/\r$//'`), vahvistettu `git diff origin/main`:lla tyhjäksi, sitten ratkaistu **ei-destruktiivisesti**: `git stash` (ei `reset --hard`, jonka auto mode -classifier esti tarkoituksella) → `git pull` (puhdas fast-forward) → `git stash drop` (tyhjä, koska sisältö oli jo sama). Palvelimen git-tila on nyt täysin synkassa GitHubin kanssa.
+
+Typecheck+build vihreä, deployattu, `git log` palvelimella vahvistettu vastaamaan `origin/main`:ia.
+
 ## Perinteisen huutokaupan tuotteet vuotivat live-lähetyksen Shop-paneeliin 2026-09-11 — ✅ LÖYDETTY, KORJATTU JA VAHVISTETTU OIKEALLA TUOTANTODATALLA
 
 Omistaja raportoi: perinteisen huutokaupan kohteet eivät saisi näkyä livessä ollenkaan, ne eivät liity mitenkään live-huutokauppaan.
