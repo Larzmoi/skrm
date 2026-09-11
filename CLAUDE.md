@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Perinteisen huutokaupan tuotteet vuotivat live-lähetyksen Shop-paneeliin 2026-09-11 — ✅ LÖYDETTY, KORJATTU JA VAHVISTETTU OIKEALLA TUOTANTODATALLA
+
+Omistaja raportoi: perinteisen huutokaupan kohteet eivät saisi näkyä livessä ollenkaan, ne eivät liity mitenkään live-huutokauppaan.
+
+**Juurisyy löytyi koodista, ja vahvistettiin OLEVAN OIKEA BUGI suoraan tuotannon datasta (ei vain teoreettinen).** `POST /shows/:id/claim-products` (`backend/src/routes/shows.ts`) — kutsutaan automaattisesti sekä `/lahetys`-konsolin mountilla että aina kun myyjä lisää uuden tuotteen `dashboard/tuotteet`-lomakkeella (ks. aiempi "Ajastetun lähetyksen Shop-paneeli tyhjä" -korjaus) — liitti AINA kaikki myyjän `PENDING`-tilaiset tuotteet kyseiseen Show'hun `saleType`:sta riippumatta. Perinteinen, ajastettu huutokauppa (`saleType: 'auction'`) juoksee kuitenkin täysin itsenäisesti omalla determinoidulla päättymisajallaan (`closeAuctions.ts`) — sillä ei ole mitään tekemistä minkään live-striimin kanssa, mutta se silti liitettiin vahingossa Show'n `products`-relaatioon, jolloin se näkyi katsojan Shop-paneelissa livessä ikään kuin se kuuluisi sinne. **Vahvistettu tuotannosta ennen korjausta:** neljä oikeaa listausta ("Rika (sv3a 088)" x2, "Yveltal (sv3a 071)", "Mantyke (sv3a 064)") oli jo väärin liitettynä yhteen Show'hun.
+
+**Korjaus:** `claim-products`-reitin `where`-ehtoon lisätty `saleType: { not: 'auction' }` — perinteinen huutokauppa ei koskaan enää voi päätyä minkään Show'n jonoon. Sama poissulku lisätty myös frontendin kahteen kutsupaikkaan puolustautumisen vuoksi: `/lahetys`-konsolin oma paikallinen tuotejono (`GET /products/mine`-suodatus, uusi `saleType`-kenttä `Product`-rajapintaan) ja `dashboard/tuotteet`-lomakkeen automaattinen liitäntä uuden tuotteen luonnin jälkeen (ei enää edes kutsu `claimProducts()`:ia turhaan `saleType === 'auction'`-tuotteelle).
+
+**Tuotannon jo tahriintunut data siivottu:** neljän löydetyn tuotteen `showId` nollattu (`prisma.product.updateMany({ where: { saleType:'auction', showId:{not:null} }, data:{showId:null} })`), vahvistettu jälkikäteen ettei yhtään auktio-tuotetta ole enää kiinni missään Show'ssa (`0` osumaa).
+
+**⚠️ Sivuhuomio deployn aikana — GitHub-repo oli hetkellisesti yksityinen eikä palvelimella ole tallennettuja git-tunnuksia, `git pull` epäonnistui.** Yritettiin palauttaa repo julkiseksi (aiempi 2026-08-17 ratkaisu), mutta GitHub esti muutoksen omalla jäähdytysajallaan ("A previous visibility change is still in progress"). **Omistajan päätöksellä ohitettiin git kokonaan tälle deploylle** — kolme muuttunutta lähdetiedostoa (`backend/src/routes/shows.ts`, `frontend/app/dashboard/tuotteet/page.tsx`, `frontend/app/lahetys/page.tsx`) kopioitiin suoraan `scp`:llä palvelimelle (tarkistettu md5-summalla identtisiksi paikallisten kanssa), rakennettu ja käynnistetty uudelleen paikan päällä. **Palvelimen git-historia on siis nyt hetken jäljessä origin/mainista** — seuraava onnistunut `git pull` (kun repo saadaan taas julkiseksi tai palvelimelle lisätään Personal Access Token) synkronoi tilanteen, ei pitäisi aiheuttaa konfliktia koska tiedostot ovat jo sisällöltään identtiset.
+
+Typecheck+build vihreä molemmilla puolilla, deployattu (scp:n kautta), vahvistettu tuotannosta.
+
 ## Ajastetun lähetyksen klikkaus vei suoraan livekonsoliin ilman kameratestiä 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
 
 Omistaja raportoi: kun ajastetun lähetyksen klikkaa auki, se siirtyy suoraan "live"-näkymään eikä kuvaa saa näkymään — pitäisi mennä ensin kamera-/OBS-esiasetuksiin ennen virallista streamia.
