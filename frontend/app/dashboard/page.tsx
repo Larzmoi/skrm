@@ -11,6 +11,13 @@ import { formatShowTime } from '@/lib/formatShowTime'
 
 interface ScheduledShow { id: string; title: string; category: string | null; status: string; scheduledAt: string | null; thumbnailUrl: string | null }
 
+// Aina 24h-muoto, ei koskaan AM/PM (LUKITTU - kävijän selaimen/käyttöjärjestelmän
+// paikallisasetus voi olla mikä tahansa, natiivi <input type="time"> muotoilee itsensä
+// SEN mukaan, ei sivun kielen mukaan - ainoa varma tapa taata "ei koskaan AM/PM" on oma
+// 24h-valitsin, ei natiivi time-input). Ks. CLAUDE.md "Lähetyksen ajastuksen kellonaika".
+const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
+const SCHEDULE_MINUTES = ['00', '15', '30', '45']
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t, lang } = useLang()
@@ -146,7 +153,26 @@ export default function DashboardPage() {
                 <div><label style={lbl}>{t.dashboard.showTitle}</label><input value={title} onChange={e => setTitle(e.target.value)} placeholder="esim. Pokémon Base Set" style={inp} /></div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div><label style={lbl}>{t.dashboard.showDate}</label><input type="date" value={date} onChange={e => setDate(e.target.value)} style={inp} /></div>
-                  <div><label style={lbl}>{t.dashboard.showTime}</label><input type="time" value={time} onChange={e => setTime(e.target.value)} style={inp} /></div>
+                  <div>
+                    <label style={lbl}>{t.dashboard.showTime}</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <select
+                        value={time.split(':')[0]}
+                        onChange={e => setTime(`${e.target.value}:${time.split(':')[1]}`)}
+                        style={{ ...inp, width: 76, flexShrink: 0, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}
+                      >
+                        {SCHEDULE_HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                      <span style={{ color: C.muted }}>:</span>
+                      <select
+                        value={time.split(':')[1]}
+                        onChange={e => setTime(`${time.split(':')[0]}:${e.target.value}`)}
+                        style={{ ...inp, width: 76, flexShrink: 0, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}
+                      >
+                        {SCHEDULE_MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label style={lbl}>Markkinointikuva (valinnainen)</label>
