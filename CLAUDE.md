@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Etusivun promo-kortin teksti uusiksi, hintamaininta pois 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Jatkoa edelliseen "Rekisteröidy tästä" -nimenmuutokseen — omistaja tarkensi koko kortin sisällön:
+- **Otsikko:** "Ei listaus- eikä kuukausimaksuja" → "Parhaat aarteet eivät ole kaupan hyllyllä" (+ en: "The best treasures aren't on a shop shelf", sv: "De bästa fynden finns inte på en butikshylla").
+- **Kuvausrivi poistettu kokonaan** — `t.home.promoBody` tyhjä merkkijono kaikissa kolmessa kielessä, `frontend/app/page.tsx`:n `PromoBanner` ei enää renderöi tyhjää diviä (`{t.home.promoBody && <div>...}`).
+- **CTA-nappi:** "Rekisteröidy tästä"/"Register here"/"Registrera dig här" → "Luo tili"/"Create account"/"Skapa konto" (linjassa `t.auth.createAccount`-tekstien kanssa muualla sivustolla). Linkki edelleen `/register`, ei muuttunut.
+- **3,5%/35€-provisiomaininta poistettu tästä kortista kokonaan** (oli aiemmin `promoBody`:ssä) — kortti ei enää mainitse hintaa/provisiota ollenkaan, vahvistettu ettei muualla kortin JSX:ssä (esim. "HABAHUB"-yläteksti) ole muita hintaviittauksia.
+
+Typecheck+build vihreä, deployattu.
+
 ## Etusivun rekisteröitymiskehote + rekisteröitymislinkki takaisin login-sivulle 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Kaksi pientä muutosta rekisteröitymisen löydettävyyteen:
