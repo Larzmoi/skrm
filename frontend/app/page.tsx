@@ -68,7 +68,7 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
       <div>
         <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.accent, marginBottom: 6 }}>HABAHUB</div>
         <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{t.home.promoTitle}</div>
-        <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{t.home.promoBody}</div>
+        {t.home.promoBody && <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{t.home.promoBody}</div>}
       </div>
       <Link href="/register" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
         {t.home.promoCta} →
