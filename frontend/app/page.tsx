@@ -35,6 +35,7 @@ function auctionTimeLeft(ms: number, endedLabel: string) {
 // LUKITTU "AINA t.xxx" -sääntöä) - kielenvaihto EI vaikuttanut tähän bannerinin ollenkaan,
 // vahvistettu omistajan raportoimaksi bugiksi. Siirretty t.home-nimiavaruuteen (fi/en/sv).
 function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, string>; isMobile: boolean; upcoming?: { id: string; seller: string; title: string; thumbnail: string; scheduledAt?: string }; t: any; lang: string }) {
+  const { user } = useAuth()
   if (upcoming) {
     return (
       <Link
@@ -70,9 +71,14 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
         <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{t.home.promoTitle}</div>
         {t.home.promoBody && <div style={{ fontSize: 13, color: C.textSub, maxWidth: 480 }}>{t.home.promoBody}</div>}
       </div>
-      <Link href="/register" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 20px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
-        {t.home.promoCta} →
-      </Link>
+      {/* Piilotettu kirjautuneilta - "Luo tili" ei ole relevantti kun tili on jo olemassa.
+          borderRadius 999 (täysi pilleri) - yhtenäistetty mainosbannerin CTA-tyylin kanssa
+          (ks. AdBanner:n ctaStyle), oli aiemmin 8 eli selvästi eri pyöristys samalla sivulla. */}
+      {!user && (
+        <Link href="/register" className="hb-btn" style={{ background: C.accentSolid, color: C.accentText, padding: '10px 22px', borderRadius: 999, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {t.home.promoCta} →
+        </Link>
+      )}
     </div>
   )
 }

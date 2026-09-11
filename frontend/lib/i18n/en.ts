@@ -19,7 +19,7 @@ const en = {
     heroTrustSecure: 'Secure trading', heroTrustFinnish: 'Finnish service',
     heroTrustCommission: '3.5% fee, €0.30–35', heroTrustFreeSignup: 'Free to sign up',
     heroHide: 'Hide',
-    promoTitle: "The best treasures aren't on a shop shelf",
+    promoTitle: "The rarest finds aren't on a shop shelf — they're sold here",
     promoBody: '',
     promoCta: 'Create account',
     upcomingPreBidOpen: 'Pre-bidding is already open',

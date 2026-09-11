@@ -19,7 +19,7 @@ const sv = {
     heroTrustSecure: 'Säkert köpande', heroTrustFinnish: 'Svensk service',
     heroTrustCommission: '3,5% provision, 0,30–35€', heroTrustFreeSignup: 'Gratis att registrera sig',
     heroHide: 'Dölj',
-    promoTitle: 'De bästa fynden finns inte på en butikshylla',
+    promoTitle: 'De sällsyntaste fynden finns inte i en butikshylla — de säljs här',
     promoBody: '',
     promoCta: 'Skapa konto',
     upcomingPreBidOpen: 'Förhandsbud är redan öppna',

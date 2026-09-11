@@ -19,7 +19,7 @@ const fi = {
     heroTrustSecure: 'Turvallinen kaupankäynti', heroTrustFinnish: 'Suomalainen palvelu',
     heroTrustCommission: '3,5% provisio, 0,30–35€', heroTrustFreeSignup: 'Ilmainen rekisteröityminen',
     heroHide: 'Piilota',
-    promoTitle: 'Parhaat aarteet eivät ole kaupan hyllyllä',
+    promoTitle: 'Harvinaisimmat löydöt eivät ole kaupan hyllyllä — ne myydään täällä',
     promoBody: '',
     promoCta: 'Luo tili',
     upcomingPreBidOpen: 'Ennakkotarjoukset ovat jo auki',
