@@ -24,6 +24,8 @@ type AdminUser = {
   activeBan: Ban | null
   createdAt: string
   verified: boolean
+  flaggedDuplicateIp: boolean
+  registrationIp: string | null
 }
 
 const PAGE_SIZE = 30
@@ -44,8 +46,8 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fi-FI')
 }
 
-async function listUsers(search: string, page: number): Promise<{ users: AdminUser[]; total: number }> {
-  return adminApi.listUsers({ search: search || undefined, page, pageSize: PAGE_SIZE })
+async function listUsers(search: string, page: number, flaggedOnly: boolean): Promise<{ users: AdminUser[]; total: number }> {
+  return adminApi.listUsers({ search: search || undefined, page, pageSize: PAGE_SIZE, flaggedOnly })
 }
 
 async function updateUser(id: string, data: {
@@ -53,6 +55,7 @@ async function updateUser(id: string, data: {
   customCommissionRate?: number | null
   customCommissionCap?: number | null
   verified?: boolean
+  flaggedDuplicateIp?: boolean
 }) {
   return adminApi.updateUser(id, data)
 }
@@ -145,6 +148,19 @@ function UserRow({
       onReload()
     } catch (error: any) {
       setMessage(error?.message ?? t.admin.banError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function doClearFlag() {
+    setBusy(true)
+    setMessage('')
+    try {
+      await updateUser(user.id, { flaggedDuplicateIp: false })
+      onReload()
+    } catch (error: any) {
+      setMessage(error?.message ?? t.admin.userSettingsError)
     } finally {
       setBusy(false)
     }
@@ -255,7 +271,34 @@ function UserRow({
             >
               {user.verified ? t.admin.verifiedYes : t.admin.verifiedNo}
             </div>
+            {user.flaggedDuplicateIp && (
+              <div
+                style={{
+                  display: 'inline-block',
+                  padding: '3px 7px',
+                  borderRadius: 6,
+                  background: 'rgba(245,158,11,0.14)',
+                  color: '#B26B12',
+                  fontSize: 10,
+                  fontWeight: 750,
+                }}
+              >
+                {t.admin.flaggedBadge}
+              </div>
+            )}
           </div>
+          {/* Näytetään vain kun liputettu - antaa adminin nähdä minkä IP:n takia tarkistus
+              pyydettiin, jotta muita samalta IP:ltä tulleita tilejä voi verrata tarvittaessa. */}
+          {user.flaggedDuplicateIp && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>
+                {t.admin.registrationIpLabel} {user.registrationIp ?? '—'}
+              </span>
+              <button type="button" onClick={doClearFlag} disabled={busy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.textSub, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 650, cursor: busy ? 'default' : 'pointer' }}>
+                {t.admin.markReviewedBtn}
+              </button>
+            </div>
+          )}
         </div>
 
         <label style={{ color: C.textSub, fontSize: 12 }}>
@@ -494,14 +537,15 @@ export default function AdminUserManagement() {
   const { t } = useLang()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [flaggedOnly, setFlaggedOnly] = useState(false)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  async function loadUsers(searchValue: string, pageValue: number) {
+  async function loadUsers(searchValue: string, pageValue: number, flaggedOnlyValue: boolean) {
     setLoading(true)
     try {
-      const result = await listUsers(searchValue.trim(), pageValue)
+      const result = await listUsers(searchValue.trim(), pageValue, flaggedOnlyValue)
       setUsers(result.users)
       setTotal(result.total)
     } finally {
@@ -514,9 +558,9 @@ export default function AdminUserManagement() {
   // onChange nollaa `page`:n samassa tapahtumakäsittelijässä (ks. alempana), jotta molemmat
   // tilamuutokset batchautuvat yhteen renderiin eikä välissä ehdi hakea väärällä sivunumerolla.
   useEffect(() => {
-    const timer = setTimeout(() => loadUsers(search, page), 300)
+    const timer = setTimeout(() => loadUsers(search, page, flaggedOnly), 300)
     return () => clearTimeout(timer)
-  }, [search, page])
+  }, [search, page, flaggedOnly])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -548,6 +592,11 @@ export default function AdminUserManagement() {
         }}
       />
 
+      <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14, fontSize: 13, color: C.textSub, cursor: 'pointer' }}>
+        <input type="checkbox" checked={flaggedOnly} onChange={e => { setFlaggedOnly(e.target.checked); setPage(1) }} />
+        {t.admin.flaggedOnlyFilter}
+      </label>
+
       {!loading && (
         <div style={{ color: C.muted, fontSize: 12, marginBottom: 10 }}>
           {t.admin.totalUsers.replace('{count}', String(total))}
@@ -573,7 +622,7 @@ export default function AdminUserManagement() {
             user={user}
             t={t}
             C={C}
-            onReload={() => loadUsers(search, page)}
+            onReload={() => loadUsers(search, page, flaggedOnly)}
           />
         ))}
       </div>

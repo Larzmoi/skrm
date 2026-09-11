@@ -1,9 +1,10 @@
 import express from 'express'
 import cors from 'cors'
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
+import rateLimit from 'express-rate-limit'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import * as dotenv from 'dotenv'
+import { clientKey } from './lib/clientIp'
 import authRouter from './routes/auth'
 import productsRouter from './routes/products'
 import showsRouter from './routes/shows'
@@ -99,17 +100,14 @@ app.use(express.json({ limit: '20mb' }))
 // (tai saman IP:n takana olevan kotitalouden/toimiston) normaaliin käyttöön, rajoittaa silti
 // selvästi poikkeavan, jatkuvan automaattisen raapimisen/skannauksen.
 //
-// Molemmat käyttävät samaa keyGeneratoria: Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei
-// voi väärentää sitä - Cloudflare kirjoittaa sen aina itse yhteyden perusteella), req.ip
-// vain varapolkuna niille harvoille pyynnöille jotka eivät kulje Cloudflaren kautta (esim.
-// palvelimen omat sisäiset kutsut). Katso yllä oleva kommentti miksi pelkkä trust proxy
-// -hyppylaskenta EI riittänyt tässä pino ssa. ipKeyGenerator normalisoi IPv6-osoitteet
-// /56-aliverkkoon niin ettei sama kävijä pääse kiertämään rajaa vaihtamalla IPv6-osoitetta.
-function clientKey(req: import('express').Request): string {
-  const cf = req.headers['cf-connecting-ip']
-  const ip = (typeof cf === 'string' && cf) ? cf : (req.ip ?? req.socket.remoteAddress ?? 'unknown')
-  return ipKeyGenerator(ip)
-}
+// Molemmat käyttävät samaa keyGeneratoria (clientKey, eriytetty lib/clientIp.ts:ään 2026-09-11
+// jotta rekisteröitymisen IP-duplikaattitunnistus voi käyttää samaa logiikkaa, ks. routes/auth.ts):
+// Cloudflaren CF-Connecting-IP-otsikkoa (asiakas ei voi väärentää sitä - Cloudflare kirjoittaa
+// sen aina itse yhteyden perusteella), req.ip vain varapolkuna niille harvoille pyynnöille jotka
+// eivät kulje Cloudflaren kautta (esim. palvelimen omat sisäiset kutsut). Katso yllä oleva
+// kommentti miksi pelkkä trust proxy -hyppylaskenta EI riittänyt tässä pino ssa. ipKeyGenerator
+// normalisoi IPv6-osoitteet /56-aliverkkoon niin ettei sama kävijä pääse kiertämään rajaa
+// vaihtamalla IPv6-osoitetta.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,

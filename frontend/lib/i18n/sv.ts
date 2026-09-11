@@ -99,6 +99,8 @@ const sv = {
     verifiedYes: 'Verifierad',
     verifiedNo: 'Inte verifierad',
     totalUsers: '{count} användare totalt',
+    flaggedBadge: 'IP-DUPLIKAT', flaggedOnlyFilter: 'Visa endast flaggade (IP-duplikat)',
+    registrationIpLabel: 'Registrerings-IP:', markReviewedBtn: 'Markera som granskad',
     prevPage: '← Föregående',
     nextPage: 'Nästa →',
     pageInfo: 'Sida {page} / {total}',

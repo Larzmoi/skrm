@@ -181,15 +181,16 @@ export const adminApi = {
   markReviewed: (id: string) => request(`/admin/reports/${id}`, { method: 'PATCH' }),
   deleteProduct: (id: string, reason: string) => request(`/admin/products/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
   deleteShow: (id: string, reason: string) => request(`/admin/shows/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
-  listUsers: (params: { search?: string; page?: number; pageSize?: number } = {}) => {
+  listUsers: (params: { search?: string; page?: number; pageSize?: number; flaggedOnly?: boolean } = {}) => {
     const q = new URLSearchParams()
     if (params.search) q.set('search', params.search)
     q.set('page', String(params.page ?? 1))
     q.set('pageSize', String(params.pageSize ?? 30))
+    if (params.flaggedOnly) q.set('flaggedOnly', 'true')
     return request(`/admin/users?${q.toString()}`)
   },
   banUser: (id: string, reason: string, days: number) => request(`/admin/users/${id}/ban`, { method: 'POST', body: JSON.stringify({ reason, days }) }),
-  updateUser: (id: string, data: { canStream?: boolean; customCommissionRate?: number | null; customCommissionCap?: number | null; verified?: boolean }) =>
+  updateUser: (id: string, data: { canStream?: boolean; customCommissionRate?: number | null; customCommissionCap?: number | null; verified?: boolean; flaggedDuplicateIp?: boolean }) =>
     request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeBan: (id: string) => request(`/admin/users/${id}/ban`, { method: 'DELETE' }),
   sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),

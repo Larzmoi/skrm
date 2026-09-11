@@ -101,6 +101,8 @@ const fi = {
     verifiedYes: 'Vahvistettu',
     verifiedNo: 'Ei vahvistettu',
     totalUsers: '{count} käyttäjää yhteensä',
+    flaggedBadge: 'IP-DUPLIKAATTI', flaggedOnlyFilter: 'Näytä vain liputetut (IP-duplikaatti)',
+    registrationIpLabel: 'Rekisteröitymis-IP:', markReviewedBtn: 'Merkitse tarkistetuksi',
     prevPage: '← Edellinen',
     nextPage: 'Seuraava →',
     pageInfo: 'Sivu {page} / {total}',

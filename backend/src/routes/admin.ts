@@ -111,11 +111,11 @@ async function findActiveBan(userId: string) {
 // hakua käytetään vain jo näkyvän listan suodattamiseen. Lisätty sivutus koska pelkkä `take: 10`
 // ei riitä kun käyttäjämäärä kasvaa satoihin.
 router.get('/users', async (req, res) => {
-  const { search } = req.query
+  const { search, flaggedOnly } = req.query
   const page = Math.max(1, Number(req.query.page) || 1)
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30))
 
-  const where = search && String(search).trim().length >= 2
+  const searchWhere = search && String(search).trim().length >= 2
     ? {
         OR: [
           { username: { contains: String(search).trim(), mode: 'insensitive' as const } },
@@ -124,11 +124,14 @@ router.get('/users', async (req, res) => {
         ],
       }
     : {}
+  // flaggedOnly - ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus" 2026-09-11 - antaa adminin
+  // löytää IP-duplikaattiepäilyt ilman että pitää selata koko käyttäjälistaa läpi.
+  const where = flaggedOnly === 'true' ? { ...searchWhere, flaggedDuplicateIp: true } : searchWhere
 
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, verified: true },
+      select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, createdAt: true, verified: true, flaggedDuplicateIp: true, registrationIp: true },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -140,10 +143,10 @@ router.get('/users', async (req, res) => {
 })
 
 // PATCH /admin/users/:id — osittainen päivitys (canStream/customCommissionRate/
-// customCommissionCap/verified). Kaikki kentät valinnaisia, vain annetut päivitetään.
+// customCommissionCap/verified/flaggedDuplicateIp). Kaikki kentät valinnaisia, vain annetut päivitetään.
 router.patch('/users/:id', async (req, res) => {
   const userId = String(req.params.id)
-  const { canStream, customCommissionRate, customCommissionCap, verified } = req.body
+  const { canStream, customCommissionRate, customCommissionCap, verified, flaggedDuplicateIp } = req.body
 
   const existing = await prisma.user.findUnique({ where: { id: userId } })
   if (!existing) return res.status(404).json({ error: 'Käyttäjää ei löydy' })
@@ -151,6 +154,10 @@ router.patch('/users/:id', async (req, res) => {
   const data: any = {}
   if (typeof canStream === 'boolean') data.canStream = canStream
   if (typeof verified === 'boolean') data.verified = verified
+  // Adminin "Merkitse tarkistetuksi" -nappi (ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus") -
+  // vain false-suuntaan käytännössä (tarkistuksen jälkeen), mutta ei estetä true:kaan jos
+  // admin haluaisi liputtaa jonkin manuaalisesti.
+  if (typeof flaggedDuplicateIp === 'boolean') data.flaggedDuplicateIp = flaggedDuplicateIp
   if (customCommissionRate !== undefined) {
     if (customCommissionRate !== null && (typeof customCommissionRate !== 'number' || !isFinite(customCommissionRate) || customCommissionRate < 0)) {
       return res.status(400).json({ error: 'Virheellinen komissioprosentti' })
@@ -167,7 +174,7 @@ router.patch('/users/:id', async (req, res) => {
   const updated = await prisma.user.update({
     where: { id: userId },
     data,
-    select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, verified: true },
+    select: { id: true, name: true, username: true, email: true, role: true, canStream: true, customCommissionRate: true, customCommissionCap: true, verified: true, flaggedDuplicateIp: true, registrationIp: true },
   })
   res.json({ ...updated, activeBan: await findActiveBan(userId) })
 })

@@ -99,6 +99,8 @@ const en = {
     verifiedYes: 'Verified',
     verifiedNo: 'Not verified',
     totalUsers: '{count} users total',
+    flaggedBadge: 'IP DUPLICATE', flaggedOnlyFilter: 'Show only flagged (IP duplicate)',
+    registrationIpLabel: 'Registration IP:', markReviewedBtn: 'Mark as reviewed',
     prevPage: '← Previous',
     nextPage: 'Next →',
     pageInfo: 'Page {page} / {total}',

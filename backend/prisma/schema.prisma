@@ -124,6 +124,13 @@ model User {
   stripeCustomerId String?
   stripeAccountId  String?
   verified         Boolean  @default(false)
+  // IP-pohjainen duplikaattitilien tunnistus (ks. CLAUDE.md "Rekisteröitymisen IP-rajoitus"
+  // 2026-09-11, omistajan päätös) — sama IP (Cloudflaren CF-Connecting-IP, ks. lib/clientIp.ts)
+  // saa luoda rajattoman määrän tilejä, mutta 4. ja siitä eteenpäin merkitään tarkistettavaksi
+  // admin-paneelissa sen sijaan että rekisteröityminen estettäisiin kokonaan (CGNAT/mobiiliverkot
+  // jakavat usein saman julkisen IP:n monen aidon, toisistaan riippumattoman käyttäjän kesken).
+  registrationIp     String?
+  flaggedDuplicateIp Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
