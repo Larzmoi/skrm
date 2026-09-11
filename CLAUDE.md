@@ -7,6 +7,10 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Footerin some-linkit kytketty oikeisiin tileihin 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Footerin "Seuraa"-sarakkeen kolme linkkiä (Instagram/TikTok/YouTube) olivat kaikki kuolleita `#`-paikkamerkkejä. Instagram ja TikTok kytketty omistajan antamiin oikeisiin tileihin (`instagram.com/habacards`, `tiktok.com/@habacardsoy`) — avautuvat nyt uuteen välilehteen (`target="_blank" rel="noopener noreferrer"`), koska ne ovat aidosti ulkoisia osoitteita eivätkä enää sisäisiä `next/link`-reittejä. YouTube-paikkamerkki poistettu kokonaan koska tiliä ei ole. **Facebookia ei ole koskaan ollut footerissa** (vahvistettu grepillä koko koodikannasta) — omistajan pyyntö "facebook ei ole eikä tule" oli siis jo valmiiksi totta, ei vaatinut poistoa.
+
 ## Suoramyyntituotteet livessä — kolme puutetta korjattu 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyytämä kolmen kohdan korjauslista puhtaan suoramyyntituotteen (`saleType: 'buy_now'`) näyttöön live-lähetyksessä. Kaikki kolme rajoittuivat frontendiin (`frontend/app/live/[showId]/page.tsx`) — vahvistettu ennen koodausta ettei backend vaadi mitään muutosta: `GET /shows/:id`:n `products`-include ei rajaa kenttiä `select`:llä, joten `Product.quantity`/`saleType` tulivat jo valmiiksi jokaisessa vastauksessa, vain frontendin oma `ShowProduct`-tyyppi/renderöinti puuttui niitä kokonaan. `POST /cart/add` (`backend/src/routes/cart.ts`) tuki jo täysin mielivaltaista määrää (atominen `updateMany`-varastotarkistus `quantity: { gte: quantity }`, `RESERVED`-tila nollasaldolla) — ainoa puute oli että `buyNow()`-frontendfunktio välitti aina kiinteän `1`:n.
