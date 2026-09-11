@@ -9,8 +9,11 @@ const BUY_NOW_PAYMENT_WINDOW_MS = 2 * 60 * 60 * 1000 // ostaja aktiivisesti läs
 
 const router = Router()
 
-const SNIPE_EXTENSION_MS = 2 * 60 * 1000 // viime hetken pidennys
-const SNIPE_WINDOW_MS = 2 * 60 * 1000
+// Viime hetken pidennys ("anti-snipe") — omistajan pyynnöstä 2026-09-11 muutettu 2min/2min:stä
+// 1min/1min:iin (ks. CLAUDE.md): jos huutokaupassa on 60s tai vähemmän jäljellä kun huuto
+// tehdään, huutoaika pidennetään 60 sekuntiin siitä hetkestä.
+const SNIPE_EXTENSION_MS = 60 * 1000
+const SNIPE_WINDOW_MS = 60 * 1000
 
 // Pyöristää senteille — estää JS:n liukulukutarkkuuden aiheuttamat virheet (esim. 5.1 + 0.1 = 5.199999999999999)
 function roundCents(amount: number) {
@@ -99,7 +102,7 @@ router.post('/:id/bid', authMiddleware, async (req: AuthRequest, res: Response) 
     return res.status(400).json({ error: `Minimi huuto on ${minBid}€` })
   }
 
-  // Viime hetken pidennys — jos alle 2 min jäljellä, lisää 2 min (estää "snipe bidding")
+  // Viime hetken pidennys — jos alle 1 min jäljellä, lisää 1 min (estää "snipe bidding")
   let newEndsAt = product.auctionEndsAt
   const timeLeft = product.auctionEndsAt.getTime() - now.getTime()
   if (timeLeft < SNIPE_WINDOW_MS) newEndsAt = new Date(now.getTime() + SNIPE_EXTENSION_MS)
