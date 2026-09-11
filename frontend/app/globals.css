@@ -28,6 +28,20 @@ input[type=number] { -moz-appearance: textfield; }
   50% { opacity: 0.4; }
 }
 
+/* Mainoskaruselli (frontend/app/page.tsx AdBanner, ks. CLAUDE.md "Mainostila karuselliksi"
+   2026-09-11) - React remounttaa sisällön key={ad.id}:n vaihtuessa, mikä käynnistää tämän
+   animaation uudestaan joka mainoksenvaihdolla ilman erillistä JS-ajastettua opacity-tilaa. */
+@keyframes hbAdFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.hb-ad-fade {
+  animation: hbAdFade 0.5s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hb-ad-fade { animation: none; }
+}
+
 /* Otsikko-/hinta-/nappifontti, ks. layout.tsx:n next/font-määrittely. Käytettävissä
    inline style -objekteissa: fontFamily: 'var(--font-display), -apple-system, ...' */
 

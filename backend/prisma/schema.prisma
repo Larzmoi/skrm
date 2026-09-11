@@ -37,9 +37,11 @@ enum OrderStatus {
 }
 
 // Fyysinen pakettikoko Postin lähetystä varten - EI sama asia kuin Order.shippingSize
-// (toimitustapa postitus/nouto). Myyjä valitsee tämän vasta lähetysvaiheessa, ks. CLAUDE.md
-// "Postihinnat" (2026-08-26) - ei vaikuta ostajalta jo veloitettuun kiinteään 6,90€:oon,
-// puhtaasti tekninen tieto joka menee Postin API:n parcels[].packageCode-kenttään.
+// (toimitustapa postitus/nouto). Myyjän oma valinta poistettu 2026-09-11 (ks. CLAUDE.md) -
+// kaikki lähetykset käyttävät nyt aina samaa kiinteää Posti-konfiguraatiota (ISO/PO2103, ainoa
+// Postin curl-esimerkistä vahvistettu arvo), joten uusille tilauksille kirjoitetaan aina ISO.
+// Enum jätetty schemaan siivoamatta - PIENI-arvo esiintyy yhä vanhoissa, ennen 2026-09-11
+// luoduissa tilausriveissä eikä sitä ole syytä pudottaa historiadatan takia.
 enum Pakettikoko {
   PIENI
   ISO
@@ -493,14 +495,20 @@ model Follower {
   @@unique([sellerId, followerId])
 }
 
-// Etusivun mainostilan sisältö (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 6) -
-// yksi rivi (id aina "main"), admin muokkaa /admin-paneelin "Mainos"-välilehdeltä ilman
-// koodimuutosta. enabled=false piilottaa koko bannerin etusivulta kokonaan.
+// Etusivun mainostilan sisältö (ks. CLAUDE.md "Iso testauskierros 2026-09-04" kohta 6,
+// muutettu karuselliksi 2026-09-11) - admin muokkaa /admin-paneelin "Mainos"-välilehdeltä
+// ilman koodimuutosta. enabled=false piilottaa YKSITTÄISEN mainoksen etusivulta (muut
+// enabled=true-mainokset pyörivät edelleen normaalisti karusellissa).
+//
+// Aiemmin tarkoituksella yksi kiinteä rivi (id aina "main", upsert), muutettu 2026-09-11
+// omistajan pyynnöstä sallimaan useampi samanaikainen aktiivinen mainos jotka pyörivät
+// automaattisesti (ks. frontend/app/page.tsx:n AdBanner) - id nyt tavallinen cuid, ei enää
+// upsert-singleton. Vanha "main"-rivi säilyy tuotannossa ennallaan (id-arvo ei muutu
+// jälkikäteen), näkyy nyt vain yhtenä listan monista mahdollisista mainoksista.
 model AdSlot {
-  id        String   @id @default("main")
-  // Oletus false - admin-lomakkeen ensimmäinen avaus (GET /admin/ad) luo tämän rivin
-  // upsertilla, eikä tyhjäsisältöistä bannerĩa saa vahingossa aktivoitua julkiseksi ennen
-  // kuin omistaja on oikeasti täyttänyt ja tallentanut sisällön.
+  id        String   @id @default(cuid())
+  // Oletus false - uuden mainoksen luonti (POST /admin/ad) ei aktivoidu vahingossa julkiseksi
+  // ennen kuin omistaja on oikeasti täyttänyt ja tallentanut sisällön.
   enabled   Boolean  @default(false)
   eyebrow   String   @default("")
   title     String   @default("")
@@ -514,6 +522,7 @@ model AdSlot {
   // varoittaa/rajaa tiedostokokoa client-puolella sen sijaan. Kun asetettu, korvaa imageUrl:n
   // renderöinnissä (ei näytetä molempia yhtä aikaa) - ks. frontend/app/page.tsx:n AdBanner.
   videoUrl  String?
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 

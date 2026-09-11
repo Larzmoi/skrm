@@ -437,7 +437,7 @@ const fi = {
     noAddress: 'Ei osoitetta vielä', statusExpired: 'Umpeutunut', statusWaiting: 'Odottaa',
     refundBtn: 'Hyvitä', pickupCodePlaceholder: 'Noutokoodi', confirmPickupBtn: 'Vahvista nouto',
     trackingPlaceholder: 'Seurantakoodi (manuaalinen)', addTrackingBtn: 'Lisää seurantakoodi',
-    packageSizeSmall: 'Pieni', packageSizeLarge: 'Iso', createShipmentBtn: 'Luo lähetys (Posti)',
+    createShipmentBtn: 'Luo lähetys (Posti)',
     openLabelBtn: 'Avaa osoitetarra (PDF) →', shippingCodeLabel: 'Lähetyskoodi:', trackingCodeLabel: 'Seurantakoodi:',
     reviewThanks: '✓ Kiitos arvostelusta', reviewCommentPlaceholder: 'Kommentti (valinnainen)',
     submitReviewBtn: 'Lähetä arvostelu', cancelBtn: 'Peruuta', leaveReviewBtn: 'Jätä arvostelu ostajalle',

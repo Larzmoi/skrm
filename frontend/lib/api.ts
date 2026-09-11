@@ -75,7 +75,7 @@ export const orderApi = {
   pay: (orderId: string) => request(`/orders/${orderId}/pay`, { method: 'POST' }),
   cancel: (orderId: string) => request(`/orders/${orderId}/cancel`, { method: 'POST' }),
   addTracking: (orderId: string, trackingCode: string) => request(`/orders/${orderId}/tracking`, { method: 'POST', body: JSON.stringify({ trackingCode }) }),
-  createShipment: (orderId: string, pakettikoko: 'PIENI' | 'ISO') => request(`/orders/${orderId}/create-shipment`, { method: 'POST', body: JSON.stringify({ pakettikoko }) }),
+  createShipment: (orderId: string) => request(`/orders/${orderId}/create-shipment`, { method: 'POST' }),
   confirmPickup: (orderId: string, code: string) => request(`/orders/${orderId}/confirm-pickup`, { method: 'POST', body: JSON.stringify({ code }) }),
   confirmDelivery: (orderId: string) => request(`/orders/${orderId}/confirm-delivery`, { method: 'POST' }),
   dispute: (orderId: string, reason: string) => request(`/orders/${orderId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
@@ -133,9 +133,9 @@ export interface AdSlot {
 }
 
 export const adApi = {
-  // Julkinen, ei vaadi kirjautumista - etusivun mainosbanneri (ks. CLAUDE.md "Iso
-  // testauskierros 2026-09-04" kohta 6). Palauttaa null jos ei konfiguroitu/pois päältä.
-  get: (): Promise<AdSlot | null> => request('/ad'),
+  // Julkinen, ei vaadi kirjautumista - etusivun mainoskaruselli (ks. CLAUDE.md "Mainostila
+  // karuselliksi" 2026-09-11). Palauttaa tyhjän taulukon jos ei yhtään aktiivista mainosta.
+  get: (): Promise<AdSlot[]> => request('/ad'),
 }
 
 export const showApi = {
@@ -193,8 +193,10 @@ export const adminApi = {
     request(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeBan: (id: string) => request(`/admin/users/${id}/ban`, { method: 'DELETE' }),
   sendPasswordReset: (id: string) => request(`/admin/users/${id}/send-password-reset`, { method: 'POST' }),
-  getAd: (): Promise<AdSlot> => request('/admin/ad'),
-  updateAd: (data: Partial<Omit<AdSlot, 'id'>>): Promise<AdSlot> => request('/admin/ad', { method: 'PATCH', body: JSON.stringify(data) }),
+  listAds: (): Promise<AdSlot[]> => request('/admin/ad'),
+  createAd: (): Promise<AdSlot> => request('/admin/ad', { method: 'POST' }),
+  updateAd: (id: string, data: Partial<Omit<AdSlot, 'id'>>): Promise<AdSlot> => request(`/admin/ad/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteAd: (id: string): Promise<{ ok: boolean }> => request(`/admin/ad/${id}`, { method: 'DELETE' }),
 }
 
 export interface ProductPreset {

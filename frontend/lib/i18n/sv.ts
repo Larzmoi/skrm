@@ -424,7 +424,7 @@ const sv = {
     noAddress: 'Ingen adress än', statusExpired: 'Utgången', statusWaiting: 'Väntar',
     refundBtn: 'Återbetala', pickupCodePlaceholder: 'Hämtningskod', confirmPickupBtn: 'Bekräfta hämtning',
     trackingPlaceholder: 'Spårningskod (manuell)', addTrackingBtn: 'Lägg till spårningskod',
-    packageSizeSmall: 'Liten', packageSizeLarge: 'Stor', createShipmentBtn: 'Skapa försändelse (Posti)',
+    createShipmentBtn: 'Skapa försändelse (Posti)',
     openLabelBtn: 'Öppna fraktsedel (PDF) →', shippingCodeLabel: 'Sändningskod:', trackingCodeLabel: 'Spårningskod:',
     reviewThanks: '✓ Tack för din recension', reviewCommentPlaceholder: 'Kommentar (valfritt)',
     submitReviewBtn: 'Skicka recension', cancelBtn: 'Avbryt', leaveReviewBtn: 'Lämna en recension för köparen',

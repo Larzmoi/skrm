@@ -261,15 +261,14 @@ router.post('/:id/tracking', authMiddleware, async (req: AuthRequest, res: Respo
 // POST /orders/:id/create-shipment — myyjä luo Posti-lähetyksen postitus-tilaukselle. OIKEA
 // OmaPosti Pro API v2 -kutsu 2026-09-04 alkaen (ks. CLAUDE.md "Lähetysintegraatio") - ei enää
 // postiService-mock. POSTI_TEST_MODE=true (oletus) pitää tämän demo-ympäristössä, ei tuotannossa.
-// Myyjä valitsee pakettikoon (PIENI/ISO) vasta tässä vaiheessa - ei vaikuta ostajalta jo
-// veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto Postin parcels[].packageCode-
-// kenttää varten. Korvaa manuaalisen seurantakoodin syötön automaattisesti luodulla
-// trackingNumber + PDF-osoitetarralla (ks. GET /:id/label-pdf alempana - Postin oma vastauksen
-// href vaatii Bearer+x-gateway-secret joita selain ei voi lähettää, siksi oma proxy-reitti).
+// Pakettikoon valinta (PIENI/ISO) poistettu 2026-09-11 - yksi kiinteä koko kaikelle (ks.
+// postiClient.ts:n POSTI_SERVICE_ID/POSTI_PACKAGE_CODE/POSTI_WEIGHT_KG), ei enää myyjän
+// valittavissa. Ei vaikuta ostajalta jo veloitettuun kiinteään postitusmaksuun - pelkkä
+// tekninen tieto Postin parcels[].packageCode-kenttää varten. Korvaa manuaalisen seuranta-
+// koodin syötön automaattisesti luodulla trackingNumber + PDF-osoitetarralla (ks. GET
+// /:id/label-pdf alempana - Postin oma vastauksen href vaatii Bearer+x-gateway-secret joita
+// selain ei voi lähettää, siksi oma proxy-reitti).
 router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const pakettikoko = req.body?.pakettikoko === 'ISO' ? 'ISO' : req.body?.pakettikoko === 'PIENI' ? 'PIENI' : null
-  if (!pakettikoko) return res.status(400).json({ error: 'Pakettikoko (PIENI/ISO) vaaditaan' })
-
   const order = await prisma.order.findUnique({
     where: { id: String(req.params.id) },
     include: {
@@ -286,9 +285,9 @@ router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res
     result = await postiClient.createShippingOrder({
       sender: { name: order.seller.name, address1: order.seller.address ?? '', zipcode: order.seller.postalCode ?? '', city: order.seller.city ?? '', phone: order.seller.phone ?? undefined, email: order.seller.email },
       receiver: { name: order.buyer.name, address1: order.buyer.address ?? '', zipcode: order.buyer.postalCode ?? '', city: order.buyer.city ?? '', phone: order.buyer.phone ?? undefined, email: order.buyer.email },
-      serviceId: postiClient.SERVICE_ID_BY_PAKETTIKOKO[pakettikoko],
-      packageCode: postiClient.PACKAGE_CODE_BY_PAKETTIKOKO[pakettikoko],
-      weightKg: postiClient.WEIGHT_KG_BY_PAKETTIKOKO[pakettikoko],
+      serviceId: postiClient.POSTI_SERVICE_ID,
+      packageCode: postiClient.POSTI_PACKAGE_CODE,
+      weightKg: postiClient.POSTI_WEIGHT_KG,
       contents: 'Verkkokaupan tuote',
       pickupPointQuickId: order.pickupPointId,
     })
@@ -322,7 +321,7 @@ router.post('/:id/create-shipment', authMiddleware, async (req: AuthRequest, res
   const updated = await prisma.order.update({
     where: { id: order.id },
     data: {
-      trackingNumber: result.trackingNumber, postiShipmentId: result.shipmentId, pakettikoko,
+      trackingNumber: result.trackingNumber, postiShipmentId: result.shipmentId, pakettikoko: 'ISO',
       sendingCode,
       labelUrl: sendingCode ? null : (result.labelPdfHref ? `/orders/${order.id}/label-pdf` : null),
       postiLabelHref: sendingCode ? null : result.labelPdfHref,

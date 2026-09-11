@@ -424,7 +424,7 @@ const en = {
     noAddress: 'No address yet', statusExpired: 'Expired', statusWaiting: 'Waiting',
     refundBtn: 'Refund', pickupCodePlaceholder: 'Pickup code', confirmPickupBtn: 'Confirm pickup',
     trackingPlaceholder: 'Tracking code (manual)', addTrackingBtn: 'Add tracking code',
-    packageSizeSmall: 'Small', packageSizeLarge: 'Large', createShipmentBtn: 'Create shipment (Posti)',
+    createShipmentBtn: 'Create shipment (Posti)',
     openLabelBtn: 'Open shipping label (PDF) →', shippingCodeLabel: 'Sending code:', trackingCodeLabel: 'Tracking code:',
     reviewThanks: '✓ Thanks for your review', reviewCommentPlaceholder: 'Comment (optional)',
     submitReviewBtn: 'Submit review', cancelBtn: 'Cancel', leaveReviewBtn: 'Leave a review for the buyer',

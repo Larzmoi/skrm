@@ -69,12 +69,11 @@ function PendingPaymentCard({ order, C, now, s, dateLocale }: { order: SellingOr
   )
 }
 
-function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, pakettikokoValue, onPakettikokoChange, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy, s, dateLocale }: {
+function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTrackingChange, onSubmitTracking, pickupValue, onPickupChange, onSubmitPickup, onCreateShipment, shipmentBusy, busy, review, onRefund, refundBusy, s, dateLocale }: {
   order: SellingOrder; showTracking: boolean; C: Record<string, string>
   stripe: string; badge: { text: string; bg: string; color: string }
   trackingValue: string; onTrackingChange: (v: string) => void; onSubmitTracking: () => void
   pickupValue: string; onPickupChange: (v: string) => void; onSubmitPickup: () => void; busy: boolean
-  pakettikokoValue: 'PIENI' | 'ISO'; onPakettikokoChange: (v: 'PIENI' | 'ISO') => void
   onCreateShipment: () => void; shipmentBusy: boolean
   review?: {
     alreadyReviewed: boolean; open: boolean; rating: number; comment: string
@@ -143,13 +142,6 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
             <button className="hb-btn" onClick={onSubmitTracking} disabled={busy} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {busy ? '...' : s.addTrackingBtn}
             </button>
-            {/* Pakettikoko valitaan vasta tässä, lähetysvaiheessa - ei vaikuta ostajalta jo
-                veloitettuun kiinteään 6,90€:oon, puhtaasti tekninen tieto Postin API:lle
-                (ks. CLAUDE.md "Postihinnat" 2026-08-26). */}
-            <select value={pakettikokoValue} onChange={e => onPakettikokoChange(e.target.value as 'PIENI' | 'ISO')} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 10px', fontSize: 13, color: C.text, flexShrink: 0 }}>
-              <option value="PIENI">{s.packageSizeSmall}</option>
-              <option value="ISO">{s.packageSizeLarge}</option>
-            </select>
             <button className="hb-btn" onClick={onCreateShipment} disabled={shipmentBusy} style={{ background: 'none', border: `1px solid ${C.border}`, color: C.text, padding: '7px 16px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: shipmentBusy ? 0.7 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {shipmentBusy ? '...' : s.createShipmentBtn}
             </button>
@@ -244,7 +236,6 @@ export default function TilauksetPage() {
   const [refundBusy, setRefundBusy] = useState<string | null>(null)
   const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
   const [shipmentBusy, setShipmentBusy] = useState<string | null>(null)
-  const [pakettikokoInput, setPakettikokoInput] = useState<Record<string, 'PIENI' | 'ISO'>>({})
   const [now, setNow] = useState(Date.now())
 
   const load = useCallback(async () => {
@@ -289,7 +280,7 @@ export default function TilauksetPage() {
   async function createShipment(orderId: string) {
     setShipmentBusy(orderId); setError('')
     try {
-      await orderApi.createShipment(orderId, pakettikokoInput[orderId] ?? 'PIENI')
+      await orderApi.createShipment(orderId)
       await load()
     } catch (e: any) { setError(e.message ?? s.errShipmentFailed) }
     setShipmentBusy(null)
@@ -367,8 +358,6 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(state => ({ ...state, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
-                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
-                  onPakettikokoChange={v => setPakettikokoInput(state => ({ ...state, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
@@ -392,8 +381,6 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(state => ({ ...state, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
-                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
-                  onPakettikokoChange={v => setPakettikokoInput(state => ({ ...state, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
@@ -417,8 +404,6 @@ export default function TilauksetPage() {
                   pickupValue={pickupInput[o.id] ?? ''}
                   onPickupChange={v => setPickupInput(state => ({ ...state, [o.id]: v }))}
                   onSubmitPickup={() => submitPickup(o.id)}
-                  pakettikokoValue={pakettikokoInput[o.id] ?? 'PIENI'}
-                  onPakettikokoChange={v => setPakettikokoInput(state => ({ ...state, [o.id]: v }))}
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}

@@ -81,8 +81,26 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
 // Sisältö tulee nyt AdSlot-tietokantataulusta (admin muokkaa /admin-paneelin "Mainos"
 // -välilehdeltä, ei koodimuutosta joka kerta) - ei enää kovakoodattua t.home.ad*-tekstiä.
 // Ei renderöi mitään jos rivi puuttuu tai admin on kytkenyt sen pois päältä (ad === null).
-function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile: boolean; t: any; ad: AdSlot | null }) {
-  if (!ad) return null
+// Karuselli - useampi aktiivinen mainos pyörii automaattisesti (omistajan pyyntö 2026-09-11,
+// ks. CLAUDE.md "Mainostila karuselliksi"). Yhden mainoksen tapauksessa ajastin ei vaihda mitään
+// havaittavaa (moduloi aina samaan ainoaan indeksiin) - ei tarvitse erillistä ehtoa piilottaa sitä.
+function AdBanner({ C, isMobile, t, ads }: { C: Record<string, string>; isMobile: boolean; t: any; ads: AdSlot[] }) {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (ads.length < 2) return
+    const iv = setInterval(() => setIndex(i => (i + 1) % ads.length), 6000)
+    return () => clearInterval(iv)
+  }, [ads.length])
+
+  // Jos lista lyhenee kesken kaiken (admin poistaa mainoksen juuri kun se on näytössä), index
+  // voisi muuten jäädä range-ulkopuolelle ja renderöidä undefined:n.
+  useEffect(() => {
+    if (index >= ads.length) setIndex(0)
+  }, [ads.length, index])
+
+  if (ads.length === 0) return null
+  const ad = ads[index]
   const href = ad.ctaHref || '/huutokaupat'
   // Omistajan pitää voida linkittää MIHIN TAHANSA osoitteeseen, ei vain sivuston omiin
   // reitteihin (ks. CLAUDE.md) - ulkoinen linkki (http/https-alkuinen) renderöidään tavallisena
@@ -102,30 +120,38 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
       {/* borderRadius toistettu myös itse media-elementissä (ei vain kääre-divissä) - pelkkä
           kääreen overflow:hidden ei aina riitä, koska video promotoituu omaksi, laitteisto-
           kiihdytetyksi compositing-kerroksekseen (erityisesti Android/Chrome), joka voi jättää
-          esi-isän border-radius-rajauksen huomiotta ja vuotaa pyöristettyjen kulmien yli. */}
-      {ad.videoUrl ? (
-        isVideo
-          ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
-          : <img src={ad.videoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
-      ) : ad.imageUrl && (
-        <img src={ad.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
-      )}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: hasImage
-          ? (isMobile
-              ? 'linear-gradient(180deg, rgba(15,23,42,0.25) 0%, rgba(15,23,42,0.55) 45%, rgba(15,23,42,0.94) 100%)'
-              : 'linear-gradient(90deg, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.5) 45%, rgba(15,23,42,0.92) 100%)')
-          : 'none',
-      }} />
+          esi-isän border-radius-rajauksen huomiotta ja vuotaa pyöristettyjen kulmien yli.
+          key={ad.id + '-bg'} + hb-ad-fade käynnistää lyhyen opacity-animaation aina kun
+          karuselli vaihtaa mainosta (React remounttaa elementin key:n muuttuessa). */}
+      <div key={ad.id + '-bg'} className="hb-ad-fade" style={{ position: 'absolute', inset: 0 }}>
+        {ad.videoUrl ? (
+          isVideo
+            ? <video src={ad.videoUrl} autoPlay loop muted playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
+            : <img src={ad.videoUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
+        ) : ad.imageUrl && (
+          <img src={ad.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
+        )}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: hasImage
+            ? (isMobile
+                ? 'linear-gradient(180deg, rgba(15,23,42,0.25) 0%, rgba(15,23,42,0.55) 45%, rgba(15,23,42,0.94) 100%)'
+                : 'linear-gradient(90deg, rgba(15,23,42,0.15) 0%, rgba(15,23,42,0.5) 45%, rgba(15,23,42,0.92) 100%)')
+            : 'none',
+        }} />
+      </div>
       {/* "Habahub suosittelee" -badge - siirretty 2026-09-10 pois oikean yläkulman absoluuttisesta
           asemoinnista (omistajan pyyntö: "laita kaikki samaan linjaan vasemmalta oikealle") osaksi
           normaalia sisältövirtaa, samaan vasempaan reunaan eyebrow/otsikko/kuvauksen kanssa.
           Väri vaihdettu läpinäkyvästä valkoisesta (ei erottunut kuvatustan päältä, omistajan
           raportoima) kiinteäksi vihreäksi taustaksi + mustaksi tekstiksi - sama pari kuin muualla
           sivustolla napeissa (accentSolid/accentText), aina riittävä kontrasti kuva-/väritaustasta
-          riippumatta. */}
-      <div style={{
+          riippumatta. key={ad.id + '-content'} - eri key kuin taustaelementillä, koska React
+          vaatii uniikit key-arvot sisarusten kesken vaikka molemmat vaihtuvat samaan aikaan. Tämä
+          pysyy normaalissa dokumenttivirtauksessa (ei position:absolute) - jos wrapattaisiin
+          samaan absoluuttiseen taustadiviin, pitkä kuvausteksti voisi ylivuotaa minHeight:n yli
+          ilman että ulompi flex-laatikko kasvaisi mukana. */}
+      <div key={ad.id + '-content'} className="hb-ad-fade" style={{
         position: 'relative', zIndex: 1, width: '100%',
         padding: isMobile ? '40px 20px 24px' : '28px 32px',
         display: 'flex', flexDirection: isMobile ? 'column' : 'row',
@@ -155,6 +181,24 @@ function AdBanner({ C, isMobile, t, ad }: { C: Record<string, string>; isMobile:
           : <Link href={href} className="hb-btn" style={ctaStyle}>{ctaContent}</Link>
         }
       </div>
+      {/* Pisteosoittimet - vain kun useampi mainos on aktiivisena, klikattavissa suoraan
+          kyseiseen mainokseen hyppäämiseksi. Ei nollaa/käynnistä ajastinta uudestaan tarkoituksella
+          - riittävän yksinkertainen, ei tarvitse debouncea klikkauksen ja seuraavan auto-vaihdon välillä. */}
+      {ads.length > 1 && (
+        <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, zIndex: 2, display: 'flex', justifyContent: 'center', gap: 7 }}>
+          {ads.map((a, i) => (
+            <button
+              key={a.id}
+              onClick={() => setIndex(i)}
+              aria-label={`${i + 1}/${ads.length}`}
+              style={{
+                width: i === index ? 18 : 7, height: 7, borderRadius: 4, border: 'none', padding: 0, cursor: 'pointer',
+                background: i === index ? C.accentSolid : 'rgba(255,255,255,0.4)', transition: 'width 0.2s ease, background 0.2s ease',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -173,7 +217,7 @@ export default function Home() {
   const [activeAla, setActiveAla] = useState('')
   const [activeTyyppi, setActiveTyyppi] = useState('')
   const [now, setNow] = useState(Date.now())
-  const [ad, setAd] = useState<AdSlot | null>(null)
+  const [ads, setAds] = useState<AdSlot[]>([])
 
   useEffect(() => {
     const iv = setInterval(() => setNow(Date.now()), 1000)
@@ -214,7 +258,7 @@ export default function Home() {
       .then((data: any[]) => { if (Array.isArray(data) && data.length > 0) setAuctions(data) })
       .catch(() => {})
 
-    adApi.get().then(setAd).catch(() => {})
+    adApi.get().then(data => { if (Array.isArray(data)) setAds(data) }).catch(() => {})
 
     return () => clearInterval(showsIv)
   }, [])
@@ -271,7 +315,7 @@ export default function Home() {
       {/* Mainostila — AINA sivun ylin elementti (omistajan pyyntö 2026-09-04), navbarin
           alapuolella mutta ennen heroa/kaikkea muuta sisältöä. Sisältö AdSlot-taulusta,
           admin muokkaa /admin-paneelista - renderöi null jos ei konfiguroitu/pois päältä. */}
-      {ad && (
+      {ads.length > 0 && (
         // ⚠️ TODELLINEN JUURISYY LÖYTYI 2026-09-10 pitkän diagnoosin jälkeen - ei ollut
         // koskaan välimuisti, vaan aito CSS-bugi joka ei näy millään palvelinpuolen
         // tarkistuksella (curl ei renderöi CSS:ää). Tämä div on suoran ulomman
@@ -286,7 +330,7 @@ export default function Home() {
         // maxWidth+margin:auto ETTÄ eksplisiittinen width:'100%' - jälkimmäinen puuttui
         // tästä. Lisätty nyt sama width:'100%' tähänkin.
         <div style={{ width: '100%', maxWidth: 1440, margin: '0 auto', padding: isMobile ? '14px 14px 0' : '20px 24px 0' }}>
-          <AdBanner C={C} isMobile={isMobile} t={t} ad={ad} />
+          <AdBanner C={C} isMobile={isMobile} t={t} ads={ads} />
         </div>
       )}
 

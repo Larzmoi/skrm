@@ -41,7 +41,7 @@ const FAQ_DATA = {
     {
       id: 'toimitus', title: 'Toimitus',
       items: [
-        { q: 'Kuka maksaa toimituskulut?', a: 'Ostaja maksaa toimituskulut. Postitus on kiinteä 6,90€ riippumatta tuotteen koosta.' },
+        { q: 'Kuka maksaa toimituskulut?', a: 'Ostaja maksaa toimituskulut. Postitus on kiinteä 7,90€ riippumatta tuotteen koosta.' },
         { q: 'Kuinka nopeasti myyjän pitää lähettää?', a: 'Myyjä sitoutuu lähettämään tuotteen 4 vuorokauden sisällä huutokaupan päättymisestä.' },
         { q: 'Mitä tapahtuu jos myyjä ei lähetä?', a: 'Jos myyjä ei lähetä tuotetta 4 vuorokauden sisällä, Habahub puuttuu tilanteeseen ja ostaja saa täyden hyvityksen.' },
       ],
@@ -82,7 +82,7 @@ const FAQ_DATA = {
     {
       id: 'shipping', title: 'Shipping',
       items: [
-        { q: 'Who pays for shipping?', a: 'The buyer pays shipping costs. Shipping is a fixed €6.90 regardless of item size.' },
+        { q: 'Who pays for shipping?', a: 'The buyer pays shipping costs. Shipping is a fixed €7.90 regardless of item size.' },
         { q: 'How quickly must the seller ship?', a: 'The seller commits to shipping within 4 days of the auction ending.' },
         { q: "What happens if the seller doesn't ship?", a: "If the seller doesn't ship within 4 days, Habahub intervenes and the buyer receives a full refund." },
       ],
@@ -123,7 +123,7 @@ const FAQ_DATA = {
     {
       id: 'leverans', title: 'Leverans',
       items: [
-        { q: 'Vem betalar fraktkostnaderna?', a: 'Köparen betalar fraktkostnaderna. Frakten är en fast avgift på 6,90€ oavsett produktens storlek.' },
+        { q: 'Vem betalar fraktkostnaderna?', a: 'Köparen betalar fraktkostnaderna. Frakten är en fast avgift på 7,90€ oavsett produktens storlek.' },
         { q: 'Hur snabbt måste säljaren skicka?', a: 'Säljaren förbinder sig att skicka produkten inom 4 dygn efter att auktionen avslutats.' },
         { q: 'Vad händer om säljaren inte skickar?', a: 'Om säljaren inte skickar produkten inom 4 dygn ingriper Habahub och köparen får full återbetalning.' },
       ],

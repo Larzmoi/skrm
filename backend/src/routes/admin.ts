@@ -211,17 +211,24 @@ router.post('/users/:id/send-password-reset', async (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /admin/ad — palauttaa mainosbannerin nykyisen sisällön (myös enabled=false-tilassa,
-// toisin kuin julkinen GET /ad) esitäyttääkseen admin-lomakkeen. Luo tyhjän oletusrivin jos
-// yhtään ei ole vielä tallennettu, ettei frontendin tarvitse käsitellä null-tilaa erikseen.
+// GET /admin/ad — listaa KAIKKI mainokset (myös enabled=false-tilassa, toisin kuin julkinen
+// GET /ad), luontijärjestyksessä. Karuselliksi muutettu 2026-09-11 (ks. CLAUDE.md "Mainostila
+// karuselliksi") - ei enää yksittäisen "main"-rivin upsert, useampi mainos sallittu rinnakkain.
 router.get('/ad', async (_req, res) => {
-  const ad = await prisma.adSlot.upsert({ where: { id: 'main' }, update: {}, create: { id: 'main' } })
+  const ads = await prisma.adSlot.findMany({ orderBy: { createdAt: 'asc' } })
+  res.json(ads)
+})
+
+// POST /admin/ad — luo uuden, tyhjän mainoksen (enabled:false oletuksena - ei aktivoidu
+// vahingossa tyhjänä ennen kuin omistaja täyttää ja tallentaa sisällön).
+router.post('/ad', async (_req, res) => {
+  const ad = await prisma.adSlot.create({ data: {} })
   res.json(ad)
 })
 
-// PATCH /admin/ad — päivittää mainosbannerin sisällön. Kuva base64-merkkijonona samaan
+// PATCH /admin/ad/:id — päivittää yhden mainoksen sisällön. Kuva base64-merkkijonona samaan
 // tapaan kuin muuallakin sivustolla (ks. CLAUDE.md "Kuvat"-koodaussääntö).
-router.patch('/ad', async (req, res) => {
+router.patch('/ad/:id', async (req, res) => {
   const { enabled, eyebrow, title, body, ctaText, ctaHref, imageUrl, videoUrl } = req.body
   const data: Record<string, unknown> = {}
   if (typeof enabled === 'boolean') data.enabled = enabled
@@ -232,8 +239,22 @@ router.patch('/ad', async (req, res) => {
   if (typeof ctaHref === 'string') data.ctaHref = ctaHref
   if (typeof imageUrl === 'string' || imageUrl === null) data.imageUrl = imageUrl
   if (typeof videoUrl === 'string' || videoUrl === null) data.videoUrl = videoUrl
-  const ad = await prisma.adSlot.upsert({ where: { id: 'main' }, update: data, create: { id: 'main', ...data } })
-  res.json(ad)
+  try {
+    const ad = await prisma.adSlot.update({ where: { id: String(req.params.id) }, data })
+    res.json(ad)
+  } catch {
+    res.status(404).json({ error: 'Mainosta ei löytynyt' })
+  }
+})
+
+// DELETE /admin/ad/:id — poistaa mainoksen pysyvästi.
+router.delete('/ad/:id', async (req, res) => {
+  try {
+    await prisma.adSlot.delete({ where: { id: String(req.params.id) } })
+    res.json({ ok: true })
+  } catch {
+    res.status(404).json({ error: 'Mainosta ei löytynyt' })
+  }
 })
 
 export default router

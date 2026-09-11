@@ -33,24 +33,15 @@ const POSTI_CONTRACT_NUMBER = POSTI_TEST_MODE ? (process.env.POSTI_TEST_CONTRACT
 // Vaaditaan JOKAISEEN kutsuun paitsi token-hakuun - ei vielä vastaanotettu omistajalta.
 const POSTI_GATEWAY_SECRET = process.env.POSTI_GATEWAY_SECRET || ''
 
-// Siirretty tänne postiService.ts:stä 2026-09-04 kun create-shipment-reitti kytkettiin tähän
-// tiedostoon - postiService.ts ei enää tee lähetyksen luontia, vain jäljellä oleva mock-osa
-// (getTrackingStatus). Samat arvot kuin ennen: PO2103/"PKT" vahvistettu Postin curl-esimerkistä
-// 2026-09-03, PO2102 (PIENI-koko) on yhä vahvistamaton arvaus - Postin esimerkki käytti vain ISO:a.
-export type Pakettikoko = 'PIENI' | 'ISO'
-
-export const SERVICE_ID_BY_PAKETTIKOKO: Record<Pakettikoko, string> = {
-  PIENI: 'PO2102',
-  ISO: 'PO2103',
-}
-export const PACKAGE_CODE_BY_PAKETTIKOKO: Record<Pakettikoko, string> = {
-  PIENI: 'PKT',
-  ISO: 'PKT',
-}
-export const WEIGHT_KG_BY_PAKETTIKOKO: Record<Pakettikoko, number> = {
-  PIENI: 1,
-  ISO: 5,
-}
+// Aiemmin myyjä valitsi pakettikoon (PIENI/ISO) lähetyksen luontivaiheessa, kahdella eri
+// serviceId:llä (PO2102/PO2103). Poistettu 2026-09-11 omistajan pyynnöstä - vain YKSI kiinteä
+// pakettikoko kaikelle, ei enää valintaa. Käytössä on PO2103/"PKT", koska se on ainoa Postin
+// omasta curl-esimerkistä vahvistettu arvo (PO2102 oli aina vain vahvistamaton arvaus, Postin
+// esimerkki käytti vain ISO:a) - sama arvo jolla koko flow todistettiin toimivaksi päästä
+// päähän 2026-09-04 (ks. CLAUDE.md "Lähetysintegraatio").
+export const POSTI_SERVICE_ID = 'PO2103'
+export const POSTI_PACKAGE_CODE = 'PKT'
+export const POSTI_WEIGHT_KG = 5
 
 let cachedToken: { value: string; expiresAt: number } | null = null
 

@@ -88,7 +88,7 @@ export default function ValityspalkkiotPage() {
               <tbody>
                 <tr style={{ borderBottom: `1px solid ${C.border}` }}>
                   <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPostal}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>6,90€</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'right', color: C.text, fontWeight: 600 }}>7,90€</td>
                 </tr>
                 <tr>
                   <td style={{ padding: '12px 16px', color: C.text, fontWeight: 500 }}>{t.fees.shippingPickup}</td>
