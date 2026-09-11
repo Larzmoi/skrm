@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Lähetyksen ajastuksen kellonaika meni väärään aikaan — juurisyy palvelimen UTC-aikavyöhyke 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
+
+Jatkoa edelliseen "kellonaika-laatikot rikki" -korjaukseen — omistaja raportoi että vaikka syöttökentät toimivat nyt oikein, ajastettu aika näkyy silti väärin sivulla. Kysytty suoraan: "hakeeko se jostain muualta kellon ajan?" — kyllä, mutta ei siinä mielessä mitä epäiltiin (ei väärä lähde, vaan väärä TULKINTA).
+
+**Juurisyy vahvistettu suoraan palvelimelta (`timedatectl`), ei arvattu:** Hetzner-palvelin on **UTC-aikavyöhykkeellä** (`Etc/UTC`), ei Suomen ajassa. `saveShow()` (`frontend/app/dashboard/page.tsx`) rakensi ajastetun ajan raakana merkkijonona ilman aikavyöhykemerkintää (`` `${date}T${time}` ``, esim. `"2026-09-15T22:30"`) ja lähetti sen sellaisenaan backendille. `POST /shows` (`backend/src/routes/shows.ts`) tekee `new Date(scheduledAt)` — JavaScriptin spesifikaation mukaan merkkijono ilman aikavyöhykettä tulkitaan AINA suorittavan ympäristön OMAN paikallisajan mukaan, ei lähettäjän. Koska palvelin on UTC:ssa, "22:30" tulkittiin 22:30 UTC:ksi — Suomen kesäajassa (UTC+3) tämä on todellisuudessa 01:30 seuraavana päivänä Suomen aikaa, 2-3h myöhemmin (vuodenajasta riippuen) kuin mitä myyjä oikeasti valitsi. `formatShowTime.ts`:n näyttölogiikka (`toLocaleTimeString`, selaimen oma paikallisaika) oli koko ajan oikein — se vain näytti rehellisesti sen väärän, jo tietokantaan tallentuneen UTC-hetken.
+
+**Vahvistettu käsin Node-simulaatiolla ennen korjausta ja sen jälkeen** (TZ=UTC, sama kuin palvelin): pyydetty "22:30" tallentui vanhalla koodilla `2026-09-15T22:30:00.000Z`:na, joka näyttäytyy Suomen ajassa "01.30" — juuri raportoitu virhe.
+
+**Korjaus:** `saveShow()` rakentaa nyt selaimen (kävijän todellisen) aikavyöhykkeen mukaisen `Date`-olion usean parametrin konstruktorilla (`new Date(year, month-1, day, hh, mm)` — tulkitaan aina KÄVIJÄN paikallisajassa, ei koskaan palvelimen) ja lähettää `.toISOString()`-tuloksen, yksiselitteisen `Z`-päätteisen UTC-hetken, joka parsiutuu oikein riippumatta minkä aikavyöhykkeen palvelimella backend sattuu ajamaan. Sama simulaatio korjauksen jälkeen: "22:30" tallentuu `2026-09-15T19:30:00.000Z`:na, joka näyttäytyy Suomen ajassa oikein "22.30".
+
+**Ei muita vastaavia kohtia löytynyt** — grepattu koko frontend `scheduledAt`-viittausten varalta, `showApi.create()` on ainoa paikka joka koskaan rakentaa/lähettää ajastetun ajan, kaikki muut kutsupaikat vain lukevat/näyttävät sen `formatShowTime`:n kautta (joka oli aina oikein).
+
+Typecheck+build vihreä, deployattu, korjaus vahvistettu Node-simulaatiolla palvelimen omaa TZ=UTC-asetusta vasten.
+
 ## Lähetyksen ajastuksen kellonaika-laatikot rikki 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
 
 Omistaja raportoi: dashboardin "Ajasta lähetys" -lomakkeessa kellonajan syöttö (esim. "22:30") muuttui muotoon "2:30", ja samat numerolaatikot ovat muutenkin liian pieniä — koko teksti ei näy niissä.
