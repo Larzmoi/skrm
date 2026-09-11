@@ -34,6 +34,11 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   const [busy, setBusy] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [showAdminDelete, setShowAdminDelete] = useState(false)
+  // Kuvagallerian tila puuttui kokonaan tältä sivulta - pääkuva oli aina kiinteästi images[0],
+  // pikkukuvat eivät olleet klikattavissa (ei onClick:ia). Sama gallerialogiikka kuin
+  // suoramyyntisivulla (tuotteet/[id]/page.tsx), joka jo toimii oikein.
+  const [activeImg, setActiveImg] = useState(0)
+  const [zoomed, setZoomed] = useState(false)
 
   const loadAuction = useCallback(async () => {
     try {
@@ -136,16 +141,21 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) 380px', gap: isMobile ? 24 : 40 }}>
 
           <div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', background: C.surface, aspectRatio: '1' }}>
-              {images[0]
-                ? <img src={images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <div
+              style={{ borderRadius: 12, overflow: 'hidden', background: C.surface, aspectRatio: '1', cursor: images.length > 0 ? 'zoom-in' : 'default' }}
+              onClick={() => images.length > 0 && setZoomed(true)}
+            >
+              {images[activeImg]
+                ? <img src={images[activeImg]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.dim, fontSize: 32 }}>+</div>
               }
             </div>
             {images.length > 1 && (
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                 {images.map((img: string, i: number) => (
-                  <img key={i} src={img} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                  <div key={i} onClick={() => setActiveImg(i)} style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${activeImg === i ? C.accent : C.border}`, flexShrink: 0 }}>
+                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
                 ))}
               </div>
             )}
@@ -324,6 +334,21 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
           onClose={() => setShowAdminDelete(false)}
           onDeleted={() => router.push('/huutokaupat')}
         />
+      )}
+      {zoomed && (
+        <div onClick={() => setZoomed(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 20 }}>
+          <img src={images[activeImg]} alt={product.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8 }} />
+          <button onClick={() => setZoomed(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', width: 40, height: 40, borderRadius: '50%', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          {images.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 20, display: 'flex', gap: 8 }}>
+              {images.map((img, i) => (
+                <div key={i} onClick={e => { e.stopPropagation(); setActiveImg(i) }} style={{ width: 50, height: 50, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${activeImg === i ? '#fff' : 'rgba(255,255,255,0.3)'}` }}>
+                  <img src={img} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
