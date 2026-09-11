@@ -67,7 +67,17 @@ export default function DashboardPage() {
     if (!title || !date) return
     setScheduling(true)
     try {
-      await showApi.create({ title, category: category || undefined, scheduledAt: `${date}T${time}`, thumbnailUrl: thumbnail ?? undefined })
+      // KRIITTINEN: ei koskaan lähetetä raakaa "YYYY-MM-DDTHH:MM"-merkkijonoa sellaisenaan -
+      // palvelin on UTC-aikavyöhykkeellä (Hetzner, vahvistettu), joten backendin new Date(...)
+      // olisi tulkinnut sen UTC-ajaksi eikä Suomen paikallisajaksi, siirtäen ajastuksen 2-3h
+      // väärään suuntaan (ks. CLAUDE.md "Lähetyksen ajastuksen kellonaika"). Rakennetaan Date
+      // selaimen OMALLA (kävijän todellisella) aikavyöhykkeellä usean parametrin konstruktorilla,
+      // ja lähetetään .toISOString() - yksiselitteinen UTC-hetki, tulkitaan oikein palvelimella
+      // riippumatta sen omasta aikavyöhykkeestä.
+      const [year, month, day] = date.split('-').map(Number)
+      const [hh, mm] = time.split(':').map(Number)
+      const localScheduledAt = new Date(year, month - 1, day, hh, mm)
+      await showApi.create({ title, category: category || undefined, scheduledAt: localScheduledAt.toISOString(), thumbnailUrl: thumbnail ?? undefined })
       await loadShows()
       setTitle(''); setCategory(''); setDate(''); setTime('18:00'); setThumbnail(null)
       if (thumbnailRef.current) thumbnailRef.current.value = ''
