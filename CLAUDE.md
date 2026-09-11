@@ -7,6 +7,17 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Promo-kortin otsikko jatkojalostettu, CTA pyöreämmäksi, piilotus kirjautuneilta 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Jatkoa edelliseen tekstiuudistukseen — omistaja koki uuden otsikon vielä laimeaksi. Annettu neljä vaihtoehtoa (`AskUserQuestion`), omistaja valitsi:
+- **Otsikko:** "Parhaat aarteet eivät ole kaupan hyllyllä" → **"Harvinaisimmat löydöt eivät ole kaupan hyllyllä — ne myydään täällä"** (+ en: "The rarest finds aren't on a shop shelf — they're sold here", sv: "De sällsyntaste fynden finns inte i en butikshylla — de säljs här").
+
+Kaksi sivuhavaintoa samalla, molemmat korjattu:
+- **"Luo tili" -napin pyöristys ei täsmännyt mainosbannerin "Lähetä viesti" -napin kanssa** samalla sivulla — promo-kortin CTA käytti `borderRadius:8`, mainosbanneri `borderRadius:999` (täysi pilleri). Yhtenäistetty `999`:ään.
+- **"Luo tili" näkyi myös kirjautuneille käyttäjille**, vaikka tilin luonti ei ole heille relevanttia. `PromoBanner`-komponentti kutsuu nyt `useAuth()`:ia suoraan ja piilottaa CTA-linkin kokonaan (`{!user && (...)}`) — koskee vain evergreen-promohaaraa, ei tulevan lähetyksen "Katso lähetys" -linkkiä (se on hyödyllinen kirjautuneellekin).
+
+Typecheck+build vihreä, deployattu.
+
 ## Etusivun promo-kortin teksti uusiksi, hintamaininta pois 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Jatkoa edelliseen "Rekisteröidy tästä" -nimenmuutokseen — omistaja tarkensi koko kortin sisällön:
