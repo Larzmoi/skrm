@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Lähetyksen ajastuksen kellonaika-laatikot rikki 2026-09-11 — ✅ LÖYDETTY JA KORJATTU
+
+Omistaja raportoi: dashboardin "Ajasta lähetys" -lomakkeessa kellonajan syöttö (esim. "22:30") muuttui muotoon "2:30", ja samat numerolaatikot ovat muutenkin liian pieniä — koko teksti ei näy niissä.
+
+**Juurisyy löytyi koodista, molemmat oireet samasta lähteestä:** `frontend/app/dashboard/page.tsx`:n ajastuslomake käytti kahta erillistä `<select>`-laatikkoa (tunnit "00"-"23", minuutit "00"/"15"/"30"/"45"), jotka molemmat perivät saman jaetun `inp`-tyylin (`width:'100%'`) ilman omaa `flex`-määrettä samassa flex-rivissä — ilman eksplisiittistä flex-basiksen ylikirjoitusta selain käytti `width:100%`:a flex-basiksena molemmille, jolloin ne pyysivät yhteensä 200% tilaa ja kutistuivat liian kapeiksi näyttämään kaksinumeroisen arvon kokonaan (esim. "22" näytti "2":lta). **Tämä selittää myös "22:30 muuttuu 2:30:ksi" -oireen:** natiivin `<select>`:n näppäimistö-typeahead ei tue luotettavasti kahden numeron peräkkäistä kirjoittamista (selaimet tulkitsevat toistetut näppäinpainallukset eri tavoin, usein hypäten ensimmäiseen "2"-alkuiseen vaihtoehtoon eikä koskaan "22":een asti) — kapeassa laatikossa väärin osunut/typeahead-valittu arvo näytti sitten vielä leikkautuneena.
+
+**Korjaus:** molemmat `<select>`-laatikot korvattu yhdellä natiivilla `<input type="time">`-kentällä (`time`-tila, `HH:MM`-muodossa, korvaa erilliset `hour`/`minute`-tilat). Natiivi time-input mitoittaa itsensä aina oikein eikä kärsi typeahead-ongelmasta — käyttäjä voi kirjoittaa numerot suoraan tai käyttää selaimen omaa kellonaika-spinneriä. `saveShow()`:n `scheduledAt`-kokoonpano (`${date}T${hour}:${minute}` → `${date}T${time}`) toimii identtisesti koska `<input type="time">`:n arvo on jo valmiiksi `HH:MM`-merkkijono.
+
+Typecheck+build vihreä, deployattu. Ei koskettu backendiä — `showApi.create()`:n `scheduledAt`-kenttä otti jo ennenkin pelkän ISO-yhteensopivan merkkijonon vastaan, muutos oli puhtaasti frontendin syöttötavassa.
+
 ## Footerin some-linkit kytketty oikeisiin tileihin 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Footerin "Seuraa"-sarakkeen kolme linkkiä (Instagram/TikTok/YouTube) olivat kaikki kuolleita `#`-paikkamerkkejä. Instagram ja TikTok kytketty omistajan antamiin oikeisiin tileihin (`instagram.com/habacards`, `tiktok.com/@habacardsoy`) — avautuvat nyt uuteen välilehteen (`target="_blank" rel="noopener noreferrer"`), koska ne ovat aidosti ulkoisia osoitteita eivätkä enää sisäisiä `next/link`-reittejä. YouTube-paikkamerkki poistettu kokonaan koska tiliä ei ole. **Facebookia ei ole koskaan ollut footerissa** (vahvistettu grepillä koko koodikannasta) — omistajan pyyntö "facebook ei ole eikä tule" oli siis jo valmiiksi totta, ei vaatinut poistoa.
