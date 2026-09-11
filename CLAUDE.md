@@ -7,6 +7,15 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Etusivun rekisteröitymiskehote + rekisteröitymislinkki takaisin login-sivulle 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
+
+Kaksi pientä muutosta rekisteröitymisen löydettävyyteen:
+
+1. **Etusivun promo-kortin nappi** ("Ei listaus- eikä kuukausimaksuja" -laatikko) nimetty uudelleen "Ryhdy myyjäksi" → "Rekisteröidy tästä" (fi) / "Become a seller" → "Register here" (en) / "Bli säljare" → "Registrera dig här" (sv), `t.home.promoCta`. Linkki oli jo valmiiksi `/register`:iin (`frontend/app/page.tsx`:n `PromoBanner`) — vain teksti vaihtui, ei kohdetta.
+2. **`/login`-sivulle palautettu "Ei tiliä? Luo tili" -linkki**, joka oli kommentoitu pois jonkin aiemman suljetun beeta-vaiheen ajalta ("Rekisteröityminen väliaikaisesti pois käytöstä" -kommentti koodissa). Koska `/register` on jo täysin toimiva ja linkitetty muualta (mm. yllä oleva promo-kortti, `proxy.ts`:n julkinen reitti), tämä oli pelkkä unohtunut jäänne — uudelleenkytkentä ei vaatinut mitään muuta kuin kommentin poiston. Käyttää jo olemassa olevia, jo käännettyjä `t.auth.noAccount`/`createAccount`-avaimia (fi/en/sv) — ei uusia avaimia tarvittu.
+
+Typecheck+build vihreä, deployattu. Ei visuaalisesti vahvistettu selaimessa (`/login` on kokonaan client-renderöity, curl ei näytä sisältöä edes onnistuneella 200:lla) — omistajan kannattaa tarkistaa selaimessa.
+
 ## Pakettikoon poisto, postitusmaksun korotus 7,90€:oon, mainostila karuselliksi 2026-09-11 — ✅ TEHTY JA DEPLOYATTU
 
 Kolme erillistä omistajan pyytämää muutosta, tehty samassa erässä.
