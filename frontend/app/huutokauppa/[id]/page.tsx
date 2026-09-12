@@ -39,6 +39,9 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
   // suoramyyntisivulla (tuotteet/[id]/page.tsx), joka jo toimii oikein.
   const [activeImg, setActiveImg] = useState(0)
   const [zoomed, setZoomed] = useState(false)
+  // "Seuraa tuotetta" - ks. CLAUDE.md "Huutokaupan päättymisilmoitus + tuotteen seuraaminen"
+  // 2026-09-12. product.isWatching/​_count.watchers tulevat suoraan GET /auctions/:id:stä.
+  const [watchBusy, setWatchBusy] = useState(false)
 
   const loadAuction = useCallback(async () => {
     try {
@@ -103,6 +106,16 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
       await loadAuction()
     } catch (e: any) { setError(e.message ?? t.auction.buyFailed) }
     setBusy(false)
+  }
+
+  async function toggleWatch() {
+    if (!user) { router.push(`/login?redirect=/huutokauppa/${id}`); return }
+    setWatchBusy(true)
+    try {
+      const res = await auctionApi.watch(id)
+      setProduct((p: any) => ({ ...p, isWatching: res.watching, _count: { ...p._count, watchers: res.watchCount } }))
+    } catch (e: any) { setError(e.message ?? t.auction.watchFailed) }
+    setWatchBusy(false)
   }
 
   if (loading) return (
@@ -180,7 +193,21 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 8 }}>{product.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: 0 }}>{product.name}</h1>
+              {!ended && user?.id !== product.sellerId && (
+                <button
+                  onClick={toggleWatch}
+                  disabled={watchBusy}
+                  style={{ flexShrink: 0, background: product.isWatching ? C.accent : C.surface2, color: product.isWatching ? '#fff' : C.textSub, border: `1px solid ${product.isWatching ? C.accent : C.border}`, padding: '7px 14px', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: watchBusy ? 'default' : 'pointer', opacity: watchBusy ? 0.7 : 1, whiteSpace: 'nowrap' }}
+                >
+                  {product.isWatching ? `★ ${t.auction.watchingProduct}` : `☆ ${t.auction.watchProduct}`}
+                </button>
+              )}
+            </div>
+            {(product._count?.watchers ?? 0) > 0 && (
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{t.auction.watchersSuffix.replace('{count}', String(product._count.watchers))}</div>
+            )}
 
             <div style={{ background: ended ? C.surface : C.accentLight, border: `1px solid ${ended ? C.border : C.accent}`, borderRadius: 10, padding: '16px', marginBottom: 16, textAlign: 'center' }}>
               {ended ? (

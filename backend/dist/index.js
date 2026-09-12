@@ -65,6 +65,7 @@ const notify_1 = require("./lib/notify");
 const deliveryTimeline_1 = require("./jobs/deliveryTimeline");
 const closeAuctions_1 = require("./jobs/closeAuctions");
 const expireOffers_1 = require("./jobs/expireOffers");
+const auctionEndingSoon_1 = require("./jobs/auctionEndingSoon");
 dotenv.config();
 const app = (0, express_1.default)();
 // Tuotannossa Cloudflare -> nginx (localhost proxy_pass) -> tämä sovellus - kaksi väliin
@@ -191,6 +192,11 @@ setInterval(() => {
 // Perinteisten huutokauppojen sulkeminen — minuutin välein tarkkuuden vuoksi
 setInterval(() => {
     (0, closeAuctions_1.closeExpiredAuctions)().catch(e => console.error('closeExpiredAuctions virhe:', e));
+}, 60 * 1000);
+// "Huutokauppa päättymässä" -ilmoitus (15min ennen) — minuutin välein, sama tarkkuustarve
+// kuin closeExpiredAuctions()illä koska ikkuna on tarkka (ks. CLAUDE.md 2026-09-12).
+setInterval(() => {
+    (0, auctionEndingSoon_1.notifyEndingSoonAuctions)().catch(e => console.error('notifyEndingSoonAuctions virhe:', e));
 }, 60 * 1000);
 // Tarjousten (Offer) 48h-vanheneminen — kerran tunnissa riittää, sama periaate kuin deliveryTimeline
 setInterval(() => {

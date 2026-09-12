@@ -49,6 +49,8 @@ const en = {
     bought: 'Bought!', buyFailed: 'Purchase failed',
     bidPlacedAmount: 'Bid of {amount}€ placed!', autoBidSet: 'Auto-bid set to max {amount}€',
     endingSoon: 'Ending soon', activeCount: '{count} active auctions',
+    watchProduct: 'Watch this item', watchingProduct: 'Watching', watchersSuffix: '{count} watching',
+    watchFailed: 'Failed to update watch status',
   },
   report: {
     button: 'Report', title: 'Report content', titleUser: 'Report user',

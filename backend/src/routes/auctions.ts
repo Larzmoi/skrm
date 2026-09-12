@@ -1,9 +1,24 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
+import jwt from 'jsonwebtoken'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { notifyUser } from '../lib/notify'
 import { createOrderForAuctionWin } from '../lib/auctionOrder'
 import { sendAuctionWonEmail } from '../lib/resend'
+
+// Sama kevyt "lue token jos sellainen sattuu olemaan mukana" -apuri kuin users.ts:n
+// GET /:username -reitillä (isFollowing) — tämä reitti on julkinen (ei authMiddleware,
+// anonyymitkin saavat katsoa huutokauppaa), mutta jos kirjautunut käyttäjä katsoo sitä,
+// halutaan silti kertoa hänelle onko HÄN seuraamassa tätä tuotetta.
+function getOptionalUserId(req: Request): string | null {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) return null
+  try {
+    return (jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }).userId
+  } catch {
+    return null
+  }
+}
 
 const BUY_NOW_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000 // ostaja aktiivisesti läsnä klikatessaan — maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11
 
@@ -66,7 +81,7 @@ router.get('/:id', async (req, res) => {
         take: 20,
         include: { user: { select: { username: true } } },
       },
-      _count: { select: { bids: true } },
+      _count: { select: { bids: true, watchers: true } },
     },
   })
 
@@ -74,7 +89,44 @@ router.get('/:id', async (req, res) => {
     return res.status(404).json({ error: 'Huutokauppaa ei löydy' })
   }
 
-  res.json(product)
+  // isWatching: kertoo VAIN kirjautuneelle katsojalle onko hän itse seuraamassa tätä
+  // huutokauppaa (ks. ProductWatch, "Seuraa"-nappi) — sama optional-auth-periaate kuin
+  // users.ts:n GET /:username -reitin isFollowing.
+  const currentUserId = getOptionalUserId(req)
+  let isWatching = false
+  if (currentUserId) {
+    const existing = await prisma.productWatch.findUnique({
+      where: { productId_userId: { productId: product.id, userId: currentUserId } },
+    })
+    isWatching = !!existing
+  }
+
+  res.json({ ...product, isWatching })
+})
+
+// POST /auctions/:id/watch — seuraa/lopeta tuotteen seuraaminen (toggle), ks. CLAUDE.md
+// "Huutokaupan päättymisilmoitus + tuotteen seuraaminen" 2026-09-12. Seuraajat saavat
+// notifyEndingSoonAuctions()-cronin ilmoituksen 15min ennen auctionEndsAt:ia, sama kuin
+// tuotteesta jo huutaneet.
+router.post('/:id/watch', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const productId = String(req.params.id)
+  const product = await prisma.product.findUnique({ where: { id: productId } })
+  if (!product || product.saleType !== 'auction') {
+    return res.status(404).json({ error: 'Huutokauppaa ei löydy' })
+  }
+
+  const existing = await prisma.productWatch.findUnique({
+    where: { productId_userId: { productId, userId: req.userId! } },
+  })
+
+  if (existing) {
+    await prisma.productWatch.delete({ where: { id: existing.id } })
+  } else {
+    await prisma.productWatch.create({ data: { productId, userId: req.userId! } })
+  }
+
+  const watchCount = await prisma.productWatch.count({ where: { productId } })
+  res.json({ watching: !existing, watchCount })
 })
 
 // POST /auctions/:id/bid — tee huuto

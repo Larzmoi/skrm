@@ -27,6 +27,7 @@ import { setSocketServer } from './lib/notify'
 import { checkDeliveryTimeline } from './jobs/deliveryTimeline'
 import { closeExpiredAuctions } from './jobs/closeAuctions'
 import { checkExpiredOffers } from './jobs/expireOffers'
+import { notifyEndingSoonAuctions } from './jobs/auctionEndingSoon'
 
 dotenv.config()
 
@@ -166,6 +167,12 @@ setInterval(() => {
 // Perinteisten huutokauppojen sulkeminen — minuutin välein tarkkuuden vuoksi
 setInterval(() => {
   closeExpiredAuctions().catch(e => console.error('closeExpiredAuctions virhe:', e))
+}, 60 * 1000)
+
+// "Huutokauppa päättymässä" -ilmoitus (15min ennen) — minuutin välein, sama tarkkuustarve
+// kuin closeExpiredAuctions()illä koska ikkuna on tarkka (ks. CLAUDE.md 2026-09-12).
+setInterval(() => {
+  notifyEndingSoonAuctions().catch(e => console.error('notifyEndingSoonAuctions virhe:', e))
 }, 60 * 1000)
 
 // Tarjousten (Offer) 48h-vanheneminen — kerran tunnissa riittää, sama periaate kuin deliveryTimeline

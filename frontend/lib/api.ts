@@ -160,6 +160,7 @@ export const auctionApi = {
   bid: (id: string, amount: number) => request(`/auctions/${id}/bid`, { method: 'POST', body: JSON.stringify({ amount }) }),
   autobid: (id: string, maxAmount: number) => request(`/auctions/${id}/autobid`, { method: 'POST', body: JSON.stringify({ maxAmount }) }),
   buyNow: (id: string) => request(`/auctions/${id}/buy-now`, { method: 'POST' }),
+  watch: (id: string) => request(`/auctions/${id}/watch`, { method: 'POST' }),
 }
 
 export const notificationApi = {

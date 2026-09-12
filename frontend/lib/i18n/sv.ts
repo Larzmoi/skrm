@@ -49,6 +49,8 @@ const sv = {
     bought: 'Köpt!', buyFailed: 'Köpet misslyckades',
     bidPlacedAmount: 'Bud på {amount}€ lagt!', autoBidSet: 'Automatiskt bud inställt till max {amount}€',
     endingSoon: 'Avslutas snart', activeCount: '{count} aktiva auktioner',
+    watchProduct: 'Bevaka objektet', watchingProduct: 'Bevakas', watchersSuffix: '{count} bevakar',
+    watchFailed: 'Det gick inte att uppdatera bevakningen',
   },
   report: {
     button: 'Rapportera', title: 'Rapportera innehåll', titleUser: 'Rapportera användare',

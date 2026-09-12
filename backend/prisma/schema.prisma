@@ -78,6 +78,7 @@ enum NotificationType {
   PICKUP_POINT_INACTIVE
   PICKUP_POINT_CHANGED
   ADMIN_TRANSFER_FAILED
+  AUCTION_ENDING_SOON
 }
 
 enum ReportStatus {
@@ -151,6 +152,7 @@ model User {
   receivedMessages  Message[]          @relation("ReceivedMessages")
   autoBids          AutoBid[]
   currentBids       Product[]          @relation("CurrentBidder")
+  watchedProducts   ProductWatch[]
   reviewsGiven      Review[]           @relation("ReviewsGiven")
   reviewsReceived   Review[]           @relation("ReviewsReceived")
   reports           Report[]
@@ -264,6 +266,12 @@ model Product {
   currentBid      Float?
   currentBidderId String?
   currentBidder   User?         @relation("CurrentBidder", fields: [currentBidderId], references: [id])
+  // "Huutokauppa päättymässä" -ilmoitus (push+in-app) 15min ennen auctionEndsAt:ia, ks.
+  // CLAUDE.md "Huutokaupan päättymisilmoitus + tuotteen seuraaminen" 2026-09-12. Estää
+  // cron-jobia (notifyEndingSoonAuctions) lähettämästä samaa ilmoitusta uudestaan joka
+  // ajokerralla ennen kuin huutokauppa oikeasti päättyy — sama periaate kuin Orderin
+  // stalledNotifiedAt/reminderNotifiedAt (ks. deliveryTimeline.ts).
+  endingSoonNotifiedAt DateTime?
 
   bids       Bid[]
   cartItems  CartItem[]
@@ -271,6 +279,25 @@ model Product {
   messages   Message[]
   autoBids   AutoBid[]
   offers     Offer[]
+  watchers   ProductWatch[]
+}
+
+// Tuotteen (käytännössä perinteisen huutokaupan) seuraaminen — omistajan pyyntö 2026-09-12:
+// "huutokauppa päättymässä" -ilmoitus pitää mennä myös niille jotka SEURAAVAT tuotetta,
+// eivät vain niille jotka ovat jo huutaneet siitä. Eri asia kuin Follower-malli (joka seuraa
+// MYYJÄÄ, ei yksittäistä tuotetta). Geneerinen kaikille Product-riveille (ei rajattu
+// saleType:n mukaan tässä tasossa) vaikka tämän kirjoitushetken ainoa käyttökohde on
+// perinteinen huutokauppa — "ei koskaan pääty" (esim. buy_now) -tuotteille toiminto on
+// olemassa mutta ei koskaan laukaise mitään ilmoitusta koska niillä ei ole auctionEndsAt:ia.
+model ProductWatch {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
 }
 
 // Myyjän omat pohjatuotteet livekäyttöön — ei itsessään myytävä Product, vain mallipohja

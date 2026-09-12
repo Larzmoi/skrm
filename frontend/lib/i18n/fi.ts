@@ -49,6 +49,8 @@ const fi = {
     bought: 'Ostettu!', buyFailed: 'Ostaminen epäonnistui',
     bidPlacedAmount: 'Huuto {amount}€ tehty!', autoBidSet: 'Automaattihuuto asetettu max {amount}€',
     endingSoon: 'Päättyy pian', activeCount: '{count} aktiivista huutokauppaa',
+    watchProduct: 'Seuraa tuotetta', watchingProduct: 'Seurataan', watchersSuffix: '{count} seuraa',
+    watchFailed: 'Seuraaminen epäonnistui',
   },
   report: {
     button: 'Ilmianna', title: 'Ilmianna sisältö', titleUser: 'Ilmianna käyttäjä',
