@@ -86,6 +86,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     && product.status === 'PENDING'
     && (product.show?.status === 'SCHEDULED' || product.show?.status === 'LIVE')
   const currentBidValue = product.currentBid ?? product.startPrice
+  // Tarjouksen alaraja - omistajan pyyntö 2026-09-12: ei alle 30% pyyntihinnasta (estää
+  // järjettömän matalat "kokeillaanpa"-tarjoukset). Sama laskukaava kuin backendin
+  // POST /offers -validoinnissa (offers.ts:n MIN_OFFER_PERCENT), pelkkä asiakaspuolen
+  // esikatselu/nopea validointi - palvelin on aina lopullinen totuus.
+  const minOfferAmount = Math.max(0.5, Math.round(product.startPrice * 0.3 * 100) / 100)
   const minPreBid = Math.round((currentBidValue + (product.bidIncrement ?? 1)) * 100) / 100
   const isLeadingBidder = user && product.currentBidderId === user.id
 
@@ -125,7 +130,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     if (!user) { router.push(`/login?redirect=/tuotteet/${id}`); return }
     const amount = Number(offerAmount)
     if (!isFinite(amount) || amount <= 0) return
-    if (amount < 0.5) { setOfferError(t.product.minPriceError ?? 'Tarjouksen tulee olla vähintään 0,50€'); return }
+    if (amount < minOfferAmount) { setOfferError(t.product.minOfferError.replace('{amount}', minOfferAmount.toFixed(2))); return }
     setOfferError(''); setOfferBusy(true)
     try {
       await offerApi.create(product.id, amount)
@@ -278,6 +283,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                         </button>
                       </div>
                     )}
+                    {!offerSent && <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{t.product.minOfferHint.replace('{amount}', minOfferAmount.toFixed(2))}</div>}
                   </div>
                 )}
               </>

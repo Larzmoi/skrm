@@ -12,6 +12,16 @@ const OFFER_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000 // sama 12h kuin muutkin ost
 // suoraan Orderiksi ja maksetaan Stripen kautta, joten tarjoushinta ei voi jäädä tämän alle.
 const MIN_PRICE_EUROS = 0.5
 
+// Omistajan pyyntö 2026-09-12: tarjous ei saa olla alle 30% tuotteen pyyntihinnasta (buy_now-
+// tuotteen kiinteä hinta on Product.startPrice, ks. dashboard/tuotteet:n "salePriceLabel" - eri
+// merkitys kuin auction-tuotteilla, mutta POST /offers on jo rajattu vain saleType:'buy_now':lle).
+// Estää järjettömän matalat "kokeillaanpa" -tarjoukset ilman että estäisi aitoa neuvottelua.
+const MIN_OFFER_PERCENT = 0.3
+
+function roundCents(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
 async function isUserBanned(userId: string) {
   return prisma.ban.findFirst({ where: { userId, endsAt: { gt: new Date() } } })
 }
@@ -37,12 +47,21 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   if (product.status !== 'PENDING') return res.status(400).json({ error: 'Tuote ei ole enää saatavilla' })
   if (product.sellerId === req.userId) return res.status(400).json({ error: 'Et voi tarjota omasta tuotteestasi' })
 
+  const minOffer = Math.max(MIN_PRICE_EUROS, roundCents(product.startPrice * MIN_OFFER_PERCENT))
+  if (numAmount < minOffer) {
+    return res.status(400).json({ error: `Tarjouksen tulee olla vähintään ${minOffer.toFixed(2)}€ (30% pyyntihinnasta)` })
+  }
+
   const offer = await prisma.offer.create({
     data: { productId: product.id, buyerId: req.userId!, amount: numAmount },
   })
 
   const buyer = await prisma.user.findUnique({ where: { id: req.userId! }, select: { username: true } })
-  await notifyUser(product.sellerId, 'OFFER_RECEIVED', 'Uusi tarjous', `${buyer?.username ?? 'Joku'} tarjosi ${numAmount}€ tuotteesta ${product.name}`, '/dashboard/tuotteet')
+  // Linkki osoitti aiemmin väärin /dashboard/tuotteet:iin (tuotteiden hallinta, ei näytä
+  // tarjouksia ollenkaan) - myyjä ei nähnyt tarjousta klikkaamalla ilmoitusta, vaan päätyi
+  // väärälle sivulle. Korjattu osoittamaan /dashboard/tarjoukset:iin, jossa tarjouksen voi
+  // oikeasti hyväksyä/hylätä/vastatarjota (ks. CLAUDE.md, omistajan raportoima bugi 2026-09-12).
+  await notifyUser(product.sellerId, 'OFFER_RECEIVED', 'Uusi tarjous', `${buyer?.username ?? 'Joku'} tarjosi ${numAmount}€ tuotteesta ${product.name}`, '/dashboard/tarjoukset')
 
   res.status(201).json(offer)
 })
