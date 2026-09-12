@@ -192,8 +192,8 @@ const fi = {
     preBidFailed: 'Tarjous epäonnistui', buyFailed: 'Lisäys koriin epäonnistui',
     share: 'Jaa tuote', linkCopied: 'Linkki kopioitu!',
     makeOfferTitle: 'Tarjoa hintaa', makeOfferPlaceholder: 'Tarjouksesi (€)',
-    minOfferError: 'Tarjouksen tulee olla vähintään {amount}€ (30% pyyntihinnasta)',
-    minOfferHint: 'Väh. {amount}€ (30% pyyntihinnasta)',
+    minOfferError: 'Tarjouksen tulee olla vähintään {amount}€ (70% pyyntihinnasta, enintään 30% alennusta)',
+    minOfferHint: 'Väh. {amount}€ (70% pyyntihinnasta)',
     makeOfferSubmit: 'Lähetä tarjous', offerSentConfirm: 'Tarjous lähetetty! Myyjä vastaa pian.',
   },
   profile: {

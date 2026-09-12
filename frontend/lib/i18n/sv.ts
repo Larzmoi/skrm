@@ -181,8 +181,8 @@ const sv = {
     preBidFailed: 'Budet misslyckades', buyFailed: 'Det gick inte att lägga i varukorgen',
     share: 'Dela produkt', linkCopied: 'Länk kopierad!',
     makeOfferTitle: 'Lägg ett bud', makeOfferPlaceholder: 'Ditt bud (€)',
-    minOfferError: 'Ditt bud måste vara minst {amount}€ (30% av begärt pris)',
-    minOfferHint: 'Min. {amount}€ (30% av begärt pris)',
+    minOfferError: 'Ditt bud måste vara minst {amount}€ (70% av begärt pris, högst 30% rabatt)',
+    minOfferHint: 'Min. {amount}€ (70% av begärt pris)',
     makeOfferSubmit: 'Skicka bud', offerSentConfirm: 'Bud skickat! Säljaren svarar snart.',
   },
   profile: {

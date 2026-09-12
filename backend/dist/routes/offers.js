@@ -10,11 +10,13 @@ const OFFER_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000; // sama 12h kuin muutkin os
 // Sama Stripe-alaraja kuin products.ts:ssä (ks. sen kommentti) - hyväksytty tarjous muuttuu
 // suoraan Orderiksi ja maksetaan Stripen kautta, joten tarjoushinta ei voi jäädä tämän alle.
 const MIN_PRICE_EUROS = 0.5;
-// Omistajan pyyntö 2026-09-12: tarjous ei saa olla alle 30% tuotteen pyyntihinnasta (buy_now-
-// tuotteen kiinteä hinta on Product.startPrice, ks. dashboard/tuotteet:n "salePriceLabel" - eri
-// merkitys kuin auction-tuotteilla, mutta POST /offers on jo rajattu vain saleType:'buy_now':lle).
-// Estää järjettömän matalat "kokeillaanpa" -tarjoukset ilman että estäisi aitoa neuvottelua.
-const MIN_OFFER_PERCENT = 0.3;
+// Omistajan pyyntö 2026-09-12 (korjattu samana päivänä: alun perin väärinymmärretty "min 30%
+// pyynnistä", oikea sääntö on "min 70% pyynnistä" eli enintään 30% alennusta) - tarjous ei saa
+// olla alle 70% tuotteen pyyntihinnasta (buy_now-tuotteen kiinteä hinta on Product.startPrice,
+// ks. dashboard/tuotteet:n "salePriceLabel" - eri merkitys kuin auction-tuotteilla, mutta
+// POST /offers on jo rajattu vain saleType:'buy_now':lle). Estää järjettömän matalat
+// "kokeillaanpa"-tarjoukset ilman että estäisi aitoa neuvottelua kohtuullisella haarukalla.
+const MIN_OFFER_PERCENT = 0.7;
 function roundCents(amount) {
     return Math.round(amount * 100) / 100;
 }
@@ -46,7 +48,7 @@ router.post('/', auth_1.authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Et voi tarjota omasta tuotteestasi' });
     const minOffer = Math.max(MIN_PRICE_EUROS, roundCents(product.startPrice * MIN_OFFER_PERCENT));
     if (numAmount < minOffer) {
-        return res.status(400).json({ error: `Tarjouksen tulee olla vähintään ${minOffer.toFixed(2)}€ (30% pyyntihinnasta)` });
+        return res.status(400).json({ error: `Tarjouksen tulee olla vähintään ${minOffer.toFixed(2)}€ (70% pyyntihinnasta, enintään 30% alennusta)` });
     }
     const offer = await prisma_1.prisma.offer.create({
         data: { productId: product.id, buyerId: req.userId, amount: numAmount },

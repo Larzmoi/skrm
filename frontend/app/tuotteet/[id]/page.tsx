@@ -86,11 +86,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     && product.status === 'PENDING'
     && (product.show?.status === 'SCHEDULED' || product.show?.status === 'LIVE')
   const currentBidValue = product.currentBid ?? product.startPrice
-  // Tarjouksen alaraja - omistajan pyyntö 2026-09-12: ei alle 30% pyyntihinnasta (estää
-  // järjettömän matalat "kokeillaanpa"-tarjoukset). Sama laskukaava kuin backendin
-  // POST /offers -validoinnissa (offers.ts:n MIN_OFFER_PERCENT), pelkkä asiakaspuolen
+  // Tarjouksen alaraja - omistajan pyyntö 2026-09-12: ei alle 70% pyyntihinnasta eli enintään
+  // 30% alennusta (estää järjettömän matalat "kokeillaanpa"-tarjoukset). Sama laskukaava kuin
+  // backendin POST /offers -validoinnissa (offers.ts:n MIN_OFFER_PERCENT), pelkkä asiakaspuolen
   // esikatselu/nopea validointi - palvelin on aina lopullinen totuus.
-  const minOfferAmount = Math.max(0.5, Math.round(product.startPrice * 0.3 * 100) / 100)
+  const minOfferAmount = Math.max(0.5, Math.round(product.startPrice * 0.7 * 100) / 100)
   const minPreBid = Math.round((currentBidValue + (product.bidIncrement ?? 1)) * 100) / 100
   const isLeadingBidder = user && product.currentBidderId === user.id
 

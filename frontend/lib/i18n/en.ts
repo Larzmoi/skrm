@@ -181,8 +181,8 @@ const en = {
     preBidFailed: 'Bid failed', buyFailed: 'Adding to cart failed',
     share: 'Share item', linkCopied: 'Link copied!',
     makeOfferTitle: 'Make an offer', makeOfferPlaceholder: 'Your offer (€)',
-    minOfferError: 'Your offer must be at least {amount}€ (30% of the asking price)',
-    minOfferHint: 'Min. {amount}€ (30% of the asking price)',
+    minOfferError: 'Your offer must be at least {amount}€ (70% of the asking price, 30% discount max)',
+    minOfferHint: 'Min. {amount}€ (70% of the asking price)',
     makeOfferSubmit: 'Send offer', offerSentConfirm: 'Offer sent! The seller will respond soon.',
   },
   profile: {
