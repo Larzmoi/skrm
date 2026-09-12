@@ -21,6 +21,14 @@ Omistajan pyyntö, kaksiosainen: "tarkasta että kaikista myynneistä ja viestei
 
 **✅ JATKOKORJAUS SAMANA PÄIVÄNÄ — omistaja raportoi "Ota ilmoitukset käyttöön" -nappi ei tehnyt mitään klikattaessa.** Juurisyy: `frontend/lib/push.ts`:n `subscribeToPush()` keskeyttää tarkoituksella hiljaa (`if (Notification.permission === 'denied') return`) jos selain on JO AIEMMIN estänyt ilmoitusluvan tälle sivustolle — selaimet eivät koskaan salli uudelleenkysymistä kerran evätyn luvan jälkeen, käyttäjän pitää itse sallia se selaimen omista sivuasetuksista. Ilman selitystä nappi näytti rikkinäiseltä (klikkaus ei tehnyt mitään näkyvää). **Korjaus:** `/ilmoitukset`-sivu tarkistaa nyt `Notification.permission`-tilan (sekä mountissa että jokaisen klikkausyrityksen jälkeen) ja näyttää napin sijasta selkeän ohjetekstin ("Ilmoitukset on estetty selaimen asetuksista. Salli ne...") kun tila on `'denied'` — uusi `t.notificationsPage.pushBlocked`-avain (fi/en/sv). Ei muutu itse `subscribeToPush()`:n käytökseen (ei voi teknisesti pakottaa selainta kysymään uudestaan), vain tekee tilan näkyväksi käyttäjälle.
 
+## Myyjä ei saanut sähköpostia myynnistä 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA LÄHETYKSELLÄ
+
+Omistaja raportoi: ostoista ei lähde sähköpostia, ainakaan myyjille. **Tarkistettu koodista — täsmällinen löydös:** `checkout.session.completed`-webhookissa (`backend/src/routes/webhooks.ts`) ostaja on AINA saanut `sendOrderConfirmationEmail()`-vahvistuksen maksun onnistuttua, mutta myyjä sai vain in-app-ilmoituksen (`ORDER_PAID`) — ei koskaan mitään sähköpostia uudesta myynnistä. Ei ollut koskaan rakennettu, ei regressio.
+
+**Korjaus:** uusi `sendSaleNotificationEmail()` (`backend/src/lib/resend.ts`) — kertoo myyjälle tilausnumeron, tuotteen ja oman osuuden (komission jälkeen, sama luku joka siirtyy Stripe-saldolle) + linkin Tilaukset-sivulle + muistutuksen 4 vrk:n lähetysajasta. Kutsutaan `webhooks.ts`:ssä välittömästi ostajan oman vahvistuksen jälkeen, samassa kohdassa — `seller`-kyselyyn lisätty `email`/`name` (ei ollut mukana ennen, vain `id`/`stripeAccountId`).
+
+**Testattu tuotannossa oikealla Resend-lähetyksellä** (`johan.risberg@outlook.com`, omistajan oma vakiotesti-osoite): sekä ostajan että myyjän sähköposti lähti ilman virhettä. Sivutuotteena vahvistettu ettei ostajan olemassa oleva vahvistussähköposti ole koskaan ollut rikki — pelkkä myyjän puoli puuttui.
+
 ## KRIITTINEN BUGI: ostaja ei voinut maksaa 6-12h ikkunassa tilauksen luonnista 2026-09-12 — ✅ LÖYDETTY, KORJATTU JA VAHVISTETTU OIKEALLA JUMISSA OLLEELLA TILAUKSELLA
 
 Omistaja pyysi tarkistamaan konkreettisen tilauksen (myyjä Michael Backlund, ostaja "mikki"/Michael Tunturi) jossa oli "jotain ongelmia maksunkäsittelyssä".
