@@ -7,6 +7,22 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## ProductPreset allowPickup/allowShipping ei siirtynyt 2026-09-12 — ✅ LÖYDETTY JA KORJATTU — TESTATTU OIKEALLA API-KETJULLA
+
+Omistaja raportoi: kun tuote luodaan esiasetuksen pohjalta, nouto/postitus-rajoitus ei siirry mukaan.
+
+**Juurisyy oli isompi kuin pelkkä unohtunut kopiointirivi: `ProductPreset`-mallissa ei ollut `allowPickup`/`allowShipping`-kenttiä LAINKAAN** — ei ollut mitään mistä kopioida, riippumatta mistä kohtaa tuote luodaan pohjan perusteella. `dashboard/tuotteet/page.tsx`:n `openEdit()`-funktiossa oli jo (harhaanjohtavasti) `p.allowPickup ?? true` -koodia, mutta se koski `Product`-tyyppistä muokkausta, ei `ProductPreset`-pohjan poimintaa (`pickPreset()`) — helppo sekoittaa, koska molemmat rivit näyttävät samalta.
+
+**Korjaus, koko ketju:**
+- `ProductPreset`-malliin lisätty `allowPickup`/`allowShipping` (oletus `true`/`true`, sama kuin `Product`illa).
+- `POST /presets` ja `PUT /presets/:id` hyväksyvät ja tallentavat molemmat kentät.
+- `dashboard/esiasetukset`: sama "Rajaa toimitustapoja" -collapsible-toggle kuin tuotelomakkeella + pieni "Vain nouto"/"Vain postitus" -badge pohjakortissa kun rajoitus on asetettu (näkyy ilman että pitää avata muokkaus).
+- `dashboard/tuotteet`:n `pickPreset()` kopioi nyt pohjan rajoituksen uuden tuotteen lomakkeeseen, avaa "Rajaa toimitustapoja" -osion näkyviin jos pohja rajaa jotain (myyjä NÄKEE että rajoitus tuli mukana). **Tietoinen päätös: nouto-ehtojen hyväksyntä EI kopioidu pohjalta** — toisin kuin `openEdit()` (jo julkaistu tuote, hyväksyntä jo tapahtunut aiemmin), uusi listaus vaatii aina tuoreen, eksplisiittisen hyväksynnän, ei periytymistä.
+- Käänteinen suunta korjattu myös: "Tallenna esiasetukseksi" -toiminto tallentaa nyt tuotteen OMAN senhetkisen `allowPickup`/`allowShipping`-arvon uuteen pohjaan, muuten pohja olisi hiljaa unohtanut juuri asetetun rajoituksen heti.
+- `/lahetys`-konsolin pikalisäyksen pohjanpoiminta kuljettaa rajoituksen mukana hiljaa (ei omaa syöttökenttää nopeassa lomakkeessa, sama periaate kuin kategoria/tyyppi-kentillä jo oli) — korjaa saman bugin myös yleisimmin käytetyssä poimintapaikassa.
+
+**Testattu oikealla API-ketjulla tuotantoa vasten, ei vain koodikatselmuksella:** kertakäyttöinen testi (testiuser tilapäisesti merkitty vahvistetuksi ajan testin ajaksi, palautettu heti perään alkuperäiseen `false`-tilaan) loi oikean esiasetuksen `POST /presets`:llä (`allowPickup:true, allowShipping:false`), loi sen perusteella oikean tuotteen `POST /products`:lla samoilla rajoitusarvoilla — **rajoitus säilyi täsmälleen oikein koko ketjun läpi**. `PUT /presets/:id` vahvistettu päivittämään arvot oikein. Testidata (esiasetus+tuote) siivottu heti perään.
+
 ## Shop-paneelin selkeytys livessä 2026-09-12 — ✅ TUTKITTU JA KORJATTU
 
 Omistajan pyyntö: tutki nykyinen Shop-paneelin toteutus livessä ja paranna käytettävyyttä — koettu epäselväksi. Kolme konkreettista kohtaa annettu, tutkittu koodista suoraan ennen korjausta.
