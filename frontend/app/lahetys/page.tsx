@@ -12,7 +12,16 @@ import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
-interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number; saleType?: string }
+interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number; saleType?: string; condition?: string; gradingCompany?: string | null; grade?: string | null; quantity?: number }
+
+// "PSA 9" gradatulle kortille, muuten geneerinen/Cardmarket-kunto sellaisenaan - sama periaate
+// kuin live/[showId]/page.tsx:n oma conditionLabel (ks. CLAUDE.md "WhatsApp-palaute 2026-09-02"
+// kohta 1). Lisätty tänne 2026-09-12 (ks. CLAUDE.md "Shop-paneelin selkeytys") - myyjän Jono-
+// paneelin rivit eivät ennen näyttäneet kuntoa/hintaa ollenkaan, vain nimen, ja se näkyi vain
+// isomman modaalin kautta (⤢-nappi).
+function conditionLabel(p: Pick<Product, 'condition' | 'gradingCompany' | 'grade'>) {
+  return p.gradingCompany && p.grade ? `${p.gradingCompany} ${p.grade}` : p.condition
+}
 interface VideoDevice { deviceId: string; label: string }
 interface ShowInfo { id: string; title: string }
 type ShowStatus = 'SCHEDULED' | 'LIVE' | null
@@ -1091,6 +1100,7 @@ export default function LahetysPage() {
         {visibleQueueProducts.map((p) => {
           const i = products.indexOf(p)
           const active = p.id === currentProductId
+          const cond = conditionLabel(p)
           return (
             <div
               key={p.id}
@@ -1102,8 +1112,18 @@ export default function LahetysPage() {
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: active ? 'rgba(46,204,113,0.18)' : 'rgba(255,255,255,0.04)', cursor: 'grab', border: `1px solid ${active ? GREEN_DIM : 'transparent'}`, flexShrink: 0 }}
             >
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>⠿</span>
-              {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
-              <span style={{ fontSize: 12, color: active ? GREEN : '#eee', fontWeight: active ? 700 : 400, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 34, height: 34, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
+              {/* Nimen alle kunto+hinta(+määrä) samalla rivillä - ennen tätä ainoa tapa nähdä
+                  kunto oli avata ⤢-modaali (ks. CLAUDE.md "Shop-paneelin selkeytys" 2026-09-12,
+                  myyjän raportoima puute). Kunto piilotettu jos ei asetettu (esim. sealed-tuote). */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: active ? GREEN : '#eee', fontWeight: active ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {cond && <span>{cond} · </span>}
+                  <span style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{p.startPrice}€</span>
+                  {p.quantity != null && p.quantity > 1 && <span> · {p.quantity} kpl</span>}
+                </div>
+              </div>
               <button onClick={e => { e.stopPropagation(); setProductDetailId(p.id) }} title={sc.showLargerTitle} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer', padding: 2, flexShrink: 0 }}>⤢</button>
             </div>
           )

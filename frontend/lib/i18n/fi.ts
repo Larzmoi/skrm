@@ -37,6 +37,7 @@ const fi = {
     youWon: 'Sinä voitit!', auctionEndedNoWinner: 'Huutokauppa päättynyt — ei huutoja',
     leaveShow: '✕ Poistu', connecting: 'Yhdistetään...',
     remainingStock: '{n} kpl jäljellä', buyNowQty: 'Osta heti {n} kpl',
+    backToStream: 'Takaisin videoon',
     waitingForStream: 'Odotetaan lähetyksen alkua...', noProducts: 'Ei tuotteita jonossa',
     streamEnded: 'Lähetys päättynyt',
     showsCount: 'lähetystä',

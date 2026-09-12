@@ -495,17 +495,20 @@ function ShopPanel({ C, t, products, activeProductId, search, setSearch, filter,
                   klikkaus jo tekee (ks. ProductDetailModal) - omistajan pyynnöstä 2026-08-16.
                   Toiminto-napit alla pysäyttävät tapahtuman kuplinnan (stopPropagation) etteivät
                   ne vahingossa avaa modaalia klikatessa. */}
-              <div style={{ display: 'flex', gap: 9, alignItems: 'center', marginBottom: 8, cursor: 'pointer' }} onClick={() => onProductClick(p)}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8, cursor: 'pointer' }} onClick={() => onProductClick(p)}>
                 {p.imageUrl
-                  ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} />
-                  : <div style={{ width: 36, height: 36, borderRadius: 5, background: '#1A1A1A', flexShrink: 0 }} />
+                  ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                  : <div style={{ width: 44, height: 44, borderRadius: 6, background: '#1A1A1A', flexShrink: 0 }} />
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 10, color: '#555', marginBottom: 1 }}>#{i + 1}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  {/* Kunto näkyviin ilman että ostajan pitää klikata riviä auki - ks. CLAUDE.md
+                      "Shop-paneelin selkeytys" 2026-09-12. Sama gap kuin myyjän Jono-paneelissa. */}
+                  {conditionLabel(p) && <div style={{ fontSize: 10, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conditionLabel(p)}</div>}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{p.startPrice}€</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>{p.startPrice}€</div>
                   {isActive && <div style={{ fontSize: 9, color: C.accent, fontWeight: 700 }}>NOW</div>}
                 </div>
               </div>
@@ -1065,11 +1068,23 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
 
         {/* Video + bid */}
         <div style={{ display: 'flex', flexDirection: 'column', background: '#080808', position: 'relative' }}>
-          <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0, overflow: 'hidden' }}>
+          {/* Kun Shop on auki tabletilla, Shop-paneeli peittää VAIN alaosan (ks. alla top:96) -
+              yläreunaan jää n. 96px kaistale videota näkyviin/klikattavaksi, jotta striimiin
+              pääsee takaisin painamalla videota, ei enää vain ✕-napista. Ks. CLAUDE.md
+              "Shop-paneelin selkeytys" 2026-09-12, ostajan raportoima puute. */}
+          <div
+            style={{ flex: 1, position: 'relative', background: 'linear-gradient(160deg, #1a1a1a 0%, #0a0a0a 100%)', minHeight: 0, overflow: 'hidden', cursor: isTablet && shopOpen ? 'pointer' : 'default' }}
+            onClick={() => { if (isTablet && shopOpen) setShopOpen(false) }}
+          >
             {videoContent}
             <div style={{ position: 'absolute', top: 14, left: 14, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 4 }}>LIVE</div>
-            {isTablet && (
+            {isTablet && !shopOpen && (
               <button onClick={() => setShopOpen(true)} style={{ position: 'absolute', top: 14, left: 74, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 20, padding: '6px 14px', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', zIndex: 5 }}>Shop</button>
+            )}
+            {isTablet && shopOpen && (
+              <div style={{ position: 'absolute', top: 54, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 20, whiteSpace: 'nowrap' }}>
+                ↑ {t.live.backToStream}
+              </div>
             )}
             {auction.active && (
               <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(0,0,0,0.7)', borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
@@ -1095,7 +1110,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
             </div>
           </div>
           {isTablet && shopOpen && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(10,10,10,0.97)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ position: 'absolute', top: 96, left: 0, right: 0, bottom: 0, zIndex: 20, background: 'rgba(10,10,10,0.97)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid #1A1A1A', flexShrink: 0 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
                 <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
