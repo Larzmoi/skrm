@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Myydyn tuotteen näkyvyys 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA API-KETJULLA MOLEMMILLE REITEILLE
+
+Omistajan pyyntö, kaksiosainen: kun tuote myydään, (1) myyjän pitäisi päästä avaamaan/tarkastelemaan sitä nähdäkseen tarkalleen mikä listaus meni kaupaksi (esim. jos samaa korttia on 5 kpl myynnissä eri listauksina, muuten ei voi tietää kumpi meni), ja (2) myyty listaus voisi piiloutua kaikilta muilta paitsi kaupan osapuolilta (myyjä+ostaja) — mutta niiden pitää yhä päästä sitä katsomaan.
+
+**Juurisyy löytyi kahdesta erillisestä kohdasta:**
+1. **`GET /products/:id` ja `GET /auctions/:id` eivät koskaan tarkistaneet tuotteen statusta lainkaan** — kuka tahansa (myös anonyymi) pystyi katsomaan MINKÄ TAHANSA myydyn tuotteen täyttä tietoa pelkällä linkillä, ikuisesti. Kun myyjällä on useita samannäköisiä listauksia, tämä olisi myös voinut aiheuttaa sekaannusta kumpi listaus on yhä oikeasti myynnissä.
+2. **`/lahetys`-konsolin Jono-paneelin "Myydyt"-rivit eivät olleet klikattavissa ollenkaan** (ei ⤢-nappia toisin kuin aktiivisilla riveillä, ei mitään onClick:ia) — myyjä ei siis päässyt tarkastelemaan juuri myytyä tuotetta edes omasta konsolistaan kesken lähetyksen.
+
+**Korjaus:**
+- Uusi jaettu `backend/src/lib/productAccess.ts`: `canViewSoldProduct(req, product)` — kun `status === 'SOLD'`, sallii katselun vain myyjälle, tuotteeseen liittyvän `OrderItem`in kautta tunnistetulle ostajalle, tai adminille. Kaikille muille (myös anonyymeille) sama `404 "ei löydy"` -vastaus kuin oikeasti olemattomalle tuotteelle — ei paljasteta ettei kyse ole pelkästä väärästä ID:stä. Sama tarkistus lisätty sekä `GET /products/:id`:hen että `GET /auctions/:id`:hen (jaettu apuri, ei kahta erillistä, mahdollisesti eriytyvää kopiota turvakriittisestä logiikasta). `auctions.ts`:n aiempi oma paikallinen `getOptionalUserId`-apuri (lisätty "Seuraa tuotetta" -ominaisuuden yhteydessä) korvattu samalla jaetulla versiolla.
+- `/lahetys`:n Myydyt-rivit saivat saman ⤢-expand-napin ja kunto-rivin kuin aktiiviset rivit — myyjä pääsee nyt tarkastelemaan juuri myytyä tuotetta suoraan konsolista (tämä ei mene backendin uuden näkyvyysrajoituksen läpi ollenkaan, koska `QueueProductModal` näyttää jo paikallisessa React-tilassa olevan datan, ei tee erillistä API-kutsua).
+
+**Testattu oikealla API-ketjulla tuotantoa vasten molemmille reiteille erikseen:** luotu oikea SOLD-tuote + Order + OrderItem linkittäen todellisen ostajan — anonyymi katselu → `404`, tuntematon kolmas osapuoli → `404`, myyjä → `200`, ostaja → `200`. Sama toistettu `GET /auctions/:id`:lle SOLD-huutokauppatuotteella (myös `isWatching`-kenttä vahvistettu säilyvän mukana). Admin-ohituksen logiikka (`role === 'ADMIN'`) vahvistettu suoraviivaiseksi tyyppitarkistukseksi, ja tuotannon oikean admin-tilin rooliarvo luettu (ei muutettu) vahvistamaan datan muoto pitää paikkansa — ei mintattu JWT:tä omistajan oikealle admin-tilille tarpeettoman riskin välttämiseksi. Kaikki testidata siivottu.
+
 ## Tarjouksen 30%-alaraja + tarjousilmoituksen väärä linkki 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA API-KETJULLA
 
 Omistajan kaksi pyyntöä samassa viestissä: (1) tarjous ei saa olla alle 30% pyyntihinnasta, (2) kun Backlund klikkasi saamaansa "uusi tarjous" -ilmoitusta, se vei väärään paikkaan.
