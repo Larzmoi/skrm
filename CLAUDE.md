@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Shop-paneelin selkeytys livessä 2026-09-12 — ✅ TUTKITTU JA KORJATTU
+
+Omistajan pyyntö: tutki nykyinen Shop-paneelin toteutus livessä ja paranna käytettävyyttä — koettu epäselväksi. Kolme konkreettista kohtaa annettu, tutkittu koodista suoraan ennen korjausta.
+
+**Myyjän näkökulma — Jono-paneeli (`/lahetys`) ei näyttänyt kuntoa/hintaa ollenkaan.** Vahvistettu koodista: jokainen rivi näytti vain 26px-pienoiskuvan + tuotteen nimen — kunto (`condition`/`gradingCompany`+`grade`), hinta ja määrä eivät näkyneet ollenkaan ilman ⤢-napin klikkausta (avaa `QueueProductModal`in). **Korjaus:** rivin nimi-tekstin alle lisätty toinen, pienempi rivi joka näyttää kunnon (esim. "PSA 9" gradatulle, muuten Cardmarket-lyhenne) + hinnan + määrän jos >1 kpl. Pienoiskuva kasvatettu 26px→34px lukukelpoisuuden vuoksi lisätyn rivin kanssa. `conditionLabel()`-apufunktio (sama logiikka kuin `live/[showId]/page.tsx`:ssä jo oli) lisätty myös tänne, koska sitä ei ollut ennestään.
+
+**Ostajan näkökulma, kohta 1 — pienoiskuvat isommaksi + sama kuntopuute löytyi myös sieltä.** Buyer-puolen `ShopPanel` (`live/[showId]/page.tsx`) käytti 36px-kuvia — kasvatettu 44px:ään (+ nimi/hinta-tekstin fonttikoko 12→13). **Sama kunto-näkyvyyspuute löytyi myös ostajan puolelta** (ei erikseen pyydetty, mutta sama juurisyy kuin myyjän puolella ja vaikuttaa suoraan ostopäätökseen) — lisätty sama kuntorivi jokaiseen tuoteriviin.
+
+**Ostajan näkökulma, kohta 2 — tabletilla Shopin sai kiinni VAIN ✕-napista.** Juurisyy vahvistettu koodista: mobiilin PiP-video (pienenee kelluvaksi ikkunaksi, klikattava takaisin täysruutuun) toimii jo oikein, mutta **tabletin (768-1024px) oma Shop-overlay peitti koko videoalueen läpinäkymättömällä taustalla (`inset:0`) ilman mitään näkyvää videota — ei ollut mitään videota jota klikata takaisin.** Korjaus: Shop-overlay peittää nyt vain alaosan (`top:96` eikä `inset:0`), jättäen 96px:n "kurkistuskaistaleen" oikeaa videota näkyviin videoalueen yläreunaan, LIVE-badgen kanssa. Kaistaleeseen lisätty pieni "↑ Takaisin videoon" -vihje, ja koko videoalueen klikkaus (kun Shop on auki) sulkee Shopin ja palauttaa täysruudun — sama periaate kuin mobiilin jo toimivassa PiP:ssä. Tabletin oma "Shop"-avausnappi piilotettu kun Shop on jo auki (oli aiemmin näkyvissä koko ajan, olisi riidellyt uuden klikkaus-sulje-logiikan kanssa samassa kaistaleessa).
+
+**Ei visuaalisesti vahvistettu selaimessa** (ei selaintyökalua tässä ympäristössä, erityisesti tablet-breakpointin (768-1024px) käytös vaatisi oikean laitteen/emulaattorin) — typecheck+build vihreä, koodi luettu huolella. Omistajan kannattaa tarkistaa erityisesti tablet-kokoinen näyttö (esim. iPad) livessä Shop auki/kiinni -vaihtoa varten.
+
 ## Huutokaupan päättymisilmoitus + tuotteen seuraaminen 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA CRONILLA/API:LLA
 
 Omistajan pyyntö: "huutokauppa päättymässä" -push-ilmoitus 15min ennen perinteisen huutokaupan päättymistä, huutaneille JA tuotetta seuraaville — vaati myös uuden "seuraa tuotetta" -ominaisuuden, koska sellaista ei ollut ennestään (vain "seuraa myyjää" oli olemassa, eri Follower-malli).
