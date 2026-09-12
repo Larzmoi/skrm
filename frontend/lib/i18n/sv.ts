@@ -413,6 +413,7 @@ const sv = {
     empty: 'Inga aviseringar än', markAllRead: 'Markera alla som lästa',
     enablePush: 'Aktivera aviseringar', enablingPush: 'Aktiveras...',
     disablePush: 'Avbryt aviseringar', disablingPush: 'Avbryts...',
+    pushBlocked: 'Aviseringar är blockerade i webbläsarens inställningar. Tillåt dem för denna webbplats (vanligtvis via lås-/inställningsikonen i adressfältet) och ladda om sidan.',
   },
   messagesPage: {
     title: 'Meddelanden', subtitle: 'Dina samtal med köpare och säljare',

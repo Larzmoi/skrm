@@ -413,6 +413,7 @@ const en = {
     empty: 'No notifications yet', markAllRead: 'Mark all as read',
     enablePush: 'Enable notifications', enablingPush: 'Enabling...',
     disablePush: 'Cancel notifications', disablingPush: 'Cancelling...',
+    pushBlocked: 'Notifications are blocked in your browser settings. Allow them for this site (usually via the lock/settings icon in the address bar) and reload the page.',
   },
   messagesPage: {
     title: 'Messages', subtitle: 'Your conversations with buyers and sellers',

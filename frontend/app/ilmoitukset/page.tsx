@@ -34,9 +34,14 @@ export default function IlmoituksetPage() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushEnabling, setPushEnabling] = useState(false)
   const [pushDisabling, setPushDisabling] = useState(false)
+  // Selain jää pysyvästi 'denied'-tilaan kun käyttäjä on kerran estänyt luvan — subscribeToPush()
+  // keskeyttää tällöin hiljaa eikä nappi tee mitään näkyvää, ilman selitystä käyttäjä luulee
+  // napin olevan rikki (raportoitu 2026-09-12). Näytetään tämä tila selvästi sen sijaan.
+  const [notifPermissionDenied, setNotifPermissionDenied] = useState(false)
 
   useEffect(() => {
     if (!pushSupported()) return
+    if (typeof Notification !== 'undefined') setNotifPermissionDenied(Notification.permission === 'denied')
     navigator.serviceWorker.getRegistration('/sw.js')
       .then(reg => reg?.pushManager.getSubscription())
       .then(sub => setPushEnabled(!!sub))
@@ -49,6 +54,7 @@ export default function IlmoituksetPage() {
     const reg = await navigator.serviceWorker.getRegistration('/sw.js')
     const sub = await reg?.pushManager.getSubscription()
     setPushEnabled(!!sub)
+    if (typeof Notification !== 'undefined') setNotifPermissionDenied(Notification.permission === 'denied')
     setPushEnabling(false)
   }
 
@@ -86,7 +92,11 @@ export default function IlmoituksetPage() {
               </button>
             )}
             {pushSupported() && (
-              pushEnabled ? (
+              notifPermissionDenied ? (
+                <div style={{ fontSize: 12, color: C.muted, textAlign: 'right', maxWidth: 240, lineHeight: 1.4 }}>
+                  {t.notificationsPage.pushBlocked}
+                </div>
+              ) : pushEnabled ? (
                 <button onClick={disablePush} disabled={pushDisabling} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushDisabling ? 'default' : 'pointer', opacity: pushDisabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {pushDisabling ? t.notificationsPage.disablingPush : t.notificationsPage.disablePush}
                 </button>

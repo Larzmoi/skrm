@@ -426,6 +426,7 @@ const fi = {
     empty: 'Ei ilmoituksia vielä', markAllRead: 'Merkitse kaikki luetuiksi',
     enablePush: 'Ota ilmoitukset käyttöön', enablingPush: 'Otetaan käyttöön...',
     disablePush: 'Peru ilmoitukset', disablingPush: 'Perutaan...',
+    pushBlocked: 'Ilmoitukset on estetty selaimen asetuksista. Salli ne sivuston selainasetuksista (yleensä osoiterivin lukon/asetuskuvakkeen kautta) ja lataa sivu uudelleen.',
   },
   messagesPage: {
     title: 'Viestit', subtitle: 'Keskustelusi ostajien ja myyjien kanssa',
