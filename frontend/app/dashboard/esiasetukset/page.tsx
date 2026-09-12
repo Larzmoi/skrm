@@ -41,6 +41,13 @@ export default function EsiasetuksetPage() {
   const [description, setDescription] = useState('')
   const [startPrice, setStartPrice] = useState('')
   const [image, setImage] = useState<string | null>(null)
+  // Toimitustapa-rajoitus (ks. CLAUDE.md "ProductPreset allowPickup/allowShipping ei
+  // siirtynyt" 2026-09-12) - sama valinnainen, oletuksena piilotettu lisäasetus kuin
+  // tuotelomakkeella (dashboard/tuotteet), jotta useimpien pohjien ei tarvitse ottaa
+  // kantaa tähän ollenkaan.
+  const [allowPickup, setAllowPickup] = useState(true)
+  const [allowShipping, setAllowShipping] = useState(true)
+  const [showDeliveryAdvanced, setShowDeliveryAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -68,6 +75,7 @@ export default function EsiasetuksetPage() {
   function reset() {
     setEditId(null); setName(''); setCategory(''); setAlakategoria(''); setTyyppi('')
     setCondition(''); setDescription(''); setStartPrice(''); setImage(null); setError('')
+    setAllowPickup(true); setAllowShipping(true); setShowDeliveryAdvanced(false)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -76,6 +84,10 @@ export default function EsiasetuksetPage() {
     setCategory(p.category ?? ''); setAlakategoria(p.alakategoria ?? ''); setTyyppi(p.tyyppi ?? '')
     setCondition(p.condition ?? ''); setDescription(p.description ?? ''); setStartPrice(p.startPrice != null ? String(p.startPrice) : '')
     setImage(p.imageUrl ?? null)
+    const pAllowPickup = p.allowPickup ?? true
+    const pAllowShipping = p.allowShipping ?? true
+    setAllowPickup(pAllowPickup); setAllowShipping(pAllowShipping)
+    setShowDeliveryAdvanced(!pAllowPickup || !pAllowShipping)
     setError(''); setShowForm(true)
   }
 
@@ -89,12 +101,14 @@ export default function EsiasetuksetPage() {
 
   async function save() {
     if (!name.trim()) { setError(tp.enterName); return }
+    if (!allowPickup && !allowShipping) { setError(t.dashboardProducts.selectAtLeastOneDelivery); return }
     setError(''); setSaving(true)
     const data = {
       name: name.trim(), category: category || undefined, alakategoria: alakategoria || undefined,
       tyyppi: tyyppi || undefined, condition: condition || undefined,
       description: description.trim() || undefined, imageUrl: image ?? undefined,
       startPrice: startPrice.trim() ? Number(startPrice) : null,
+      allowPickup, allowShipping,
     }
     try {
       if (editId) await presetApi.update(editId, data)
@@ -264,6 +278,34 @@ export default function EsiasetuksetPage() {
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} style={{ display: 'none' }} />
             </div>
+
+            {/* Toimitustapa-rajoitus - kopioituu mukaan kun tuote luodaan tästä pohjasta
+                (ks. pickPreset() dashboard/tuotteet/page.tsx:ssä ja CLAUDE.md). Sama
+                valinnainen, oletuksena piilotettu rakenne kuin tuotelomakkeella. */}
+            <div style={{ background: C.surface2, borderRadius: 9, padding: '12px 14px', border: `1px solid ${C.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: 1 }}>{t.dashboardProducts.deliveryTitle}</div>
+                <button type="button" onClick={() => setShowDeliveryAdvanced(s => !s)} style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                  {showDeliveryAdvanced ? t.dashboardProducts.deliveryHide : t.dashboardProducts.deliveryEdit}
+                </button>
+              </div>
+              <p style={{ fontSize: 12, color: C.muted, marginTop: 6, marginBottom: 0 }}>{t.dashboardProducts.deliveryDefaultHint}</p>
+              {showDeliveryAdvanced && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                    <input type="checkbox" checked={allowShipping} onChange={e => setAllowShipping(e.target.checked)} />
+                    <span style={{ fontSize: 13, color: C.text }}>{t.dashboardProducts.allowShippingLabel}</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={allowPickup} onChange={e => setAllowPickup(e.target.checked)} />
+                    <span style={{ fontSize: 13, color: C.text }}>{t.dashboardProducts.allowPickupLabel}</span>
+                  </label>
+                  {!allowPickup && !allowShipping && (
+                    <div style={{ fontSize: 12, color: '#CC0000', marginTop: 8 }}>{t.dashboardProducts.selectAtLeastOneDelivery}</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button onClick={save} disabled={saving} style={{ background: C.accentSolid, color: C.accentText, border: 'none', padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
@@ -293,6 +335,13 @@ export default function EsiasetuksetPage() {
                   {p.startPrice != null && <span>· {p.startPrice}€</span>}
                   {p.description && <span>· {p.description}</span>}
                 </div>
+                {/* Rajoitus näkyy vain kun se on aidosti asetettu (ei täsmälleen true/true) -
+                    useimmilla pohjilla ei ole mitään rajoitusta, ei kannata näyttää oletusarvoa. */}
+                {(!p.allowPickup || !p.allowShipping) && (
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 5, padding: '1px 6px', marginTop: 4, display: 'inline-block' }}>
+                    {!p.allowShipping ? tp.pickupOnlyBadge : tp.shippingOnlyBadge}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                   <button onClick={() => toggleFavorite(p)} title={tp.favorite} style={{ background: 'none', border: 'none', color: p.favorite ? '#F59E0B' : C.dim, cursor: 'pointer', fontSize: 14, padding: 0 }}>★</button>
                   <button onClick={() => openEdit(p)} style={{ background: 'none', border: 'none', color: C.accent, cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: 0 }}>{tp.edit}</button>

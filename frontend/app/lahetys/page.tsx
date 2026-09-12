@@ -352,6 +352,11 @@ export default function LahetysPage() {
   const [qaAlakategoria, setQaAlakategoria] = useState<string | undefined>()
   const [qaTyyppi, setQaTyyppi] = useState<string | undefined>()
   const [qaDescription, setQaDescription] = useState<string | undefined>()
+  // Toimitustapa-rajoitus pohjasta - ei omaa syöttökenttää tässä nopeassa lomakkeessa (sama
+  // periaate kuin category/alakategoria/tyyppi yllä), kulkee vain hiljaa mukana jos pohja
+  // sen asetti. Ks. CLAUDE.md "ProductPreset allowPickup/allowShipping ei siirtynyt" 2026-09-12.
+  const [qaAllowPickup, setQaAllowPickup] = useState<boolean | undefined>()
+  const [qaAllowShipping, setQaAllowShipping] = useState<boolean | undefined>()
 
   // Esiasetuspoiminta livessä — haku pohjien joukosta (ei kaikista tuotteista, ks. omistajan
   // päätös), suosikit+viimeksi käytetyt ensin (backendin oma järjestys, ei uudelleenjärjestetä
@@ -379,6 +384,9 @@ export default function LahetysPage() {
     setQaAlakategoria(p.alakategoria ?? undefined)
     setQaTyyppi(p.tyyppi ?? undefined)
     setQaDescription(p.description ?? undefined)
+    // Ks. CLAUDE.md "ProductPreset allowPickup/allowShipping ei siirtynyt" 2026-09-12.
+    setQaAllowPickup(p.allowPickup)
+    setQaAllowShipping(p.allowShipping)
     // Esitäyttää lähtöhinnan jos pohjalla on sellainen (ks. CLAUDE.md "Esiasetusten kolme
     // löydöstä" kohta 1) - myyjä voi silti muuttaa sitä ennen lisäystä, ei lukittu.
     setQaPrice(p.startPrice != null ? String(p.startPrice) : '')
@@ -972,6 +980,7 @@ export default function LahetysPage() {
   function clearQuickAdd() {
     setQaName(''); setQaPrice(''); setQaBidIncrement(''); setQaImage(null); setShowQuickAdd(false)
     setQaPresetId(null); setQaCondition(undefined); setQaCategory(undefined); setQaAlakategoria(undefined); setQaTyyppi(undefined); setQaDescription(undefined)
+    setQaAllowPickup(undefined); setQaAllowShipping(undefined)
   }
 
   async function quickAddProduct() {
@@ -989,6 +998,7 @@ export default function LahetysPage() {
       const created = await api.createProduct({
         name: qaName.trim(), saleType: 'live', startPrice: price, bidIncrement, imageUrl: qaImage ?? undefined, showId: show?.id,
         condition: qaCondition, category: qaCategory, alakategoria: qaAlakategoria, tyyppi: qaTyyppi, description: qaDescription,
+        allowPickup: qaAllowPickup, allowShipping: qaAllowShipping,
       })
       setProducts(p => [...p, created])
       // Nostaa pohjan listan kärkeen seuraavalla haulla - ei odoteta vastausta, ei kriittinen

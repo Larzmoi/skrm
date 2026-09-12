@@ -318,6 +318,13 @@ model ProductPreset {
   imageUrl     String?
   description  String? // esim. Cardmarket-kommentista poimittu fyysinen sijainti ("Map T1")
   startPrice   Float?  // valinnainen oletuslähtöhinta - osa pohjista on tarkoituksella ilman kiinteää hintaa, ks. CLAUDE.md "Esiasetusten kolme löydöstä" kohta 1
+  // Toimitustapa-rajoitus, kopioitu Product-mallin vastaavista kentistä 2026-09-12 - ennen
+  // tätä ProductPresetissä ei ollut näitä kenttiä LAINKAAN, joten pohjan mahdollinen nouto-/
+  // postitusrajoitus ei voinut koskaan siirtyä mukaan kun tuote luotiin pohjan perusteella
+  // (ks. CLAUDE.md "ProductPreset allowPickup/allowShipping ei siirtynyt" - omistajan
+  // raportoima bugi). Oletus true/true = ei rajoitusta, sama kuin Productilla.
+  allowPickup   Boolean   @default(true)
+  allowShipping Boolean   @default(true)
   favorite     Boolean   @default(false)
   lastUsedAt   DateTime? // päivittyy kun pohjasta luodaan Product livessä - nostaa listan kärkeen
   createdAt    DateTime  @default(now())

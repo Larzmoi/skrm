@@ -307,6 +307,7 @@ const sv = {
     descriptionLabel: 'Beskrivning / plats', descriptionPlaceholder: 't.ex. Låda T1',
     startPriceLabel: 'Standard utropspris (€, valfritt)', startPriceHint: 'Förifyller utropspriset under en live — kan ändras',
     imageLabel: 'Bild',
+    pickupOnlyBadge: 'Endast avhämtning', shippingOnlyBadge: 'Endast frakt',
     save: 'Spara', saving: 'Sparar...',
     searchPlaceholder: 'Sök efter namn eller plats...',
     loading: 'Laddar...', empty: 'Inga mallar ännu',

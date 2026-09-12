@@ -143,6 +143,17 @@ function TuotteetContent() {
     // Esitäyttää lähtöhinnan jos pohjalla on sellainen (ks. CLAUDE.md "Esiasetusten kolme
     // löydöstä" kohta 1) - myyjä voi silti muuttaa sitä, ei lukittu.
     setStartPrice(p.startPrice != null ? String(p.startPrice) : '')
+    // Toimitustapa-rajoitus kopioituu pohjasta (ks. CLAUDE.md "ProductPreset allowPickup/
+    // allowShipping ei siirtynyt" 2026-09-12 - omistajan raportoima bugi). Avataan "Rajaa
+    // toimitustapoja" -osio näkyviin jos pohja rajaa jotain, jotta myyjä NÄKEE rajoituksen
+    // eikä se jää huomaamatta. Nouto-hyväksyntä EI kopioidu tarkoituksella (toisin kuin
+    // openEdit() jo julkaistulle tuotteelle) - uusi listaus vaatii aina tuoreen, eksplisiittisen
+    // hyväksynnän noutoehdoille, ei periytymistä pohjalta.
+    const pAllowPickup = p.allowPickup ?? true
+    const pAllowShipping = p.allowShipping ?? true
+    setAllowPickupState(pAllowPickup); setAllowShipping(pAllowShipping)
+    setShowDeliveryAdvanced(!pAllowPickup || !pAllowShipping)
+    setNoutoPolicyAccepted(false)
     setShowPresetPicker(false); setPresetSearch('')
   }
 
@@ -337,6 +348,10 @@ function TuotteetContent() {
             alakategoria: alakategoria || undefined, tyyppi: tyyppi || undefined,
             imageUrl: images[0] || undefined, description: description.trim() || undefined,
             startPrice: Number(startPrice),
+            // Tallennetaan tämän tuotteen toimitustapa-rajoitus mukaan pohjaan - muuten
+            // pohjasta myöhemmin luotu tuote menettäisi rajoituksen (ks. CLAUDE.md
+            // "ProductPreset allowPickup/allowShipping ei siirtynyt" 2026-09-12).
+            allowPickup, allowShipping,
           }).catch(() => {})
         }
         // Liitä uusi tuote automaattisesti myyjän ajastettuun/käynnissä olevaan lähetykseen -

@@ -30,7 +30,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
 // POST /presets — yksittäisen pohjan luonti (manuaalinen lomake)
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  const { name, condition, category, alakategoria, tyyppi, imageUrl, description, startPrice } = req.body
+  const { name, condition, category, alakategoria, tyyppi, imageUrl, description, startPrice, allowPickup, allowShipping } = req.body
   if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nimi vaaditaan' })
   const preset = await prisma.productPreset.create({
     data: {
@@ -38,6 +38,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       condition: condition || null, category: category || null, alakategoria: alakategoria || null,
       tyyppi: tyyppi || null, imageUrl: imageUrl || null, description: description || null,
       startPrice: startPrice !== undefined && startPrice !== null && startPrice !== '' ? Number(startPrice) : null,
+      // Ks. CLAUDE.md "ProductPreset allowPickup/allowShipping ei siirtynyt" - oletus true
+      // (ei rajoitusta) jos frontend ei lähetä kumpaakaan, sama oletus kuin Productilla.
+      allowPickup: typeof allowPickup === 'boolean' ? allowPickup : true,
+      allowShipping: typeof allowShipping === 'boolean' ? allowShipping : true,
       sellerId: req.userId!,
     },
   })
@@ -92,6 +96,8 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
       imageUrl: req.body.imageUrl !== undefined ? (req.body.imageUrl || null) : undefined,
       description: req.body.description !== undefined ? (req.body.description || null) : undefined,
       startPrice: req.body.startPrice !== undefined ? (req.body.startPrice === null || req.body.startPrice === '' ? null : Number(req.body.startPrice)) : undefined,
+      allowPickup: typeof req.body.allowPickup === 'boolean' ? req.body.allowPickup : undefined,
+      allowShipping: typeof req.body.allowShipping === 'boolean' ? req.body.allowShipping : undefined,
       favorite: typeof req.body.favorite === 'boolean' ? req.body.favorite : undefined,
     },
   })

@@ -307,6 +307,7 @@ const en = {
     descriptionLabel: 'Description / location', descriptionPlaceholder: 'e.g. Box T1',
     startPriceLabel: 'Default starting price (€, optional)', startPriceHint: 'Prefills the starting price during a live — can still be changed',
     imageLabel: 'Image',
+    pickupOnlyBadge: 'Pickup only', shippingOnlyBadge: 'Shipping only',
     save: 'Save', saving: 'Saving...',
     searchPlaceholder: 'Search by name or location...',
     loading: 'Loading...', empty: 'No presets yet',

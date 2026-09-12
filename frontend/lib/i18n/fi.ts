@@ -320,6 +320,7 @@ const fi = {
     descriptionLabel: 'Kuvaus / sijainti', descriptionPlaceholder: 'esim. Map T1',
     startPriceLabel: 'Oletuslähtöhinta (€, valinnainen)', startPriceHint: 'Esitäyttää lähtöhinnan livessä — voi silti muuttaa',
     imageLabel: 'Kuva',
+    pickupOnlyBadge: 'Vain nouto', shippingOnlyBadge: 'Vain postitus',
     save: 'Tallenna', saving: 'Tallennetaan...',
     searchPlaceholder: 'Hae nimellä tai sijainnilla...',
     loading: 'Ladataan...', empty: 'Ei esiasetuksia vielä',
