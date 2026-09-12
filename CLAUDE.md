@@ -7,6 +7,27 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Huutokaupan päättymisilmoitus + tuotteen seuraaminen 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA CRONILLA/API:LLA
+
+Omistajan pyyntö: "huutokauppa päättymässä" -push-ilmoitus 15min ennen perinteisen huutokaupan päättymistä, huutaneille JA tuotetta seuraaville — vaati myös uuden "seuraa tuotetta" -ominaisuuden, koska sellaista ei ollut ennestään (vain "seuraa myyjää" oli olemassa, eri Follower-malli).
+
+**Uusi `ProductWatch`-malli** (`productId`+`userId`, uniikki pari) — eri asia kuin `Follower` (joka seuraa MYYJÄÄ, ei yksittäistä tuotetta). `Product`-malliin uusi `endingSoonNotifiedAt DateTime?` (sama idempotenssiperiaate kuin `Order.stalledNotifiedAt`/`reminderNotifiedAt`, ks. `deliveryTimeline.ts` — estää cronia lähettämästä samaa ilmoitusta uudestaan joka ajokerralla). Uusi `NotificationType.AUCTION_ENDING_SOON`.
+
+**Backend:**
+- `POST /auctions/:id/watch` — seuraa/lopeta-toggle, sama malli kuin `POST /users/:username/follow`.
+- `GET /auctions/:id` palauttaa nyt `isWatching` (optional-auth JWT-tarkistus, sama periaate kuin `users.ts`:n `GET /:username`:n `isFollowing`) ja `_count.watchers`.
+- Uusi `backend/src/jobs/auctionEndingSoon.ts`, ajetaan minuutin välein `index.ts`:ssä `closeExpiredAuctions()`:n rinnalla. Hakee `saleType:'auction', status:'PENDING', auctionEndsAt` seuraavan 15 min sisällä, `endingSoonNotifiedAt: null`. Yhdistää (dedupoi `Set`illä) tuotteesta huutaneiden JA sitä seuraavien `userId`:t, lähettää jokaiselle sekä in-app-ilmoituksen että oikean push-ilmoituksen (`notifyUser` + `sendPushToUser`, sama pari kuin `SELLER_LIVE`:ssä). Merkitsee `endingSoonNotifiedAt`:n riippumatta oliko vastaanottajia, ettei samaa tuotetta yritetä uudestaan.
+- **Koskee VAIN perinteistä (ajastettua) huutokauppaa** (`saleType:'auction'`) — ainoa myyntitapa jolla on pysyvä, valvomaton, tarkkaan ajastettu päättymishetki. Live-huuto ei tarvitse tätä (myyjä hallitsee ajastinta itse paikan päällä), suoramyynti ei koskaan pääty.
+
+**Frontend:** "☆ Seuraa tuotetta" / "★ Seurataan" -nappi `huutokauppa/[id]`-sivulla (otsikon vieressä), näyttää seuraajamäärän kun >0. Ei näytetä myyjälle itselleen eikä päättyneelle huutokaupalle.
+
+**Testattu oikealla cron-funktiokutsulla ja API:lla tuotantoa vasten, ei vain koodikatselmuksella:**
+- Luotu testitilanne: huutokauppa päättyy 10 min päästä (15min-ikkunan sisällä), yksi huutaja (Bid-rivi) + yksi seuraaja (oikea `POST /auctions/:id/watch`-kutsu). Ensimmäinen `notifyEndingSoonAuctions()`-ajo: käsitteli 1 tuotteen, MOLEMMAT (huutaja+seuraaja) saivat oikean `AUCTION_ENDING_SOON`-ilmoituksen tietokantaan, `endingSoonNotifiedAt` asettui. **Toinen ajo heti perään: käsitteli 0 tuotetta, ilmoitusmäärä ei muuttunut — idempotenssi vahvistettu.**
+- `GET /auctions/:id` testattu kolmella eri tunnisteella: anonyymi → `isWatching:false`, juuri seurannut käyttäjä → `isWatching:true` + `watchers:1`, myyjä itse (ei koskaan seurannut) → `isWatching:false`.
+- Kaikki testidata (tuote/huuto/seuraus/ilmoitukset) siivottu heti perään.
+
+**Deployn sivuhuomio, sama kuvio kuin aiemmin:** repo taas hetken yksityinen deployn aikana, ratkaistu samalla opitulla `scp` (rivinvaihdot normalisoitu heti) + md5-tarkistus -kaavalla. Tämä oli ensimmäinen kerta kun deployyn sisältyi myös oikea `prisma db push` tuotantoon (uusi `ProductWatch`-taulu + `Product.endingSoonNotifiedAt`-sarake + uusi enum-arvo) — puhdas lisäys, ei koskenut olemassa olevaan dataan, ajettu ennen rebuildia.
+
 ## Maksuaika 2h → 12h kaikkialla 2026-09-11 — ✅ TEHTY JA TESTATTU OIKEALLA CHECKOUTILLA — MUUTTAA LUKITTU-SÄÄNTÖÄ
 
 **⚠️ Tämä muuttaa aiemman "Liiketoimintasäännöt"-osion LUKITTU-sääntöä ("Maksuaika: ... → 2h aikaa maksaa") — omistajan eksplisiittinen, tietoinen päätös, ei tulkinta.** Uusi sääntö: aktiivisen ostajan maksuaika (voitettu live-huuto, Osta heti, hyväksytty tarjous, tavallinen ostoskorin checkout) on nyt **12 tuntia**, ei 2 tuntia.
