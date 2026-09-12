@@ -5,6 +5,7 @@ const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const notify_1 = require("../lib/notify");
 const socket_1 = require("../socket");
+const productAccess_1 = require("../lib/productAccess");
 const router = (0, express_1.Router)();
 // Pyöristää senteille — sama apuri kuin auctions.ts:ssä (estää JS:n liukulukutarkkuuden
 // aiheuttamat virheet, esim. 5.1 + 0.1 = 5.199999999999999).
@@ -76,11 +77,18 @@ router.get('/:id', async (req, res) => {
             show: { select: { id: true, status: true, scheduledAt: true, title: true } },
             bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
             _count: { select: { bids: true } },
+            // Vain myyty-tuotteen näkyvyystarkistusta varten (ks. canViewSoldProduct) - ei koskaan
+            // lähetetä vastauksessa sellaisenaan, siivotaan pois alla ennen res.json:ia.
+            orderItems: { select: { order: { select: { buyerId: true } } } },
         },
     });
     if (!product)
         return res.status(404).json({ error: 'Tuotetta ei löydy' });
-    res.json(product);
+    if (product.status === 'SOLD' && !(await (0, productAccess_1.canViewSoldProduct)(req, product))) {
+        return res.status(404).json({ error: 'Tuotetta ei löydy' });
+    }
+    const { orderItems, ...visibleProduct } = product;
+    res.json(visibleProduct);
 });
 // POST /products/:id/prebid — ennakkotarjous live-tuotteelle joka ei ole vielä ollut
 // huudettavana. Sallittu sekä ennen lähetyksen alkua (Show.status SCHEDULED) että LIVE-

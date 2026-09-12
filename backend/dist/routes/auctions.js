@@ -1,30 +1,12 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const notify_1 = require("../lib/notify");
 const auctionOrder_1 = require("../lib/auctionOrder");
 const resend_1 = require("../lib/resend");
-// Sama kevyt "lue token jos sellainen sattuu olemaan mukana" -apuri kuin users.ts:n
-// GET /:username -reitillä (isFollowing) — tämä reitti on julkinen (ei authMiddleware,
-// anonyymitkin saavat katsoa huutokauppaa), mutta jos kirjautunut käyttäjä katsoo sitä,
-// halutaan silti kertoa hänelle onko HÄN seuraamassa tätä tuotetta.
-function getOptionalUserId(req) {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token)
-        return null;
-    try {
-        return jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET).userId;
-    }
-    catch {
-        return null;
-    }
-}
+const productAccess_1 = require("../lib/productAccess");
 const BUY_NOW_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000; // ostaja aktiivisesti läsnä klikatessaan — maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11
 const router = (0, express_1.Router)();
 // Viime hetken pidennys ("anti-snipe") — omistajan pyynnöstä 2026-09-11 muutettu 2min/2min:stä
@@ -83,15 +65,23 @@ router.get('/:id', async (req, res) => {
                 include: { user: { select: { username: true } } },
             },
             _count: { select: { bids: true, watchers: true } },
+            // Vain myyty-tuotteen näkyvyystarkistusta varten (ks. canViewSoldProduct) - ei koskaan
+            // lähetetä vastauksessa sellaisenaan, siivotaan pois alla ennen res.json:ia.
+            orderItems: { select: { order: { select: { buyerId: true } } } },
         },
     });
     if (!product || product.saleType !== 'auction') {
         return res.status(404).json({ error: 'Huutokauppaa ei löydy' });
     }
+    // Myyty huutokauppakohde piilotetaan muilta kuin kaupan osapuolilta/adminilta - sama
+    // sääntö kuin products.ts:n GET /:id:ssä, ks. CLAUDE.md "Myydyn tuotteen näkyvyys" 2026-09-12.
+    if (product.status === 'SOLD' && !(await (0, productAccess_1.canViewSoldProduct)(req, product))) {
+        return res.status(404).json({ error: 'Huutokauppaa ei löydy' });
+    }
     // isWatching: kertoo VAIN kirjautuneelle katsojalle onko hän itse seuraamassa tätä
     // huutokauppaa (ks. ProductWatch, "Seuraa"-nappi) — sama optional-auth-periaate kuin
     // users.ts:n GET /:username -reitin isFollowing.
-    const currentUserId = getOptionalUserId(req);
+    const currentUserId = (0, productAccess_1.getOptionalUserId)(req);
     let isWatching = false;
     if (currentUserId) {
         const existing = await prisma_1.prisma.productWatch.findUnique({
@@ -99,7 +89,8 @@ router.get('/:id', async (req, res) => {
         });
         isWatching = !!existing;
     }
-    res.json({ ...product, isWatching });
+    const { orderItems, ...visibleProduct } = product;
+    res.json({ ...visibleProduct, isWatching });
 });
 // POST /auctions/:id/watch — seuraa/lopeta tuotteen seuraaminen (toggle), ks. CLAUDE.md
 // "Huutokaupan päättymisilmoitus + tuotteen seuraaminen" 2026-09-12. Seuraajat saavat

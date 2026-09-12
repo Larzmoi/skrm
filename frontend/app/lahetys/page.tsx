@@ -1142,13 +1142,24 @@ export default function LahetysPage() {
         {soldQueueProducts.length > 0 && (
           <>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 10, marginBottom: 2 }}>{sc.soldLabel} ({soldQueueProducts.length})</div>
-            {soldQueueProducts.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.5, flexShrink: 0 }}>
-                {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
-                <span style={{ fontSize: 12, color: '#eee', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                <span style={{ fontSize: 10, color: GREEN, fontWeight: 700, flexShrink: 0 }}>✓</span>
-              </div>
-            ))}
+            {soldQueueProducts.map(p => {
+              const cond = conditionLabel(p)
+              return (
+                // Myydyt-rivit eivät olleet klikattavissa ollenkaan - jos myyjällä on useampi
+                // samannäköinen kortti myynnissä eri listauksina, ei voinut nähdä KUMPI niistä
+                // meni kaupaksi ilman ⤢-modaalia. Sama expand-nappi kuin aktiivisilla riveillä.
+                // Ks. CLAUDE.md "Myydyn tuotteen näkyvyys" 2026-09-12, myyjän raportoima puute.
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.03)', opacity: 0.7, flexShrink: 0 }}>
+                  {p.imageUrl ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} /> : <div style={{ width: 26, height: 26, borderRadius: 4, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: '#eee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    {cond && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cond}</div>}
+                  </div>
+                  <span style={{ fontSize: 10, color: GREEN, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                  <button onClick={() => setProductDetailId(p.id)} title={sc.showLargerTitle} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer', padding: 2, flexShrink: 0 }}>⤢</button>
+                </div>
+              )
+            })}
           </>
         )}
       </div>

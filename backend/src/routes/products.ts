@@ -3,6 +3,7 @@ import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { emitToShow, notifyUser } from '../lib/notify'
 import { isActiveLiveLot } from '../socket'
+import { canViewSoldProduct } from '../lib/productAccess'
 
 const router = Router()
 
@@ -74,10 +75,17 @@ router.get('/:id', async (req, res) => {
       show: { select: { id: true, status: true, scheduledAt: true, title: true } },
       bids: { orderBy: { amount: 'desc' }, take: 20, include: { user: { select: { username: true } } } },
       _count: { select: { bids: true } },
+      // Vain myyty-tuotteen näkyvyystarkistusta varten (ks. canViewSoldProduct) - ei koskaan
+      // lähetetä vastauksessa sellaisenaan, siivotaan pois alla ennen res.json:ia.
+      orderItems: { select: { order: { select: { buyerId: true } } } },
     },
   })
   if (!product) return res.status(404).json({ error: 'Tuotetta ei löydy' })
-  res.json(product)
+  if (product.status === 'SOLD' && !(await canViewSoldProduct(req, product))) {
+    return res.status(404).json({ error: 'Tuotetta ei löydy' })
+  }
+  const { orderItems, ...visibleProduct } = product
+  res.json(visibleProduct)
 })
 
 // POST /products/:id/prebid — ennakkotarjous live-tuotteelle joka ei ole vielä ollut

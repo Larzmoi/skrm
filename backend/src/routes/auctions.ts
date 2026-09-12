@@ -1,24 +1,10 @@
-import { Router, Request, Response } from 'express'
-import jwt from 'jsonwebtoken'
+import { Router, Response } from 'express'
 import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { notifyUser } from '../lib/notify'
 import { createOrderForAuctionWin } from '../lib/auctionOrder'
 import { sendAuctionWonEmail } from '../lib/resend'
-
-// Sama kevyt "lue token jos sellainen sattuu olemaan mukana" -apuri kuin users.ts:n
-// GET /:username -reitillä (isFollowing) — tämä reitti on julkinen (ei authMiddleware,
-// anonyymitkin saavat katsoa huutokauppaa), mutta jos kirjautunut käyttäjä katsoo sitä,
-// halutaan silti kertoa hänelle onko HÄN seuraamassa tätä tuotetta.
-function getOptionalUserId(req: Request): string | null {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return null
-  try {
-    return (jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }).userId
-  } catch {
-    return null
-  }
-}
+import { getOptionalUserId, canViewSoldProduct } from '../lib/productAccess'
 
 const BUY_NOW_PAYMENT_WINDOW_MS = 12 * 60 * 60 * 1000 // ostaja aktiivisesti läsnä klikatessaan — maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11
 
@@ -82,10 +68,19 @@ router.get('/:id', async (req, res) => {
         include: { user: { select: { username: true } } },
       },
       _count: { select: { bids: true, watchers: true } },
+      // Vain myyty-tuotteen näkyvyystarkistusta varten (ks. canViewSoldProduct) - ei koskaan
+      // lähetetä vastauksessa sellaisenaan, siivotaan pois alla ennen res.json:ia.
+      orderItems: { select: { order: { select: { buyerId: true } } } },
     },
   })
 
   if (!product || product.saleType !== 'auction') {
+    return res.status(404).json({ error: 'Huutokauppaa ei löydy' })
+  }
+
+  // Myyty huutokauppakohde piilotetaan muilta kuin kaupan osapuolilta/adminilta - sama
+  // sääntö kuin products.ts:n GET /:id:ssä, ks. CLAUDE.md "Myydyn tuotteen näkyvyys" 2026-09-12.
+  if (product.status === 'SOLD' && !(await canViewSoldProduct(req, product))) {
     return res.status(404).json({ error: 'Huutokauppaa ei löydy' })
   }
 
@@ -101,7 +96,8 @@ router.get('/:id', async (req, res) => {
     isWatching = !!existing
   }
 
-  res.json({ ...product, isWatching })
+  const { orderItems, ...visibleProduct } = product
+  res.json({ ...visibleProduct, isWatching })
 })
 
 // POST /auctions/:id/watch — seuraa/lopeta tuotteen seuraaminen (toggle), ks. CLAUDE.md
