@@ -1,6 +1,5 @@
 import { prisma } from '../db/prisma'
 import { notifyUser } from '../lib/notify'
-import { sendPushToUser } from '../lib/push'
 
 // "Huutokauppa päättymässä" -ilmoitus (in-app + push) 15min ennen perinteisen (ajastetun)
 // huutokaupan päättymistä — omistajan pyyntö 2026-09-12. Vastaanottajat: kaikki jotka ovat
@@ -44,7 +43,6 @@ export async function notifyEndingSoonAuctions() {
 
     await Promise.all(Array.from(recipientIds).map(async userId => {
       await notifyUser(userId, 'AUCTION_ENDING_SOON', title, body, link).catch(() => {})
-      await sendPushToUser(userId, { title, body, url: link }).catch(() => {})
     }))
 
     // Merkitään ilmoitetuksi VAIKKA vastaanottajia ei olisi yhtään (esim. kukaan ei ole

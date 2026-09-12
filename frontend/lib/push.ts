@@ -44,3 +44,22 @@ export async function subscribeToPush(): Promise<void> {
     // Hiljainen epäonnistuminen — push on mukavuuslisä, ei kriittinen toiminto.
   }
 }
+
+// Peru ilmoitukset (ks. CLAUDE.md "Ilmoitusten peruutus" 2026-09-12) - poistaa tilauksen sekä
+// selaimen omasta PushManagerista että palvelimen PushSubscription-taulusta. Palauttaa true
+// jos onnistui, false jos ei ollut mitään perumista (ei koskaan estä käyttäjää yrittämästä
+// uudestaan myöhemmin - subscribeToPush() luo uuden tilauksen normaalisti).
+export async function unsubscribeFromPush(): Promise<boolean> {
+  if (!pushSupported()) return false
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js')
+    const subscription = await registration?.pushManager.getSubscription()
+    if (!subscription) return false
+    const endpoint = subscription.endpoint
+    await subscription.unsubscribe()
+    await pushApi.unsubscribe(endpoint)
+    return true
+  } catch {
+    return false
+  }
+}

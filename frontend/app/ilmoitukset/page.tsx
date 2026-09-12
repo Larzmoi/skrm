@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
@@ -7,7 +7,7 @@ import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { useNotifications } from '@/lib/notification-context'
 import { notificationApi } from '@/lib/api'
-import { subscribeToPush, pushSupported } from '@/lib/push'
+import { subscribeToPush, unsubscribeFromPush, pushSupported } from '@/lib/push'
 
 function timeAgo(iso: string, t: any) {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -25,14 +25,38 @@ export default function IlmoituksetPage() {
   const { t } = useLang()
   const router = useRouter()
   const { notifications, unreadNotifCount, refresh, markAllRead, remove } = useNotifications()
-  const [pushEnabled, setPushEnabled] = useState(typeof window !== 'undefined' && typeof Notification !== 'undefined' && Notification.permission === 'granted')
+  // pushEnabled kertoo onko selaimessa AKTIIVINEN PushManager-tilaus juuri nyt, ei pelkkää
+  // Notification.permission-lupaa (ks. CLAUDE.md "Ilmoitusten peruutus" 2026-09-12) - lupa jää
+  // pysyvästi "granted"-tilaan selaimen omissa asetuksissa vaikka tilauksen peruisi koodista,
+  // joten sitä ei voi käyttää "onko käyttäjä juuri nyt tilannut ilmoitukset" -mittarina. Ilman
+  // tätä korjausta "Peru ilmoitukset" -nappi olisi näyttänyt saman "käytössä"-tilan heti perumisen
+  // jälkeisellä sivunlatauksella vaikka tilaus oli oikeasti jo poistettu.
+  const [pushEnabled, setPushEnabled] = useState(false)
   const [pushEnabling, setPushEnabling] = useState(false)
+  const [pushDisabling, setPushDisabling] = useState(false)
+
+  useEffect(() => {
+    if (!pushSupported()) return
+    navigator.serviceWorker.getRegistration('/sw.js')
+      .then(reg => reg?.pushManager.getSubscription())
+      .then(sub => setPushEnabled(!!sub))
+      .catch(() => {})
+  }, [])
 
   async function enablePush() {
     setPushEnabling(true)
     await subscribeToPush()
-    setPushEnabled(typeof Notification !== 'undefined' && Notification.permission === 'granted')
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+    const sub = await reg?.pushManager.getSubscription()
+    setPushEnabled(!!sub)
     setPushEnabling(false)
+  }
+
+  async function disablePush() {
+    setPushDisabling(true)
+    const ok = await unsubscribeFromPush()
+    if (ok) setPushEnabled(false)
+    setPushDisabling(false)
   }
 
   async function openNotification(id: string, link: string | null) {
@@ -63,7 +87,9 @@ export default function IlmoituksetPage() {
             )}
             {pushSupported() && (
               pushEnabled ? (
-                <span style={{ fontSize: 12, color: C.accent, fontWeight: 600, whiteSpace: 'nowrap' }}>{t.notificationsPage.pushEnabled}</span>
+                <button onClick={disablePush} disabled={pushDisabling} style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.textSub, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushDisabling ? 'default' : 'pointer', opacity: pushDisabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+                  {pushDisabling ? t.notificationsPage.disablingPush : t.notificationsPage.disablePush}
+                </button>
               ) : (
                 <button onClick={enablePush} disabled={pushEnabling} style={{ background: C.accentSolid, border: 'none', color: C.accentText, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: pushEnabling ? 'default' : 'pointer', opacity: pushEnabling ? 0.7 : 1, whiteSpace: 'nowrap' }}>
                   {pushEnabling ? t.notificationsPage.enablingPush : t.notificationsPage.enablePush}

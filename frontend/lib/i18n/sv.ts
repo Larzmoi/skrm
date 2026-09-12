@@ -412,7 +412,7 @@ const sv = {
     title: 'Aviseringar', subtitle: 'Alla dina viktiga uppdateringar på en plats',
     empty: 'Inga aviseringar än', markAllRead: 'Markera alla som lästa',
     enablePush: 'Aktivera aviseringar', enablingPush: 'Aktiveras...',
-    pushEnabled: 'Aviseringar aktiverade ✓',
+    disablePush: 'Avbryt aviseringar', disablingPush: 'Avbryts...',
   },
   messagesPage: {
     title: 'Meddelanden', subtitle: 'Dina samtal med köpare och säljare',

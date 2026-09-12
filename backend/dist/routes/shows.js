@@ -9,7 +9,6 @@ const prisma_1 = require("../db/prisma");
 const auth_1 = require("../middleware/auth");
 const livekit_1 = require("../lib/livekit");
 const notify_1 = require("../lib/notify");
-const push_1 = require("../lib/push");
 const router = (0, express_1.Router)();
 // Julkinen valinta — streamKey on salainen eikä saa koskaan päätyä julkisiin vastauksiin.
 // hlsUrl on jäänne MediaMTX-ajalta (ks. CLAUDE.md "PÄÄTÖS 2026-08-09: Vaihto MediaMTX ->
@@ -155,7 +154,6 @@ async function notifyFollowersOfLiveShow(sellerId, sellerUsername, showTitle, sh
     const link = `/live/${showId}`;
     await Promise.all(followers.map(async (f) => {
         await (0, notify_1.notifyUser)(f.followerId, 'SELLER_LIVE', title, body, link).catch(() => { });
-        await (0, push_1.sendPushToUser)(f.followerId, { title, body, url: link }).catch(() => { });
     }));
 }
 // PATCH /shows/:id/status — muuta tila (LIVE/ENDED)

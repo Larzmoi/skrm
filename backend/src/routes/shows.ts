@@ -4,7 +4,6 @@ import { prisma } from '../db/prisma'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { RTMP_URL, getOrCreateStreamKey, roomNameForSeller, createViewerToken, LIVEKIT_WS_URL_PUBLIC } from '../lib/livekit'
 import { emitToShow, notifyUser } from '../lib/notify'
-import { sendPushToUser } from '../lib/push'
 
 const router = Router()
 
@@ -156,7 +155,6 @@ async function notifyFollowersOfLiveShow(sellerId: string, sellerUsername: strin
   const link = `/live/${showId}`
   await Promise.all(followers.map(async f => {
     await notifyUser(f.followerId, 'SELLER_LIVE', title, body, link).catch(() => {})
-    await sendPushToUser(f.followerId, { title, body, url: link }).catch(() => {})
   }))
 }
 

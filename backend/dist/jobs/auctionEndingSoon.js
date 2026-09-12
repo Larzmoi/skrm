@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.notifyEndingSoonAuctions = notifyEndingSoonAuctions;
 const prisma_1 = require("../db/prisma");
 const notify_1 = require("../lib/notify");
-const push_1 = require("../lib/push");
 // "Huutokauppa päättymässä" -ilmoitus (in-app + push) 15min ennen perinteisen (ajastetun)
 // huutokaupan päättymistä — omistajan pyyntö 2026-09-12. Vastaanottajat: kaikki jotka ovat
 // huutaneet tuotteesta TAI seuraavat sitä (ProductWatch, ks. "Seuraa"-nappi huutokauppasivulla).
@@ -41,7 +40,6 @@ async function notifyEndingSoonAuctions() {
         const link = `/huutokauppa/${product.id}`;
         await Promise.all(Array.from(recipientIds).map(async (userId) => {
             await (0, notify_1.notifyUser)(userId, 'AUCTION_ENDING_SOON', title, body, link).catch(() => { });
-            await (0, push_1.sendPushToUser)(userId, { title, body, url: link }).catch(() => { });
         }));
         // Merkitään ilmoitetuksi VAIKKA vastaanottajia ei olisi yhtään (esim. kukaan ei ole
         // huutanut/seurannut) — ei kuulu yrittää uudestaan, tuote ei saa uusia huutajia/seuraajia

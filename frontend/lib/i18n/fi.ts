@@ -425,7 +425,7 @@ const fi = {
     title: 'Ilmoitukset', subtitle: 'Kaikki tärkeät päivitykset yhdessä paikassa',
     empty: 'Ei ilmoituksia vielä', markAllRead: 'Merkitse kaikki luetuiksi',
     enablePush: 'Ota ilmoitukset käyttöön', enablingPush: 'Otetaan käyttöön...',
-    pushEnabled: 'Ilmoitukset käytössä ✓',
+    disablePush: 'Peru ilmoitukset', disablingPush: 'Perutaan...',
   },
   messagesPage: {
     title: 'Viestit', subtitle: 'Keskustelusi ostajien ja myyjien kanssa',

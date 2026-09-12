@@ -412,7 +412,7 @@ const en = {
     title: 'Notifications', subtitle: 'All your important updates in one place',
     empty: 'No notifications yet', markAllRead: 'Mark all as read',
     enablePush: 'Enable notifications', enablingPush: 'Enabling...',
-    pushEnabled: 'Notifications on ✓',
+    disablePush: 'Cancel notifications', disablingPush: 'Cancelling...',
   },
   messagesPage: {
     title: 'Messages', subtitle: 'Your conversations with buyers and sellers',
