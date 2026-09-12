@@ -100,8 +100,17 @@ router.post('/:id/select-shipping', auth_1.authMiddleware, async (req, res) => {
         return res.status(403).json({ error: 'Ei oikeutta' });
     if (order.status !== 'PENDING_PAYMENT')
         return res.status(400).json({ error: 'Tilaus on jo maksettu tai ei odota maksua' });
-    if (!order.shippingWindowEnd || order.shippingWindowEnd < new Date()) {
-        return res.status(400).json({ error: 'Yhdistetyn lähetyksen 6h ikkuna on umpeutunut' });
+    // KORJATTU 2026-09-12: tämä tarkisti aiemmin order.shippingWindowEnd:iä (kiinteä now+6h
+    // luontihetkellä) - mutta se kenttä on tarkoitettu ihan eri asiaan: kertomaan onko UUDEN
+    // ostoksen liittäminen TÄHÄN tilaukseen yhä mahdollista (ks. cart.ts:n checkout, merge-
+    // ikkuna). Kun maksuaika nostettiin 2h:sta 12h:iin 2026-09-11, tätä kohtaa ei päivitetty
+    // samalla - seurauksena ostaja pystyi näkemään yhä olevan maksuaikaa jäljellä mutta ei
+    // pystynyt koskaan valitsemaan toimitustapaa (siis ei koskaan maksamaan) heti kun 6h
+    // luonnista oli kulunut, vaikka paymentDeadline oli vasta 12h. Oikea, ainoa relevantti
+    // takaraja toimitustavan valinnalle on order.paymentDeadline - sama deadline jota koko
+    // muu maksuvirtaus jo käyttää.
+    if (!order.paymentDeadline || order.paymentDeadline < new Date()) {
+        return res.status(400).json({ error: 'Maksuaika on umpeutunut' });
     }
     const { pakettikokoId, pickupPointId } = req.body;
     const price = (0, shipping_1.getShippingPrice)(String(pakettikokoId ?? ''));
