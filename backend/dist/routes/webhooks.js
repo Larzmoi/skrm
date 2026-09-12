@@ -150,7 +150,7 @@ async function handleStripeWebhook(req, res) {
             where: { stripeSessionId: session.id, status: 'PENDING_PAYMENT' },
             include: {
                 buyer: { select: { email: true, name: true } },
-                seller: { select: { id: true, stripeAccountId: true } },
+                seller: { select: { id: true, email: true, name: true, stripeAccountId: true } },
                 items: { include: { product: { select: { name: true } } } },
             },
         });
@@ -196,6 +196,9 @@ async function handleStripeWebhook(req, res) {
                 await (0, notify_1.notifyUser)(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset');
                 const productNames = order.items.map(i => i.product.name).join(', ');
                 void (0, resend_1.sendOrderConfirmationEmail)(order.buyer.email, order.buyer.name, order.id, productNames, total);
+                // Myyjän oma sähköpostivahvistus myynnistä - puuttui aiemmin kokonaan, vain in-app-
+                // ilmoitus (ORDER_PAID yllä) meni myyjälle. Ks. CLAUDE.md 2026-09-12.
+                void (0, resend_1.sendSaleNotificationEmail)(order.seller.email, order.seller.name, order.id, productNames, transferAmountEuros);
             }
             catch (e) {
                 anyFailure = true;

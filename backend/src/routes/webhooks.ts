@@ -4,7 +4,7 @@ import { prisma } from '../db/prisma'
 import { notifyUser, emitToShow } from '../lib/notify'
 import { webhookReceiver, sellerIdFromRoomName } from '../lib/livekit'
 import { verifyWebhookSignature, verifyAccountEventSignature, getAccountStatus, getLatestChargeId, createSellerTransfer } from '../lib/stripe'
-import { sendBanNotificationEmail, sendOrderConfirmationEmail } from '../lib/resend'
+import { sendBanNotificationEmail, sendOrderConfirmationEmail, sendSaleNotificationEmail } from '../lib/resend'
 import { buildStockRestoreOps } from '../lib/orderCancellation'
 
 const router = Router()
@@ -154,7 +154,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       where: { stripeSessionId: session.id, status: 'PENDING_PAYMENT' },
       include: {
         buyer: { select: { email: true, name: true } },
-        seller: { select: { id: true, stripeAccountId: true } },
+        seller: { select: { id: true, email: true, name: true, stripeAccountId: true } },
         items: { include: { product: { select: { name: true } } } },
       },
     })
@@ -200,6 +200,9 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         await notifyUser(order.sellerId, 'ORDER_PAID', 'Ostaja maksoi tilauksen', `Tilaus ${total.toLocaleString('fi-FI')}€ on maksettu ja valmiina lähetettäväksi.`, '/dashboard/tilaukset')
         const productNames = order.items.map(i => i.product.name).join(', ')
         void sendOrderConfirmationEmail(order.buyer.email, order.buyer.name, order.id, productNames, total)
+        // Myyjän oma sähköpostivahvistus myynnistä - puuttui aiemmin kokonaan, vain in-app-
+        // ilmoitus (ORDER_PAID yllä) meni myyjälle. Ks. CLAUDE.md 2026-09-12.
+        void sendSaleNotificationEmail(order.seller.email, order.seller.name, order.id, productNames, transferAmountEuros)
       } catch (e: any) {
         anyFailure = true
         console.error(`[stripe webhook] Transferin luonti epäonnistui Orderille ${order.id} (myyjä ${order.sellerId}):`, e.message)

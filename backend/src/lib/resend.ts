@@ -131,6 +131,32 @@ export function sendOrderConfirmationEmail(
   })
 }
 
+// Myyjän oma myyntivahvistus — puuttui aiemmin kokonaan, vain ostaja sai sähköpostia
+// maksun onnistuttua (ks. CLAUDE.md "Tilausvahvistus-sähköposti myyjälle" 2026-09-12).
+// netAmount = tuotteiden yhteissumma miinus komissio (sama luku joka siirtyy myyjän
+// Stripe-saldolle, ei sisällä toimitusmaksua - se on Habahubin omaa liikevaihtoa).
+export function sendSaleNotificationEmail(
+  to: string,
+  sellerName: string,
+  orderNumber: string,
+  productName: string,
+  netAmountEuros: number,
+) {
+  return sendEmail({
+    to,
+    subject: `Uusi myynti — ${productName} — Habahub`,
+    html: wrapper(`
+      <p style="font-size:15px;line-height:1.5">Hei ${sellerName},</p>
+      <p style="font-size:15px;line-height:1.5">Hyviä uutisia — tuotteesi myytiin ja ostaja on maksanut tilauksen!</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Tilausnumero:</strong> ${orderNumber}</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Tuote:</strong> ${productName}</p>
+      <p style="font-size:15px;line-height:1.5"><strong>Osuutesi (komission jälkeen):</strong> ${netAmountEuros.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+      <p style="font-size:15px;line-height:1.5">Muista lähettää tuote 4 vuorokauden sisällä — löydät tilauksen tiedot Tilaukset-sivulta.</p>
+      <a href="https://habahub.com/dashboard/tilaukset" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 24px;border-radius:8px;margin:16px 0">Avaa tilaus</a>
+    `),
+  })
+}
+
 export function sendShippingNotificationEmail(
   to: string,
   name: string,
