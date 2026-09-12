@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Tarjouksen 30%-alaraja + tarjousilmoituksen väärä linkki 2026-09-12 — ✅ TEHTY JA TESTATTU OIKEALLA API-KETJULLA
+
+Omistajan kaksi pyyntöä samassa viestissä: (1) tarjous ei saa olla alle 30% pyyntihinnasta, (2) kun Backlund klikkasi saamaansa "uusi tarjous" -ilmoitusta, se vei väärään paikkaan.
+
+**1. 30%-alaraja.** `POST /offers` (`backend/src/routes/offers.ts`) laski aiemmin vain kiinteän Stripe-alarajan (0,50€), ei mitenkään suhteessa tuotteen hintaan. Lisätty `MIN_OFFER_PERCENT = 0.3` — alaraja on `Math.max(0.5€, 30% × Product.startPrice)` (`startPrice` on buy_now-tuotteen kiinteä myyntihinta, ks. `dashboard/tuotteet`:n "salePriceLabel" — eri merkitys kuin auction-tuotteilla, mutta `POST /offers` on jo rajattu vain `saleType:'buy_now'`:lle). Sama laskukaava peilattu frontendiin (`tuotteet/[id]/page.tsx`) sekä esikatselu-vihjeeksi tarjouskentän alle ("Väh. X€ (30% pyyntihinnasta)") että asiakaspuolen nopeaksi validoinniksi ennen palvelinkutsua — palvelin on silti aina lopullinen totuus.
+
+**2. Tarjousilmoituksen linkki korjattu.** `notifyUser(product.sellerId, 'OFFER_RECEIVED', ...)` osoitti `/dashboard/tuotteet`:iin (tuotteiden hallinta — ei näytä saapuneita tarjouksia ollenkaan) oikean `/dashboard/tarjoukset`:n sijaan (oletuksena "Saapuneet"-välilehti, jossa tarjouksen voi hyväksyä/hylätä/vastatarjota). Myyjä ei siis koskaan päätynyt oikeaan paikkaan klikkaamalla ilmoitusta — vahvistettu todelliseksi bugiksi, ei tulkintakysymys.
+
+**Testattu oikealla API-ketjulla tuotantoa vasten** (testiuser tilapäisesti merkitty vahvistetuksi testin ajaksi, palautettu heti perään): luotu 100€:n buy_now-testituote → tarjous 29,99€ hylätty oikein (`400`, "vähintään 30.00€") → tarjous täsmälleen 30,00€ (30% rajalla) hyväksytty (`201`) → myyjän saama `OFFER_RECEIVED`-ilmoituksen `link`-kenttä vahvistettu olevan `/dashboard/tarjoukset`. Kaikki testidata siivottu, testiuserin `verified`-tila palautettu.
+
 ## ProductPreset allowPickup/allowShipping ei siirtynyt 2026-09-12 — ✅ LÖYDETTY JA KORJATTU — TESTATTU OIKEALLA API-KETJULLA
 
 Omistaja raportoi: kun tuote luodaan esiasetuksen pohjalta, nouto/postitus-rajoitus ei siirry mukaan.
