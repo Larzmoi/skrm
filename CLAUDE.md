@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Live-lähetyksen tuotejärjestys ei täsmännyt myyjän ja katsojan välillä 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan pyyntö: liven aikaisten tuotteiden järjestyksen pitäisi näkyä katsojille täsmälleen samana kuin myyjän omalla Jono-listalla.
+
+**Juurisyy ei ollut itse raahaus-/tallennuslogiikassa (`PATCH /shows/:id/reorder`, `Product.order`) — se toimi jo oikein niille tuotteille jotka joku oli ehtinyt raahata.** Ongelma oli tasapelin ratkaisussa: useimmilla tuotteilla `order` on oletuksena `0` kunnes joku raahaa niitä ensimmäistä kertaa. `GET /products/mine` (myyjän oma Jono-paneeli) käytti tasapelin ratkaisuna `[{order:'asc'},{createdAt:'desc'}]`, mutta `GET /shows` ja `GET /shows/:id` (katsojan Shop-paneeli, `/live/[showId]`) käyttivät pelkkää `{order:'asc'}` ilman tasapelin ratkaisua — Postgres saattoi siis palauttaa samat `order:0`-tuotteet eri fyysisessä järjestyksessä kummallekin kyselylle, vaikka `order`-arvot olivat identtiset.
+
+**Korjaus:** yhtenäistetty sama `[{order:'asc'},{createdAt:'desc'}]`-tasapelin ratkaisu kaikkiin kolmeen paikkaan (`GET /shows`, `GET /shows/:id`, joita `/live/[showId]` oikeasti käyttää).
+
+**Testattu suoraan tietokantaa vasten (ei vain koodikatselmus):** luotu neljä testituotetta samaan Show'hun, kaikki `order:0` (simuloi "ei koskaan raahattu" -tilaa), ajettu molemmat kyselyt identtisillä parametreilla — palauttivat täsmälleen saman järjestyksen (`ZZZ-D, ZZZ-C, ZZZ-B, ZZZ-A`, uusin ensin). Testidata siivottu.
+
 ## KRIITTINEN: huutokauppakohteista puuttui kunto/gradaus kokonaan 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö, kiireellinen. Vahvistettu koodista: sekä huutokauppalista (`/huutokaupat`) että yksittäisen kohteen sivu (`/huutokauppa/[id]`) eivät koskaan näyttäneet `condition`/`gradingCompany`/`grade`-tietoa — vaikka `GET /auctions` ja `GET /auctions/:id` palauttavat nämä kentät jo valmiiksi (Prisma `include`, ei rajoita scalaarikenttiä) ja suoramyyntisivulla (`tuotteet/[id]`) täsmälleen sama badge on ollut käytössä jo pitkään. Puhdas frontend-puute, ei backend-korjausta tarvinnut:
