@@ -7,6 +7,15 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## KRIITTINEN: huutokauppakohteista puuttui kunto/gradaus kokonaan 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Omistajan pyyntö, kiireellinen. Vahvistettu koodista: sekä huutokauppalista (`/huutokaupat`) että yksittäisen kohteen sivu (`/huutokauppa/[id]`) eivät koskaan näyttäneet `condition`/`gradingCompany`/`grade`-tietoa — vaikka `GET /auctions` ja `GET /auctions/:id` palauttavat nämä kentät jo valmiiksi (Prisma `include`, ei rajoita scalaarikenttiä) ja suoramyyntisivulla (`tuotteet/[id]`) täsmälleen sama badge on ollut käytössä jo pitkään. Puhdas frontend-puute, ei backend-korjausta tarvinnut:
+
+- **Listasivu:** `Auction`-interfacesta puuttui `gradingCompany`/`grade` kokonaan, ja `ProductCard`-kutsu ei välittänyt `condition`/`gradingCompany`/`grade`-propseja ollenkaan vaikka komponentti itse jo osaa näyttää ne (sama komponentti, sama koodi joka toimii `/selaa`-sivulla).
+- **Yksittäissivu:** koko badge-rivi puuttui renderöinnistä täysin — kopioitu `tuotteet/[id]`:n sama, jo toimiva ehtologiikka (gradattu kortti näyttää "PSA 9" -muodossa, muu tuote geneerisen `condition`-lyhenteen).
+
+**Testattu OIKEALLA selaimella tuotantoa vasten (Playwright, sama kertaluontoinen asennus kuin scroll-bugin metsästyksessä), ei vain koodikatselmuksella:** luotu kertakäyttöinen `saleType:'auction'`-testituote jolla `condition:'NM'`, ladattu sekä `/huutokauppa/:id`-sivu että `/huutokaupat`-lista oikealla selaimella — "NM"-badge löytyi molemmilta sivuilta oikealla tyylillä. Testidata siivottu.
+
 ## Etusivu/haku: huutokaupat eivät löytyneet haulla + selauksen scroll-positio 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Kaksi kohtaa omistajan laajemmasta "Iso palautekierros 2026-09-13" -listasta (osio B, kohdat 8 ja 11 — koko lista jaettu omistajan toisen kanavan kautta, käsitellään yksi kerrallaan omistajan pyynnöstä).
