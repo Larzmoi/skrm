@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/lib/theme-context'
@@ -7,10 +8,15 @@ import { AvatarProvider } from '@/lib/avatar-context'
 import { KategoriaProvider } from '@/lib/kategoria-context'
 import { CartProvider } from '@/lib/cart-context'
 import { NotificationProvider } from '@/lib/notification-context'
+import { initScrollRestore } from '@/lib/scrollRestore'
 import BackgroundLayers from './BackgroundLayers'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  // Rekisteröidään KERRAN koko session ajaksi, ks. lib/scrollRestore.ts:n kommentti -
+  // ClientLayout pysyy mountattuna koko reitityksen yli, joten popstate-kuuntelija on
+  // aina olemassa ajoissa riippumatta siitä remounttaako yksittäinen sivukomponentti.
+  useEffect(() => { initScrollRestore() }, [])
   // .bg-noise on kiinteä koko-ruudun overlay z-index:40:lla, eli se piirtyy KAIKEN,
   // myös videon, päälle - 3% opasiteetin kohinatekstuuri on huomaamaton tavallisilla
   // kortti-/tekstisivuilla mutta näkyy selvästi "rakeisena" liikkuvan videokuvan päällä

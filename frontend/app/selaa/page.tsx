@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -9,6 +9,7 @@ import ProductCard from '@/components/ProductCard'
 import { useTheme } from '@/lib/theme-context'
 import { useLang } from '@/lib/lang-context'
 import { api, userApi } from '@/lib/api'
+import { saveScrollPosition } from '@/lib/scrollRestore'
 
 interface Product {
   id: string; name: string; seller: { username: string; city?: string | null; businessId?: string | null; verified?: boolean | null }
@@ -38,14 +39,6 @@ function SelaaContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [userMatch, setUserMatch] = useState<any>(null)
-  // Scroll-position tallennus/palautus (ks. CLAUDE.md "Iso palautekierros" kohta 11) - selaimen
-  // oma back-scroll-restaurointi ei toimi luotettavasti tällä sivulla, koska sisältö (products)
-  // haetaan asynkronisesti mountin JÄLKEEN: kun palataan takaisin, sivu on hetken "Ladataan..."
-  // -tilassa (lyhyt dokumentti), jolloin selaimen restaurointi ei löydä mitään palautettavaa ja
-  // jää ylös kun sisältö sitten kasvaa. Tallennetaan/palautetaan siis itse sessionStoragessa,
-  // avaimena nykyinen hakukyselymerkkijono (sama filtterit = sama tallennettu sijainti).
-  const scrollKey = `hb_scroll_selaa:${searchParams.toString()}`
-  const restoredKeyRef = useRef<string | null>(null)
 
   const SORT_OPTIONS = [
     { id: 'newest', label: t.selaa.newest },
@@ -119,51 +112,6 @@ function SelaaContent() {
     }, 300)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [search])
-
-  // KORJATTU 2026-09-13: jatkuva scroll-kuuntelija (aiempi versio) ei toiminut, koska
-  // pelkkä tallennus itsessään oli rikki - vahvistettu oikealla selaimella (Playwright):
-  // heti tuotekortin klikkauksen jälkeen sessionStorage-arvo ylikirjoittui "0":ksi VAIKKA
-  // oltiin jo siirrytty tuotesivulle. Syy: React ei siivoa vanhan sivun scroll-kuuntelijaa
-  // synkronisesti navigoinnin yhteydessä - uuden sivun oma scroll-nollaus (Next vie uuden
-  // sivun ylös) ehti laueta ennen kuin /selaa:n vanha kuuntelija irtosi, ja se kirjoitti
-  // sen "0"-arvon tallennetun sijainnin päälle. Ratkaisu: EI kuunnella scrollia jatkuvasti
-  // ollenkaan - tallennetaan sijainti VAIN sillä hetkellä kun tuotekorttia klikataan
-  // (onClickCapture, ajoittuu ENNEN Next.js:n oman Link-navigoinnin käsittelijää), jolloin
-  // mitään kilpailevaa myöhempää kirjoitusta ei voi enää tapahtua.
-  function saveScrollBeforeNav() {
-    sessionStorage.setItem(scrollKey, String(window.scrollY))
-  }
-
-  // Estetään selaimen OMA automaattinen back-scroll-restaurointi kokonaan - se laukeaa
-  // popstate-tapahtumassa VÄLITTÖMÄSTI, ennen kuin React on ehtinyt renderöidä tuotegridin,
-  // jolloin se yrittää palauttaa liian lyhyeksi jääneelle "Ladataan..."-dokumentille eikä
-  // koskaan yritä uudestaan kun sisältö sitten kasvaa. 'manual' antaa täyden hallinnan
-  // alla olevalle omalle palautuslogiikalle sen sijaan että ne kilpailisivat keskenään.
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) return
-    const prev = window.history.scrollRestoration
-    window.history.scrollRestoration = 'manual'
-    return () => { window.history.scrollRestoration = prev }
-  }, [])
-
-  // Palautetaan tallennettu sijainti kun sisältö on ehtinyt latautua (kerran per avain).
-  // Yksi rAF ei riittänyt luotettavasti (kilpailee Next.js:n omien, ajoitukseltaan
-  // vaihtelevien scroll-yritysten kanssa) - pakotetaan sijainti uudestaan lyhyen ajan
-  // (n. 500ms) kunnes se pysyy, sen sijaan että luotettaisiin yhteen kertaan riittävän.
-  useEffect(() => {
-    if (loading || restoredKeyRef.current === scrollKey) return
-    restoredKeyRef.current = scrollKey
-    const saved = sessionStorage.getItem(scrollKey)
-    if (!saved) return
-    const target = Number(saved)
-    let attempts = 0
-    const id = setInterval(() => {
-      window.scrollTo(0, target)
-      attempts++
-      if (attempts >= 10 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
-    }, 50)
-    return () => clearInterval(id)
-  }, [loading, scrollKey])
 
   const cities = useMemo(() => {
     const set = new Set(products.map(productCity).filter(Boolean) as string[])
@@ -264,7 +212,7 @@ function SelaaContent() {
               </button>
             </div>
           ) : (
-            <div onClickCapture={saveScrollBeforeNav} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
+            <div onClickCapture={saveScrollPosition} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
               {filtered.map(p => (
                 <ProductCard
                   key={p.id} id={p.id} href={p.saleType === 'auction' ? `/huutokauppa/${p.id}` : `/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
