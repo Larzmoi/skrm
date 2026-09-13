@@ -193,6 +193,18 @@ export default function HuutokauppaPage({ params }: { params: Promise<{ id: stri
           </div>
 
           <div>
+            {/* Kunto/gradaus-badge puuttui kokonaan tältä sivulta (kriittinen löydös 2026-09-13)
+                - GET /auctions/:id palauttaa condition/gradingCompany/grade jo valmiiksi, sama
+                badge kuin suoramyyntisivulla (tuotteet/[id]/page.tsx), vain renderöinti puuttui. */}
+            {(product.gradingCompany && product.grade) || product.condition ? (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' as const }}>
+                {product.gradingCompany && product.grade ? (
+                  <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.gradingCompany} {product.grade}</span>
+                ) : (
+                  <span style={{ background: C.accentLight, border: `1px solid ${C.accent}33`, color: C.accent, fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 6 }}>{product.condition}</span>
+                )}
+              </div>
+            ) : null}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: 0 }}>{product.name}</h1>
               {!ended && user?.id !== product.sellerId && (
