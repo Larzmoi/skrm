@@ -120,20 +120,19 @@ function SelaaContent() {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [search])
 
-  // Tallennetaan scroll-positio jatkuvasti (kevyt throttle rAF:lla) kesken selauksen.
-  useEffect(() => {
-    let ticking = false
-    function onScroll() {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        sessionStorage.setItem(scrollKey, String(window.scrollY))
-        ticking = false
-      })
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [scrollKey])
+  // KORJATTU 2026-09-13: jatkuva scroll-kuuntelija (aiempi versio) ei toiminut, koska
+  // pelkkä tallennus itsessään oli rikki - vahvistettu oikealla selaimella (Playwright):
+  // heti tuotekortin klikkauksen jälkeen sessionStorage-arvo ylikirjoittui "0":ksi VAIKKA
+  // oltiin jo siirrytty tuotesivulle. Syy: React ei siivoa vanhan sivun scroll-kuuntelijaa
+  // synkronisesti navigoinnin yhteydessä - uuden sivun oma scroll-nollaus (Next vie uuden
+  // sivun ylös) ehti laueta ennen kuin /selaa:n vanha kuuntelija irtosi, ja se kirjoitti
+  // sen "0"-arvon tallennetun sijainnin päälle. Ratkaisu: EI kuunnella scrollia jatkuvasti
+  // ollenkaan - tallennetaan sijainti VAIN sillä hetkellä kun tuotekorttia klikataan
+  // (onClickCapture, ajoittuu ENNEN Next.js:n oman Link-navigoinnin käsittelijää), jolloin
+  // mitään kilpailevaa myöhempää kirjoitusta ei voi enää tapahtua.
+  function saveScrollBeforeNav() {
+    sessionStorage.setItem(scrollKey, String(window.scrollY))
+  }
 
   // Estetään selaimen OMA automaattinen back-scroll-restaurointi kokonaan - se laukeaa
   // popstate-tapahtumassa VÄLITTÖMÄSTI, ennen kuin React on ehtinyt renderöidä tuotegridin,
@@ -265,7 +264,7 @@ function SelaaContent() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
+            <div onClickCapture={saveScrollBeforeNav} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
               {filtered.map(p => (
                 <ProductCard
                   key={p.id} id={p.id} href={p.saleType === 'auction' ? `/huutokauppa/${p.id}` : `/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
