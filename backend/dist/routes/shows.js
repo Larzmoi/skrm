@@ -29,7 +29,12 @@ router.get('/', async (req, res) => {
     const select = {
         ...publicShowSelect,
         seller: { select: { id: true, name: true, username: true } },
-        products: { where: { status: 'PENDING' }, orderBy: { order: 'asc' }, take: 5 },
+        // KORJATTU 2026-09-13 (kriittinen, omistajan raportoima): tasapelin ratkaisu ('order'
+        // on 0 kaikilla ennen ensimmäistä raahausta) eroaa GET /products/mine:n käyttämästä
+        // ([{order:'asc'},{createdAt:'desc'}]) - myyjän oma jono käytti tätä tasapelin
+        // ratkaisua, katsojan puoli ei mitään, jolloin Postgres saattoi palauttaa samat
+        // order:0-tuotteet eri järjestyksessä kummallekin. Yhtenäistetty samaksi.
+        products: { where: { status: 'PENDING' }, orderBy: [{ order: 'asc' }, { createdAt: 'desc' }], take: 5 },
     };
     if (status) {
         const where = String(status) === 'SCHEDULED'
@@ -66,7 +71,11 @@ router.get('/:id', async (req, res) => {
         select: {
             ...publicShowSelect,
             seller: { select: { id: true, name: true, username: true } },
-            products: { orderBy: { order: 'asc' } },
+            // Sama korjaus kuin yllä GET /:ssä - tasapelin ratkaisu ([{order:'asc'},{createdAt:'desc'}])
+            // täsmää nyt GET /products/mine:n kanssa, jotta katsojan Shop-paneeli näyttää saman
+            // järjestyksen kuin myyjän oma Jono-paneeli. Tämä on se reitti jota /live/[showId]
+            // oikeasti käyttää livenä olevalle lähetykselle.
+            products: { orderBy: [{ order: 'asc' }, { createdAt: 'desc' }] },
         },
     });
     if (!show)
