@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Profiilin tuotejaottelu (live erikseen) + ajastetun lähetyksen "kaappaus"-bugi 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Jatkoa edelliseen ennakkotarjous-korjaukseen. Omistaja ehdotti: profiilisivulla livessä myytävät tuotteet omaan osioonsa, loput (suoramyynti+huutokaupat) niille omistettuun osioon — käänteinen jaottelu aiempaan nähden (aiemmin livet+huutokaupat olivat samassa "Tulevat"-osiossa, tavalliset tuotteet erikseen).
+
+**1. Profiilin uudelleenjaottelu — TEHTY.** `GET /users/:username` palauttaa nyt uuden `liveProducts`-kentän: yksittäiset tuotteet (ei pelkkä lähetyksen linkki) joilla on `showId` osoittamassa myyjän SCHEDULED/LIVE-lähetykseen — kattaa myös `saleType:'live'`-tuotteet jotka eivät koskaan näy tavallisessa `GET /products`:ssa. `/u/[username]`-sivulla uusi "Livessä myytävissä" -osio näyttää nämä yksittäisinä tuotekortteina (kuva/nimi/hinta + "LIVE NYT"/"Tulossa {aika}" -badge), linkki suoraan `/live/{showId}`:iin. "Myynnissä"-osio yhdistää nyt suoramyynti- ja huutokauppatuotteet samaan ryhmään (`combinedSelling`, suodattaa pois live-osiossa jo näkyvät duplikaatit).
+
+**2. ISOMPI, erillinen bugi löytyi samasta keskustelusta — omistaja kuvasi tarkan skenaarion:** "jos ajastan lähetyksen ja menen liveen niin ei se tarkoita että haluan pitää sen ilmoitetun ajastetun liven... esim wasacards laittoi 30. päivä liven, jos hän haluaakin spontaanisti pitää testiliven nyt niin se käyttää sen ilmoitetun eikä siihen voi vaikuttaa." **Vahvistettu koodista, todellinen bugi:** `/lahetys`:n `checkForActiveShow()` haki myyjän uusimman resumoitavan SCHEDULED-lähetyksen ja PAKOTTI sen jatkamisen suoraan (lukitsi koko lomakkeen, ei vaihtoehtoa) — täsmälleen sama koodipolku riippumatta oliko lähetys ajastettu 5 minuutin vai 3 viikon päähän. Pahempaa: sama SCHEDULED-lähetys oli tarkoituksella "resumoitavissa" vain 3h luontihetkestä (suoja unohdetuille testiluonnoksille) — kaukana tulevaisuudessa ajastettu, jo julkisesti ilmoitettu lähetys olisi siis pudonnut tämän suojan ulkopuolelle heti 3h:n jälkeen ja jäänyt käytännössä orvoksi: myyjä olisi päätynyt luomaan täysin UUDEN, irrallisen Show-rivin sen sijaan että olisi voinut jatkaa alkuperäistä edes sen omana ajankohtana.
+
+**Korjaus, kaksiosainen:**
+- 3h-vanhenemisraja koskee nyt VAIN scheduledAt:ittomia ad-hoc-testiluonnoksia (`/lahetys`:n oma pikakäynnistys) — aidosti ajastettu lähetys (`scheduledAt` asetettu, dashboardin lomakkeella luotu) ei vanhene enää koskaan pelkän luontiajan perusteella.
+- Kun ajastettu lähetys löytyy, myyjälle näytetään nyt EKSPLISIITTINEN valinta pakotetun jatkamisen sijaan: "Jatka ajastettuun: {nimi} — {aika}" TAI "Aloita eri lähetys nyt" — jälkimmäinen ei kosketa alkuperäiseen Show-riviin mitenkään, se pysyy koskemattomana omaan ajankohtaansa.
+
+**Testattu oikealla selaimella (Playwright) tuotantoa vasten:** lisätty testituote wasacardsin lähetykseen, `/u/wasacards`-profiili näytti sen oikein "Livessä myytävissä" -osiossa hinnan+"Tulossa ke 30.9. klo 19.00" -badgen kanssa, linkki `/live/`-sivulle vahvistettu. Testidata siivottu. **/lahetys:n valintanäkymää ei testattu selaimessa** (vaatisi kirjautumisen + kameraluvat, samaan tapaan kuin muutkin tämän konsolin "vaatii oikean selaimen" -rajaukset) — typecheck+build vihreä, koodi luettu huolella.
+
 ## KRIITTINEN: ennakkotarjousta ei voinut tehdä ollenkaan tavallisimmassa tapauksessa 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja huomasi mobiilikuvakaappauksesta etusivun "Wasa Cards Live 💫 · Ennakkotarjoukset ovat jo auki" -tekstin ja kysyi suoraan: miten niitä pääsee tekemään, vai onko se pelkkä automaattinen teksti?
