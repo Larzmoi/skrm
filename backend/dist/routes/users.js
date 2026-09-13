@@ -85,6 +85,17 @@ router.get('/:username', async (req, res) => {
         orderBy: { auctionEndsAt: 'asc' },
         select: { id: true, name: true, imageUrl: true, currentBid: true, startPrice: true, auctionEndsAt: true },
     });
+    // LISÄTTY 2026-09-13 (omistajan pyyntö): tuotteet jotka myydään livelähetyksessä omaan
+    // osioonsa, loput (suoramyynti + huutokaupat) niille omistettuun osioon - aiemmin
+    // profiili ei näyttänyt YHTÄÄN yksittäistä tuotetta siitä mitä tulevassa/käynnissä
+    // olevassa livessä oikeasti myydään, vain itse lähetyksen linkin. Tuote kuuluu tähän
+    // jos sillä on showId JOKA osoittaa myyjän SCHEDULED/LIVE-lähetykseen - kattaa myös
+    // saleType:'live' -tuotteet jotka eivät koskaan näy tavallisessa GET /products:ssa.
+    const liveProducts = await prisma_1.prisma.product.findMany({
+        where: { sellerId: user.id, status: 'PENDING', showId: { not: null }, show: { status: { in: ['SCHEDULED', 'LIVE'] } } },
+        orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+        select: { id: true, name: true, imageUrl: true, startPrice: true, condition: true, gradingCompany: true, grade: true, showId: true, show: { select: { status: true, scheduledAt: true, title: true } } },
+    });
     res.json({
         ...user, followerCount, isFollowing,
         avgRating: ratingAgg._avg.rating,
@@ -92,6 +103,7 @@ router.get('/:username', async (req, res) => {
         onVacation,
         upcomingShows,
         activeAuctions,
+        liveProducts,
     });
 });
 // GET /users/:username/reviews — julkinen lista käyttäjän saamista arvosteluista

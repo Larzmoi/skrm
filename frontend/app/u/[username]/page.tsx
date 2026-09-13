@@ -86,6 +86,18 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const displayName = profile?.name ?? username
   const initial = displayName?.[0]?.toUpperCase() ?? '?'
 
+  // KORJATTU 2026-09-13 (omistajan pyyntö): livelähetyksessä myytävät tuotteet omaan
+  // osioonsa, loput (suoramyynti + huutokaupat) yhdistettynä "Myynnissä"-osioon niiden
+  // sijaan että livet+huutokaupat olisivat samassa "Tulevat"-osiossa ja tavalliset tuotteet
+  // erikseen (aiempi, päinvastainen jaottelu). liveProductIds suodattaa pois duplikaatit
+  // "Myynnissä"-listalta, koska sama saleType:'both'-tuote voi muuten esiintyä molemmissa.
+  const liveProducts: any[] = profile?.liveProducts ?? []
+  const liveProductIds = new Set(liveProducts.map(p => p.id))
+  const combinedSelling = [
+    ...products.filter(p => !liveProductIds.has(p.id)).map(p => ({ ...p, kind: 'product' as const })),
+    ...(profile?.activeAuctions ?? []).map((a: any) => ({ ...a, kind: 'auction' as const })),
+  ]
+
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
       <Navbar />
@@ -181,60 +193,30 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </div>
         </div>
 
-        {/* Tulevat lähetykset ja huutokaupat — korostettu, jotta ostaja löytää ennakkotarjousta varten */}
-        {((profile?.upcomingShows?.length ?? 0) > 0 || (profile?.activeAuctions?.length ?? 0) > 0) && (
+        {/* Livessä myytävät tuotteet — oma osionsa (omistajan pyyntö 2026-09-13), erillään
+            tavallisista/huutokauppatuotteista. Linkki menee suoraan sen oman lähetyksen
+            sivulle (SCHEDULED -> ennakkotarjous, LIVE -> suora osallistuminen). */}
+        {liveProducts.length > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.upcomingSection}</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.liveSelling}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              {profile.upcomingShows.map((s: any) => (
-                <Link key={s.id} href={`/live/${s.id}`} style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
-                  <div style={{ aspectRatio: '16/9', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {s.thumbnailUrl
-                      ? <img src={s.thumbnailUrl} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>LIVE</span>
-                    }
-                  </div>
-                  <div style={{ padding: '10px 12px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
-                    <div style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{formatShowTime(s.scheduledAt, t, lang as any)}</div>
-                  </div>
-                </Link>
-              ))}
-              {profile.activeAuctions.map((a: any) => (
-                <Link key={a.id} href={`/huutokauppa/${a.id}`} style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
-                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    {a.imageUrl
-                      ? <img src={a.imageUrl.split('|||')[0]} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
-                    }
-                  </div>
-                  <div style={{ padding: '10px 12px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{(a.currentBid ?? a.startPrice).toLocaleString('fi-FI')}€</div>
-                    <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{t.auction.endsIn} {formatShowTime(a.auctionEndsAt, t, lang as any)}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tuotteet myynnissä */}
-        {products.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.selling}</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-              {products.map((p: any) => (
-                <Link key={p.id} href={`/tuotteet/${p.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
-                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {liveProducts.map(p => (
+                <Link key={p.id} href={`/live/${p.showId}`} style={{ background: C.accentLight, border: `1px solid ${C.accent}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                     {p.imageUrl
                       ? <img src={p.imageUrl.split('|||')[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : <span style={{ fontSize: 32, color: C.dim }}>+</span>
                     }
+                    <div style={{ position: 'absolute', top: 8, left: 8, background: p.show?.status === 'LIVE' ? '#EF4444' : C.accentSolid, color: p.show?.status === 'LIVE' ? '#fff' : C.accentText, fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 20 }}>
+                      {p.show?.status === 'LIVE' ? t.profile.liveNowBadge : t.profile.liveSoonBadge}
+                    </div>
                   </div>
                   <div style={{ padding: '10px 12px' }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{p.startPrice?.toLocaleString('fi-FI')}€</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 3 }}>{p.startPrice?.toLocaleString('fi-FI')}€</div>
+                    {p.show?.status === 'SCHEDULED' && p.show?.scheduledAt && (
+                      <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{formatShowTime(p.show.scheduledAt, t, lang as any)}</div>
+                    )}
                   </div>
                 </Link>
               ))}
@@ -242,7 +224,46 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </div>
         )}
 
-        {products.length === 0 && !loading && (
+        {/* Muut tuotteet — suoramyynti ja huutokaupat yhdistettynä (omistajan pyyntö
+            2026-09-13: "loput niille omistettuun osioon", ei enää eroteltuna huutokauppa
+            omaan "Tulevat"-osioonsa livejen kanssa). */}
+        {combinedSelling.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 14 }}>{t.profile.selling}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              {combinedSelling.map(item => item.kind === 'auction' ? (
+                <Link key={item.id} href={`/huutokauppa/${item.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {item.imageUrl
+                      ? <img src={item.imageUrl.split('|||')[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
+                    }
+                  </div>
+                  <div style={{ padding: '10px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{(item.currentBid ?? item.startPrice).toLocaleString('fi-FI')}€</div>
+                    <div style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>{t.auction.endsIn} {formatShowTime(item.auctionEndsAt, t, lang as any)}</div>
+                  </div>
+                </Link>
+              ) : (
+                <Link key={item.id} href={`/tuotteet/${item.id}`} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', textDecoration: 'none', display: 'block' }}>
+                  <div style={{ aspectRatio: '1', background: C.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {item.imageUrl
+                      ? <img src={item.imageUrl.split('|||')[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 32, color: C.dim }}>+</span>
+                    }
+                  </div>
+                  <div style={{ padding: '10px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{item.startPrice?.toLocaleString('fi-FI')}€</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {combinedSelling.length === 0 && liveProducts.length === 0 && !loading && (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: C.muted, fontSize: 14 }}>
             {t.profile.noProducts}
           </div>

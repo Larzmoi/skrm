@@ -11,6 +11,7 @@ import { presetApi, ProductPreset } from '@/lib/api'
 import { CARDMARKET_KUNTOLUOKAT } from '@/lib/conditions'
 import { useIsMobile } from '@/lib/useIsMobile'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import { formatShowTime } from '@/lib/formatShowTime'
 
 interface Product { id: string; name: string; startPrice: number; description?: string; imageUrl?: string; status: string; order: number; auctionDuration?: number; saleType?: string; condition?: string; gradingCompany?: string | null; grade?: string | null; quantity?: number }
 
@@ -265,6 +266,17 @@ export default function LahetysPage() {
   // tiedoilla eikä createShow() luo uutta Show-riviä, vain siirtää konsoliin. Ks. CLAUDE.md
   // "Ajastetun lähetyksen klikkaus vei suoraan livekonsoliin ilman kameratestiä".
   const [pendingShowId, setPendingShowId] = useState<string | null>(null)
+  // KORJATTU 2026-09-13 (omistajan raportoima bugi): checkForActiveShow() löysi aiemmin
+  // aina VAIN yhden "resumoitavan" SCHEDULED-lähetyksen ja PAKOTTI sen jatkamisen suoraan
+  // (lukitsi koko lomakkeen) - jos myyjä oli ajastanut lähetyksen esim. 2 viikon päähän ja
+  // halusi sitten spontaanisti pitää eri, ad-hoc-lähetyksen NYT, hän ei voinut vaikuttaa
+  // asiaan: /lahetys yritti aina "jatkaa" sitä kaukana tulevaisuudessa olevaa ajastusta.
+  // pendingShowInfo säilyttää löydetyn ajastetun lähetyksen tiedot VALINTAA VARTEN - vasta
+  // kun myyjä eksplisiittisesti valitsee "Jatka ajastettuun" (ks. resumeScheduledShow()),
+  // pendingShowId asetetaan ja lomake lukittuu kuten ennen. "Aloita eri lähetys nyt" -valinta
+  // tyhjentää tämän koskematta alkuperäiseen ajastukseen mitenkään - se odottaa yhä omana
+  // erillisenä Show-rivinään omaan ajankohtaansa.
+  const [pendingShowInfo, setPendingShowInfo] = useState<{ id: string; title: string; category?: string; alakategoria?: string; city?: string; thumbnailUrl?: string; scheduledAt?: string } | null>(null)
   const [goingPublic, setGoingPublic] = useState(false)
   const [streamKey, setStreamKey] = useState('')
   const [streamUrl, setStreamUrl] = useState('')
@@ -493,13 +505,21 @@ export default function LahetysPage() {
       const { showApi } = await import('@/lib/api')
       const shows: any[] = await showApi.mine()
       const active = shows
-        // SCHEDULED-lähetys on yksityinen esikatselu/testivaihe joka ei realistisesti kestä
-        // päiviä — vanha unohdettu testiluonnos (esim. selain suljettu ilman "Lopeta
-        // lähetys" -painallusta) ei saa jäädä "aktiiviseksi" ikuisesti ja yllättäen resumeta
-        // vahingossa myöhemmin, jolloin myyjä päätyisi hämmentävästi vanhaan lähetykseen
-        // tajuamatta miksi. LIVE-lähetykselle ei ole vastaavaa rajaa, koska julkinen lähetys
-        // pitää aina pystyä jatkamaan riippumatta siitä miten kauan se on ollut käynnissä.
-        .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000))
+        // Ad-hoc esikatseluluonnos (ei scheduledAt:ia, /lahetys:n oma "Luo lähetys ja testaa
+        // yhteys" -nappi) ei realistisesti kestä päiviä - vanha unohdettu testiluonnos (esim.
+        // selain suljettu ilman "Lopeta lähetys" -painallusta) ei saa jäädä "aktiiviseksi"
+        // ikuisesti ja yllättäen resumeta vahingossa myöhemmin. MUTTA aidosti ajastettu
+        // lähetys (scheduledAt asetettu, esim. dashboardin lomakkeella luotu 2+ viikon päähän)
+        // EI SAA vanhentua koskaan tällä perusteella - KORJATTU 2026-09-13, ks. yllä
+        // pendingShowInfo:n kommentti: 3h-raja mitattuna luontihetkestä olisi tehnyt kaukana
+        // tulevaisuudessa olevasta, jo julkisesti ilmoitetusta lähetyksestä käytännössä
+        // "orvon" heti kun 3h oli kulunut sen luonnista - myyjä olisi päätynyt luomaan
+        // täysin UUDEN, irrallisen Show-rivin sen sijaan että olisi voinut jatkaa alkuperäistä
+        // edes sen oikeana ajankohtana. LIVE-lähetykselle ei ole rajaa lainkaan, koska
+        // julkinen lähetys pitää aina pystyä jatkamaan riippumatta kestosta.
+        .filter(s => s.status === 'LIVE' || (s.status === 'SCHEDULED' && (
+          s.scheduledAt || Date.now() - new Date(s.createdAt).getTime() < 3 * 60 * 60 * 1000
+        )))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
       if (active) {
         if (active.status === 'LIVE') {
@@ -512,21 +532,36 @@ export default function LahetysPage() {
           if (active.startedAt) setLiveSince(new Date(active.startedAt).getTime())
           if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
         } else {
-          // SCHEDULED-lähetys (esim. dashboardin ajastuslomakkeella luotu) - EI hypätä suoraan
-          // livekonsoliin, koska kameraa/OBS:aa ei ole vielä testattu eikä yhdistetty mihinkään.
-          // Jäädään esikatselu-/asetusnäkymään (isLive=false) esitäytettynä olemassa olevan
-          // lähetyksen tiedoilla - konsoliin siirrytään vasta kameran testauksen jälkeen
-          // (ks. createShow()). Ilman tätä video-alue (HlsPreview) näytti tyhjää, koska mikään
-          // ei ollut koskaan alkanut julkaista kuvaa sinne.
-          setPendingShowId(active.id)
-          setTitle(active.title)
-          if (active.category) setCategory(active.category)
-          if (active.alakategoria) setAlakategoria(active.alakategoria)
-          if (active.city) setCity(active.city)
-          if (active.thumbnailUrl) setThumbnail(active.thumbnailUrl)
+          // SCHEDULED-lähetys (esim. dashboardin ajastuslomakkeella luotu) - EI enää
+          // pakoteta suoraan "jatka tätä" -tilaan (ks. pendingShowInfo:n kommentti) - vain
+          // TARJOTAAN valintana, myyjä päättää itse resumeScheduledShow()/startDifferentShow():lla.
+          setPendingShowInfo({
+            id: active.id, title: active.title, category: active.category,
+            alakategoria: active.alakategoria, city: active.city,
+            thumbnailUrl: active.thumbnailUrl, scheduledAt: active.scheduledAt,
+          })
         }
       }
     } catch {}
+  }
+
+  // Myyjä valitsi "Jatka ajastettuun" - lukitaan lomake kuten ennen tätä korjausta.
+  function resumeScheduledShow() {
+    if (!pendingShowInfo) return
+    setPendingShowId(pendingShowInfo.id)
+    setTitle(pendingShowInfo.title)
+    if (pendingShowInfo.category) setCategory(pendingShowInfo.category)
+    if (pendingShowInfo.alakategoria) setAlakategoria(pendingShowInfo.alakategoria)
+    if (pendingShowInfo.city) setCity(pendingShowInfo.city)
+    if (pendingShowInfo.thumbnailUrl) setThumbnail(pendingShowInfo.thumbnailUrl)
+    setPendingShowInfo(null)
+  }
+
+  // Myyjä valitsi "Aloita eri lähetys nyt" - hylätään pelkkä NÄYTTÖTILA, ei kosketa
+  // itse ajastettuun Show-riviin mitenkään tietokannassa - se pysyy koskemattomana
+  // omaan ajankohtaansa asti. Lomake jää tyhjäksi normaalia uutta lähetystä varten.
+  function startDifferentShow() {
+    setPendingShowInfo(null)
   }
 
   useEffect(() => {
@@ -1398,6 +1433,21 @@ export default function LahetysPage() {
                 {pendingShowId && (
                   <div style={{ background: 'rgba(74,222,128,0.1)', border: `1px solid ${GREEN_DIM}66`, borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: GREEN, fontSize: 12, fontWeight: 600 }}>
                     {sc.resumeScheduledBanner}
+                  </div>
+                )}
+                {/* KORJAUS 2026-09-13: myyjä valitsee itse jatketaanko ajastettua lähetystä vai
+                    aloitetaanko eri, spontaani lähetys nyt - ks. pendingShowInfo:n kommentti. */}
+                {pendingShowInfo && !pendingShowId && (
+                  <div style={{ background: 'rgba(74,222,128,0.08)', border: `1px solid ${GREEN_DIM}66`, borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
+                    <div style={{ color: GREEN, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{sc.scheduledShowFoundTitle}</div>
+                    <div style={{ color: DARK_MUTED, fontSize: 12, marginBottom: 4 }}>
+                      {pendingShowInfo.title}{pendingShowInfo.scheduledAt ? ` — ${formatShowTime(pendingShowInfo.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
+                    </div>
+                    <div style={{ color: DARK_MUTED, fontSize: 12, marginBottom: 12 }}>{sc.scheduledShowFoundHint}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                      <button onClick={resumeScheduledShow} style={{ background: GREEN_DIM, border: 'none', color: '#fff', padding: '8px 14px', borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{sc.resumeScheduledChoiceBtn}</button>
+                      <button onClick={startDifferentShow} style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${DARK_BORDER}`, color: '#fff', padding: '8px 14px', borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{sc.startDifferentShowBtn}</button>
+                    </div>
                   </div>
                 )}
                 <div style={{ background: DARK_PANEL_BG, border: `1px solid ${DARK_BORDER}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
