@@ -7,6 +7,20 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## KRIITTINEN: ennakkotarjousta ei voinut tehdä ollenkaan tavallisimmassa tapauksessa 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja huomasi mobiilikuvakaappauksesta etusivun "Wasa Cards Live 💫 · Ennakkotarjoukset ovat jo auki" -tekstin ja kysyi suoraan: miten niitä pääsee tekemään, vai onko se pelkkä automaattinen teksti?
+
+**Kaksi erillistä, molemmat todellista bugia löytyi — ei vain yksi, tarkistettu ensin oikeasta tuotannon datasta ennen koodausta:**
+
+1. **Etusivun teksti oli aina päällä riippumatta totuudesta.** Tarkistettu suoraan `GET /shows/:id`:llä juuri tätä "Wasa Cards Live" -lähetystä — `products: []`, EI YHTÄÄN tuotetta jonossa. Teksti väitti silti "ennakkotarjoukset ovat jo auki" vaikka ei ollut mitään tarjottavaa. `frontend/app/page.tsx`:n `mapShow()` ei koskaan lukenut `GET /shows`:n jo palauttamaa `products[]`-kenttää (take 5) tähän tarkoitukseen. **Korjaus:** uusi `hasProducts`-kenttä `mapShow()`:ssa, `PromoBanner` näyttää `t.home.upcomingPreBidOpen`:n vain kun `hasProducts` on tosi, muuten uuden `t.home.upcomingNoProductsYet` ("Tuotteet julkaistaan pian") — fi/en/sv.
+
+2. **ISOMPI, todellinen juurisyy — löytyi vasta oikealla selaimella (Playwright) testaamalla, ei koodikatselmuksella:** luotiin kertakäyttöinen testituote tähän lähetykseen ja avattiin sivu — tuote näytti heti "Huudetaan livenä nyt" / "NOW"-badgen ja Pre-bid-nappi puuttui KOKONAAN, VAIKKA lähetys ei ollut edes alkanut (`WaitingForStream`-tila, "Odotetaan lähetyksen alkua..."). Juurisyy: `/live/[showId]/page.tsx`:n `loadShow()` asettaa `auction.productId`:n aina jonon ENSIMMÄISEEN tuotteeseen heti sivun latautuessa (`data.products?.[0]?.id`) — tarkoitettu VAIN näyttämään jotain pääkortissa ennen striimin alkua, EI merkiksi että tuote olisi oikeasti aktiivisesti huudettavana (`auction.active` on silti `false`). Mutta `ShopPanel`in `activeProductId`-propi ja `ProductDetailModal`in `isPreBiddable`-propi käyttivät tätä samaa `auction.productId`:tä suoraan päättämään onko tuote ennakkotarjottavissa, tarkistamatta `auction.active`:a lainkaan. **Seuraus: jonon ensimmäinen (useimmiten AINOA, juuri lähetystä ajastettaessa lisätty) tuote ei koskaan ollut ennakkotarjottavissa — täsmää suoraan omistajan kuvaamaan kokemukseen "ei ole mitään käyttöliittymää josta päästä tekemään ennakkotarjous".**
+
+**Korjaus:** `ShopPanel`in `activeProductId={auction.active ? auction.productId : null}` (3 kutsupaikkaa) ja `ProductDetailModal`in `isPreBiddable={!(auction.active && modalProduct.id === auction.productId)}` (2 kutsupaikkaa) — tuote on nyt "aktiivinen" (ei ennakkotarjottavissa) vain kun oikea live-huuto on todella käynnissä sille, ei koskaan pelkän näyttöoletuksen perusteella.
+
+**Testattu OIKEALLA selaimella tuotantoa vasten, ennen ja jälkeen korjauksen (ei koodikatselmus):** kertakäyttöinen testituote lisättiin oikeasti tähän lähetykseen — ennen korjausta "Huudetaan livenä nyt", ei Pre-bid-nappia; korjauksen jälkeen sama tuote näytti oikein hinnan + "Pre-bid"-napin, napin klikkaus avasi toimivan modaalin ("Lähtöhinta 5€", "Jätä tarjous" -nappi ja syöttökenttä). Testidata siivottu.
+
 ## Live-lähetyksen tuotejärjestys ei täsmännyt myyjän ja katsojan välillä 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö: liven aikaisten tuotteiden järjestyksen pitäisi näkyä katsojille täsmälleen samana kuin myyjän omalla Jono-listalla.
