@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import CategorySidebar from '@/components/CategorySidebar'
@@ -44,6 +44,15 @@ export default function HuutokaupatPage() {
   const [isMobile, setIsMobile] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [now, setNow] = useState(Date.now())
+  // Sama scroll-position-korjaus kuin /selaa:lla (ks. CLAUDE.md "Etusivu/haku..." 2026-09-13) -
+  // sama juurisyy: jatkuva window-scroll-kuuntelija ei siivoutunut synkronisesti navigoinnin
+  // yhteydessä, uuden sivun oma scroll-nollaus ehti ylikirjoittaa juuri tallennetun sijainnin
+  // "0":lla. Tallennetaan siis vain klikkaushetkellä (onClickCapture), ei jatkuvasti.
+  const scrollKey = `hb_scroll_huutokaupat:${activeKat}:${activeAla}:${activeTyyppi}:${sort}:${city}:${activeCondition.join(',')}`
+  const restoredKeyRef = useRef<string | null>(null)
+  function saveScrollBeforeNav() {
+    sessionStorage.setItem(scrollKey, String(window.scrollY))
+  }
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -68,6 +77,31 @@ export default function HuutokaupatPage() {
       .catch(() => setAuctions([]))
       .finally(() => setLoading(false))
   }, [sort, activeKat, activeAla, activeTyyppi])
+
+  // Otetaan selaimen oma back-scroll-restaurointi pois käytöstä - sama korjaus kuin
+  // /selaa:lla, ks. CLAUDE.md.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) return
+    const prev = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    return () => { window.history.scrollRestoration = prev }
+  }, [])
+
+  // Palautetaan tallennettu sijainti kun sisältö on ehtinyt latautua (kerran per avain).
+  useEffect(() => {
+    if (loading || restoredKeyRef.current === scrollKey) return
+    restoredKeyRef.current = scrollKey
+    const saved = sessionStorage.getItem(scrollKey)
+    if (!saved) return
+    const target = Number(saved)
+    let attempts = 0
+    const id = setInterval(() => {
+      window.scrollTo(0, target)
+      attempts++
+      if (attempts >= 10 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
+    }, 50)
+    return () => clearInterval(id)
+  }, [loading, scrollKey])
 
   const cities = useMemo(() => {
     const set = new Set(auctions.map(auctionCity).filter(Boolean) as string[])
@@ -148,7 +182,7 @@ export default function HuutokaupatPage() {
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: C.muted }}>Ei aktiivisia huutokauppoja</div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
+            <div onClickCapture={saveScrollBeforeNav} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
               {filtered.map(a => {
                 const remaining = new Date(a.auctionEndsAt).getTime() - now
                 const urgent = remaining < 60 * 60 * 1000
