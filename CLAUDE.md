@@ -7,6 +7,22 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Etusivu/haku: huutokaupat eivät löytyneet haulla + selauksen scroll-positio 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Kaksi kohtaa omistajan laajemmasta "Iso palautekierros 2026-09-13" -listasta (osio B, kohdat 8 ja 11 — koko lista jaettu omistajan toisen kanavan kautta, käsitellään yksi kerrallaan omistajan pyynnöstä).
+
+**Kohta 8 — KRIITTINEN: `GET /products` ei koskaan palauttanut huutokauppakohteita, ei edes nimihaulla.** `where.saleType` oli aina kiinteä `{in:['buy_now','both']}` (`backend/src/routes/products.ts`) riippumatta hakusanasta. **Sivutuotteena löytyi vielä isompi puute:** `/selaa`-sivun hakukenttä ei ikinä lähettänyt hakusanaa palvelimelle ollenkaan — se suodatti pelkästään jo ladattua, kategoriasuodatettua 50 tuotteen listaa client-puolella (`x.name.includes(search)`). Haku ei siis koskaan kysynyt koko katalogia, vain viimeisimpiä 50 tuotetta valitussa kategoriassa — huutokauppa olisi jäänyt pois vaikka backend olisikin sen palauttanut.
+
+**Korjaus, molemmat puolet:**
+- Backend: `where.saleType` laajenee `{in:['buy_now','both','auction']}`:iin **vain kun `search`-parametri on annettu** — ilman hakua käytös pysyy ennallaan (`/selaa`:n oma Kaikki/Suoramyynti/Huutokaupat-välilehtijako nojaa oletusnäkymään). Haku laajennettu kattamaan myös myyjän käyttäjätunnuksen (`OR`-ehto) — säilyttää `/selaa`:n aiemman client-puolen "nimi TAI myyjän tunnus" -haun toimivuuden nyt kun haku siirtyi palvelimelle. `take`-katto nostettu 50:stä 200:aan kun haku on käytössä, ettei kasvava katalogi jättäisi hakutuloksia piiloon.
+- Frontend (`/selaa`): hakusana lähetetään nyt oikeasti backendille (`params.search`, 300ms debounce), backend palauttaa koko katalogista suodatetun tuloksen client-puolen 50-tuotteen sijaan. **Huutokauppatuloksen klikkaus vie nyt `/huutokauppa/:iin`, ei `/tuotteet/:iin`** (`ProductCard`in `href` riippuu `p.saleType === 'auction'`:sta) — `/tuotteet/[id]` ei osaa näyttää puhdasta `saleType:'auction'`-tuotetta oikein (ei osta heti -nappia, ei ennakkotarjousta), joten väärä linkki olisi näyttänyt tyhjän/rikkinäisen sivun.
+
+**Testattu tuotannossa oikealla API-kutsulla:** luotu kertakäyttöinen `saleType:'auction'`-testituote, `GET /products` ilman hakua → ei löydy (oletuskäytös säilyi), `GET /products?search=<nimi>` → löytyy, `saleType:"auction"` oikein mukana vastauksessa. Testidata siivottu.
+
+**Kohta 11 — selauksen scroll-positio nollautui aina takaisin-navigoinnissa.** `/selaa` hakee tuotteet asynkronisesti `useEffect`:llä mountin jälkeen — kun palataan takaisin tuotesivulta, sivu on hetken lyhyessä "Ladataan..."-tilassa, jolloin selaimen oma back-scroll-restaurointi ei löydä mitään palautettavaa (dokumentti on liian lyhyt) ja jää ylös kun sisältö sitten kasvaa. **Korjaus:** scroll-positio tallennetaan itse `sessionStorage`:en jatkuvasti selatessa (kevyt `requestAnimationFrame`-throttle), avaimena nykyinen hakukyselymerkkijono. Kun tuotteet ovat latautuneet (`loading===false`), tallennettu positio palautetaan kerran per avain (`rAF` varmistaa että gridi on jo DOM:issa).
+
+**Ei visuaalisesti vahvistettu selaimessa** (ei selaintyökalua tässä ympäristössä) — typecheck+build vihreä, koodi luettu huolella. Omistajan kannattaa tarkistaa itse: selaa `/selaa`-sivua alaspäin, klikkaa tuote auki, palaa selaimen "takaisin"-toiminnolla ja vahvista että jäät samaan kohtaan.
+
 ## Push-ilmoitukset keskitetty kaikkiin tapahtumiin + "Peru ilmoitukset" -nappi 2026-09-12 — ✅ TEHTY JA DEPLOYATTU
 
 Omistajan pyyntö, kaksiosainen: "tarkasta että kaikista myynneistä ja viesteistä yms tulee varmasti ne notifikaatiot" + muuta "Ota ilmoitukset käyttöön" -nappi näyttämään "Peru ilmoitukset" kun tilaus on jo aktiivinen.
