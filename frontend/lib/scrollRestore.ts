@@ -29,11 +29,16 @@ function restoreScrollPosition() {
   const saved = sessionStorage.getItem(scrollStorageKey(window.location.pathname, window.location.search))
   if (!saved) return
   const target = Number(saved)
+  // 60 yritystä × 50ms = 3s - havaittu oikealla selaimella (Playwright) että sisällön
+  // lataus voi joskus kestää yli sekunnin (esim. hidas verkko/palvelin), jolloin aiempi
+  // 1s (20 yritystä) katkaisi liian aikaisin ja jätti sivun ylös vaikka sisältö olisi
+  // ladannut hetkeä myöhemmin - 3s antaa reilun turvamarginaalin ilman että kukaan
+  // huomaa taustalla hiljaa jatkuvaa yritystä.
   let attempts = 0
   const id = setInterval(() => {
     window.scrollTo(0, target)
     attempts++
-    if (attempts >= 20 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
+    if (attempts >= 60 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
   }, 50)
 }
 
