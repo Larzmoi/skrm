@@ -103,6 +103,29 @@ export default function HuutokaupatPage() {
     return () => clearInterval(id)
   }, [loading, scrollKey])
 
+  // LISÄTTY 2026-09-13, löytyi oikealla selaimella testaamalla: pelkkä `loading`-riippuvainen
+  // efekti ei riittänyt tällä sivulla (toisin kuin /selaa:lla) - tällä sivulla ei ole
+  // useSearchParams-riippuvuutta, joten Next.js saattaa palauttaa saman, jo mountatun
+  // komponentti-instanssin takaisin-navigoinnissa uudelleenlataamatta mitään - `loading` ei
+  // koskaan vaihdu jolloin efekti ei koskaan laukea uudestaan. `popstate`-kuuntelija toimii
+  // riippumatta siitä mountaako React komponentin uudelleen vai ei, koska se on suoraan
+  // selaimen oma tapahtuma.
+  useEffect(() => {
+    function onPopState() {
+      const saved = sessionStorage.getItem(scrollKey)
+      if (!saved) return
+      const target = Number(saved)
+      let attempts = 0
+      const id = setInterval(() => {
+        window.scrollTo(0, target)
+        attempts++
+        if (attempts >= 10 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
+      }, 50)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [scrollKey])
+
   const cities = useMemo(() => {
     const set = new Set(auctions.map(auctionCity).filter(Boolean) as string[])
     return Array.from(set).sort()
