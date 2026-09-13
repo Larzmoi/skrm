@@ -135,13 +135,35 @@ function SelaaContent() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [scrollKey])
 
-  // Palautetaan tallennettu sijainti kun sisältö on ehtinyt latautua (kerran per avain) -
-  // rAF varmistaa että tuotegridi on jo DOM:issa ennen kuin scrollataan sinne.
+  // Estetään selaimen OMA automaattinen back-scroll-restaurointi kokonaan - se laukeaa
+  // popstate-tapahtumassa VÄLITTÖMÄSTI, ennen kuin React on ehtinyt renderöidä tuotegridin,
+  // jolloin se yrittää palauttaa liian lyhyeksi jääneelle "Ladataan..."-dokumentille eikä
+  // koskaan yritä uudestaan kun sisältö sitten kasvaa. 'manual' antaa täyden hallinnan
+  // alla olevalle omalle palautuslogiikalle sen sijaan että ne kilpailisivat keskenään.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) return
+    const prev = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    return () => { window.history.scrollRestoration = prev }
+  }, [])
+
+  // Palautetaan tallennettu sijainti kun sisältö on ehtinyt latautua (kerran per avain).
+  // Yksi rAF ei riittänyt luotettavasti (kilpailee Next.js:n omien, ajoitukseltaan
+  // vaihtelevien scroll-yritysten kanssa) - pakotetaan sijainti uudestaan lyhyen ajan
+  // (n. 500ms) kunnes se pysyy, sen sijaan että luotettaisiin yhteen kertaan riittävän.
   useEffect(() => {
     if (loading || restoredKeyRef.current === scrollKey) return
     restoredKeyRef.current = scrollKey
     const saved = sessionStorage.getItem(scrollKey)
-    if (saved) requestAnimationFrame(() => window.scrollTo(0, Number(saved)))
+    if (!saved) return
+    const target = Number(saved)
+    let attempts = 0
+    const id = setInterval(() => {
+      window.scrollTo(0, target)
+      attempts++
+      if (attempts >= 10 || Math.abs(window.scrollY - target) < 4) clearInterval(id)
+    }, 50)
+    return () => clearInterval(id)
   }, [loading, scrollKey])
 
   const cities = useMemo(() => {
