@@ -659,6 +659,16 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         if (!data || (data as any).error) return
         setShow(data)
         setViewers(data.viewerCount ?? 0)
+        // HUOM 2026-09-13 (kriittinen löydös): productId asetetaan tässä pelkkää NÄYTTÖÄ
+        // varten (jotain pitää näkyä pääkortissa ennen kuin lähetys on edes alkanut) - EI
+        // tarkoita että kyseinen tuote olisi oikeasti aktiivisesti huudettavana. auction.active
+        // on edelleen false tässä vaiheessa. Kaikki paikat jotka käyttävät productId:tä
+        // päättääkseen onko tuote ennakkotarjottavissa (ShopPanelin activeProductId, Product-
+        // DetailModalin isPreBiddable) TARKISTAVAT MYÖS auction.active:n erikseen - ilman sitä
+        // jonon ENSIMMÄINEN tuote (yleisin tapaus: myyjä on lisännyt vasta yhden tuotteen)
+        // näytti aina "Huudetaan livenä nyt" eikä sitä voinut ennakkotarjota ollenkaan, vaikka
+        // lähetys ei ollut edes alkanut - täsmäsi omistajan raportoimaan "ei pääse tekemään
+        // ennakkotarjousta" -bugiin.
         setAuction(a => ({ ...a, productId: a.productId ?? data.products?.[0]?.id ?? null }))
       })
       .catch(() => {})
@@ -934,7 +944,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
               <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', flex: 1 }}>Shop</span>
               <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
             </div>
-            <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
+            <ShopPanel C={C} t={t} products={products} activeProductId={auction.active ? auction.productId : null} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
           </div>
         </div>
 
@@ -1020,7 +1030,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
           <AdminDeleteModal targetType="show" targetId={showId} onClose={() => setShowAdminDelete(false)} onDeleted={() => router.push('/live-kaikki')} />
         )}
         {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
-        {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
+        {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={!(auction.active && modalProduct.id === auction.productId)} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
       </div>
     )
   }
@@ -1062,7 +1072,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         {!isTablet && (
           <div style={{ background: '#0A0A0A', borderRight: '1px solid #1A1A1A', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '12px 14px 0', fontSize: 13, fontWeight: 700, color: '#fff' }}>Shop</div>
-            <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
+            <ShopPanel C={C} t={t} products={products} activeProductId={auction.active ? auction.productId : null} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
           </div>
         )}
 
@@ -1116,7 +1126,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
                 <button onClick={() => setShopOpen(false)} style={{ background: '#1A1A1A', border: 'none', borderRadius: '50%', width: 30, height: 30, color: '#fff', fontSize: 14, cursor: 'pointer' }}>✕</button>
               </div>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <ShopPanel C={C} t={t} products={products} activeProductId={auction.productId} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
+                <ShopPanel C={C} t={t} products={products} activeProductId={auction.active ? auction.productId : null} search={shopSearch} setSearch={setShopSearch} filter={shopFilter} setFilter={setShopFilter} sort={shopSort} setSort={setShopSort} onBuyNow={buyNow} onProductClick={setModalProduct} buyQty={buyQty} setBuyQty={setBuyQty} />
               </div>
             </div>
           )}
@@ -1144,7 +1154,7 @@ export default function LivePage({ params }: { params: Promise<{ showId: string 
         <AdminDeleteModal targetType="show" targetId={showId} onClose={() => setShowAdminDelete(false)} onDeleted={() => router.push('/live-kaikki')} />
       )}
       {confirmDialog && <ConfirmDialog message={confirmDialog.message} danger={confirmDialog.danger} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog(null)} />}
-      {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={modalProduct.id !== auction.productId} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
+      {modalProduct && <ProductDetailModal product={modalProduct} isPreBiddable={!(auction.active && modalProduct.id === auction.productId)} t={t} user={user} onClose={() => setModalProduct(null)} onSuccess={loadShow} onRequireLogin={() => router.push(`/login?redirect=/live/${showId}`)} />}
     </div>
   )
 }

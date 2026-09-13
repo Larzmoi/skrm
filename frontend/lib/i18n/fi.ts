@@ -23,6 +23,7 @@ const fi = {
     promoBody: '',
     promoCta: 'Luo tili',
     upcomingPreBidOpen: 'Ennakkotarjoukset ovat jo auki',
+    upcomingNoProductsYet: 'Tuotteet julkaistaan pian',
     watchShow: 'Katso lähetys',
     adLabel: 'Habahub suosittelee',
     adCta: 'Selaa huutokauppoja',

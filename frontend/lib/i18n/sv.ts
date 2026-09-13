@@ -23,6 +23,7 @@ const sv = {
     promoBody: '',
     promoCta: 'Skapa konto',
     upcomingPreBidOpen: 'Förhandsbud är redan öppna',
+    upcomingNoProductsYet: 'Produkter kommer snart',
     watchShow: 'Se sändningen',
     adLabel: 'Habahub rekommenderar',
     adCta: 'Bläddra auktioner',

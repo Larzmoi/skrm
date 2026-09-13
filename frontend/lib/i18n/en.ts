@@ -23,6 +23,7 @@ const en = {
     promoBody: '',
     promoCta: 'Create account',
     upcomingPreBidOpen: 'Pre-bidding is already open',
+    upcomingNoProductsYet: 'Products coming soon',
     watchShow: 'Watch show',
     adLabel: 'Habahub recommends',
     adCta: 'Browse auctions',

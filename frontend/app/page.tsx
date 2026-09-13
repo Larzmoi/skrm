@@ -34,7 +34,7 @@ function auctionTimeLeft(ms: number, endedLabel: string) {
 // KORJAUS 2026-09-02: kaikki tämän komponentin tekstit olivat kovakoodattua suomea (rikkoi
 // LUKITTU "AINA t.xxx" -sääntöä) - kielenvaihto EI vaikuttanut tähän bannerinin ollenkaan,
 // vahvistettu omistajan raportoimaksi bugiksi. Siirretty t.home-nimiavaruuteen (fi/en/sv).
-function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, string>; isMobile: boolean; upcoming?: { id: string; seller: string; title: string; thumbnail: string; scheduledAt?: string }; t: any; lang: string }) {
+function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, string>; isMobile: boolean; upcoming?: { id: string; seller: string; title: string; thumbnail: string; scheduledAt?: string; hasProducts?: boolean }; t: any; lang: string }) {
   const { user } = useAuth()
   if (upcoming) {
     return (
@@ -54,7 +54,7 @@ function PromoBanner({ C, isMobile, upcoming, t, lang }: { C: Record<string, str
             {t.home.upcoming}{upcoming.scheduledAt ? ` · ${formatShowTime(upcoming.scheduledAt, t, lang as 'fi' | 'en')}` : ''}
           </div>
           <div style={{ fontFamily: 'var(--font-display), sans-serif', fontSize: isMobile ? 16 : 19, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.005em' }}>{upcoming.title}</div>
-          <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · {t.home.upcomingPreBidOpen}</div>
+          <div style={{ fontSize: 13, color: C.textSub, marginBottom: isMobile ? 12 : 0 }}>@{upcoming.seller} · {upcoming.hasProducts ? t.home.upcomingPreBidOpen : t.home.upcomingNoProductsYet}</div>
         </div>
         <div style={{ padding: isMobile ? '0 18px 16px' : '0 26px 0 0', flexShrink: 0 }}>
           <span className="hb-btn" style={{ display: 'inline-block', background: C.accentSolid, color: C.accentText, padding: '9px 18px', borderRadius: 8, fontFamily: 'var(--font-display), sans-serif', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' }}>
@@ -275,6 +275,11 @@ export default function Home() {
     viewers: s.viewerCount ?? 0,
     thumbnail: s.thumbnailUrl ?? '',
     scheduledAt: s.scheduledAt,
+    // KORJATTU 2026-09-13 (omistajan raportoima sekaannus): PromoBanner väitti AINA
+    // "Ennakkotarjoukset ovat jo auki" riippumatta siitä oliko lähetykseen ylipäätään
+    // lisätty yhtään tuotetta - GET /shows palauttaa jo products[]:n (take 5), käytetään
+    // sitä kertomaan onko väite edes totta. Ei tarvitse erillistä API-kutsua.
+    hasProducts: Array.isArray(s.products) && s.products.length > 0,
   })
 
   const displayShows = shows.filter((s: any) => s.status === 'LIVE').map(mapShow)
