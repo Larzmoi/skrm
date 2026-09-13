@@ -7,6 +7,18 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Scroll-position-korjaus laajennettu /huutokaupat:iin, löytyi VIELÄ syvempi juurisyy 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja pyysi saman scroll-position-korjauksen (ks. "Etusivu/haku..." -osio) `/huutokaupat`-sivulle — sama oire (selaa, klikkaa tuote, palaa takaisin → sivu hyppää alkuun).
+
+**Sama page-kohtainen korjaus EI toiminut suoraan kopioituna — kolmas, syvempi juurisyy löytyi oikealla selaimella (Playwright) testaamalla.** `/selaa`:n korjaus (tallenna klikkaushetkellä + sivun oma `popstate`-kuuntelija `useEffect`:ssä) toimi VAIN koska kyseisellä sivulla on `useSearchParams()`-riippuvuus joka pakottaa Next.js:n aina remounttaamaan komponentin tuoreena navigoinnissa. `/huutokaupat`:lla ei ole vastaavaa riippuvuutta — Next.js saattaa palauttaa SAMAN, jo aiemmin mountatun komponentti-instanssin takaisin-navigoinnissa. Tämä paljasti perustavanlaatuisen ongelman: **komponentin omaan `useEffect`:iin sidottu `popstate`-kuuntelija ei koskaan voi luotettavasti toimia**, koska kuuntelijan pitäisi olla olemassa JO ENNEN `popstate`-tapahtumaa — jos React purkaa vanhan komponentin ja luo uuden JUURI sen saman tapahtuman seurauksena, uusi `useEffect` (ja sen sisältämä uusi listener) ehtii rekisteröityä vasta tapahtuman jo mentyä ohi.
+
+**Lopullinen korjaus, yleistetty koko sovellukselle:** uusi `frontend/lib/scrollRestore.ts` + YKSI `popstate`-kuuntelija rekisteröitynä `ClientLayout`-komponentista (`useEffect(() => {...}, [])`) — `ClientLayout` on juuritason kääre joka pysyy mountattuna KOKO session ajan riippumatta reitityksestä, joten kuuntelijä on aina olemassa ajoissa. `/selaa` ja `/huutokaupat` yksinkertaistuivat molemmat pelkkään `onClickCapture={saveScrollPosition}`-kutsuun tuotegridin kääreessä — kaiken sivukohtaisen `scrollKey`/`restoredKeyRef`/`scrollRestoration`-koodin sai poistaa tarpeettomana.
+
+**Neljäs, pienempi löydös samassa testauksessa:** alkuperäinen 20 yrityksen (1s) uudelleenyrityssilmukka oli joskus liian lyhyt — sisällön lataus kesti toistetussa selaintestissä välillä yli sekunnin (osin oman toistuvan testikuorman aiheuttamaa palvelinviivettä), jolloin palautus luovutti ennen kuin sisältö ehti valmistua. Nostettu 60 yritykseen (3s).
+
+**Testattu oikealla selaimella (Playwright) tuotantoa vasten, useita kertoja peräkkäin oikean vahvistuksen saamiseksi:** ensimmäiset yritykset epäonnistuivat oman testauksen aiheuttaman satunnaisen palvelinviiveen takia (kerran jopa 502 nginx-tasolla) — erotettu tietoisesti todellisesta koodivirheestä tarkistamalla `docHeight`/verkkovastaukset. Lopullinen, puhdas ajo: `scrollY` palautui täsmälleen oikeaan kohtaan (900px) heti kun sisältö oli latautunut, molemmilla sivuilla, toistettavasti.
+
 ## Profiilin tuotejaottelu (live erikseen) + ajastetun lähetyksen "kaappaus"-bugi 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Jatkoa edelliseen ennakkotarjous-korjaukseen. Omistaja ehdotti: profiilisivulla livessä myytävät tuotteet omaan osioonsa, loput (suoramyynti+huutokaupat) niille omistettuun osioon — käänteinen jaottelu aiempaan nähden (aiemmin livet+huutokaupat olivat samassa "Tulevat"-osiossa, tavalliset tuotteet erikseen).
