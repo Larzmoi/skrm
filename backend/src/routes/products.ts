@@ -21,11 +21,27 @@ async function isUserBanned(userId: string) {
 // GET /products
 router.get('/', async (req, res) => {
   const { category, alakategoria, tyyppi, sort, search, limit, seller } = req.query
-  const where: any = { status: 'PENDING', saleType: { in: ['buy_now', 'both'] } }
+  const where: any = { status: 'PENDING' }
+  // KORJATTU 2026-09-13 (ks. CLAUDE.md "Iso palautekierros" kohta 8): saleType-suodatin oli
+  // aina kiinteä ['buy_now','both'] - puhtaat huutokauppakohteet (saleType:'auction') eivät
+  // koskaan näkyneet tässä listassa, ei edes nimihaulla. Ilman hakusanaa oletus pysyy ennallaan
+  // (/selaa:n oma saleType-välilehtijako - "Kaikki"/"Suoramyynti"/"Huutokaupat" - nojaa tähän
+  // oletusnäkymään, huutokauppoja ei haluta sekaan silloin). Kun hakusana on annettu, käyttäjä
+  // odottaa löytävänsä KAIKEN nimellä, myös huutokaupat.
+  where.saleType = search ? { in: ['buy_now', 'both', 'auction'] } : { in: ['buy_now', 'both'] }
   if (category && category !== 'kaikki') where.category = String(category)
   if (alakategoria) where.alakategoria = String(alakategoria)
   if (tyyppi) where.tyyppi = String(tyyppi)
-  if (search) where.name = { contains: String(search), mode: 'insensitive' }
+  // Haku kattaa sekä tuotteen nimen että myyjän käyttäjätunnuksen (OR) - säilyttää /selaa:n
+  // aiemman client-puolen "nimi TAI myyjän käyttäjätunnus" -haun toimivuuden nyt kun haku
+  // siirtyi palvelimelle (ks. frontend/app/selaa/page.tsx).
+  if (search) {
+    const s = String(search)
+    where.OR = [
+      { name: { contains: s, mode: 'insensitive' } },
+      { seller: { username: { contains: s, mode: 'insensitive' } } },
+    ]
+  }
   // ⚠️ KRIITTINEN KORJAUS 2026-09-04: `seller`-parametri (käyttäjätunnus) oli täysin luettu
   // frontendissä (u/[username]-sivu kutsuu /products?seller=...) mutta EI KOSKAAN käsitelty
   // täällä - jokainen julkinen profiilisivu näytti siis koko sivuston tuotteet, ei vain
@@ -39,8 +55,11 @@ router.get('/', async (req, res) => {
   let orderBy: any = { createdAt: 'desc' }
   if (sort === 'price_asc') orderBy = { startPrice: 'asc' }
   if (sort === 'price_desc') orderBy = { startPrice: 'desc' }
+  // Hakukyselyllä (search) korkeampi oletuskatto (200) tavallisen selauksen 50:n sijaan -
+  // take rajaa PALAUTETTUJEN täsmäävien tulosten määrää, joten kasvava tuotekatalogi voisi
+  // muuten hiljaa jättää osan aidoista hakutuloksista pois.
   const products = await prisma.product.findMany({
-    where, orderBy, take: limit ? Number(limit) : 50,
+    where, orderBy, take: limit ? Number(limit) : (search ? 200 : 50),
     // businessId mukana ALV-läpinäkyvyysmerkintää varten (ks. CLAUDE.md "ALV yritysmyyjille") -
     // ei-tyhjä businessId = yritysmyyjä, frontend näyttää "Hinta sisältää alv 25,5%" -tekstin.
     include: { seller: { select: { id: true, name: true, username: true, city: true, businessId: true, verified: true } } },

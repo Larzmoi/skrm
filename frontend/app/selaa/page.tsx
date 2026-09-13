@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/layout/Navbar'
@@ -13,7 +13,7 @@ import { api, userApi } from '@/lib/api'
 interface Product {
   id: string; name: string; seller: { username: string; city?: string | null; businessId?: string | null; verified?: boolean | null }
   category?: string; alakategoria?: string; tyyppi?: string; condition?: string; gradingCompany?: string | null; grade?: string | null; startPrice: number; city?: string | null
-  imageUrl?: string; createdAt: string; vatIncluded?: boolean
+  imageUrl?: string; createdAt: string; vatIncluded?: boolean; saleType?: string
 }
 
 function productCity(p: Product) { return p.city ?? p.seller?.city ?? null }
@@ -38,6 +38,14 @@ function SelaaContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [userMatch, setUserMatch] = useState<any>(null)
+  // Scroll-position tallennus/palautus (ks. CLAUDE.md "Iso palautekierros" kohta 11) - selaimen
+  // oma back-scroll-restaurointi ei toimi luotettavasti tällä sivulla, koska sisältö (products)
+  // haetaan asynkronisesti mountin JÄLKEEN: kun palataan takaisin, sivu on hetken "Ladataan..."
+  // -tilassa (lyhyt dokumentti), jolloin selaimen restaurointi ei löydä mitään palautettavaa ja
+  // jää ylös kun sisältö sitten kasvaa. Tallennetaan/palautetaan siis itse sessionStoragessa,
+  // avaimena nykyinen hakukyselymerkkijono (sama filtterit = sama tallennettu sijainti).
+  const scrollKey = `hb_scroll_selaa:${searchParams.toString()}`
+  const restoredKeyRef = useRef<string | null>(null)
 
   const SORT_OPTIONS = [
     { id: 'newest', label: t.selaa.newest },
@@ -58,23 +66,32 @@ function SelaaContent() {
   }, [urlKat, urlHaku])
 
   useEffect(() => {
-    async function loadProducts() {
-      setLoading(true)
-      try {
-        const params: Record<string, string> = { sort }
-        if (activeKat !== 'kaikki') params.category = activeKat
-        if (activeAla) params.alakategoria = activeAla
-        if (activeTyyppi) params.tyyppi = activeTyyppi
-        const data = await api.getProducts(params)
-        setProducts(Array.isArray(data) ? data : [])
-      } catch {
-        setProducts([])
-      } finally {
-        setLoading(false)
+    // Haku (search) lähetetään nyt myös palvelimelle (aiemmin pelkkä client-puolen suodatin
+    // jo ladatun 50 tuotteen listalta - ks. CLAUDE.md "Iso palautekierros" kohta 8/11) jotta
+    // (a) huutokauppakohteet voivat ylipäätään päätyä listaan (backend laajentaa saleType-
+    // suodattimen hakusanalla) ja (b) haku kattaa koko katalogin eikä vain viimeisimpiä 50:tä.
+    // Kevyt debounce ettei jokainen näppäinpainallus laukaise omaa pyyntöä.
+    const timeout = setTimeout(() => {
+      async function loadProducts() {
+        setLoading(true)
+        try {
+          const params: Record<string, string> = { sort }
+          if (activeKat !== 'kaikki') params.category = activeKat
+          if (activeAla) params.alakategoria = activeAla
+          if (activeTyyppi) params.tyyppi = activeTyyppi
+          if (search.trim()) params.search = search.trim()
+          const data = await api.getProducts(params)
+          setProducts(Array.isArray(data) ? data : [])
+        } catch {
+          setProducts([])
+        } finally {
+          setLoading(false)
+        }
       }
-    }
-    loadProducts()
-  }, [activeKat, activeAla, activeTyyppi, sort])
+      loadProducts()
+    }, search.trim() ? 300 : 0)
+    return () => clearTimeout(timeout)
+  }, [activeKat, activeAla, activeTyyppi, sort, search])
 
   const filtered = useMemo(() => {
     let p = products
@@ -102,6 +119,30 @@ function SelaaContent() {
     }, 300)
     return () => { cancelled = true; clearTimeout(timer) }
   }, [search])
+
+  // Tallennetaan scroll-positio jatkuvasti (kevyt throttle rAF:lla) kesken selauksen.
+  useEffect(() => {
+    let ticking = false
+    function onScroll() {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        sessionStorage.setItem(scrollKey, String(window.scrollY))
+        ticking = false
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [scrollKey])
+
+  // Palautetaan tallennettu sijainti kun sisältö on ehtinyt latautua (kerran per avain) -
+  // rAF varmistaa että tuotegridi on jo DOM:issa ennen kuin scrollataan sinne.
+  useEffect(() => {
+    if (loading || restoredKeyRef.current === scrollKey) return
+    restoredKeyRef.current = scrollKey
+    const saved = sessionStorage.getItem(scrollKey)
+    if (saved) requestAnimationFrame(() => window.scrollTo(0, Number(saved)))
+  }, [loading, scrollKey])
 
   const cities = useMemo(() => {
     const set = new Set(products.map(productCity).filter(Boolean) as string[])
@@ -205,7 +246,7 @@ function SelaaContent() {
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))', gap: isMobile ? 10 : 14 }}>
               {filtered.map(p => (
                 <ProductCard
-                  key={p.id} id={p.id} href={`/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
+                  key={p.id} id={p.id} href={p.saleType === 'auction' ? `/huutokauppa/${p.id}` : `/tuotteet/${p.id}`} name={p.name} imageUrl={p.imageUrl}
                   price={p.startPrice} condition={p.condition} gradingCompany={p.gradingCompany} grade={p.grade} sellerUsername={p.seller?.username}
                   sellerBusinessId={p.seller?.businessId} vatIncluded={!!p.vatIncluded} sellerVerified={!!p.seller?.verified} city={productCity(p)} isMobile={isMobile}
                 />
