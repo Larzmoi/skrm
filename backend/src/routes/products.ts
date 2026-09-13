@@ -55,11 +55,14 @@ router.get('/', async (req, res) => {
   let orderBy: any = { createdAt: 'desc' }
   if (sort === 'price_asc') orderBy = { startPrice: 'asc' }
   if (sort === 'price_desc') orderBy = { startPrice: 'desc' }
-  // Hakukyselyllä (search) korkeampi oletuskatto (200) tavallisen selauksen 50:n sijaan -
-  // take rajaa PALAUTETTUJEN täsmäävien tulosten määrää, joten kasvava tuotekatalogi voisi
-  // muuten hiljaa jättää osan aidoista hakutuloksista pois.
+  // KORJATTU 2026-09-13 (kriittinen, omistajan raportoima - sama juurisyy löytyi GET
+  // /auctions:sta): oletuskatto oli 50 (200 hakukyselyllä) - take rajaa PALAUTETTUJEN
+  // täsmäävien tulosten määrää, joten kasvava tuotekatalogi jätti hiljaa osan tuotteista
+  // pois listalta/hakutuloksista. Yhtenäistetty molemmat 500:aan - todellinen sivutus
+  // (page/cursor) on oma, isompi erillinen parannuksensa jos katalogi joskus kasvaa
+  // tätäkin suuremmaksi.
   const products = await prisma.product.findMany({
-    where, orderBy, take: limit ? Number(limit) : (search ? 200 : 50),
+    where, orderBy, take: limit ? Number(limit) : 500,
     // businessId mukana ALV-läpinäkyvyysmerkintää varten (ks. CLAUDE.md "ALV yritysmyyjille") -
     // ei-tyhjä businessId = yritysmyyjä, frontend näyttää "Hinta sisältää alv 25,5%" -tekstin.
     include: { seller: { select: { id: true, name: true, username: true, city: true, businessId: true, verified: true } } },

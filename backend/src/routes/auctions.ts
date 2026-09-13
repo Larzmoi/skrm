@@ -45,8 +45,13 @@ router.get('/', async (req, res) => {
   if (sort === 'price_asc') orderBy = { currentBid: 'asc' }
   if (sort === 'ending_soon') orderBy = { auctionEndsAt: 'asc' }
 
+  // KORJATTU 2026-09-13 (kriittinen, omistajan raportoima): oletuskatto oli aiemmin 50 -
+  // katalogin kasvaessa yli sen (56 aktiivista tätä kirjoittaessa) uusimmat/myöhemmin
+  // päättyvät huutokaupat jäivät hiljaa pois listalta "päättyy pian" -järjestyksessä.
+  // Nostettu reilusti (500) - todellinen sivutus (page/cursor) on oma, isompi
+  // erillinen parannuksensa jos katalogi joskus kasvaa tätäkin suuremmaksi.
   const auctions = await prisma.product.findMany({
-    where, orderBy, take: limit ? Number(limit) : 50,
+    where, orderBy, take: limit ? Number(limit) : 500,
     include: {
       seller: { select: { id: true, name: true, username: true, city: true, businessId: true, verified: true } }, // ALV-merkintä + varmennettu-merkki, ks. CLAUDE.md
       _count: { select: { bids: true } },
