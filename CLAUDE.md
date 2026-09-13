@@ -7,6 +7,16 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## KRIITTINEN: 50 kohteen oletusraja piilotti myöhemmin päättyviä huutokauppoja 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
+
+Omistaja raportoi: listasi juuri 11 kohdetta huutokauppaan, vain 4 näkyi `/huutokaupat`-sivulla — epäili itse 50 kohteen rajaa.
+
+**Vahvistettu suoraan tuotannon datasta ennen korjausta, epäilys osui oikeaan.** `GET /auctions`:n oletuskatto oli `take: 50` (`backend/src/routes/auctions.ts`), oletuslajittelu `/huutokaupat`-sivulla on "päättyy pian" (`auctionEndsAt: 'asc'`). Aktiivisia huutokauppoja oli tarkistushetkellä 56 — omistajan 11 uutta kohdetta (3 vrk kesto, päättyvät myöhemmin kuin suurin osa muista) putosivat osittain 50 kohteen rajan taakse koska sitä ennen ehtivät päättyä jo 50 muuta lyhyemmän keston kohdetta. Sama tarkistus paljasti `GET /products`:n (suoramyynti) olevan samalla, aiemmin (samana päivänä, ks. haku-korjaus) huomaamattomalla rajalla — 39/50, olisi kohdannut saman ongelman piakkoin lisää listauksia tullessa.
+
+**Korjaus, valittu tarkoituksella yksinkertaisimmaksi toimivaksi ratkaisuksi (omistajan oma pyyntö "mikä on helpoin korjaustapa"):** ei rakennettu täyttä sivutusta (page/cursor-pohjainen "Näytä lisää" -nappi tms., isompi oma projektinsa) — nostettu molempien reittien oletuskatto suoraan 500:aan, reilusti nykyisen (~55-40) ja lähitulevaisuuden kasvun yläpuolelle. Molemmat sivut (`/huutokaupat`, `/selaa`) eivät koskaan lähetä omaa `limit`-parametria, joten uusi oletus koskee niitä suoraan.
+
+**Testattu oikealla API-kutsulla tuotantoa vasten heti deployn jälkeen:** `GET /auctions` palautti kaikki 54 aktiivista kohdetta (mukaan lukien kaikki 11 omistajan juuri lisäämää), ei enää 50:n katkaisua.
+
 ## Scroll-position-korjaus laajennettu /huutokaupat:iin, löytyi VIELÄ syvempi juurisyy 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja pyysi saman scroll-position-korjauksen (ks. "Etusivu/haku..." -osio) `/huutokaupat`-sivulle — sama oire (selaa, klikkaa tuote, palaa takaisin → sivu hyppää alkuun).
