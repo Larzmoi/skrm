@@ -7,6 +7,23 @@ Habahub (projektin sisäinen koodinimi/repo-nimi on yhä "SKRM") on suomalainen 
 **Y-tunnus:** 3497347-6 (rekisteröity toiminimi Postin järjestelmässä: "Muistikuva Oy" — brändi "Habahub" on eri asia kuin virallinen toiminimi, ks. "Lähetysintegraatio"-osio)
 **Testitunnukset:** poistettu tuotannosta 2026-08-16 (ks. "Testitilien poisto" -osio) — omistaja testaa nyt omalla Larzmoi-tunnuksella. Luo uusi testitunnus tarvittaessa `/register`-sivun kautta.
 
+## Osittaishyvitys euromäärän tarkkuudella + toimitustavan näkyvyys tilauksissa 2026-09-14 — ✅ TEHTY, DEPLOYATTU JA OIKEA HYVITYS SUORITETTU
+
+Omistajan kolme pyyntöä samassa viestissä:
+1. Osittaishyvitys ei ollut mahdollinen — "Hyvitä"-nappi hyvitti aina koko tilauksen (tai kokonaisen tuoterivin), ei mielivaltaista osasummaa.
+2. **Kiireellinen, ensimmäisenä tehtävä:** hyvitä 7,90€ postimaksu Michael Tunturille (`mikki`) — 12.9. tehdyssä kaupassa (Backlund myyjänä, Blaziken 192 PSA 9) oli epäselvyyttä nouto/postitus-toimitustavasta.
+3. Tilausnäkymät (`/ostot`, `dashboard/tilaukset`) eivät näyttäneet toimitustapaa (nouto/postitus) selvänä tekstinä missään vaiheessa — vain epäsuorasti pääteltävissä siitä mikä sekundäärinen UI-elementti sattui näkymään, aiheutti juuri kohdan 2 sekaannuksen.
+
+**1. Osittaishyvitys, uusi tapa `POST /orders/:id/refund`-reitille.** Body voi nyt sisältää `{ productRefundEuros, shippingRefundEuros }` — kumpikin vapaasti valittava euromäärä (0...max). Tuote- ja toimitusosuus eriytetty tietoisesti, koska niillä on eri Stripe-transfer-käsittely: toimitusmaksu **ei koskaan siirtynyt myyjälle** (ks. aiempi "toimitusmaksu meni väärälle osapuolelle" -korjaus — Habahub pitää sen aina kokonaan), joten sen hyvitys ei koskaan vaadi transferin peruutusta — vain tuoteosuuden hyvitys tekee, suhteutettuna samalla periaatteella kuin olemassa oleva per-tuote-hyvitys. `lib/stripe.ts`:n `refundPayment()` korjattu ohittamaan `stripe.transfers.createReversal()`-kutsu kokonaan kun laskettu reversal-summa on eksplisiittisesti 0 (eri asia kuin puuttuva/undefined, joka tarkoittaa "peru KOKO transfer") — muuten pelkän toimitushyvityksen yhteydessä olisi lähtenyt tarpeeton/mahdollisesti virheellinen `amount:0`-pyyntö Stripelle.
+
+`dashboard/tilaukset`:n "Hyvitä"-nappi avaa nyt oman dialogin (korvasi yksinkertaisen kyllä/ei-vahvistuksen) — kaksi euromäärä-kenttää (tuote/toimitus, esitäytetty koko summalla), "Koko summa" -pikanappi entisen käytöksen säilyttämiseksi yhdellä klikkauksella.
+
+**2. Toimitustapa näkyy nyt aina.** Sekä `/ostot` (ostaja) että `dashboard/tilaukset` (myyjä) näyttävät uuden "Toimitustapa: Postitus/Nouto myyjältä" -rivin aina kun `shippingSize` on asetettu — ei enää pääteltävä epäsuorasti.
+
+**3. Itse hyvitys suoritettu ja vahvistettu oikeaa Stripeä vasten (ei vain testidatalla).** Tilaus `cmtxxmmr5001yplvbwb9rr8y5` (myyjä Michael Backlund, ostaja mikki/Michael Tunturi, Blaziken 192 PSA 9). Kutsuttu oikeaa, juuri deployattua `POST /orders/:id/refund`-reittiä myyjän omalla (kertakäyttöisesti mintatulla) JWT:llä, `{productRefundEuros:0, shippingRefundEuros:7.9}` → `200 {"ok":true}`. Vahvistettu suoraan Stripeltä: uusi `Refund`-objekti 7,90€, `status:"succeeded"`; myyjän `Transfer`-objektin `amount_reversed` on `0€` ja reversal-listaus tyhjä — täsmälleen odotetusti, koska toimitusmaksu ei koskaan ollut osa myyjän siirtoa. Ostaja sai automaattisesti `REFUND_ISSUED`-ilmoituksen (sisältää nyt myös hyvitetyn summan, ks. alla).
+
+**Sivutuote:** `REFUND_ISSUED`-ilmoitusteksti sisältää nyt hyvitetyn euromäärän ("Myyjä hyvitti tilauksestasi X,XX€...") aiemman geneerisen "hyvitti tilauksen" -tekstin sijaan — pieni, mutta hyödyllinen parannus kaikille tuleville hyvityksille.
+
 ## KRIITTINEN: 50 kohteen oletusraja piilotti myöhemmin päättyviä huutokauppoja 2026-09-13 — ✅ TEHTY JA DEPLOYATTU
 
 Omistaja raportoi: listasi juuri 11 kohdetta huutokauppaan, vain 4 näkyi `/huutokaupat`-sivulla — epäili itse 50 kohteen rajaa.
