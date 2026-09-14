@@ -537,6 +537,9 @@ function TuotteetContent() {
                 onChange={e => setBulkText(e.target.value)}
                 placeholder={"Silcoon (ASC 012)\nNM\n0,02 €\n1\n\nPikachu ex\nNM\n1,50 €\n2"}
                 rows={8}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
                 style={{ ...inp, resize: 'vertical' as const }}
               />
 
@@ -708,7 +711,7 @@ function TuotteetContent() {
 
                 {/* Perustiedot */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} style={inp} /></div>
+                  <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} spellCheck={false} autoCorrect="off" autoCapitalize="off" style={inp} /></div>
                   {editCategoryLocked && (
                     <div style={{ fontSize: 11, color: '#B45309', background: '#FFF8E8', border: '1px solid #F59E0B', borderRadius: 6, padding: '6px 10px' }}>
                       {tp.categoryLockedNotice}
@@ -904,7 +907,7 @@ function TuotteetContent() {
 
               <div style={{ marginBottom: 14 }}>
                 <label style={lbl}>{tp.descriptionLabel}</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} spellCheck={false} autoCorrect="off" autoCapitalize="off" style={{ ...inp, resize: 'vertical' as const }} />
               </div>
 
               {/* "Tallenna esiasetukseksi" (ks. CLAUDE.md "Esiasetusten kolme löydöstä" kohta 2)

@@ -227,7 +227,7 @@ export default function EsiasetuksetPage() {
             <button onClick={() => { reset(); setShowForm(false) }} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 16 }}>✕</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} style={inp} /></div>
+            <div><label style={lbl}>{tp.nameLabel}</label><input value={name} onChange={e => setName(e.target.value)} placeholder={tp.namePlaceholder} spellCheck={false} autoCorrect="off" autoCapitalize="off" style={inp} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
                 <label style={lbl}>{t.dashboardProducts.categoryLabel}</label>
@@ -264,7 +264,7 @@ export default function EsiasetuksetPage() {
             )}
             <div>
               <label style={lbl}>{tp.descriptionLabel}</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} style={{ ...inp, resize: 'vertical' as const }} />
+              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={tp.descriptionPlaceholder} rows={2} spellCheck={false} autoCorrect="off" autoCapitalize="off" style={{ ...inp, resize: 'vertical' as const }} />
             </div>
             <div>
               <label style={lbl}>{tp.startPriceLabel}</label>

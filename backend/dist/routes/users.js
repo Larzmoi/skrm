@@ -40,6 +40,16 @@ router.post('/me/publish-token', auth_1.authMiddleware, async (req, res) => {
     const token = await (0, livekit_1.createPublisherToken)(roomName, req.userId, user?.username ?? 'Myyjä');
     res.json({ wsUrl: livekit_1.LIVEKIT_WS_URL_PUBLIC, token, roomName });
 });
+// Normalisoi käyttäjänimen URL-parametrin: trimmaa + poistaa mahdollisen "@"-etuliitteen
+// (ihmiset kirjoittavat luontevasti "@larzmoi") ennen kuin sitä käytetään hakuun. LISÄTTY
+// 2026-09-14 (omistajan raportoima kritiikki - käyttäjähaku ei löytänyt profiilia jos
+// kirjoitti @-merkin mukaan tai väärällä kirjainkoolla). Yhdistetään aina case-insensitive
+// hakuun (ks. alla) - username on schema.prisma:ssa @unique, mutta Postgresin oletuscollation
+// on case-sensitive, joten pelkkä normalisointi ei riitä ilman mode:'insensitive'-hakua.
+function usernameFilter(raw) {
+    const normalized = decodeURIComponent(raw).trim().replace(/^@/, '');
+    return { equals: normalized, mode: 'insensitive' };
+}
 function getOptionalUserId(req) {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token)
@@ -54,7 +64,7 @@ function getOptionalUserId(req) {
 // GET /users/:username — julkinen profiili (storefront: myyjän tiedot + tulevat lähetykset/huutokaupat)
 router.get('/:username', async (req, res) => {
     const user = await prisma_1.prisma.user.findFirst({
-        where: { username: decodeURIComponent(String(req.params.username)) },
+        where: { username: usernameFilter(String(req.params.username)) },
         select: { id: true, name: true, username: true, avatarUrl: true, bio: true, createdAt: true, vacationUntil: true, vacationMessage: true, businessId: true, verified: true }, // businessId: "Yritysmyyjä"-merkintä (DSA art. 31); verified: admin-myöntämä "Varmennettu käyttäjä" -merkintä
     });
     if (!user)
@@ -109,7 +119,7 @@ router.get('/:username', async (req, res) => {
 // GET /users/:username/reviews — julkinen lista käyttäjän saamista arvosteluista
 router.get('/:username/reviews', async (req, res) => {
     const user = await prisma_1.prisma.user.findFirst({
-        where: { username: decodeURIComponent(String(req.params.username)) },
+        where: { username: usernameFilter(String(req.params.username)) },
         select: { id: true },
     });
     if (!user)
@@ -126,7 +136,7 @@ router.get('/:username/reviews', async (req, res) => {
 // olemassa, tämä lisää oikean listan sen taakse).
 router.get('/:username/followers', async (req, res) => {
     const user = await prisma_1.prisma.user.findFirst({
-        where: { username: decodeURIComponent(String(req.params.username)) },
+        where: { username: usernameFilter(String(req.params.username)) },
         select: { id: true },
     });
     if (!user)
@@ -141,7 +151,7 @@ router.get('/:username/followers', async (req, res) => {
 // POST /users/:username/follow — seuraa/lopeta seuraaminen (toggle)
 router.post('/:username/follow', auth_1.authMiddleware, async (req, res) => {
     const seller = await prisma_1.prisma.user.findFirst({
-        where: { username: decodeURIComponent(String(req.params.username)) },
+        where: { username: usernameFilter(String(req.params.username)) },
     });
     if (!seller)
         return res.status(404).json({ error: 'Käyttäjää ei löydy' });
