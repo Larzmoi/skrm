@@ -335,9 +335,16 @@ function verifyAccountEventSignature(rawBody, signature) {
 // tehdään erillinen reversal+refund, ks. yllä oleva kommentti.
 async function refundPayment(params) {
     if (params.transferId) {
-        await stripe.transfers.createReversal(params.transferId, {
-            ...(params.transferReversalAmountEuros != null ? { amount: eurosToCents(params.transferReversalAmountEuros) } : {}),
-        });
+        // LISÄTTY 2026-09-14 (osittaishyvitys euromäärän tarkkuudella, ks. orders.ts:n /refund):
+        // eksplisiittinen 0 (ERI ASIA kuin puuttuva/undefined, joka tarkoittaa "peru KOKO transfer")
+        // tarkoittaa ettei transferia kosketeta lainkaan - esim. pelkän toimitusmaksun hyvitys, joka
+        // ei koskaan siirtynyt myyjälle alunperinkään (ks. CLAUDE.md "toimitusmaksu meni väärälle
+        // osapuolelle" -korjaus). $0-reversal-kutsu Stripelle olisi tarpeeton, ohitetaan kokonaan.
+        if (params.transferReversalAmountEuros !== 0) {
+            await stripe.transfers.createReversal(params.transferId, {
+                ...(params.transferReversalAmountEuros != null ? { amount: eurosToCents(params.transferReversalAmountEuros) } : {}),
+            });
+        }
         const refund = await stripe.refunds.create({
             payment_intent: params.paymentIntentId,
             amount: eurosToCents(params.refundAmountEuros),

@@ -5,7 +5,6 @@ import { useAuth } from '@/lib/auth-context'
 import { useLang } from '@/lib/lang-context'
 import { orderApi } from '@/lib/api'
 import { StarRatingInput } from '@/components/StarRating'
-import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface OrderItem { id: string; price: number; quantity: number; product: { id: string; name: string; imageUrl?: string } }
 interface SellingOrder {
@@ -104,6 +103,15 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
       <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>
         {addressLine(order.buyer, s.noAddress)}{order.buyer.phone ? ` · ${order.buyer.phone}` : ''}
       </div>
+
+      {/* KORJATTU 2026-09-14 (omistajan raportoima aito sekaannus, ks. myös /ostot): toimitustapa
+          näkyy nyt aina selvänä tekstinä, ei enää pääteltävä epäsuorasti siitä mikä sekundäärinen
+          UI (noutokoodi-/seurantakoodikenttä) sattuu näkymään. */}
+      {order.shippingSize && (
+        <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>
+          {s.shippingMethodLabel}: <span style={{ color: C.text, fontWeight: 600 }}>{order.shippingSize === 'nouto' ? s.shippingMethodNouto : s.shippingMethodPostitus}</span>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 9, borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -235,6 +243,13 @@ export default function TilauksetPage() {
   const [reviewBusy, setReviewBusy] = useState<string | null>(null)
   const [refundBusy, setRefundBusy] = useState<string | null>(null)
   const [refundConfirmFor, setRefundConfirmFor] = useState<string | null>(null)
+  // LISÄTTY 2026-09-14 (osittaishyvitys, omistajan pyyntö): erilliset syötekentät tuote- ja
+  // toimitusosuudelle. Alustetaan aina koko summaan kun dialogi avataan (ks. openRefundDialog)
+  // - sama lopputulos kuin aiempi "koko tilaus" -hyvitys jos myyjä ei muuta mitään, mutta nyt
+  // voi myös pienentää kumpaa tahansa osuutta (esim. jättää tuoteosuuden 0:ksi, hyvittää vain
+  // toimitusmaksun).
+  const [refundProductAmount, setRefundProductAmount] = useState('')
+  const [refundShippingAmount, setRefundShippingAmount] = useState('')
   const [shipmentBusy, setShipmentBusy] = useState<string | null>(null)
   const [now, setNow] = useState(Date.now())
 
@@ -286,11 +301,22 @@ export default function TilauksetPage() {
     setShipmentBusy(null)
   }
 
+  function openRefundDialog(order: SellingOrder) {
+    setRefundConfirmFor(order.id)
+    // Oletuksena koko summa molemmista - myyjä pienentää tarvittaessa (esim. 0 tuotteesta,
+    // koko summa toimituksesta jos vain postitus meni pieleen).
+    setRefundProductAmount(order.productTotal.toFixed(2))
+    setRefundShippingAmount((order.shippingPrice ?? 0).toFixed(2))
+  }
+
   async function doRefund(orderId: string) {
+    const productRefundEuros = Number(refundProductAmount.replace(',', '.')) || 0
+    const shippingRefundEuros = Number(refundShippingAmount.replace(',', '.')) || 0
+    if (productRefundEuros <= 0 && shippingRefundEuros <= 0) { setError(s.refundDialogEmptyError); return }
     setRefundConfirmFor(null)
     setRefundBusy(orderId); setError('')
     try {
-      await orderApi.refund(orderId)
+      await orderApi.refund(orderId, { productRefundEuros, shippingRefundEuros })
       await load()
     } catch (e: any) { setError(e.message ?? s.errRefundFailed) }
     setRefundBusy(null)
@@ -361,7 +387,7 @@ export default function TilauksetPage() {
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
-                  onRefund={() => setRefundConfirmFor(o.id)}
+                  onRefund={() => openRefundDialog(o)}
                   refundBusy={refundBusy === o.id}
                 />
               ))
@@ -384,7 +410,7 @@ export default function TilauksetPage() {
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
-                  onRefund={() => setRefundConfirmFor(o.id)}
+                  onRefund={() => openRefundDialog(o)}
                   refundBusy={refundBusy === o.id}
                 />
               ))
@@ -407,7 +433,7 @@ export default function TilauksetPage() {
                   onCreateShipment={() => createShipment(o.id)}
                   shipmentBusy={shipmentBusy === o.id}
                   busy={busy === o.id}
-                  onRefund={() => setRefundConfirmFor(o.id)}
+                  onRefund={() => openRefundDialog(o)}
                   refundBusy={refundBusy === o.id}
                   review={{
                     alreadyReviewed: o.reviews.some(r => r.reviewerId === user?.id),
@@ -428,14 +454,54 @@ export default function TilauksetPage() {
         </div>
       )}
 
-      {refundConfirmFor && (
-        <ConfirmDialog
-          message={s.refundConfirmMsg}
-          danger
-          onConfirm={() => doRefund(refundConfirmFor)}
-          onCancel={() => setRefundConfirmFor(null)}
-        />
-      )}
+      {refundConfirmFor && (() => {
+        const order = orders.find(o => o.id === refundConfirmFor)
+        if (!order) return null
+        const productMax = order.productTotal
+        const shippingMax = order.shippingPrice ?? 0
+        const total = (Number(refundProductAmount.replace(',', '.')) || 0) + (Number(refundShippingAmount.replace(',', '.')) || 0)
+        return (
+          <div onClick={() => setRefundConfirmFor(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '22px 24px', maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 16 }}>{s.refundDialogTitle}</div>
+
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>{s.refundDialogProductLabel} ({s.refundDialogMaxLabel} {productMax.toLocaleString('fi-FI')}€)</label>
+              <input
+                type="number" min={0} max={productMax} step="0.01" value={refundProductAmount}
+                onChange={e => setRefundProductAmount(e.target.value)}
+                style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 12 }}
+              />
+
+              {shippingMax > 0 && (
+                <>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.muted, display: 'block', marginBottom: 6 }}>{s.refundDialogShippingLabel} ({s.refundDialogMaxLabel} {shippingMax.toLocaleString('fi-FI')}€)</label>
+                  <input
+                    type="number" min={0} max={shippingMax} step="0.01" value={refundShippingAmount}
+                    onChange={e => setRefundShippingAmount(e.target.value)}
+                    style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 12 }}
+                  />
+                </>
+              )}
+
+              <button
+                onClick={() => { setRefundProductAmount(productMax.toFixed(2)); setRefundShippingAmount(shippingMax.toFixed(2)) }}
+                style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, marginBottom: 16 }}
+              >
+                {s.refundDialogFullBtn} ({(productMax + shippingMax).toLocaleString('fi-FI')}€)
+              </button>
+
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+                {s.refundBtn}: {total.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button onClick={() => setRefundConfirmFor(null)} style={{ background: C.surface2, border: `1px solid ${C.border}`, color: C.textSub, padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{s.refundDialogCancelBtn}</button>
+                <button onClick={() => doRefund(order.id)} disabled={total <= 0} style={{ background: '#EF4444', border: 'none', color: '#fff', padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: total <= 0 ? 'default' : 'pointer', opacity: total <= 0 ? 0.6 : 1 }}>{s.refundDialogConfirmBtn}</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

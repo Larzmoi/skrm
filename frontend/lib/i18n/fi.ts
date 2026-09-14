@@ -215,6 +215,11 @@ const fi = {
     trackingCode: 'Seurantakoodi', paid: 'Maksettu', shipped: 'Lähetetty',
     delivered: 'Toimitettu', waitingShipment: 'Maksettu — odottaa lähetystä',
     pickupCodeLabel: 'Noutokoodi', pickupCodeHint: 'Näytä tai kerro tämä koodi myyjälle kun noudat tuotteen. Maksu vapautuu myyjälle heti kun hän vahvistaa koodin.',
+    // LISÄTTY 2026-09-14 (omistajan raportoima sekaannus): toimitustapa (nouto/postitus) ei
+    // näkynyt tilauskortissa selvänä tekstinä missään vaiheessa, vain epäsuorasti sen mukaan
+    // mikä sekundäärinen UI (noutokoodi/seurantakoodi-kenttä) sattui olemaan näkyvissä juuri
+    // sillä hetkellä - aiheutti aidon epäselvyyden oikeassa kaupassa.
+    shippingMethodLabel: 'Toimitustapa', shippingMethodPostitus: 'Postitus', shippingMethodNouto: 'Nouto myyjältä',
     waitingPickup: 'Maksettu — odottaa noutoa',
     // /ostot-sivun käännösauditointi 2026-09-09 (ks. CLAUDE.md) - loput sivun kovakoodatusta
     // suomesta (tilarivien otsikot, virheviestit, napit, placeholderit).
@@ -448,6 +453,12 @@ const fi = {
     title: 'Tilaukset', subtitle: 'Myyntitilaustesi hallinta', loading: 'Ladataan...',
     noAddress: 'Ei osoitetta vielä', statusExpired: 'Umpeutunut', statusWaiting: 'Odottaa',
     refundBtn: 'Hyvitä', pickupCodePlaceholder: 'Noutokoodi', confirmPickupBtn: 'Vahvista nouto',
+    shippingMethodLabel: 'Toimitustapa', shippingMethodPostitus: 'Postitus', shippingMethodNouto: 'Nouto myyjältä',
+    // Osittaishyvitys-dialogi, LISÄTTY 2026-09-14 (omistajan pyyntö - aiemmin sai hyvittää vain
+    // koko tilauksen kerralla, ei esim. pelkkää toimitusmaksua).
+    refundDialogTitle: 'Hyvitä tilaus', refundDialogProductLabel: 'Hyvitä tuotteesta (€)', refundDialogShippingLabel: 'Hyvitä toimituksesta (€)',
+    refundDialogFullBtn: 'Koko summa', refundDialogConfirmBtn: 'Vahvista hyvitys', refundDialogCancelBtn: 'Peruuta',
+    refundDialogEmptyError: 'Anna hyvitettävä summa', refundDialogMaxLabel: 'maks.',
     trackingPlaceholder: 'Seurantakoodi (manuaalinen)', addTrackingBtn: 'Lisää seurantakoodi',
     createShipmentBtn: 'Luo lähetys (Posti)',
     openLabelBtn: 'Avaa osoitetarra (PDF) →', shippingCodeLabel: 'Lähetyskoodi:', trackingCodeLabel: 'Seurantakoodi:',
@@ -460,7 +471,6 @@ const fi = {
     errEnterPickup: 'Syötä noutokoodi', errPickupFailed: 'Noudon vahvistus epäonnistui',
     errShipmentFailed: 'Lähetyksen luonti epäonnistui', errRefundFailed: 'Hyvitys epäonnistui',
     errSelectRating: 'Valitse tähtiarvosana', errReviewFailed: 'Arvostelun lähetys epäonnistui',
-    refundConfirmMsg: 'Hyvitetäänkö tämä tilaus kokonaan ostajalle? Rahat palautuvat suoraan hänen maksutavalleen.',
   },
   profilePage: {
     title: 'Profiili', basicInfoTitle: 'Perustiedot', changeAvatar: 'Vaihda',

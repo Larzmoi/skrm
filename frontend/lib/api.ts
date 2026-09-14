@@ -83,7 +83,12 @@ export const orderApi = {
   confirmDelivery: (orderId: string) => request(`/orders/${orderId}/confirm-delivery`, { method: 'POST' }),
   dispute: (orderId: string, reason: string) => request(`/orders/${orderId}/dispute`, { method: 'POST', body: JSON.stringify({ reason }) }),
   review: (orderId: string, rating: number, comment?: string) => request(`/orders/${orderId}/review`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
-  refund: (orderId: string, itemIds?: string[]) => request(`/orders/${orderId}/refund`, { method: 'POST', body: JSON.stringify({ itemIds }) }),
+  // LAAJENNETTU 2026-09-14: opts.itemIds = hyvitä tietyt tuoterivit kokonaan (ennallaan),
+  // opts.productRefundEuros/shippingRefundEuros = hyvitä vapaasti valittu euromäärä tuotteesta
+  // ja/tai toimituksesta erikseen (uusi, omistajan pyytämä osittaishyvitys). Ei mitään
+  // opts:ia = koko tilauksen hyvitys (aiempi, ainoa tapa - säilytetty oletuksena).
+  refund: (orderId: string, opts?: { itemIds?: string[]; productRefundEuros?: number; shippingRefundEuros?: number }) =>
+    request(`/orders/${orderId}/refund`, { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   // Postin osoitetarran PDF ei voi olla plain <a href> - reitti vaatii JWT:n Authorization-
   // headerissa, jota selain ei lähetä pelkän linkin klikkauksella. Haetaan siis fetch+blob:na
   // ja avataan uudessa välilehdessä object URL:na, ks. CLAUDE.md "Lähetysintegraatio" 2026-09-04.

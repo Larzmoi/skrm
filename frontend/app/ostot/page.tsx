@@ -272,6 +272,15 @@ export default function OstotPage() {
                           ))}
                         </div>
 
+                        {/* KORJATTU 2026-09-14 (omistajan raportoima aito sekaannus): toimitustapa
+                            näkyy nyt aina selvänä tekstinä kun se on valittu, sen sijaan että sen
+                            piti päätellä epäsuorasti siitä mikä sekundäärinen UI sattui näkymään. */}
+                        {order.shippingSize && (
+                          <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
+                            {t.purchases.shippingMethodLabel}: <span style={{ color: C.text, fontWeight: 600 }}>{order.shippingSize === 'nouto' ? t.purchases.shippingMethodNouto : t.purchases.shippingMethodPostitus}</span>
+                          </div>
+                        )}
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>
                             {/* Maksunkäsittelymaksu näytetään VAIN vielä maksamattomille tilauksille

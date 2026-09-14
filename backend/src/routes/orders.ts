@@ -260,12 +260,15 @@ router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Respons
   res.json({ ok: true })
 })
 
-// POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan tai per-tuote.
-// Stripe purkaa destination-chargen jaon automaattisesti (reverse_transfer+
+// POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan, per-tuote, tai
+// (UUSI 2026-09-14, omistajan pyyntö) vapaasti valittavalla euromäärällä tuotteesta ja/tai
+// toimituksesta erikseen. Stripe purkaa destination-chargen jaon automaattisesti (reverse_transfer+
 // refund_application_fee, ks. lib/stripe.ts) - komissio-osuus palautuu suhteutettuna
 // hyvitettyyn summaan ilman että meidän tarvitsee laskea sitä itse (eri kuin Paytrail).
 // Body: { itemIds?: string[] } — jätä pois tai anna tyhjä taulukko koko tuotemaksun
-// hyvittämiseksi, tai anna tietyt OrderItem-ID:t hyvittääksesi vain ne.
+// hyvittämiseksi, tai anna tietyt OrderItem-ID:t hyvittääksesi vain ne. VAIHTOEHTOISESTI
+// { productRefundEuros?: number, shippingRefundEuros?: number } — hyvitä mikä tahansa summa
+// tuotteesta ja/tai toimituksesta (esim. pelkkä toimitusmaksu jos postitus meni pieleen).
 router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Response) => {
   const order = await prisma.order.findUnique({
     where: { id: String(req.params.id) },
@@ -278,9 +281,30 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
   }
 
   const itemIds: string[] = Array.isArray(req.body?.itemIds) ? req.body.itemIds : []
+  const hasCustomAmount = req.body?.productRefundEuros != null || req.body?.shippingRefundEuros != null
+  let refundedAmountEuros = 0
 
   try {
-    if (itemIds.length === 0) {
+    if (hasCustomAmount) {
+      // Tuote- ja toimitusosuus eriytetty koska niillä on eri transfer-käsittely: toimitusmaksu
+      // EI KOSKAAN siirtynyt myyjälle (ks. CLAUDE.md "toimitusmaksu meni väärälle osapuolelle"
+      // -korjaus, Habahub pitää sen aina kokonaan omana tulonaan) - sen hyvitys ei siis
+      // koskaan vaadi transferin peruutusta, vain tuoteosuus tekee (suhteutettuna, sama
+      // periaate kuin per-tuote-hyvityksellä alla).
+      const pRefund = Math.max(0, Math.min(Number(req.body.productRefundEuros ?? 0), order.productTotal))
+      const sRefund = Math.max(0, Math.min(Number(req.body.shippingRefundEuros ?? 0), order.shippingPrice ?? 0))
+      const totalRefund = Math.round((pRefund + sRefund) * 100) / 100
+      if (totalRefund <= 0) return res.status(400).json({ error: 'Hyvitettävä summa puuttuu' })
+      const fraction = order.productTotal > 0 ? pRefund / order.productTotal : 0
+      const transferAmountEuros = order.productTotal - (order.commissionCents ?? 0) / 100
+      await refundPayment({
+        paymentIntentId: order.stripePaymentIntentId,
+        refundAmountEuros: totalRefund,
+        transferId: order.stripeTransferId,
+        transferReversalAmountEuros: order.stripeTransferId ? Math.round(transferAmountEuros * fraction * 100) / 100 : undefined,
+      })
+      refundedAmountEuros = totalRefund
+    } else if (itemIds.length === 0) {
       // Koko tilaus (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail -> Stripe").
       // refundAmountEuros on AINA vain TÄMÄN Orderin oma osuus - PaymentIntent voi kattaa
       // useamman Orderin yhdistetyssä ostoskorimaksussa 2026-09-11 alkaen (ks. CLAUDE.md
@@ -293,6 +317,7 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
         // transferReversalAmountEuros jätetty pois - koko transfer perutaan, turvallista koska
         // Transfer on 1:1 tämän yhden Orderin kanssa (ei jaettu muiden tilausten kanssa).
       })
+      refundedAmountEuros = order.productTotal + (order.shippingPrice ?? 0)
     } else {
       const items = order.items.filter(i => itemIds.includes(i.id))
       if (items.length === 0) return res.status(400).json({ error: 'Tuntemattomat tuoterivit' })
@@ -309,12 +334,13 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
         transferId: order.stripeTransferId,
         transferReversalAmountEuros: order.stripeTransferId ? Math.round(transferAmountEuros * fraction * 100) / 100 : undefined,
       })
+      refundedAmountEuros = amountEuros
     }
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Stripeltä' })
   }
 
-  await notifyUser(order.buyerId, 'REFUND_ISSUED', 'Sait hyvityksen', `Myyjä hyvitti tilauksen ${order.id} — hyvitys näkyy maksutavallasi muutaman päivän sisällä.`, '/ostot')
+  await notifyUser(order.buyerId, 'REFUND_ISSUED', 'Sait hyvityksen', `Myyjä hyvitti tilauksestasi ${refundedAmountEuros.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€ — hyvitys näkyy maksutavallasi muutaman päivän sisällä.`, '/ostot')
   res.json({ ok: true })
 })
 
