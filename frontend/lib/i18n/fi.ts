@@ -132,7 +132,7 @@ const fi = {
     policyPoint1: 'Kaikki ostot ja huudot ovat sitovia — suoramyynnissä, live-huutokaupassa ja perinteisessä huutokaupassa',
     policyPoint2: 'Voitetusta huudosta tai ostoksesta on 12 tuntia aikaa maksaa',
     policyPoint3: 'Jo ensimmäinen maksamaton tilaus johtaa 30 päivän automaattibanniin ilman poikkeuksia',
-    policyPoint4: 'Yhdistetty lähetys: sama myyjä 6h sisällä = yksi postikuluvalinta',
+    policyPoint4: 'Yhdistetty lähetys: sama myyjä 24h sisällä = yksi postikuluvalinta',
     acceptRequired: 'Hyväksy käyttöehdot, tietosuojaseloste ja kaupankäyntipolitiikka',
     forgotPassword: 'Unohditko salasanan?',
     forgotPasswordTitle: 'Palauta salasana',
@@ -190,6 +190,7 @@ const fi = {
     minBid: 'Minimitarjous', minPriceError: 'Tarjouksen tulee olla vähintään 0,50€ (Stripen maksujen alaraja)',
     notFound: 'Tuotetta ei löydy', noImage: 'Ei kuvaa', pickupFromSeller: 'Nouto myyjältä',
     deliveryBothOptions: 'Nouto tai postitus', pickupInfoBox: 'Tämä on noutotuote. Sovi noudon yksityiskohdista myyjän kanssa — nouto kuuluu normaalisti Habahubin maksuturvan piiriin.',
+    pickupBadge: 'Nouto mahdollinen',
     preBidFailed: 'Tarjous epäonnistui', buyFailed: 'Lisäys koriin epäonnistui',
     share: 'Jaa tuote', linkCopied: 'Linkki kopioitu!',
     makeOfferTitle: 'Tarjoa hintaa', makeOfferPlaceholder: 'Tarjouksesi (€)',
@@ -221,6 +222,10 @@ const fi = {
     // sillä hetkellä - aiheutti aidon epäselvyyden oikeassa kaupassa.
     shippingMethodLabel: 'Toimitustapa', shippingMethodPostitus: 'Postitus', shippingMethodNouto: 'Nouto myyjältä',
     waitingPickup: 'Maksettu — odottaa noutoa',
+    // LISÄTTY 2026-09-14 (omistajan pyyntö, live-huutokaupan asiakas kysyi myyjältä voiko
+    // useamman voiton yhdistää) — näkyvä vahvistus että yhdistäminen tapahtui automaattisesti,
+    // ei tarvinnut olla yhteydessä myyjään. Näkyy kun order.items.length > 1.
+    mergedOrderNote: 'Tämä tilaus yhdistää {n} ostosta samalta myyjältä — postikulut veloitetaan vain kertaalleen.',
     // /ostot-sivun käännösauditointi 2026-09-09 (ks. CLAUDE.md) - loput sivun kovakoodatusta
     // suomesta (tilarivien otsikot, virheviestit, napit, placeholderit).
     sectionPendingPayment: 'Odottaa maksua', sectionPendingShipping: 'Odottaa lähetystä', sectionDisputed: 'Reklamoitu',
@@ -454,6 +459,7 @@ const fi = {
     noAddress: 'Ei osoitetta vielä', statusExpired: 'Umpeutunut', statusWaiting: 'Odottaa',
     refundBtn: 'Hyvitä', pickupCodePlaceholder: 'Noutokoodi', confirmPickupBtn: 'Vahvista nouto',
     shippingMethodLabel: 'Toimitustapa', shippingMethodPostitus: 'Postitus', shippingMethodNouto: 'Nouto myyjältä',
+    mergedOrderNote: 'Tämä tilaus yhdistää {n} ostosta — ostaja maksoi postikulut vain kertaalleen.',
     // Osittaishyvitys-dialogi, LISÄTTY 2026-09-14 (omistajan pyyntö - aiemmin sai hyvittää vain
     // koko tilauksen kerralla, ei esim. pelkkää toimitusmaksua).
     refundDialogTitle: 'Hyvitä tilaus', refundDialogProductLabel: 'Hyvitä tuotteesta (€)', refundDialogShippingLabel: 'Hyvitä toimituksesta (€)',

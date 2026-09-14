@@ -7,7 +7,14 @@ const shipping_1 = require("../lib/shipping");
 const notify_1 = require("../lib/notify");
 const router = (0, express_1.Router)();
 const LIVE_ITEM_WINDOW_MS = 2 * 60 * 60 * 1000; // 2h — kori-rivin varausikkuna ENNEN checkoutia, eri asia kuin maksuaika (ei muutettu 2026-09-11)
-const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h
+// 6h -> 24h omistajan pyynnöstä 2026-09-14 (live-huutokaupan asiakas kysyi myyjältä voiko
+// useamman voiton yhdistää samaan pakettiin — 6h oli liian lyhyt kattamaan koko illan
+// mittaisen livelähetyksen). Yhdistäminen toimii vain kunnes ENSIMMÄINEN tilaus maksetaan
+// (ks. auctionOrder.ts/tämän tiedoston findFirst: status PENDING_PAYMENT) — trackingNumber
+// (oikea Posti-lähetys) ei voi koskaan olla asetettu maksamattomalle tilaukselle, joten
+// erillistä "tai kunnes lähetys on luotu" -rajaa ei tarvita tässä, se on jo rakenteellisesti
+// mahdotonta ylittää.
+const SHIPPING_MERGE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
 // Maksuaika 2h -> 12h omistajan pyynnöstä 2026-09-11 (ks. CLAUDE.md) — ostajan aika maksaa
 // AINA kun Order on jo luotu (checkout/voitto/hyväksytty tarjous), ei koske yllä olevaa
 // LIVE_ITEM_WINDOW_MS:ää joka on eri, aiempi vaihe (korin varaus ennen checkoutia).

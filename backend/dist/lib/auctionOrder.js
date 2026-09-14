@@ -2,7 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createOrderForAuctionWin = createOrderForAuctionWin;
 const prisma_1 = require("../db/prisma");
-const SHIPPING_MERGE_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h yhdistämisikkuna — sama sääntö kuin cart/checkout
+// 6h -> 24h 2026-09-14 (ks. cart.ts:n sama vakio, sama omistajan pyyntö) — yhdistäminen toimii
+// vain kunnes tämä tilaus maksetaan (findFirst alla vaatii status:'PENDING_PAYMENT'), joten
+// erillistä "tai kunnes lähetys on luotu Postiin" -rajaa ei tarvita: trackingNumber ei voi
+// koskaan olla asetettu maksamattomalle tilaukselle.
+const SHIPPING_MERGE_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h yhdistämisikkuna — sama sääntö kuin cart/checkout
 // Luo (tai liittää olemassaolevaan, kesken olevaan yhdistettyyn lähetykseen) Order-rivin
 // voitetulle huutokaupalle/osta heti -ostokselle. Ilman tätä huutokaupan voittaja ei pääse
 // koskaan maksamaan — closeAuctions ja buy-now vain merkitsivät tuotteen myydyksi ja

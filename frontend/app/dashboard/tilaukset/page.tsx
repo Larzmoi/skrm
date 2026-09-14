@@ -54,6 +54,9 @@ function PendingPaymentCard({ order, C, now, s, dateLocale }: { order: SellingOr
           </div>
         ))}
       </div>
+      {order.items.length > 1 && (
+        <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>{s.mergedOrderNote.replace('{n}', String(order.items.length))}</div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 9 }}>
         <span style={{ fontFamily: 'var(--font-display), sans-serif', fontVariantNumeric: 'tabular-nums', fontSize: 15, fontWeight: 800, color: C.text }}>{order.productTotal.toLocaleString('fi-FI')}€</span>
         <span style={{
@@ -100,6 +103,10 @@ function OrderCard({ order, showTracking, C, stripe, badge, trackingValue, onTra
           </div>
         ))}
       </div>
+
+      {order.items.length > 1 && (
+        <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>{s.mergedOrderNote.replace('{n}', String(order.items.length))}</div>
+      )}
 
       <div style={{ fontSize: 11.5, color: C.muted, marginBottom: 9 }}>
         {addressLine(order.buyer, s.noAddress)}{order.buyer.phone ? ` · ${order.buyer.phone}` : ''}

@@ -272,6 +272,15 @@ export default function OstotPage() {
                           ))}
                         </div>
 
+                        {/* LISÄTTY 2026-09-14 (omistajan pyyntö, ks. myös FAQ): näkyvä vahvistus
+                            6h->24h-yhdistämisikkunan toiminnasta - ostajan ei tarvitse arvailla
+                            yhdistyikö ostos automaattisesti, se näkyy suoraan täällä. */}
+                        {order.items.length > 1 && (
+                          <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
+                            {t.purchases.mergedOrderNote.replace('{n}', String(order.items.length))}
+                          </div>
+                        )}
+
                         {/* KORJATTU 2026-09-14 (omistajan raportoima aito sekaannus): toimitustapa
                             näkyy nyt aina selvänä tekstinä kun se on valittu, sen sijaan että sen
                             piti päätellä epäsuorasti siitä mikä sekundäärinen UI sattui näkymään. */}
