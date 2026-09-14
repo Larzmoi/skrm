@@ -440,6 +440,8 @@ const sv = {
     refundDialogTitle: 'Återbetala beställning', refundDialogProductLabel: 'Återbetala från produkt (€)', refundDialogShippingLabel: 'Återbetala från frakt (€)',
     refundDialogFullBtn: 'Hela summan', refundDialogConfirmBtn: 'Bekräfta återbetalning', refundDialogCancelBtn: 'Avbryt',
     refundDialogEmptyError: 'Ange ett belopp att återbetala', refundDialogMaxLabel: 'max.',
+    refundDialogCommissionNote: 'Köparen får {net}€ tillbaka — Habahubs provision på {commission}€ ingår aldrig i återbetalningen, den kommer helt från din andel.',
+    refundDialogShipmentBlockedNote: 'Fraktavgiften ({amount}€) kan inte längre återbetalas — försändelsen har redan skapats hos Posti.',
     trackingPlaceholder: 'Spårningskod (manuell)', addTrackingBtn: 'Lägg till spårningskod',
     createShipmentBtn: 'Skapa försändelse (Posti)',
     openLabelBtn: 'Öppna fraktsedel (PDF) →', shippingCodeLabel: 'Sändningskod:', trackingCodeLabel: 'Spårningskod:',

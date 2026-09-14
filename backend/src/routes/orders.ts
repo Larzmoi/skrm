@@ -261,10 +261,26 @@ router.post('/:id/cancel', authMiddleware, async (req: AuthRequest, res: Respons
 })
 
 // POST /orders/:id/refund — myyjä hyvittää maksetun tilauksen, kokonaan, per-tuote, tai
-// (UUSI 2026-09-14, omistajan pyyntö) vapaasti valittavalla euromäärällä tuotteesta ja/tai
-// toimituksesta erikseen. Stripe purkaa destination-chargen jaon automaattisesti (reverse_transfer+
-// refund_application_fee, ks. lib/stripe.ts) - komissio-osuus palautuu suhteutettuna
-// hyvitettyyn summaan ilman että meidän tarvitsee laskea sitä itse (eri kuin Paytrail).
+// (2026-09-14, omistajan pyyntö) vapaasti valittavalla euromäärällä tuotteesta ja/tai
+// toimituksesta erikseen.
+//
+// KAKSI LUKITTUA SÄÄNTÖÄ (omistajan pyyntö 2026-09-14, jatko edelliseen hyvitysominaisuuteen):
+// 1. Postimaksua ei voi enää hyvittää sen jälkeen kun Posti-lähetys on oikeasti luotu
+//    (order.trackingNumber asetettu POST /:id/create-shipment:ssä) — Habahub on siinä vaiheessa
+//    jo maksanut Postille oikeasta, laskutettavasta lähetyksestä, eikä sitä saa takaisin.
+//    Ilman tätä estoa myyjä (tai myyjä+ostaja yhdessä) voisi hyvittää postimaksun ostajan
+//    kortille JA Habahub olisi silti jo maksanut Postille — suora tappio Habahubille.
+// 2. Tuotehinnan (kauppahinnan) hyvitys EI KOSKAAN saa pienentää Habahubin alkuperäistä
+//    komissiota — hyvitys tulee AINA kokonaan myyjän omasta osuudesta. Koska Stripen
+//    transfer-reversal ei koskaan voi periä myyjältä ENEMPÄÄ kuin mitä hänelle on siirretty
+//    (transferAmountEuros = productTotal - commissionCents/100, ks. webhooks.ts), ainoa
+//    tekninen tapa taata ettei komissio koskaan vähene on rajata ostajalle takaisin maksettava
+//    summa TÄSMÄLLEEN siihen mikä myyjältä oikeasti peritään takaisin (sama luku sekä
+//    refundAmountEuros:lle että transferReversalAmountEuros:lle) — komissio-osuus EI KOSKAAN
+//    ole osa hyvitystä, se jää aina kokonaan Habahubille riippumatta hyvityksen koosta.
+//    Käytännön seuraus: "koko summan" hyvitys palauttaa ostajalle productTotal MIINUS
+//    komissio-osuus, ei koko alkuperäistä kauppahintaa — komissio ei koskaan liiku takaisin.
+//
 // Body: { itemIds?: string[] } — jätä pois tai anna tyhjä taulukko koko tuotemaksun
 // hyvittämiseksi, tai anna tietyt OrderItem-ID:t hyvittääksesi vain ne. VAIHTOEHTOISESTI
 // { productRefundEuros?: number, shippingRefundEuros?: number } — hyvitä mikä tahansa summa
@@ -282,59 +298,70 @@ router.post('/:id/refund', authMiddleware, async (req: AuthRequest, res: Respons
 
   const itemIds: string[] = Array.isArray(req.body?.itemIds) ? req.body.itemIds : []
   const hasCustomAmount = req.body?.productRefundEuros != null || req.body?.shippingRefundEuros != null
+  // Sääntö 1: Posti-lähetys jo luotu (oikea, laskutettava tilaus Postille) -> postimaksua ei
+  // voi enää koskaan hyvittää. trackingCode (myyjän manuaalinen seurantakoodi) on eri kenttä,
+  // ei laukaise tätä - vain oikea Posti-API-kutsu (create-shipment) asettaa trackingNumberin.
+  const shipmentCreated = !!order.trackingNumber
+  // Sääntö 2: komissio ei koskaan ole osa hyvitystä - myyjältä peritään takaisin ja ostajalle
+  // maksetaan takaisin AINA sama, komissiolla netotettu summa (ks. yllä kommentti).
+  const transferAmountEuros = order.productTotal - (order.commissionCents ?? 0) / 100
+
   let refundedAmountEuros = 0
 
   try {
     if (hasCustomAmount) {
-      // Tuote- ja toimitusosuus eriytetty koska niillä on eri transfer-käsittely: toimitusmaksu
-      // EI KOSKAAN siirtynyt myyjälle (ks. CLAUDE.md "toimitusmaksu meni väärälle osapuolelle"
-      // -korjaus, Habahub pitää sen aina kokonaan omana tulonaan) - sen hyvitys ei siis
-      // koskaan vaadi transferin peruutusta, vain tuoteosuus tekee (suhteutettuna, sama
-      // periaate kuin per-tuote-hyvityksellä alla).
-      const pRefund = Math.max(0, Math.min(Number(req.body.productRefundEuros ?? 0), order.productTotal))
+      const pRequested = Math.max(0, Math.min(Number(req.body.productRefundEuros ?? 0), order.productTotal))
       const sRefund = Math.max(0, Math.min(Number(req.body.shippingRefundEuros ?? 0), order.shippingPrice ?? 0))
-      const totalRefund = Math.round((pRefund + sRefund) * 100) / 100
+      if (sRefund > 0 && shipmentCreated) {
+        return res.status(400).json({ error: 'Postimaksua ei voi enää hyvittää — lähetys on jo luotu Postiin.' })
+      }
+      const fraction = order.productTotal > 0 ? pRequested / order.productTotal : 0
+      // Komissiolla netotettu tuoteosuus - tämä on SEKÄ mitä ostaja saa takaisin ETTÄ mitä
+      // myyjältä peritään (transfer-reversal), täsmälleen sama luku molempiin (sääntö 2).
+      const productRefundEuros = Math.round(transferAmountEuros * fraction * 100) / 100
+      const totalRefund = Math.round((productRefundEuros + sRefund) * 100) / 100
       if (totalRefund <= 0) return res.status(400).json({ error: 'Hyvitettävä summa puuttuu' })
-      const fraction = order.productTotal > 0 ? pRefund / order.productTotal : 0
-      const transferAmountEuros = order.productTotal - (order.commissionCents ?? 0) / 100
       await refundPayment({
         paymentIntentId: order.stripePaymentIntentId,
         refundAmountEuros: totalRefund,
         transferId: order.stripeTransferId,
-        transferReversalAmountEuros: order.stripeTransferId ? Math.round(transferAmountEuros * fraction * 100) / 100 : undefined,
+        transferReversalAmountEuros: order.stripeTransferId ? productRefundEuros : undefined,
       })
       refundedAmountEuros = totalRefund
     } else if (itemIds.length === 0) {
       // Koko tilaus (tuote+toimitus, ne maksettiin yhdessä - ks. CLAUDE.md "Paytrail -> Stripe").
-      // refundAmountEuros on AINA vain TÄMÄN Orderin oma osuus - PaymentIntent voi kattaa
-      // useamman Orderin yhdistetyssä ostoskorimaksussa 2026-09-11 alkaen (ks. CLAUDE.md
-      // "Yhdistetty ostoskorimaksu") - "hyvitä koko PaymentIntent" olisi voinut vahingossa
-      // hyvittää myös TOISEN myyjän/tilauksen rahat takaisin ostajalle.
+      // Postiosuus jätetään pois jos lähetys on jo luotu (sääntö 1) - "koko tilaus" -hyvitys
+      // kattaa silloin vain tuoteosuuden. Tuoteosuus on aina komissiolla netotettu (sääntö 2) -
+      // koko transfer perutaan (undefined = kaikki), joka on täsmälleen sama luku.
+      const shippingPart = shipmentCreated ? 0 : (order.shippingPrice ?? 0)
+      const totalRefund = Math.round((transferAmountEuros + shippingPart) * 100) / 100
       await refundPayment({
         paymentIntentId: order.stripePaymentIntentId,
-        refundAmountEuros: order.productTotal + (order.shippingPrice ?? 0),
+        refundAmountEuros: totalRefund,
         transferId: order.stripeTransferId,
-        // transferReversalAmountEuros jätetty pois - koko transfer perutaan, turvallista koska
-        // Transfer on 1:1 tämän yhden Orderin kanssa (ei jaettu muiden tilausten kanssa).
+        // transferReversalAmountEuros jätetty pois - koko transfer perutaan (= transferAmountEuros,
+        // sama luku joka juuri laskettiin yllä), turvallista koska Transfer on 1:1 tämän Orderin
+        // kanssa (ei jaettu muiden tilausten kanssa).
       })
-      refundedAmountEuros = order.productTotal + (order.shippingPrice ?? 0)
+      refundedAmountEuros = totalRefund
     } else {
       const items = order.items.filter(i => itemIds.includes(i.id))
       if (items.length === 0) return res.status(400).json({ error: 'Tuntemattomat tuoterivit' })
       const amountEuros = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
       // Osittaishyvitys - peru VAIN vastaava suhteellinen osuus myyjän Transferista (Stripe ei
       // enää tee tätä automaattisesti "separate charges and transfers" -mallissa, ks.
-      // lib/stripe.ts:n refundPayment-kommentti). Suhde lasketaan tuotearvosta (ei toimituksesta,
-      // sama rajaus kuin ennenkin - osittaishyvitys ei koskaan kata toimitusmaksua).
+      // lib/stripe.ts:n refundPayment-kommentti). Suhde lasketaan tuotearvosta, komissiolla
+      // netotettuna (sääntö 2) - tämä koskee vain tuoteriviä, ei toimitusmaksua, joten sääntö 1
+      // ei koske tätä haaraa.
       const fraction = order.productTotal > 0 ? amountEuros / order.productTotal : 0
-      const transferAmountEuros = order.productTotal - (order.commissionCents ?? 0) / 100
+      const productRefundEuros = Math.round(transferAmountEuros * fraction * 100) / 100
       await refundPayment({
         paymentIntentId: order.stripePaymentIntentId,
-        refundAmountEuros: amountEuros,
+        refundAmountEuros: productRefundEuros,
         transferId: order.stripeTransferId,
-        transferReversalAmountEuros: order.stripeTransferId ? Math.round(transferAmountEuros * fraction * 100) / 100 : undefined,
+        transferReversalAmountEuros: order.stripeTransferId ? productRefundEuros : undefined,
       })
-      refundedAmountEuros = amountEuros
+      refundedAmountEuros = productRefundEuros
     }
   } catch (e: any) {
     return res.status(400).json({ error: e.message ?? 'Hyvitys epäonnistui Stripeltä' })

@@ -11,6 +11,7 @@ interface SellingOrder {
   id: string; status: string; productTotal: number; shippingPrice: number | null; shippingSize: string | null
   trackingCode: string | null; trackingNumber: string | null; sendingCode: string | null; labelUrl: string | null
   postiShipmentId: string | null; pakettikoko: 'PIENI' | 'ISO' | null; createdAt: string; items: OrderItem[]
+  commissionCents: number | null
   buyer: { name: string; username: string; address?: string; postalCode?: string; city?: string; phone?: string }
   reviews: { reviewerId: string }[]
   paymentDeadline: string | null
@@ -458,8 +459,19 @@ export default function TilauksetPage() {
         const order = orders.find(o => o.id === refundConfirmFor)
         if (!order) return null
         const productMax = order.productTotal
-        const shippingMax = order.shippingPrice ?? 0
-        const total = (Number(refundProductAmount.replace(',', '.')) || 0) + (Number(refundShippingAmount.replace(',', '.')) || 0)
+        // Lähetys jo luotu Postiin -> postimaksua ei voi enää hyvittää (ks. CLAUDE.md
+        // "Osittaishyvitys..." -osio, omistajan pyyntö 2026-09-14) - shippingMax nollataan
+        // jolloin toimituskenttä piiloutuu kokonaan samalla ehdolla kuin nouto-tilauksilla.
+        const shipmentCreated = !!order.trackingNumber
+        const shippingMax = shipmentCreated ? 0 : (order.shippingPrice ?? 0)
+        // Komissio ei koskaan ole osa hyvitystä (sama sääntö) - ostaja saa tuoteosuudesta
+        // takaisin vain sen komissiolla netotetun osan, backend laskee saman kaavan.
+        const commissionFraction = order.productTotal > 0 ? (order.commissionCents ?? 0) / 100 / order.productTotal : 0
+        const productInputEuros = Number(refundProductAmount.replace(',', '.')) || 0
+        const shippingInputEuros = Number(refundShippingAmount.replace(',', '.')) || 0
+        const productNetEuros = Math.round(productInputEuros * (1 - commissionFraction) * 100) / 100
+        const commissionPartEuros = Math.round((productInputEuros - productNetEuros) * 100) / 100
+        const total = productNetEuros + shippingInputEuros
         return (
           <div onClick={() => setRefundConfirmFor(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 14, padding: '22px 24px', maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
@@ -469,8 +481,13 @@ export default function TilauksetPage() {
               <input
                 type="number" min={0} max={productMax} step="0.01" value={refundProductAmount}
                 onChange={e => setRefundProductAmount(e.target.value)}
-                style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, marginBottom: 12 }}
+                style={{ width: '100%', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 7, padding: '9px 12px', color: C.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const, marginBottom: commissionPartEuros > 0 ? 6 : 12 }}
               />
+              {commissionPartEuros > 0 && (
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12, lineHeight: 1.4 }}>
+                  {s.refundDialogCommissionNote.replace('{net}', productNetEuros.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })).replace('{commission}', commissionPartEuros.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
+                </div>
+              )}
 
               {shippingMax > 0 && (
                 <>
@@ -482,12 +499,17 @@ export default function TilauksetPage() {
                   />
                 </>
               )}
+              {shipmentCreated && (order.shippingPrice ?? 0) > 0 && (
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12, lineHeight: 1.4 }}>
+                  {s.refundDialogShipmentBlockedNote.replace('{amount}', (order.shippingPrice ?? 0).toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}
+                </div>
+              )}
 
               <button
                 onClick={() => { setRefundProductAmount(productMax.toFixed(2)); setRefundShippingAmount(shippingMax.toFixed(2)) }}
                 style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, marginBottom: 16 }}
               >
-                {s.refundDialogFullBtn} ({(productMax + shippingMax).toLocaleString('fi-FI')}€)
+                {s.refundDialogFullBtn}
               </button>
 
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 16, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>

@@ -459,6 +459,8 @@ const fi = {
     refundDialogTitle: 'Hyvitä tilaus', refundDialogProductLabel: 'Hyvitä tuotteesta (€)', refundDialogShippingLabel: 'Hyvitä toimituksesta (€)',
     refundDialogFullBtn: 'Koko summa', refundDialogConfirmBtn: 'Vahvista hyvitys', refundDialogCancelBtn: 'Peruuta',
     refundDialogEmptyError: 'Anna hyvitettävä summa', refundDialogMaxLabel: 'maks.',
+    refundDialogCommissionNote: 'Ostaja saa tästä takaisin {net}€ — Habahubin {commission}€ komissio ei koskaan sisälly hyvitykseen, hyvitys tulee kokonaan sinun osuudestasi.',
+    refundDialogShipmentBlockedNote: 'Postimaksua ({amount}€) ei voi enää hyvittää — lähetys on jo luotu Postiin.',
     trackingPlaceholder: 'Seurantakoodi (manuaalinen)', addTrackingBtn: 'Lisää seurantakoodi',
     createShipmentBtn: 'Luo lähetys (Posti)',
     openLabelBtn: 'Avaa osoitetarra (PDF) →', shippingCodeLabel: 'Lähetyskoodi:', trackingCodeLabel: 'Seurantakoodi:',

@@ -440,6 +440,8 @@ const en = {
     refundDialogTitle: 'Refund order', refundDialogProductLabel: 'Refund from product (€)', refundDialogShippingLabel: 'Refund from shipping (€)',
     refundDialogFullBtn: 'Full amount', refundDialogConfirmBtn: 'Confirm refund', refundDialogCancelBtn: 'Cancel',
     refundDialogEmptyError: 'Enter an amount to refund', refundDialogMaxLabel: 'max.',
+    refundDialogCommissionNote: 'The buyer receives {net}€ back — Habahub\'s {commission}€ commission is never included in the refund, it comes entirely from your share.',
+    refundDialogShipmentBlockedNote: 'The shipping fee ({amount}€) can no longer be refunded — the shipment has already been created with Posti.',
     trackingPlaceholder: 'Tracking code (manual)', addTrackingBtn: 'Add tracking code',
     createShipmentBtn: 'Create shipment (Posti)',
     openLabelBtn: 'Open shipping label (PDF) →', shippingCodeLabel: 'Sending code:', trackingCodeLabel: 'Tracking code:',
